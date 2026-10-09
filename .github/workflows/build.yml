@@ -9,8 +9,28 @@ on:
       publish:
         description: "r for normal release, p for prerelease, leave empty to not publish anything"
         required: false
+      common_run_id:
+        description: "Reuse unchanged Go artifacts from a completed build; start at the GUI stage"
+        required: false
 jobs:
+  verify-common:
+    if: inputs.common_run_id != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      common_sha: ${{ steps.verify.outputs.common_sha }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - id: verify
+        name: Verify unchanged Go artifacts and prerequisite checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMON_RUN_ID: ${{ inputs.common_run_id }}
+        run: python3 script/verify_common_artifacts.py
   test-qwdtt:
+    if: inputs.common_run_id == ''
     permissions:
       contents: read
     strategy:
@@ -51,6 +71,7 @@ jobs:
           go test -race ./internal/process ./internal/rpc
           go vet ./internal/process ./internal/rpc
   build-go:
+    if: inputs.common_run_id == ''
     needs: test-qwdtt
     permissions:
       contents: read
@@ -166,6 +187,7 @@ jobs:
           path: artifacts.tgz
           compression-level: 0
   build-android:
+    if: inputs.common_run_id == ''
     permissions:
       contents: read
     runs-on: ubuntu-22.04
@@ -208,8 +230,11 @@ jobs:
   build-cpp:
     permissions:
       contents: read
+      actions: read
     needs:
       - build-go
+      - verify-common
+    if: always() && ((needs.build-go.result == 'success' && needs.verify-common.result == 'skipped') || (needs.build-go.result == 'skipped' && needs.verify-common.result == 'success'))
     strategy:
       matrix:
         include:
@@ -320,7 +345,9 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v8.0.1
         with:
-          name: Throne-${{ github.sha }}-Common-${{ matrix.common }}
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.common_run_id || github.run_id }}
+          name: Throne-${{ needs.verify-common.outputs.common_sha || github.sha }}-Common-${{ matrix.common }}
           path: download-artifact
       # ========================================================================================================= Qt Install
       - name: Install Qt
