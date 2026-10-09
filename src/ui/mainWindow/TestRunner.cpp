@@ -181,8 +181,8 @@ void TestRunner::runUrlProbe(const Target& target) {
     QString coreError;
     libcore::TestResp result;
     {
-        ResultPoller poller([this, gen = sessionGen_.load(), tag2entID = target.tag2entID] {
-            if (staleGen(gen)) return;
+        ResultPoller poller([this, gen = sessionGen_.load(), tag2entID = target.tag2entID, privateResult = !target.qwdttConfig.isEmpty()] {
+            if (privateResult || staleGen(gen)) return;
             bool ok = false;
             const auto resp = defaultClient->QueryURLTest(&ok);
             // Checked again: this poll can sit in the RPC while its batch ends and the tags are reused.
@@ -230,6 +230,11 @@ void TestRunner::runUrlProbe(const Target& target) {
             continue;
         }
         applyUrlResult(ent, res, &vpnConnected);
+        if (!target.qwdttConfig.isEmpty()) {
+            mw_->dataViewHtmlGenerator_.addTestProgress();
+            mw_->UpdateDataView(true);
+            runOnUiThread([this, entid] { mw_->refresh_proxy_list({entid}); });
+        }
     }
 }
 
@@ -249,7 +254,8 @@ void TestRunner::runIpProbe(const Target& target) {
     QString coreError;
     libcore::IPTestResp result;
     {
-        ResultPoller poller([this, gen = sessionGen_.load(), tag2entID = target.tag2entID] {
+        ResultPoller poller([this, gen = sessionGen_.load(), tag2entID = target.tag2entID, privateResult = !target.qwdttConfig.isEmpty()] {
+            if (privateResult) return;
             if (staleGen(gen)) return;
             bool ok = false;
             const auto resp = defaultClient->QueryIPTest(&ok);
@@ -292,6 +298,11 @@ void TestRunner::runIpProbe(const Target& target) {
             continue;
         }
         applyIpResult(ent, res);
+        if (!target.qwdttConfig.isEmpty()) {
+            mw_->dataViewHtmlGenerator_.addTestProgress();
+            mw_->UpdateDataView(true);
+            runOnUiThread([this, entid] { mw_->refresh_proxy_list({entid}); });
+        }
     }
 }
 
@@ -354,12 +365,6 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
 
             QSemaphore batchDone;
             const auto probe = [this, isUrl, &batchDone](const Target& target) {
-                // Do not queue concurrent VK authorizations behind a browser challenge.
-                if (!target.qwdttConfig.isEmpty()) {
-                    if (isUrl) runUrlProbe(target); else runIpProbe(target);
-                    batchDone.release();
-                    return;
-                }
                 mw_->parallelCoreCallPool->start([this, isUrl, target, &batchDone] {
                     const QSemaphoreReleaser releaser(batchDone);
                     if (isUrl) runUrlProbe(target);
@@ -367,6 +372,7 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
                 });
             };
 
+            QList<Target> individualTargets;
             for (const auto& entID : buildObject->fullConfigs.keys()) {
                 Target target;
                 target.coreConfig = buildObject->fullConfigs[entID];
@@ -375,7 +381,7 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
                 target.qwdttConfig = buildObject->qwdttConfigs.value(entID);
                 target.testCurrent = !target.qwdttConfig.isEmpty() && mw_->running && mw_->running->id == entID;
                 target.tag2entID.insert("proxy", entID);
-                probe(target);
+                individualTargets.append(target);
             }
             if (!buildObject->outboundTags.empty()) {
                 Target target;
@@ -387,6 +393,7 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
                 target.xrayDnsStrategy = buildObject->xrayDnsStrategy;
                 probe(target);
             }
+            for (const auto &target : individualTargets) probe(target);
             batchDone.acquire(testCount);
 
             MW_show_log(isUrl ? "URL test for batch done." : "IP test for batch done.");

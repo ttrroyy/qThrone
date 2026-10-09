@@ -187,6 +187,7 @@ namespace Configs {
             bool singToXrayTransitioned = false;
             bool xrayToSingTransitioned = false;
             bool proxyUsesXray = false;
+            bool qwdttIPv4Only = false;
             std::shared_ptr<Profile> ent = std::make_shared<Profile>(nullptr, nullptr);
             BuildPrerequisites prerequisites;
             osType os = getOS();
@@ -848,6 +849,7 @@ namespace Configs {
             }
             if (auto *q = dynamic_cast<qwdtt *>(outbound)) {
                 if (auto error = q->Prepare(); !error.isEmpty()) { ctx.error = error; return; }
+                ctx.qwdttIPv4Only = true;
             }
             auto &extraCoreData = *ctx.result->extraCoreData;
             extraCoreData.path = QFileInfo(outbound->extraCorePath).canonicalFilePath();
@@ -1183,6 +1185,12 @@ namespace Configs {
             if (!headRules.isEmpty()) {
                 for (const auto &rule : rules) headRules.append(rule);
                 rules = headRules;
+            }
+
+            // Both qWDTT RAW and WG bridges use the original IPv4-only dialer.
+            // Empty AAAA answers let TUN clients choose reachable IPv4 addresses.
+            if (ctx.qwdttIPv4Only) {
+                rules.prepend(QJsonObject{{"query_type", QJsonArray{"AAAA"}}, {"action", "predefined"}});
             }
 
             auto dnsObj = QJsonObject{

@@ -5,7 +5,7 @@ on:
       tag:
         description: "Release Tag and version"
         required: true
-        default: "1.0-beta.3"
+        default: "1.0-beta.4"
       publish:
         description: "r for normal release, p for prerelease, leave empty to not publish anything"
         required: false

@@ -36,8 +36,14 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 
 	// A muxed config needs a warm connection; the live instance already is one.
 	twice := !in.GetTestCurrent()
-	results := probe.BatchURLTest(testCtx, env.box, env.tags, in.GetUrl(),
-		int(in.GetMaxConcurrency()), twice, time.Duration(in.GetTestTimeoutMs())*time.Millisecond)
+	var results []*probe.URLTestResult
+	if in.GetQwdttConfig() != "" {
+		results = probe.BatchURLTestTo(testCtx, env.box, env.tags, in.GetUrl(),
+			int(in.GetMaxConcurrency()), twice, time.Duration(in.GetTestTimeoutMs())*time.Millisecond, func(*probe.URLTestResult) {})
+	} else {
+		results = probe.BatchURLTest(testCtx, env.box, env.tags, in.GetUrl(),
+			int(in.GetMaxConcurrency()), twice, time.Duration(in.GetTestTimeoutMs())*time.Millisecond)
+	}
 
 	res := make([]*gen.URLTestResp, 0, len(results))
 	failed := make(map[string]bool, len(results))
@@ -107,8 +113,14 @@ func (s *server) IPTest(ctx context.Context, in *gen.IPTestRequest) (*gen.IPTest
 	defer env.close()
 
 	timeout := time.Duration(in.GetTestTimeoutMs()) * time.Millisecond
-	results := probe.BatchIPTest(env.ctx, env.box, env.tags,
-		int(in.GetMaxConcurrency()), !current, timeout)
+	var results []*probe.IPTestResult
+	if in.GetQwdttConfig() != "" {
+		results = probe.BatchIPTestTo(env.ctx, env.box, env.tags,
+			int(in.GetMaxConcurrency()), !current, timeout, func(*probe.IPTestResult) {})
+	} else {
+		results = probe.BatchIPTest(env.ctx, env.box, env.tags,
+			int(in.GetMaxConcurrency()), !current, timeout)
+	}
 
 	res := make([]*gen.IPTestRes, 0, len(results))
 	for idx, data := range results {

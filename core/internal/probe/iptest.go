@@ -27,11 +27,17 @@ type IPTestResult struct {
 }
 
 func BatchIPTest(ctx context.Context, i Box, outboundTags []string, maxConcurrency int, cold bool, timeout time.Duration) []*IPTestResult {
+	results := BatchIPTestTo(ctx, i, outboundTags, maxConcurrency, cold, timeout, IPReporter.AddResult)
+	IPReporter.Reclaim(results)
+	return results
+}
+
+func BatchIPTestTo(ctx context.Context, i Box, outboundTags []string, maxConcurrency int, cold bool, timeout time.Duration, publish func(*IPTestResult)) []*IPTestResult {
 	if timeout <= 0 {
 		timeout = IPTestTimeout
 	}
 
-	results := runBatch(ctx, i, outboundTags, maxConcurrency, batchProbe[IPTestResult]{
+	return runBatch(ctx, i, outboundTags, maxConcurrency, batchProbe[IPTestResult]{
 		run: func(ctx context.Context, tag string, outbound adapter.Outbound) *IPTestResult {
 			if err := awaitTunnels(ctx, i, tag); err != nil {
 				return &IPTestResult{Tag: tag, Error: err}
@@ -44,10 +50,8 @@ func BatchIPTest(ctx context.Context, i Box, outboundTags []string, maxConcurren
 		fail: func(tag string, err error) *IPTestResult {
 			return &IPTestResult{Tag: tag, Error: err}
 		},
-		publish: IPReporter.AddResult,
+		publish: publish,
 	})
-	IPReporter.Reclaim(results)
-	return results
 }
 
 func ipTest(ctx context.Context, client *http.Client, timeout time.Duration) (IPInfo, error) {

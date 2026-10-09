@@ -73,6 +73,7 @@ func (s *server) Start(ctx context.Context, in *gen.LoadConfigReq) (out *gen.Err
 		extraProcess.SetCleanupPath(extraCleanupPath)
 		if strings.EqualFold(strings.TrimSuffix(filepath.Base(in.GetExtraProcessPath()), ".exe"), "qwdtt") {
 			extraProcess.EnableStdinShutdown("STOP")
+			activeQWDTTProbeKey, activeQWDTTProbeKeyValid = qwdttSessionKey(in.GetExtraProcessConf())
 		}
 		err = extraProcess.Start()
 		if err != nil {

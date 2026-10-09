@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"net"
@@ -10,30 +11,79 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"ThroneCore/internal/process"
 )
 
 // Probe sidecars are session-owned; never replace the active extraProcess.
-var qwdttProbeSlot = make(chan struct{}, 1)
+type qwdttProbeGate struct {
+	slot  chan struct{}
+	users int
+}
+
+var qwdttProbeMu sync.Mutex
+var qwdttProbeGates = make(map[[32]byte]*qwdttProbeGate)
+
+// Protected by lifecycleMu; only identifies the active qWDTT session.
+var activeQWDTTProbeKey [32]byte
+var activeQWDTTProbeKeyValid bool
+
+func qwdttSessionKey(config string) ([32]byte, bool) {
+	var c struct {
+		Peer     string `json:"peer"`
+		DeviceID string `json:"device_id"`
+	}
+	if json.Unmarshal([]byte(config), &c) != nil || c.Peer == "" || c.DeviceID == "" {
+		return [32]byte{}, false
+	}
+	return sha256.Sum256([]byte(c.Peer + "\x00" + c.DeviceID)), true
+}
+
+// Separate devices/servers can run together. Duplicate profiles must not share
+// the server-assigned IP between two independent client netstacks.
+func acquireQWDTTProbe(ctx context.Context, key [32]byte) (func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	qwdttProbeMu.Lock()
+	gate := qwdttProbeGates[key]
+	if gate == nil {
+		gate = &qwdttProbeGate{slot: make(chan struct{}, 1)}
+		qwdttProbeGates[key] = gate
+	}
+	gate.users++
+	qwdttProbeMu.Unlock()
+	forget := func() {
+		qwdttProbeMu.Lock()
+		gate.users--
+		if gate.users == 0 {
+			delete(qwdttProbeGates, key)
+		}
+		qwdttProbeMu.Unlock()
+	}
+	select {
+	case gate.slot <- struct{}{}:
+		var once sync.Once
+		return func() { once.Do(func() { <-gate.slot; forget() }) }, nil
+	case <-ctx.Done():
+		forget()
+		return nil, ctx.Err()
+	}
+}
 
 func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	lifecycleMu.Lock()
-	active := extraProcess != nil && strings.TrimSuffix(strings.ToLower(filepath.Base(extraProcess.ExecutablePath())), ".exe") == "qwdtt"
-	lifecycleMu.Unlock()
-	if active {
-		return nil, errors.New("stop the active qWDTT connection before testing another qWDTT profile")
-	}
-
 	if len(config) > 65536 {
 		return nil, errors.New("qWDTT test config is too large")
 	}
 	var c struct {
-		SOCKS string `json:"socks"`
+		SOCKS    string `json:"socks"`
+		Peer     string `json:"peer"`
+		DeviceID string `json:"device_id"`
 	}
 	if json.Unmarshal([]byte(config), &c) != nil {
 		return nil, errors.New("invalid qWDTT test config")
@@ -43,12 +93,21 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	if err != nil || host != "127.0.0.1" || n < 1 || n > 65535 {
 		return nil, errors.New("invalid qWDTT test listener")
 	}
-	select {
-	case qwdttProbeSlot <- struct{}{}:
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	key, validKey := qwdttSessionKey(config)
+	if !validKey {
+		return nil, errors.New("invalid qWDTT test session identity")
 	}
-	release := func() { <-qwdttProbeSlot }
+	lifecycleMu.Lock()
+	active := extraProcess != nil && strings.TrimSuffix(strings.ToLower(filepath.Base(extraProcess.ExecutablePath())), ".exe") == "qwdtt"
+	conflicts := active && (!activeQWDTTProbeKeyValid || activeQWDTTProbeKey == key)
+	lifecycleMu.Unlock()
+	if conflicts {
+		return nil, errors.New("this qWDTT device is already connected; test its active profile instead")
+	}
+	release, err := acquireQWDTTProbe(ctx, key)
+	if err != nil {
+		return nil, err
+	}
 	executable, err := os.Executable()
 	if err != nil {
 		release()
