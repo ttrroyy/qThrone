@@ -461,6 +461,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     needs:
       - build-cpp
+    if: always() && needs.build-cpp.result == 'success'
     permissions:
       contents: read
     strategy:
@@ -518,7 +519,7 @@ jobs:
     name: Verify portable Windows upgrade
     runs-on: windows-latest
     needs: pack
-    if: github.event.inputs.tag != '1.0-beta.1'
+    if: always() && needs.pack.result == 'success' && github.event.inputs.tag != '1.0-beta.1'
     permissions:
       contents: read
     steps:
