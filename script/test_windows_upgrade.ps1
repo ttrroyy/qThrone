@@ -49,6 +49,8 @@ public static class UpgradeTestWindow {
 }
 '@
 function Wait-ForGuiAndCore([Diagnostics.Process]$process) {
+    # Keep a Windows process handle while it is alive, including detached GUI instances.
+    $null = $process.Handle
     $deadline = [DateTime]::UtcNow.AddSeconds(45)
     do {
         Start-Sleep -Milliseconds 500
@@ -100,7 +102,7 @@ try {
             $restarted = Get-CimInstance Win32_Process -Filter "Name='qThrone.exe'" | Where-Object { $_.ExecutablePath -eq $executable }
         } until ($restarted -or [DateTime]::UtcNow -gt $deadline)
         if (!$restarted) { throw 'Updated GUI restart timed out' }
-        $gui = Get-Process -Id $restarted.ProcessId
+        $gui = [Diagnostics.Process]::GetProcessById($restarted.ProcessId)
         Wait-ForGuiAndCore $gui
         Close-TestGui $gui
         $text = Get-Content -LiteralPath $log -Raw
