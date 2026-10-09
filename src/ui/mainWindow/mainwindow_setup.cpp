@@ -1,4 +1,5 @@
 #include "include/ui/mainwindow.h"
+#include "NkrVersion.h"
 
 #include "include/ui/mainWindow/MainWindowInternal.h"
 #include "include/api/RPC.h"
@@ -392,10 +393,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
             });
         });
     });
-    if (!QFile::exists(QApplication::applicationDirPath() + "/updater") && !QFile::exists(QApplication::applicationDirPath() + "/updater.exe"))
-    {
-        ui->actionCheck_For_Update->setDisabled(true);
-    }
+    // Checking releases also supports manual installation (AppData/macOS),
+    // so it must not depend on the presence or name of an updater executable.
+    ui->actionCheck_For_Update->setEnabled(!QStringLiteral(QTHRONE_REPOSITORY).isEmpty());
 
     setupConnectionList();
     ui->stats_widget->tabBar()->setCurrentIndex(Configs::dataManager->settingsRepo->stats_tab);

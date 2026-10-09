@@ -2,6 +2,7 @@
 #include "include/configs/outbounds/qwdtt.h"
 #include <QFormLayout>
 #include <QLabel>
+#include <QSignalBlocker>
 
 EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
     auto *form = new QFormLayout(this);
@@ -14,6 +15,7 @@ EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
     form->addRow(tr("Password"), password);
     for (int i = 0; i < 4; ++i) {
         hashes[i] = new QLineEdit(this);
+        hashes[i]->setObjectName(QString("qwdttHash%1").arg(i + 1));
         hashes[i]->setPlaceholderText(tr("Call hash or VK call link"));
         form->addRow(tr("VK hash %1").arg(i + 1), hashes[i]);
     }
@@ -22,9 +24,10 @@ EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
     rawPort->setValue(56003);
     form->addRow(tr("RAW server port"), rawPort);
     rawPort->setToolTip(tr("qWDTT RAW listener, normally 56003. The main server port is used by WG."));
-    workers = new QSpinBox(this);
-    workers->setRange(9, 108);
-    workers->setSingleStep(9);
+    workers = new QComboBox(this);
+    workers->setObjectName("qwdttWorkers");
+    for (auto *field : hashes) connect(field, &QLineEdit::textChanged, this, [this] { updateWorkers(); });
+    updateWorkers(9);
     form->addRow(tr("Workers"), workers);
     transport = new QComboBox(this);
     transport->addItems({"UDP", "TCP"});
@@ -52,7 +55,7 @@ void EditQWDTT::onStart(std::shared_ptr<Configs::Profile> profile) {
     for (int i = 0; i < 4; ++i) hashes[i]->setText(i < o->hashes.size() ? o->hashes[i] : QString());
     rawPort->setValue(o->rawPort);
     rawPort->setEnabled(o->mode == "raw");
-    workers->setValue(o->workers);
+    updateWorkers(o->workers);
     transport->setCurrentIndex(o->turnTCP ? 1 : 0);
     obfs->setCurrentIndex(o->obfs == "video" ? 1 : 0);
     dns->setCurrentText(o->goDNS);
@@ -72,16 +75,28 @@ bool EditQWDTT::onEnd() {
     if (!portOK || p < 1 || p > 65535) return invalid(tr("Server port must be between 1 and 65535."));
     if (password->text().isEmpty() || password->text().contains('|') || password->text().contains('\n') || password->text().contains('\r')) return invalid(tr("Enter a valid connection password."));
     if (values.isEmpty() || values.size() > 4) return invalid(tr("Enter one to four VK call hashes."));
-    if (workers->value() % 9 != 0) return invalid(tr("Workers must be a multiple of 9."));
     if (device->text().trimmed().isEmpty() || device->text().contains('|')) return invalid(tr("Enter a valid device ID."));
     o->mode = mode->currentData().toString();
     o->password = password->text();
     o->hashes = values;
     o->rawPort = rawPort->value();
-    o->workers = workers->value();
+    o->workers = workers->currentData().toInt();
     o->turnTCP = transport->currentIndex() == 1;
     o->obfs = obfs->currentData().toString();
     o->goDNS = dns->currentText().trimmed();
     o->deviceID = device->text().trimmed();
     return true;
+}
+
+void EditQWDTT::updateWorkers(int requested) {
+    QStringList values;
+    for (auto *field : hashes) values.append(field->text());
+    const int hashCount = Configs::qwdtt::NormalizeHashes(values).size();
+    if (requested < 0) requested = workers->currentData().toInt();
+    const int selected = Configs::qwdtt::NormalizeWorkers(requested, hashCount);
+    const QSignalBlocker blocker(workers);
+    workers->clear();
+    for (int count = 9; count <= Configs::qwdtt::MaxWorkers(hashCount); count += 9)
+        workers->addItem(QString::number(count), count);
+    workers->setCurrentIndex(workers->findData(selected));
 }

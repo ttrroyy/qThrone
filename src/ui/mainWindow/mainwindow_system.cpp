@@ -708,23 +708,22 @@ void MainWindow::CheckUpdate() {
     }
 
     QString assets_name, release_download_url, release_url, release_note, note_pre_release;
-    bool exitFlag = false;
     QJsonArray array = QString2QJsonArray(resp.data);
     for (const QJsonValue value : array) {
         QJsonObject release = value.toObject();
         if (release["prerelease"].toBool() && !Configs::dataManager->settingsRepo->allow_beta_update) continue;
         for (const QJsonValue asset : release["assets"].toArray()) {
             if (asset["name"].toString().contains(search) && asset["name"].toString().section('.', -1) == QString("zip")) {
+                if (!release_download_url.isEmpty() && !ReleaseVersion::IsNewer(
+                        ReleaseVersion::FromAsset(asset["name"].toString()), ReleaseVersion::FromAsset(assets_name))) continue;
                 note_pre_release = release["prerelease"].toBool() ? " (Pre-release)" : "";
                 release_url = release["html_url"].toString();
                 release_note = release["body"].toString();
                 assets_name = asset["name"].toString();
                 release_download_url = asset["browser_download_url"].toString();
-                exitFlag = true;
                 break;
             }
         }
-        if (exitFlag) break;
     }
 
     if (release_download_url.isEmpty() || !isNewer(assets_name)) {

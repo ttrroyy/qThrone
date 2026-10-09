@@ -7,6 +7,8 @@ namespace Configs {
     // Dedicated profile UI; execution uses Throne's existing extra-core lifecycle.
     class qwdtt : public extracore {
     public:
+        static int MaxWorkers(int hashCount) { return qBound(1, hashCount, 4) * 27; }
+        static int NormalizeWorkers(int count, int hashCount) { return qBound(9, count, MaxWorkers(hashCount)) / 9 * 9; }
         qwdtt() { server_port = 56000; socksPort = 0; deviceID = QUuid::createUuid().toString(QUuid::WithoutBraces); }
         QString mode = "raw";
         QString password;

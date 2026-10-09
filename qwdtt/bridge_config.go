@@ -65,9 +65,11 @@ func readBridgeConfig(filename string) (*bridgeConfig, error) {
 	if c.Workers == 0 {
 		c.Workers = 9
 	}
-	if c.Workers < 9 || c.Workers > 108 || c.Workers%9 != 0 {
-		return nil, fmt.Errorf("workers must be a multiple of 9, between 9 and 108")
+	if c.Workers < 1 || c.Workers > 108 {
+		return nil, fmt.Errorf("workers must be between 1 and 108")
 	}
+	// Match the profile editor and the anonymous client's groups of nine.
+	c.Workers = max(9, min(c.Workers, len(c.Hashes)*27)) / 9 * 9
 	if c.Obfs == "" {
 		c.Obfs = "audio"
 	}

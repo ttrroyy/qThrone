@@ -355,6 +355,16 @@ func TestPrivateBridgeConfig(t *testing.T) {
 	if e != nil || c.Mode != "raw" {
 		t.Fatalf("default mode: %v", e)
 	}
+	for _, mode := range []string{"raw", "wg"} {
+		withWorkers := strings.Replace(valid, `"peer":`, fmt.Sprintf(`"mode":%q,"workers":16,"peer":`, mode), 1)
+		if e = os.WriteFile(p, []byte(withWorkers), 0600); e != nil {
+			t.Fatal(e)
+		}
+		c, e = readBridgeConfig(p)
+		if e != nil || c.Workers != 9 || c.Mode != mode {
+			t.Fatalf("normalize imported workers in %s mode: %v", mode, e)
+		}
+	}
 	for _, bad := range []string{strings.Replace(valid, "127.0.0.1:19001", "0.0.0.0:19001", 1), strings.Replace(valid, `"hash"`, `"a","b","c","d","e"`, 1)} {
 		_ = os.WriteFile(p, []byte(bad), 0600)
 		if _, e = readBridgeConfig(p); e == nil {

@@ -272,8 +272,8 @@ int main(int argc, char* argv[]) {
     const QStringList launchFiles = LaunchFiles_ExtractFromArgs(arguments, QDir::current());
 
     QDir::setCurrent(QApplication::applicationDirPath());
-    if (QFile::exists("updater.old")) {
-        QFile::remove("updater.old");
+    if (QFile::exists("qThroneUpdater.old")) {
+        QFile::remove("qThroneUpdater.old");
     }
 
     auto wd = QDir(QApplication::applicationDirPath());

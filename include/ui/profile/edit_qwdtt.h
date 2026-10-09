@@ -18,7 +18,8 @@ private:
     QLineEdit *password;
     std::array<QLineEdit *, 4> hashes;
     QSpinBox *rawPort;
-    QSpinBox *workers;
+    QComboBox *workers;
+    void updateWorkers(int requested = -1);
     QComboBox *transport;
     QComboBox *obfs;
     QComboBox *dns;

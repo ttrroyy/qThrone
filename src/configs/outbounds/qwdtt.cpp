@@ -64,7 +64,8 @@ bool qwdtt::ParseFromJson(const QJsonObject &o) {
     QStringList values;
     if (h.isArray()) { for (const auto &v : h.toArray()) values.append(v.toString()); }
     else values.append(h.toString());
-    hashes = NormalizeHashes(values);
+    hashes = NormalizeHashes(values).mid(0, 4);
+    workers = NormalizeWorkers(workers, hashes.size());
     // Empty hashes are editable after importing Android profiles using global hashes.
     return !server.isEmpty() && validPort(server_port) && validPort(rawPort) && hashes.size() <= 4 && (mode == "raw" || mode == "wg");
 }
@@ -141,11 +142,12 @@ QString qwdtt::ExportToLink() {
 }
 
 QString qwdtt::Prepare() {
-    hashes = NormalizeHashes(hashes);
+    hashes = NormalizeHashes(hashes).mid(0, 4);
+    workers = NormalizeWorkers(workers, hashes.size());
     if (server.isEmpty() || !validPort(server_port) || !validPort(rawPort)) return QObject::tr("qWDTT: invalid server address or port");
     if (password.isEmpty() || password.contains('|') || password.contains('\n') || password.contains('\r')) return QObject::tr("qWDTT: a valid connection password is required");
     if (hashes.isEmpty() || hashes.size() > 4) return QObject::tr("qWDTT: enter one to four VK call hashes");
-    if (workers < 9 || workers > 108 || workers % 9 != 0) return QObject::tr("qWDTT: workers must be a multiple of 9 (9–108)");
+    if (workers < 1 || workers > 108) return QObject::tr("qWDTT: workers must be between 1 and 108");
     if (mode != "raw" && mode != "wg") return QObject::tr("qWDTT: invalid tunnel mode");
     if (obfs != "audio" && obfs != "video") return QObject::tr("qWDTT: invalid obfuscation mode");
     if (deviceID.isEmpty()) deviceID = QUuid::createUuid().toString(QUuid::WithoutBraces);
