@@ -610,12 +610,6 @@ func solveCaptchaBySelectedMode(
 	profile Profile,
 	savedProfile *SavedProfile,
 ) (string, error) {
-	if desktopBridgeMode && desktopProbeOnly {
-		if bridgeCancel != nil {
-			bridgeCancel()
-		}
-		return "", errCaptchaInteractionRequired
-	}
 	if fresh, err := rotateCaptchaProfile(); err == nil {
 		savedProfile = fresh
 	} else {
@@ -723,6 +717,9 @@ func requestWebViewCaptcha(streamID int, captchaErr *VkCaptchaError, mode string
 			return "", fmt.Errorf("VK captcha data is missing")
 		}
 		if desktopProbeOnly {
+			if bridgeCancel != nil {
+				bridgeCancel()
+			}
 			return "", errCaptchaInteractionRequired
 		}
 		visible := mode != "auto"

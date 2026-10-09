@@ -81,7 +81,7 @@ func TestBackgroundCaptchaDoesNotLaunchBrowser(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	bridgeCancel = cancel
-	_, err := solveCaptchaBySelectedMode(ctx, 1, 1, nil, nil, Profile{}, nil)
+	_, err := requestWebViewCaptcha(1, &VkCaptchaError{RedirectURI: "https://id.vk.ru/captcha"}, "auto", time.Second)
 	if err != errCaptchaInteractionRequired || ctx.Err() != context.Canceled {
 		t.Fatalf("background captcha: %v %v", err, ctx.Err())
 	}
