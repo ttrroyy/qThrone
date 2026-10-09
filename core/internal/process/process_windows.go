@@ -372,12 +372,15 @@ func isAdminSid(sid *windows.SID) bool {
 	if sid.IsWellKnown(windows.WinBuiltinAdministratorsSid) {
 		return true
 	}
-	n := sid.SubAuthorityCount()
-	if n < 2 || sid.SubAuthority(0) != 21 {
+	// x/sys's SubAuthority helpers turn a syscall's uintptr result back into
+	// a pointer inside Go-owned token memory, which trips checkptr under -race.
+	// ConvertSidToStringSid returns independent Windows-owned memory instead.
+	parts := strings.Split(sid.String(), "-")
+	if len(parts) < 5 || parts[3] != "21" {
 		return false
 	}
-	switch sid.SubAuthority(uint32(n) - 1) {
-	case 512, 518, 519, 520: // Domain, Schema, Enterprise Admins, Group Policy Creator Owners
+	switch parts[len(parts)-1] {
+	case "512", "518", "519", "520": // Domain, Schema, Enterprise Admins, Group Policy Creator Owners
 		return true
 	}
 	return false
