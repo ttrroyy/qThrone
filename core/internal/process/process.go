@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/sagernet/sing/common/atomic"
 )
@@ -18,6 +19,9 @@ type Process struct {
 	cleanupPath string
 	run         running
 	stopped     atomic.Bool
+	stopCommand string
+	stdin       *os.File
+	done        chan struct{}
 }
 
 type running interface {
@@ -34,16 +38,37 @@ func (p *Process) SetCleanupPath(path string) {
 	p.cleanupPath = path
 }
 
+// EnableStdinShutdown is opt-in; ordinary extra cores retain their kill behavior.
+func (p *Process) EnableStdinShutdown(command string) { p.stopCommand = command }
+
 func (p *Process) Start() error {
-	run, err := startChild(p.path, p.args, p.noOut)
+	var input *os.File
+	if p.stopCommand != "" {
+		var err error
+		input, p.stdin, err = os.Pipe()
+		if err != nil {
+			p.cleanup()
+			return err
+		}
+		defer input.Close()
+	}
+	run, err := startChild(p.path, p.args, p.noOut, input)
 	if err != nil {
+		if p.stdin != nil {
+			_ = p.stdin.Close()
+		}
 		p.cleanup()
 		return err
 	}
 	p.run = run
 	p.stopped.Store(false)
+	p.done = make(chan struct{})
 
 	go func() {
+		defer close(p.done)
+		if p.stdin != nil {
+			defer p.stdin.Close()
+		}
 		fmt.Println(p.path, ":", "process started, waiting for it to end")
 		_ = p.run.Wait()
 		if !p.stopped.Load() {
@@ -54,19 +79,36 @@ func (p *Process) Start() error {
 	return nil
 }
 
+func (p *Process) ExecutablePath() string { return p.path }
+
+func (p *Process) Done() <-chan struct{} { return p.done }
+
 func (p *Process) Stop() {
 	p.stopped.Store(true)
 	if p.run != nil {
+		if p.stdin != nil {
+			_, _ = p.stdin.WriteString(p.stopCommand + "\n")
+			_ = p.stdin.Close()
+			select {
+			case <-p.done:
+				p.cleanup()
+				return
+			case <-time.After(3 * time.Second):
+			}
+		}
 		_ = p.run.Kill()
 	}
 	p.cleanup()
 }
 
-func newCmd(path string, args []string, noOut bool) *exec.Cmd {
+func newCmd(path string, args []string, noOut bool, input *os.File) *exec.Cmd {
 	cmd := exec.Command(path, args...)
 	cmd.Stdout = &pipeLogger{prefix: extraCorePrefix, noOut: noOut}
 	cmd.Stderr = &pipeLogger{prefix: extraCorePrefix, noOut: noOut}
 	cmd.Env = childEnv()
+	if input != nil {
+		cmd.Stdin = input
+	}
 	return cmd
 }
 

@@ -1,5 +1,6 @@
 #include "include/configs/sub/SubscriptionParser.hpp"
 #include "include/configs/outbounds/qwdtt.h"
+#include "include/configs/generate.h"
 #include <QDebug>
 #include "include/global/Version.hpp"
 #include "include/ui/profile/edit_qwdtt.h"
@@ -18,6 +19,16 @@ int TestQwdttImport() {
         Subscription::ParseDocument(body, sink);
         return profiles;
     };
+    Configs::qwdtt defaults;
+    check(defaults.mode == "raw" && defaults.turnTCP, "new profiles default to RAW TCP");
+    check(defaults.ParseFromLink(QString::fromUtf8(android)) && defaults.turnTCP, "Android links default to TCP");
+    check(defaults.ParseFromLink(QString::fromUtf8(android) + "&turn_tcp=0") && !defaults.turnTCP, "explicit UDP is preserved");
+    check(defaults.ParseFromLink(QString::fromUtf8(android) + "&vk_anon_path=legacy&captcha_mode=wv"), "captcha mode import");
+    Configs::qwdtt exported;
+    check(exported.ParseFromLink(defaults.ExportToLink()) && exported.vkAnonPath == "legacy" && exported.captchaMode == "wv", "captcha settings round trip");
+    const auto testProfiles = parse(android);
+    auto tests = Configs::BuildTestConfig(testProfiles);
+    check(tests->error.isEmpty() && tests->fullConfigs.size() == 1 && tests->qwdttConfigs.size() == 1, "qWDTT test config uses a session-owned bridge");
     EditQWDTT editor;
     auto *workers = editor.findChild<QComboBox *>("qwdttWorkers");
     check(workers != nullptr, "worker dropdown exists");

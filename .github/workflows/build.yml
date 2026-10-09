@@ -5,7 +5,7 @@ on:
       tag:
         description: "Release Tag and version"
         required: true
-        default: "1.0-beta.2"
+        default: "1.0-beta.3"
       publish:
         description: "r for normal release, p for prerelease, leave empty to not publish anything"
         required: false
@@ -30,6 +30,19 @@ jobs:
         run: |
           go test -race ./...
           go vet ./...
+      - name: Install Protoc for core regression tests
+        uses: arduino/setup-protoc@v3
+        with:
+          version: "31.1"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Test extra-core shutdown and qWDTT probe lifecycle
+        working-directory: core
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
+          protoc -I gen --go_out=gen --go-grpc_out=gen gen/libcore.proto
+          go test -race ./internal/process ./internal/rpc
+          go vet ./internal/process ./internal/rpc
   build-go:
     needs: test-qwdtt
     permissions:

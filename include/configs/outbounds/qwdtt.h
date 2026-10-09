@@ -15,8 +15,10 @@ namespace Configs {
         QStringList hashes;
         int rawPort = 56003;
         int workers = 9;
-        bool turnTCP = false;
+        bool turnTCP = true;
         QString obfs = "audio";
+        QString vkAnonPath = "vkcalls";
+        QString captchaMode = "auto";
         QString goDNS = "yandex";
         QString deviceID;
 

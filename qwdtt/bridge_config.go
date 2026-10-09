@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"flag"
@@ -14,22 +15,26 @@ import (
 
 // Secrets travel in Throne's private, temporary extra-core config, never argv.
 type bridgeConfig struct {
-	Peer      string   `json:"peer"`
-	Password  string   `json:"password"`
-	Hashes    []string `json:"hashes"`
-	Mode      string   `json:"mode"`
-	Workers   int      `json:"workers"`
-	DeviceID  string   `json:"device_id"`
-	TurnTCP   bool     `json:"turn_tcp"`
-	Obfs      string   `json:"obfs"`
-	DNS       string   `json:"go_dns"`
-	Listen    string   `json:"listen"`
-	SOCKS     string   `json:"socks"`
-	SOCKSUser string   `json:"socks_user"`
-	SOCKSPass string   `json:"socks_pass"`
+	VKAnonPath  string   `json:"vk_anon_path"`
+	CaptchaMode string   `json:"captcha_mode"`
+	Peer        string   `json:"peer"`
+	Password    string   `json:"password"`
+	Hashes      []string `json:"hashes"`
+	Mode        string   `json:"mode"`
+	Workers     int      `json:"workers"`
+	DeviceID    string   `json:"device_id"`
+	TurnTCP     bool     `json:"turn_tcp"`
+	Obfs        string   `json:"obfs"`
+	DNS         string   `json:"go_dns"`
+	Listen      string   `json:"listen"`
+	SOCKS       string   `json:"socks"`
+	SOCKSUser   string   `json:"socks_user"`
+	SOCKSPass   string   `json:"socks_pass"`
 }
 
 var desktopBridgeMode bool
+var bridgeContext context.Context
+var bridgeCancel context.CancelFunc
 
 func readBridgeConfig(filename string) (*bridgeConfig, error) {
 	b, err := os.ReadFile(filename)
@@ -70,6 +75,18 @@ func readBridgeConfig(filename string) (*bridgeConfig, error) {
 	}
 	// Match the profile editor and the anonymous client's groups of nine.
 	c.Workers = max(9, min(c.Workers, len(c.Hashes)*27)) / 9 * 9
+	if c.VKAnonPath == "" {
+		c.VKAnonPath = "vkcalls"
+	}
+	if c.VKAnonPath != "vkcalls" && c.VKAnonPath != "legacy" {
+		return nil, fmt.Errorf("invalid VK authorization mode")
+	}
+	if c.CaptchaMode == "" {
+		c.CaptchaMode = "auto"
+	}
+	if c.CaptchaMode != "auto" && c.CaptchaMode != "wv" && c.CaptchaMode != "rjs" {
+		return nil, fmt.Errorf("invalid captcha mode")
+	}
 	if c.Obfs == "" {
 		c.Obfs = "audio"
 	}
@@ -115,7 +132,7 @@ func applyBridgeConfig(filename string) error {
 		"turn-tcp": strconv.FormatBool(c.TurnTCP), "obfs": c.Obfs, "go-dns": c.DNS,
 		"listen": c.Listen, "socks": c.SOCKS, "socks-auth": "true",
 		"socks-user": c.SOCKSUser, "socks-pass": c.SOCKSPass,
-		"captcha-mode": "rjs", "vk-auth": "anonymous", "vk-anon-path": "vkcalls",
+		"captcha-mode": c.CaptchaMode, "vk-auth": "anonymous", "vk-anon-path": c.VKAnonPath,
 	}
 	for k, v := range values {
 		if err := flag.Set(k, v); err != nil {

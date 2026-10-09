@@ -335,11 +335,23 @@ namespace Configs {
 
         // sing-box matches process_path against the OS-native form.
         QJsonArray extraCoreProcessPaths(const QString &corePath) {
-            auto path = corePath;
+            QJsonArray paths;
+            auto add = [&paths](QString path) {
+                if (path.isEmpty()) return;
 #ifdef Q_OS_WIN
-            path.replace("/", "\\");
+                path.replace("/", "\\");
 #endif
-            return QJsonArray{path};
+                if (!paths.contains(path)) paths.append(path);
+            };
+            add(corePath);
+            // Tests can start the bundled qWDTT while another profile owns the TUN.
+            // Only this application's helper gets the existing extra-core exemption.
+            QString name = "qwdtt";
+#ifdef Q_OS_WIN
+            name += ".exe";
+#endif
+            add(QFileInfo(QCoreApplication::applicationDirPath() + "/" + name).canonicalFilePath());
+            return paths;
         }
 
         QJsonObject socksBridgeInbound(const QString &tag, const coreBridgeConfig &bridge) {
@@ -1105,7 +1117,7 @@ namespace Configs {
 
             // No dns-in carve-out: Xray resolves against dns-direct in-process now, so a query on that port is an ordinary local one.
 
-            if (!ctx.forTest && !ctx.result->extraCoreData->path.isEmpty())
+            if (!ctx.forTest && !extraCoreProcessPaths(ctx.result->extraCoreData->path).isEmpty())
             {
                 appendDnsRoute(rules, QJsonObject{{"process_path", extraCoreProcessPaths(ctx.result->extraCoreData->path)}},
                                tags::dnsDirect, settings.direct_dns_disable_ipv6);
@@ -2126,7 +2138,7 @@ namespace Configs {
             if (ctx.l3Bridge) profileRules = withL3BridgeTwins(profileRules);
 
             QJsonObject extraCoreDirect;
-            if (!ctx.result->extraCoreData->path.isEmpty())
+            if (!extraCoreProcessPaths(ctx.result->extraCoreData->path).isEmpty())
             {
                 extraCoreDirect = QJsonObject{
                     {"action", "route"},
@@ -2745,6 +2757,22 @@ namespace Configs {
 
         for (const auto& item : profiles)
         {
+            if (item->type == "qwdtt") {
+                // Clone runtime fields so probing cannot replace live SOCKS credentials.
+                qwdtt outbound;
+                if (!outbound.ParseFromJson(item->outbound->ExportToJson())) { item->SetLatency(-1); continue; }
+                if (auto error = outbound.Prepare(); !error.isEmpty()) { MW_show_log(error); item->SetLatency(-1); continue; }
+                auto built = outbound.Build();
+                if (!built.error.isEmpty()) { MW_show_log(built.error); item->SetLatency(-1); continue; }
+                built.object["tag"] = "proxy";
+                auto config = ctx.result->coreConfig;
+                config["inbounds"] = QJsonArray{};
+                config["outbounds"] = QJsonArray{built.object, QJsonObject{{"type", "direct"}, {"tag", tags::direct}}};
+                config["route"] = QJsonObject{{"final", "proxy"}, {"auto_detect_interface", true}, {"default_domain_resolver", directDomainResolver()}};
+                res->fullConfigs[item->id] = QJsonObject2QString(config, false);
+                res->qwdttConfigs[item->id] = outbound.extraCoreConf;
+                continue;
+            }
             const auto candidate = classifyTestCandidate(item);
             if (candidate.kind == testCandidate::Skip)
             {

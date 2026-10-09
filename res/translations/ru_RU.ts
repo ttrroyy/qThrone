@@ -9576,5 +9576,12 @@ Remove that endpoint from this routing profile as well?</source>
     <message><source>Enter one to four VK call hashes.</source><translation>Укажите от одного до четырёх хешей звонков VK.</translation></message>
     <message><source>Workers must be a multiple of 9.</source><translation>Число воркеров должно быть кратно 9.</translation></message>
     <message><source>Enter a valid device ID.</source><translation>Укажите корректный ID устройства.</translation></message>
+<message><source>VK call</source><translation>VK-звонок</translation></message>
+<message><source>Captcha</source><translation>Капча</translation></message>
+<message><source>VK authorization</source><translation>Авторизация VK</translation></message>
+<message><source>Automatic, with browser fallback</source><translation>Автоматически, с открытием капчи при необходимости</translation></message>
+<message><source>Browser window</source><translation>Окно браузера</translation></message>
+<message><source>Automatic</source><translation>Автоматически</translation></message>
+<message><source>Captcha handling</source><translation>Решение капчи</translation></message>
 </context>
 </TS>

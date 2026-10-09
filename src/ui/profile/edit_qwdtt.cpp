@@ -31,7 +31,19 @@ EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
     form->addRow(tr("Workers"), workers);
     transport = new QComboBox(this);
     transport->addItems({"UDP", "TCP"});
+    transport->setCurrentIndex(1);
     form->addRow(tr("TURN transport"), transport);
+    authorization = new QComboBox(this);
+    authorization->setObjectName("qwdttAuthorization");
+    authorization->addItem(tr("VK call"), "vkcalls");
+    authorization->addItem(tr("Captcha"), "legacy");
+    form->addRow(tr("VK authorization"), authorization);
+    captcha = new QComboBox(this);
+    captcha->setObjectName("qwdttCaptcha");
+    captcha->addItem(tr("Automatic, with browser fallback"), "auto");
+    captcha->addItem(tr("Browser window"), "wv");
+    captcha->addItem(tr("Automatic"), "rjs");
+    form->addRow(tr("Captcha handling"), captcha);
     obfs = new QComboBox(this);
     obfs->addItem(tr("Audio"), "audio");
     obfs->addItem(tr("Video"), "video");
@@ -57,6 +69,8 @@ void EditQWDTT::onStart(std::shared_ptr<Configs::Profile> profile) {
     rawPort->setEnabled(o->mode == "raw");
     updateWorkers(o->workers);
     transport->setCurrentIndex(o->turnTCP ? 1 : 0);
+    authorization->setCurrentIndex(authorization->findData(o->vkAnonPath));
+    captcha->setCurrentIndex(captcha->findData(o->captchaMode));
     obfs->setCurrentIndex(o->obfs == "video" ? 1 : 0);
     dns->setCurrentText(o->goDNS);
     device->setText(o->deviceID);
@@ -82,6 +96,8 @@ bool EditQWDTT::onEnd() {
     o->rawPort = rawPort->value();
     o->workers = workers->currentData().toInt();
     o->turnTCP = transport->currentIndex() == 1;
+    o->vkAnonPath = authorization->currentData().toString();
+    o->captchaMode = captcha->currentData().toString();
     o->obfs = obfs->currentData().toString();
     o->goDNS = dns->currentText().trimmed();
     o->deviceID = device->text().trimmed();

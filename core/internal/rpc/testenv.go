@@ -1,11 +1,13 @@
 package rpc
 
 import (
+	"context"
 	"log"
 	"time"
 
 	"ThroneCore/internal/boxbox"
 	"ThroneCore/internal/boxmain"
+	"ThroneCore/internal/probe"
 	"ThroneCore/internal/xray"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -16,14 +18,16 @@ type testEnv struct {
 	box   *boxbox.Box
 	tags  []string
 	close func()
+	ctx   context.Context
 }
 
 // `current` measures the running instance instead of building one, and owns nothing.
 func prepareTestEnv(current bool, needXray bool, xrayConfig string, xrayFullConfigs []string,
 	coreConfig string, tags []string, useDefaultOutbound bool,
-	xrayDNSStrategy string) (*testEnv, error) {
+	xrayDNSStrategy string, qwdttConfig ...string) (*testEnv, error) {
 
 	// Owned here, not by the caller: this builds the probe box the Xray instances below resolve through.
+	testCtx := probe.TestContext()
 	var boxCtx boxContextHolder
 	prepareXray := xrayPreparer(xrayDNSStrategy, boxCtx.get)
 
@@ -41,7 +45,7 @@ func prepareTestEnv(current bool, needXray bool, xrayConfig string, xrayFullConf
 		if useDefaultOutbound {
 			outTags = []string{box.Outbound().Default().Tag()}
 		}
-		return &testEnv{box: box, tags: outTags, close: func() {}}, nil
+		return &testEnv{box: box, tags: outTags, close: func() {}, ctx: testCtx}, nil
 	}
 
 	var cleanups []func()
@@ -49,6 +53,15 @@ func prepareTestEnv(current bool, needXray bool, xrayConfig string, xrayFullConf
 		for i := len(cleanups) - 1; i >= 0; i-- {
 			cleanups[i]()
 		}
+	}
+
+	if len(qwdttConfig) > 0 && qwdttConfig[0] != "" {
+		cleanup, err := prepareQWDTTProbe(testCtx, qwdttConfig[0])
+		if err != nil {
+			unwind()
+			return nil, err
+		}
+		cleanups = append(cleanups, cleanup)
 	}
 
 	if needXray {
@@ -92,7 +105,7 @@ func prepareTestEnv(current bool, needXray bool, xrayConfig string, xrayFullConf
 	if useDefaultOutbound {
 		outTags = []string{box.Outbound().Default().Tag()}
 	}
-	return &testEnv{box: box, tags: outTags, close: unwind}, nil
+	return &testEnv{box: box, tags: outTags, close: unwind, ctx: testCtx}, nil
 }
 
 // A probe box has no tun to mark its sockets, so the running Tun's auto_redirect nftables rules would capture them.

@@ -56,8 +56,10 @@ bool qwdtt::ParseFromJson(const QJsonObject &o) {
     mode = normalizedMode(o["mode"].toString().toLower());
     rawPort = o["raw_port"].toInt(56003);
     workers = o["workers"].toInt(o["workersPerHash"].toInt(9));
-    turnTCP = o["turn_tcp"].toBool(false);
+    turnTCP = o["turn_tcp"].toBool(true);
     obfs = o["obfs"].toString("audio");
+    vkAnonPath = o["vk_anon_path"].toString("vkcalls");
+    captchaMode = o["captcha_mode"].toString("auto");
     goDNS = o["go_dns"].toString("yandex");
     if (!o["device_id"].toString().isEmpty()) deviceID = o["device_id"].toString();
     const auto h = o.contains("hashes") ? o["hashes"] : o["vkHashes"];
@@ -67,7 +69,7 @@ bool qwdtt::ParseFromJson(const QJsonObject &o) {
     hashes = NormalizeHashes(values).mid(0, 4);
     workers = NormalizeWorkers(workers, hashes.size());
     // Empty hashes are editable after importing Android profiles using global hashes.
-    return !server.isEmpty() && validPort(server_port) && validPort(rawPort) && hashes.size() <= 4 && (mode == "raw" || mode == "wg");
+    return !server.isEmpty() && validPort(server_port) && validPort(rawPort) && hashes.size() <= 4 && (mode == "raw" || mode == "wg") && (vkAnonPath == "vkcalls" || vkAnonPath == "legacy") && (captchaMode == "auto" || captchaMode == "wv" || captchaMode == "rjs");
 }
 
 bool qwdtt::ParseFromLink(const QString &link) {
@@ -78,7 +80,7 @@ bool qwdtt::ParseFromLink(const QString &link) {
         if (!u.isValid() || u.host().compare("config", Qt::CaseInsensitive) != 0) return false;
         const QUrlQuery q(u);
         QJsonObject o{{"type", "qwdtt"}};
-        for (const auto &key : {"peer", "name", "pass", "password", "hashes", "mode", "obfs", "go_dns", "device_id"}) {
+        for (const auto &key : {"peer", "name", "pass", "password", "hashes", "mode", "obfs", "go_dns", "device_id", "vk_anon_path", "captcha_mode"}) {
             if (q.hasQueryItem(key)) o[key] = formDecodedQueryValue(q, key);
         }
         for (const auto &key : {"raw_port", "workers"}) {
@@ -116,7 +118,8 @@ QJsonObject qwdtt::ExportToJson() {
     return {{"type", "qwdtt"}, {"tag", name}, {"server", server}, {"server_port", server_port},
             {"password", password}, {"hashes", QJsonArray::fromStringList(hashes)}, {"mode", mode},
             {"raw_port", rawPort}, {"workers", workers}, {"turn_tcp", turnTCP},
-            {"obfs", obfs}, {"go_dns", goDNS}, {"device_id", deviceID}};
+            {"obfs", obfs}, {"go_dns", goDNS}, {"device_id", deviceID},
+            {"vk_anon_path", vkAnonPath}, {"captcha_mode", captchaMode}};
 }
 QJsonObject qwdtt::ExportIdentity() { auto o = ExportToJson(); o.remove("tag"); o.remove("device_id"); return o; }
 QString qwdtt::ExportToLink() {
@@ -134,6 +137,8 @@ QString qwdtt::ExportToLink() {
     q.addQueryItem("workers", QString::number(workers));
     q.addQueryItem("turn_tcp", turnTCP ? "1" : "0");
     q.addQueryItem("obfs", obfs);
+    q.addQueryItem("vk_anon_path", vkAnonPath);
+    q.addQueryItem("captcha_mode", captchaMode);
     addText("go_dns", goDNS);
     addText("device_id", deviceID);
     if (!name.isEmpty()) addText("name", name);
@@ -150,6 +155,8 @@ QString qwdtt::Prepare() {
     if (workers < 1 || workers > 108) return QObject::tr("qWDTT: workers must be between 1 and 108");
     if (mode != "raw" && mode != "wg") return QObject::tr("qWDTT: invalid tunnel mode");
     if (obfs != "audio" && obfs != "video") return QObject::tr("qWDTT: invalid obfuscation mode");
+    if (vkAnonPath != "vkcalls" && vkAnonPath != "legacy") return QObject::tr("qWDTT: invalid VK authorization mode");
+    if (captchaMode != "auto" && captchaMode != "wv" && captchaMode != "rjs") return QObject::tr("qWDTT: invalid captcha mode");
     if (deviceID.isEmpty()) deviceID = QUuid::createUuid().toString(QUuid::WithoutBraces);
     if (deviceID.contains('|') || deviceID.contains('\n') || deviceID.contains('\r')) return QObject::tr("qWDTT: invalid device ID");
     QString executable = "qwdtt";
@@ -168,6 +175,7 @@ QString qwdtt::Prepare() {
                      {"password", password}, {"hashes", QJsonArray::fromStringList(hashes)},
                      {"mode", mode}, {"workers", workers}, {"device_id", deviceID},
                      {"turn_tcp", turnTCP}, {"obfs", obfs}, {"go_dns", goDNS},
+                     {"vk_anon_path", vkAnonPath}, {"captcha_mode", captchaMode},
                      {"listen", peerString("127.0.0.1", udp.localPort())},
                      {"socks", peerString("127.0.0.1", socksPort)}, {"socks_user", auth}, {"socks_pass", auth}};
     extraCoreConf = QString::fromUtf8(QJsonDocument(conf).toJson(QJsonDocument::Compact));

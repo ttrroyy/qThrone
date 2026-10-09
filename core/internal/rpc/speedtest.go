@@ -35,8 +35,11 @@ func (s *server) SpeedTest(ctx context.Context, in *gen.SpeedTestRequest) (*gen.
 
 	env, err := prepareTestEnv(in.GetTestCurrent(), in.GetNeedXray(), in.GetXrayConfig(),
 		in.XrayFullConfigs, in.GetConfig(), in.OutboundTags, in.GetUseDefaultOutbound(),
-		in.GetXrayOutboundDnsStrategy())
+		in.GetXrayOutboundDnsStrategy(), in.GetQwdttConfig())
 	if err != nil {
+		if in.GetQwdttConfig() != "" {
+			return &gen.SpeedTestResponse{Results: []*gen.SpeedTestResult{{OutboundTag: To("proxy"), Error: To(err.Error())}}}, nil
+		}
 		if errors.Is(err, errInstanceNotRunning) {
 			return &gen.SpeedTestResponse{Results: []*gen.SpeedTestResult{{
 				OutboundTag: To("proxy"),
@@ -47,7 +50,7 @@ func (s *server) SpeedTest(ctx context.Context, in *gen.SpeedTestRequest) (*gen.
 	}
 	defer env.close()
 
-	results := probe.BatchSpeedTest(probe.TestContext(), env.box, env.tags,
+	results := probe.BatchSpeedTest(env.ctx, env.box, env.tags,
 		*in.TestDownload, *in.TestUpload, *in.SimpleDownload, *in.SimpleDownloadAddr,
 		time.Duration(*in.TimeoutMs)*time.Millisecond, *in.OnlyCountry, *in.CountryConcurrency)
 

@@ -111,6 +111,8 @@ func main() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	bridgeContext = ctx
+	bridgeCancel = cancel
 
 	// Сигналы
 	sig := make(chan os.Signal, 1)
@@ -138,7 +140,7 @@ func main() {
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
-			if !strings.Contains(line, "error:tunnel stopped") {
+			if line == "PAUSE" || line == "RESUME" || line == "STOP" {
 				log.Printf("[STDIN] %s", line)
 			}
 			switch {

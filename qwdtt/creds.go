@@ -713,7 +713,19 @@ func solveCaptchaBySelectedMode(
 
 func requestWebViewCaptcha(streamID int, captchaErr *VkCaptchaError, mode string, timeout time.Duration) (string, error) {
 	if desktopBridgeMode {
-		return "", fmt.Errorf("VK automatic captcha solving failed; Android WebView fallback is unavailable in qThrone")
+		if captchaErr == nil {
+			return "", fmt.Errorf("VK captcha data is missing")
+		}
+		log.Printf("[qWDTT] VK требует капчу. Открываю отдельное окно браузера.")
+		ctx := bridgeContext
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		token, err := solveDesktopCaptcha(ctx, captchaErr.RedirectURI)
+		if errors.Is(err, errCaptchaWindowClosed) && bridgeCancel != nil {
+			bridgeCancel()
+		}
+		return token, err
 	}
 	if CaptchaResultChan == nil || captchaErr == nil || captchaErr.RedirectURI == "" || captchaErr.SessionToken == "" {
 		return "", fmt.Errorf("webview captcha data is incomplete")

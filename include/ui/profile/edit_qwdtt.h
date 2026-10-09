@@ -22,6 +22,8 @@ private:
     void updateWorkers(int requested = -1);
     QComboBox *transport;
     QComboBox *obfs;
+    QComboBox *authorization;
+    QComboBox *captcha;
     QComboBox *dns;
     QLineEdit *device;
 };

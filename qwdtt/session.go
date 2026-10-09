@@ -524,27 +524,7 @@ func RunSession(
 	proxyWg.Add(3) // +1 for keepalive goroutine
 	sessionErrCh := make(chan error, 1)
 
-	stopConn := context.AfterFunc(sessCtx, func() {
-		_ = activeConn.SetDeadline(time.Now())
-	})
-	defer stopConn()
-
-	if tp.RawMode {
-		// Транспорт — UDP через TURN, у сервера нет способа узнать о разрыве
-		// соединения кроме таймаута (см. handleConnRaw). Явно сообщаем о
-		// намеренном отключении, чтобы сервер сразу освободил слот в
-		// rawRouter вместо того чтобы ждать простоя — иначе "мёртвые"
-		// соединения от прошлого сеанса засоряют round-robin в downlinkLoop
-		// при быстром переподключении того же устройства.
-		go func() {
-			select {
-			case <-ctx.Done():
-				_ = activeConn.SetWriteDeadline(time.Now().Add(500 * time.Millisecond))
-				_, _ = activeConn.Write([]byte("DISCONNECT_RAW:" + deviceID))
-			case <-sessCtx.Done():
-			}
-		}()
-	}
+	defer stopSessionIO(sessCtx, ctx, activeConn, tp.RawMode, deviceID)()
 
 	// Keepalive: prevents TURN allocation timeout and idle disconnect.
 	// Пакет не пишется напрямую в activeConn (это была бы вторая горутина,
@@ -882,4 +862,23 @@ func RunPing(
 	rtt := time.Since(startPing).Milliseconds()
 	// Handshake completes -> we have a successful round trip!
 	return rtt, nil
+}
+
+// stopSessionIO serializes DISCONNECT_RAW before relay cleanup.
+func stopSessionIO(sessCtx, ctx context.Context, activeConn net.Conn, raw bool, deviceID string) func() {
+	shutdownDone := make(chan struct{})
+	stopConn := context.AfterFunc(sessCtx, func() {
+		defer close(shutdownDone)
+		if raw && ctx.Err() != nil {
+			_ = activeConn.SetWriteDeadline(time.Now().Add(500 * time.Millisecond))
+			_, _ = activeConn.Write([]byte("DISCONNECT_RAW:" + deviceID))
+		}
+		_ = activeConn.SetDeadline(time.Now())
+	})
+	return func() {
+		if !stopConn() {
+			<-shutdownDone
+		}
+	}
+
 }

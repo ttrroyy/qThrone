@@ -12,8 +12,11 @@ import (
 func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, error) {
 	env, err := prepareTestEnv(in.GetTestCurrent(), in.GetNeedXray(), in.GetXrayConfig(),
 		in.XrayFullConfigs, in.GetConfig(), in.OutboundTags, in.GetUseDefaultOutbound(),
-		in.GetXrayOutboundDnsStrategy())
+		in.GetXrayOutboundDnsStrategy(), in.GetQwdttConfig())
 	if err != nil {
+		if in.GetQwdttConfig() != "" {
+			return &gen.TestResp{Results: []*gen.URLTestResp{{OutboundTag: To("proxy"), LatencyMs: To(int32(0)), Error: To(err.Error())}}}, nil
+		}
 		if errors.Is(err, errInstanceNotRunning) {
 			return &gen.TestResp{Results: []*gen.URLTestResp{{
 				OutboundTag: To("proxy"),
@@ -26,7 +29,7 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 	defer env.close()
 
 	// Held, not re-read: StopTest rearms a fresh context, uncancelled.
-	testCtx := probe.TestContext()
+	testCtx := env.ctx
 	if in.GetTestCurrent() {
 		testCtx = probe.LiveInstance(testCtx)
 	}
@@ -90,18 +93,21 @@ func (s *server) QueryURLTest(ctx context.Context, in *gen.EmptyReq) (out *gen.Q
 }
 
 func (s *server) IPTest(ctx context.Context, in *gen.IPTestRequest) (*gen.IPTestResp, error) {
-	// Always builds its own box: there is no test-current variant of an IP test.
-	const current = false
+	// qWDTT can reuse its active IP/netstack; ordinary IP tests still build their own box.
+	current := in.GetTestCurrent()
 	env, err := prepareTestEnv(current, in.GetNeedXray(), in.GetXrayConfig(),
 		in.XrayFullConfigs, in.GetConfig(), in.OutboundTags, in.GetUseDefaultOutbound(),
-		in.GetXrayOutboundDnsStrategy())
+		in.GetXrayOutboundDnsStrategy(), in.GetQwdttConfig())
 	if err != nil {
+		if in.GetQwdttConfig() != "" {
+			return &gen.IPTestResp{Results: []*gen.IPTestRes{{OutboundTag: To("proxy"), Error: To(err.Error())}}}, nil
+		}
 		return nil, err
 	}
 	defer env.close()
 
 	timeout := time.Duration(in.GetTestTimeoutMs()) * time.Millisecond
-	results := probe.BatchIPTest(probe.TestContext(), env.box, env.tags,
+	results := probe.BatchIPTest(env.ctx, env.box, env.tags,
 		int(in.GetMaxConcurrency()), !current, timeout)
 
 	res := make([]*gen.IPTestRes, 0, len(results))

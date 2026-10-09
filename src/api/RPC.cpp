@@ -589,7 +589,7 @@ namespace API {
     {
         libcore::SpeedTestResponse reply;
         std::vector<uint8_t> resp;
-        auto status = channel->Call("SpeedTest", spb::pb::serialize<std::string>(request), resp);
+        auto status = channel->Call("SpeedTest", spb::pb::serialize<std::string>(request), resp, request.qwdtt_config.value_or("").empty() ? 0 : 210000 + request.timeout_ms.value_or(0));
 
         if (status == LocalSocketChannel::CallOK && tryDeserialize(resp, reply)) {
             *rpcOK = true;

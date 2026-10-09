@@ -19,7 +19,7 @@ import (
 )
 
 // exec.Cmd+SysProcAttr.Token routes through CreateProcessAsUser, needing SeAssignPrimaryTokenPrivilege that elevated admins lack; CreateProcessWithTokenW needs only SeImpersonatePrivilege (#1482).
-func startChild(path string, args []string, noOut bool) (running, error) {
+func startChild(path string, args []string, noOut bool, input *os.File) (running, error) {
 	self, err := selfToken()
 	if err != nil {
 		return nil, fmt.Errorf("cannot open process token: %w", err)
@@ -27,7 +27,7 @@ func startChild(path string, args []string, noOut bool) (running, error) {
 	defer self.Close()
 
 	if !self.IsElevated() {
-		return startCmd(newCmd(path, args, noOut))
+		return startCmd(newCmd(path, args, noOut, input))
 	}
 
 	tok, err := unprivilegedToken(self)
@@ -36,16 +36,16 @@ func startChild(path string, args []string, noOut bool) (running, error) {
 	}
 	defer tok.Close()
 
-	return startWithToken(path, args, noOut, tok)
+	return startWithToken(path, args, noOut, tok, input)
 }
 
 // CreateProcessWithTokenW is served by the Secondary Logon service, which some systems disable; CreateProcessAsUser then still works for a Core running as SYSTEM.
-func startWithToken(path string, args []string, noOut bool, tok windows.Token) (running, error) {
-	run, err := startWithTokenW(path, args, noOut, tok)
+func startWithToken(path string, args []string, noOut bool, tok windows.Token, input *os.File) (running, error) {
+	run, err := startWithTokenW(path, args, noOut, tok, input)
 	if err == nil {
 		return run, nil
 	}
-	cmd := newCmd(path, args, noOut)
+	cmd := newCmd(path, args, noOut, input)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Token:         syscall.Token(tok),
 		HideWindow:    true,
@@ -61,7 +61,7 @@ func startWithToken(path string, args []string, noOut bool, tok windows.Token) (
 var procCreateProcessWithTokenW = windows.NewLazySystemDLL("advapi32.dll").NewProc("CreateProcessWithTokenW")
 
 // CreateProcessWithTokenW inherits no arbitrary handles, but the secondary-logon service still duplicates the three std handles into a 64-bit child.
-func startWithTokenW(path string, args []string, noOut bool, tok windows.Token) (running, error) {
+func startWithTokenW(path string, args []string, noOut bool, tok windows.Token, input *os.File) (running, error) {
 	exe, err := exec.LookPath(path)
 	if err != nil {
 		return nil, err
@@ -81,7 +81,11 @@ func startWithTokenW(path string, args []string, noOut bool, tok windows.Token) 
 		closeAll(outR, outW, errR, errW)
 		return nil, err
 	}
-	for _, f := range []*os.File{outW, errW, nul} {
+	stdin := nul
+	if input != nil {
+		stdin = input
+	}
+	for _, f := range []*os.File{outW, errW, stdin} {
 		if err = makeInheritable(f); err != nil {
 			closeAll(outR, outW, errR, errW, nul)
 			return nil, err
@@ -92,7 +96,7 @@ func startWithTokenW(path string, args []string, noOut bool, tok windows.Token) 
 	si.Cb = uint32(unsafe.Sizeof(*si))
 	si.Flags = windows.STARTF_USESTDHANDLES | windows.STARTF_USESHOWWINDOW
 	si.ShowWindow = windows.SW_HIDE
-	si.StdInput = windows.Handle(nul.Fd())
+	si.StdInput = windows.Handle(stdin.Fd())
 	si.StdOutput = windows.Handle(outW.Fd())
 	si.StdErr = windows.Handle(errW.Fd())
 

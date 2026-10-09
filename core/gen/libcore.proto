@@ -114,6 +114,8 @@ message TestReq {
   reserved "xray_outbound_dns_address";
   // See LoadConfigReq; empty leaves the Xray on the OS resolver, which a running TUN owns.
   optional string xray_outbound_dns_strategy = 14 [default = ""];
+  // Private bundled qWDTT bridge config; only the probe session owns its process.
+  optional string qwdtt_config = 15 [default = ""];
 }
 
 message TestResp {
@@ -274,6 +276,7 @@ message SpeedTestRequest {
   reserved "xray_outbound_dns_address";
   // See TestReq.xray_outbound_dns_strategy.
   optional string xray_outbound_dns_strategy = 16 [default = ""];
+  optional string qwdtt_config = 17 [default = ""];
 }
 
 message SpeedTestResult {
@@ -327,6 +330,9 @@ message IPTestRequest {
   reserved "xray_outbound_dns_address";
   // See TestReq.xray_outbound_dns_strategy.
   optional string xray_outbound_dns_strategy = 10 [default = ""];
+  optional string qwdtt_config = 11 [default = ""];
+  // Reuse an active qWDTT netstack instead of creating a second one for its IP.
+  optional bool test_current = 12 [default = false];
 }
 
 message IPTestResp {

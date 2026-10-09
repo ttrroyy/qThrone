@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/netip"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -70,6 +71,9 @@ func (s *server) Start(ctx context.Context, in *gen.LoadConfigReq) (out *gen.Err
 
 		extraProcess = process.NewProcess(*in.ExtraProcessPath, args, *in.ExtraNoOut)
 		extraProcess.SetCleanupPath(extraCleanupPath)
+		if strings.EqualFold(strings.TrimSuffix(filepath.Base(in.GetExtraProcessPath()), ".exe"), "qwdtt") {
+			extraProcess.EnableStdinShutdown("STOP")
+		}
 		err = extraProcess.Start()
 		if err != nil {
 			return

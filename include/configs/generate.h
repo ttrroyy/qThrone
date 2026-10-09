@@ -54,6 +54,7 @@ namespace Configs
     public:
         QString error;
         QMap<int, QString> fullConfigs;
+        QMap<int, QString> qwdttConfigs;
         QStringList xrayFullConfigs;
         QMap<QString, int> tag2entID;
         QJsonObject coreConfig;

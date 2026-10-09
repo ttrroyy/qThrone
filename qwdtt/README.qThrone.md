@@ -22,8 +22,9 @@ Throne mixed inbound / Throne TUN
 
 The Android TUN-FD CLI branch remains in upstream sources but is not invoked by
 qThrone. Windows has an explicit unsupported stub for that Android-only operation.
-Android WebView captcha fallback is disabled for desktop mode; original Go/RJS
-automatic captcha solving remains. WireGuard private keys are no longer printed or
+VK authorization selects the upstream VKCalls or legacy path. The original Go/RJS
+solver remains; desktop fallback opens an isolated Chrome/Edge/Chromium window and
+returns the captchaNotRobot.check success token, matching Android response handling. WireGuard private keys are no longer printed or
 written to a local config file. Browser fingerprint state lives in the OS user's
 private qThrone/qwdtt cache, isolated by device ID.
 

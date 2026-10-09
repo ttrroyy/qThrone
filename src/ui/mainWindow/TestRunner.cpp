@@ -70,6 +70,7 @@ namespace {
     void fillCommonTestReq(Req& req, const Target& target) {
         for (const auto& tag : target.outboundTags) req.outbound_tags.push_back(tag.toStdString());
         req.config = target.coreConfig.toStdString();
+        req.qwdtt_config = target.qwdttConfig.toStdString();
         req.use_default_outbound = target.useDefaultOutbound;
         req.xray_config = target.xrayConfig.toStdString();
         req.need_xray = !target.xrayConfig.isEmpty();
@@ -164,6 +165,7 @@ void TestRunner::runUrlProbe(const Target& target) {
 
     libcore::TestReq req;
     fillCommonTestReq(req, target);
+    req.test_current = target.testCurrent;
     req.url = Configs::dataManager->settingsRepo->test_latency_url.toStdString();
     req.max_concurrency = Configs::dataManager->settingsRepo->test_concurrent;
     req.test_timeout_ms = Configs::dataManager->settingsRepo->url_test_timeout_ms;
@@ -203,7 +205,7 @@ void TestRunner::runUrlProbe(const Target& target) {
             runOnUiThread([=, this] { mw_->refresh_proxy_list(updated); });
         }, kLatencyPollIntervalMs);
 
-        result = defaultClient->Test(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 2));
+        result = defaultClient->Test(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 2) + (target.qwdttConfig.isEmpty() ? 0 : 210000));
     }
 
     if (!rpcOK || result.results.empty()) {
@@ -239,6 +241,7 @@ void TestRunner::runIpProbe(const Target& target) {
 
     libcore::IPTestRequest req;
     fillCommonTestReq(req, target);
+    req.test_current = target.testCurrent;
     req.max_concurrency = Configs::dataManager->settingsRepo->test_concurrent;
     req.test_timeout_ms = Configs::dataManager->settingsRepo->url_test_timeout_ms;
 
@@ -269,7 +272,7 @@ void TestRunner::runIpProbe(const Target& target) {
             runOnUiThread([=, this] { mw_->refresh_proxy_list(updated); });
         }, kLatencyPollIntervalMs);
 
-        result = defaultClient->IPTest(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 1));
+        result = defaultClient->IPTest(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 1) + (target.qwdttConfig.isEmpty() ? 0 : 210000));
     }
 
     if (!rpcOK || result.results.empty()) {
@@ -351,6 +354,12 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
 
             QSemaphore batchDone;
             const auto probe = [this, isUrl, &batchDone](const Target& target) {
+                // Do not queue concurrent VK authorizations behind a browser challenge.
+                if (!target.qwdttConfig.isEmpty()) {
+                    if (isUrl) runUrlProbe(target); else runIpProbe(target);
+                    batchDone.release();
+                    return;
+                }
                 mw_->parallelCoreCallPool->start([this, isUrl, target, &batchDone] {
                     const QSemaphoreReleaser releaser(batchDone);
                     if (isUrl) runUrlProbe(target);
@@ -363,6 +372,9 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
                 target.coreConfig = buildObject->fullConfigs[entID];
                 target.useDefaultOutbound = true;
                 target.entID = entID;
+                target.qwdttConfig = buildObject->qwdttConfigs.value(entID);
+                target.testCurrent = !target.qwdttConfig.isEmpty() && mw_->running && mw_->running->id == entID;
+                target.tag2entID.insert("proxy", entID);
                 probe(target);
             }
             if (!buildObject->outboundTags.empty()) {
@@ -450,6 +462,9 @@ bool TestRunner::runSpeedTests(const QList<int>& requestedIDs, bool testCurrent,
                     target.coreConfig = it.value();
                     target.useDefaultOutbound = true;
                     target.entID = it.key();
+                    target.qwdttConfig = buildObject->qwdttConfigs.value(it.key());
+                    target.testCurrent = !target.qwdttConfig.isEmpty() && mw_->running && mw_->running->id == it.key();
+                    target.tag2entID.insert("proxy", it.key());
                     runSpeedProbe(target);
                 }
 

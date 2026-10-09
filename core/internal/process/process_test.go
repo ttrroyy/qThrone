@@ -1,0 +1,66 @@
+package process
+
+import (
+	"bufio"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+)
+
+func TestStdinShutdownHelper(t *testing.T) {
+	if len(os.Args) < 3 || os.Args[len(os.Args)-2] != "qthrone-stdin-helper" {
+		return
+	}
+	scanner := bufio.NewScanner(os.Stdin)
+	if scanner.Scan() {
+		_ = os.WriteFile(os.Args[len(os.Args)-1], []byte(scanner.Text()), 0600)
+		os.Exit(0)
+	}
+	time.Sleep(time.Minute)
+	os.Exit(1)
+}
+
+func TestOptionalGracefulShutdown(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := filepath.Join(t.TempDir(), "result")
+	p := NewProcess(exe, []string{"-test.run=^TestStdinShutdownHelper$", "qthrone-stdin-helper", result}, true)
+	p.EnableStdinShutdown("STOP")
+	if err = p.Start(); err != nil {
+		t.Fatal(err)
+	}
+	p.Stop()
+	select {
+	case <-p.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("child did not stop")
+	}
+	got, err := os.ReadFile(result)
+	if err != nil || string(got) != "STOP" {
+		t.Fatalf("graceful command was not delivered: %q %v", got, err)
+	}
+}
+
+func TestOrdinaryExtraProcessStillStops(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := filepath.Join(t.TempDir(), "result")
+	p := NewProcess(exe, []string{"-test.run=^TestStdinShutdownHelper$", "qthrone-stdin-helper", result}, true)
+	if err = p.Start(); err != nil {
+		t.Fatal(err)
+	}
+	p.Stop()
+	select {
+	case <-p.Done():
+	case <-time.After(5 * time.Second):
+		t.Fatal("ordinary extra process was not killed")
+	}
+	if _, err = os.Stat(result); !os.IsNotExist(err) {
+		t.Fatal("ordinary process received a shutdown command")
+	}
+}
