@@ -32,18 +32,18 @@ WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS}
 
-cat >"$WORK/Throne.desktop" <<-EOF
+cat >"$WORK/qThrone.desktop" <<-EOF
 [Desktop Entry]
 Name=qThrone
 Comment=Qt based cross-platform GUI proxy configuration manager (backend: sing-box)
-Exec=sh -c "PATH=/opt/qThrone:\$PATH /opt/qThrone/Throne -appdata"
-Icon=/opt/qThrone/Throne.png
+Exec=sh -c "PATH=/opt/qThrone:\$PATH /opt/qThrone/qThrone -appdata"
+Icon=/opt/qThrone/qThrone.png
 Terminal=false
 Type=Application
 Categories=Network;Application;
 EOF
 
-cat >"$WORK/Throne.spec" <<-EOF
+cat >"$WORK/qThrone.spec" <<-EOF
 Name: qthrone
 Version: ${RPM_VERSION}
 Release: 1
@@ -64,9 +64,9 @@ Qt based cross-platform GUI proxy configuration manager (backend: sing-box).
 rm -rf %{buildroot}
 mkdir -p %{buildroot}/opt/qThrone
 cp -a ${SRC_DIR}/. %{buildroot}/opt/qThrone/
-rm -f %{buildroot}/opt/qThrone/Throne.debug
+rm -f %{buildroot}/opt/qThrone/qThrone.debug
 mkdir -p %{buildroot}/usr/share/applications
-cp ${WORK}/Throne.desktop %{buildroot}/usr/share/applications/qThrone.desktop
+cp ${WORK}/qThrone.desktop %{buildroot}/usr/share/applications/qThrone.desktop
 
 %files
 /opt/qThrone
@@ -84,6 +84,6 @@ rpmbuild -bb \
   --define "_topdir $WORK" \
   --define "_binary_payload w19T0.zstdio" \
   --target "$RPM_ARCH" \
-  "$WORK/Throne.spec"
+  "$WORK/qThrone.spec"
 
 mv "$WORK/RPMS/$RPM_ARCH/qthrone-${RPM_VERSION}-1.${RPM_ARCH}.rpm" "qThrone-$TAG-fedora-$ARCH$SUFFIX.rpm"

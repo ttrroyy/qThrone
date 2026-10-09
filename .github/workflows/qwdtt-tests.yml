@@ -1,9 +1,9 @@
 name: qWDTT tests
 on:
   push:
-    paths: ['qwdtt/**', '.github/workflows/qwdtt-tests.yml']
+    paths: ['qwdtt/**', 'updater/**', '.github/workflows/qwdtt-tests.yml']
   pull_request:
-    paths: ['qwdtt/**', '.github/workflows/qwdtt-tests.yml']
+    paths: ['qwdtt/**', 'updater/**', '.github/workflows/qwdtt-tests.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -25,3 +25,6 @@ jobs:
       - name: Vet
         working-directory: qwdtt
         run: go vet ./...
+      - name: Updater tests
+        working-directory: updater
+        run: go test -race ./...

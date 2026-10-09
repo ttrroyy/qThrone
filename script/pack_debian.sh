@@ -13,7 +13,7 @@ chmod 0755 "$PKG"
 
 mkdir -p "$PKG/DEBIAN" "$PKG/opt"
 cp -r "linux-$ARCH$SUFFIX" "$PKG/opt/qThrone"
-rm -f "$PKG/opt/qThrone/Throne.debug"
+rm -f "$PKG/opt/qThrone/qThrone.debug"
 
 # basic
 cat >"$PKG/DEBIAN/control" <<-EOF
@@ -30,8 +30,8 @@ cat >/usr/share/applications/qThrone.desktop<<-END
 [Desktop Entry]
 Name=qThrone
 Comment=Qt based cross-platform GUI proxy configuration manager (backend: sing-box)
-Exec=sh -c "PATH=/opt/qThrone:\$PATH /opt/qThrone/Throne -appdata"
-Icon=/opt/qThrone/Throne.png
+Exec=sh -c "PATH=/opt/qThrone:\$PATH /opt/qThrone/qThrone -appdata"
+Icon=/opt/qThrone/qThrone.png
 Terminal=false
 Type=Application
 Categories=Network;Application;

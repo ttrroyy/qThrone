@@ -51,20 +51,22 @@ QIcon Icon::GetTrayIcon(TrayIconStatus status) {
     // A custom set without Connecting.png keeps its own Off icon rather than mixing in the bundled one.
     const QString customFallback = status == TrayIconStatus::Connecting ? statusName(TrayIconStatus::None) : QString();
     QIcon icon = loadNamedIcon(statusName(status), useCustom, customFallback);
-    if (status == TrayIconStatus::Vpn) {
+    if (!useCustom || status == TrayIconStatus::Vpn) {
         // Preserve the original silhouette, transparency and antialiased edges.
-        QIcon white;
+        const QColor color = status == TrayIconStatus::Vpn ? QColor(Qt::white)
+            : status == TrayIconStatus::SystemProxy ? QColor("#C4A7F5") : QColor("#A7DFFF");
+        QIcon tinted;
         auto sizes = icon.availableSizes();
         if (sizes.isEmpty()) sizes = {QSize(16,16), QSize(32,32), QSize(64,64)};
         for (const auto &size : sizes) {
             auto pixmap = icon.pixmap(size);
             QPainter painter(&pixmap);
             painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-            painter.fillRect(pixmap.rect(), Qt::white);
+            painter.fillRect(pixmap.rect(), color);
             painter.end();
-            white.addPixmap(pixmap);
+            tinted.addPixmap(pixmap);
         }
-        icon = white;
+        icon = tinted;
     }
     g_trayIcons.insert(status, icon);
     return icon;

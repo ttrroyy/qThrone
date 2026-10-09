@@ -18,7 +18,7 @@ const (
 	pfctlTimeout = 5 * time.Second
 	pfRootAnchor = "com.apple"
 	// /etc/pf.conf evaluates the com.apple/* children in name order: "000." runs before Apple's and the bridge's.
-	pfAnchorPrefix = pfRootAnchor + "/000.throne-guard."
+	pfAnchorPrefix = pfRootAnchor + "/000.qthrone-guard."
 )
 
 var (
@@ -34,7 +34,7 @@ type pfctlOutput struct {
 }
 
 func pfLockPath(id string) string {
-	return "/var/run/throne-guard." + id + ".lock"
+	return "/var/run/qthrone-guard." + id + ".lock"
 }
 
 // pfctl returns the output even on failure; an error wrapping errPfctlIncomplete means pfctl never reported a result.

@@ -204,7 +204,7 @@ DialogEditProfile::~DialogEditProfile() {
 
 void DialogEditProfile::setupTypeList() {
     const auto addType = [this](const QString &t) {
-        ui->type->addItem(Configs::dataManager->profilesRepo->NewProfile(t)->outbound->DisplayType(), t);
+        ui->type->addItem(t == "qwdtt" ? QStringLiteral("qWDTT") : Configs::dataManager->profilesRepo->NewProfile(t)->outbound->DisplayType(), t);
     };
     for (const auto *t: {"qwdtt", "autoselector", "socks", "http", "shadowsocks", "trojan", "vmess", "vless", "xrayvless",
                          "hysteria", "tuic", "juicity", "naive", "trusttunnel", "anytls", "mieru", "snell",

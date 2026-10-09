@@ -36,7 +36,7 @@ namespace Sys {
 #ifdef Q_OS_MACOS
             return {};
 #else
-            return QStringLiteral("throne-tun");
+            return QStringLiteral("qthrone-tun");
 #endif
         }
 

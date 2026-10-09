@@ -29,7 +29,7 @@ OutputDir=deployment
 OutputBaseFilename=qThroneSetup
 SetupIconFile=res\Throne.ico
 UninstallDisplayName=qThrone
-UninstallDisplayIcon={app}\Throne.exe
+UninstallDisplayIcon={app}\qThrone.exe
 WizardStyle=modern
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
@@ -58,17 +58,17 @@ Source: "deployment\windows-arm64\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags
 Source: "deployment\windowslegacy-386\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion; Check: IsX86OS
 
 [Icons]
-Name: "{autoprograms}\qThrone"; Filename: "{app}\Throne.exe"
-Name: "{autodesktop}\qThrone"; Filename: "{app}\Throne.exe"
+Name: "{autoprograms}\qThrone"; Filename: "{app}\qThrone.exe"
+Name: "{autodesktop}\qThrone"; Filename: "{app}\qThrone.exe"
 
 [Registry]
 Root: HKA; Subkey: "Software\qThrone"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
 
 [UninstallDelete]
-Type: files; Name: "{app}\updater.old"
+Type: files; Name: "{app}\qThroneUpdater.old"
 
 [Run]
-Filename: "{app}\Throne.exe"; Description: "{cm:LaunchProgram,qThrone}"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\qThrone.exe"; Description: "{cm:LaunchProgram,qThrone}"; Flags: postinstall nowait skipifsilent
 
 [Code]
 const
@@ -166,7 +166,7 @@ begin
   try
     Locator := CreateOleObject('WbemScripting.SWbemLocator');
     Service := Locator.ConnectServer('.', 'root\CIMV2');
-    Processes := Service.ExecQuery('SELECT * FROM Win32_Process WHERE Name = ''Throne.exe'' OR Name = ''ThroneCore.exe'' OR Name = ''qwdtt.exe''');
+    Processes := Service.ExecQuery('SELECT * FROM Win32_Process WHERE Name = ''qThrone.exe'' OR Name = ''qThroneCore.exe'' OR Name = ''qwdtt.exe''');
     for I := 0 to Processes.Count - 1 do
     begin
       Process := Processes.ItemIndex(I);
@@ -194,23 +194,23 @@ var
   Command: String;
 begin
   Result := RegQueryStringValue(HKEY_CURRENT_USER, SubKey + '\shell\open\command', '', Command) and
-    (Pos(Lowercase(ExpandConstant('{app}\Throne.exe')), Lowercase(Command)) > 0);
+    (Pos(Lowercase(ExpandConstant('{app}\qThrone.exe')), Lowercase(Command)) > 0);
 end;
 
 procedure RemoveOpenWith(const Ext: String);
 begin
-  RegDeleteValue(HKEY_CURRENT_USER, 'Software\Classes\' + Ext + '\OpenWithProgids', 'Throne.Config');
+  RegDeleteValue(HKEY_CURRENT_USER, 'Software\Classes\' + Ext + '\OpenWithProgids', 'qThrone.Config');
 end;
 
 procedure RemoveAssociations;
 begin
   if PointsAtApp('Software\Classes\throne') then
     RegDeleteKeyIncludingSubkeys(HKEY_CURRENT_USER, 'Software\Classes\throne');
-  if PointsAtApp('Software\Classes\Applications\Throne.exe') then
-    RegDeleteKeyIncludingSubkeys(HKEY_CURRENT_USER, 'Software\Classes\Applications\Throne.exe');
-  if not PointsAtApp('Software\Classes\Throne.Config') then
+  if PointsAtApp('Software\Classes\Applications\qThrone.exe') then
+    RegDeleteKeyIncludingSubkeys(HKEY_CURRENT_USER, 'Software\Classes\Applications\qThrone.exe');
+  if not PointsAtApp('Software\Classes\qThrone.Config') then
     Exit;
-  RegDeleteKeyIncludingSubkeys(HKEY_CURRENT_USER, 'Software\Classes\Throne.Config');
+  RegDeleteKeyIncludingSubkeys(HKEY_CURRENT_USER, 'Software\Classes\qThrone.Config');
   RemoveOpenWith('.json');
   RemoveOpenWith('.conf');
   RemoveOpenWith('.yaml');
@@ -243,8 +243,8 @@ begin
   begin
     StopThrone;
     RemoveAssociations;
-    RemoveCrashDumpKey('Throne.exe');
-    RemoveCrashDumpKey('ThroneCore.exe');
+    RemoveCrashDumpKey('qThrone.exe');
+    RemoveCrashDumpKey('qThroneCore.exe');
     DeleteUserData := SuppressibleMsgBox('Also delete your qThrone profiles, settings and logs?' + #13#10#13#10 +
       'Choose No if you plan to reinstall qThrone later and want to keep them.', mbConfirmation, MB_YESNO, IDYES) = IDYES;
   end

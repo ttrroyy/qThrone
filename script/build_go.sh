@@ -13,9 +13,9 @@ if $IS_LEGACY; then
 fi
 
 if [[ "$GOOS" == "windows" || "$GOOS" == "linux" ]]; then
-    FILE=$([[ "$GOOS" == "windows" ]] && echo "updater-windows-x${GOARCH: -2}.exe" || echo "updater-linux-$GOARCH")
-    curl -fLso "$DEST/updater$([[ "$GOOS" == "windows" ]] && echo ".exe")" "https://github.com/throneproj/updater/releases/latest/download/$FILE"
-    [[ "$GOOS" == "linux" ]] && chmod +x "$DEST/updater"
+    pushd updater
+    CGO_ENABLED=0 $GOCMD build -trimpath -ldflags="-s -w" -o "$DEST/qThroneUpdater$([[ "$GOOS" == "windows" ]] && echo ".exe")" .
+    popd
 fi
 
 case "$GOOS" in
@@ -66,5 +66,5 @@ if [[ "$GOOS" == "darwin" ]]; then
   done
 fi
 VERSION_SINGBOX=$(go list -m -f '{{.Version}}' github.com/sagernet/sing-box)
-$GOCMD build -v -o $DEST -trimpath -ldflags "-w -s -X 'github.com/sagernet/sing-box/constant.Version=${VERSION_SINGBOX}' -X 'internal/godebug.defaultGODEBUG=multipathtcp=0' -checklinkname=0" -tags "$TAGS"
+$GOCMD build -v -o "$DEST/qThroneCore$([[ "$GOOS" == "windows" ]] && echo ".exe")" -trimpath -ldflags "-w -s -X 'github.com/sagernet/sing-box/constant.Version=${VERSION_SINGBOX}' -X 'internal/godebug.defaultGODEBUG=multipathtcp=0' -checklinkname=0" -tags "$TAGS"
 popd

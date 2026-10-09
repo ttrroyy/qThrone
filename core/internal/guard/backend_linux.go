@@ -86,7 +86,7 @@ func lanResolvers(path string) []netip.Addr {
 }
 
 func (b *nftBackend) arm(cfg *config) error {
-	b.table = &nftables.Table{Name: fmt.Sprintf("throne-guard-%d", os.Getpid()), Family: nftables.TableFamilyINet, Flags: tableFlagOwner}
+	b.table = &nftables.Table{Name: fmt.Sprintf("qthrone-guard-%d", os.Getpid()), Family: nftables.TableFamilyINet, Flags: tableFlagOwner}
 	rules, err := newRuleset(b.table, cfg)
 	if err != nil {
 		return newError(CodeInternal, "build the kill switch rules: %w", err)
@@ -139,7 +139,7 @@ func probe(labels bool) error {
 	if err != nil {
 		return err
 	}
-	table := conn.AddTable(&nftables.Table{Name: fmt.Sprintf("throne-guard-%d-probe", os.Getpid()), Family: nftables.TableFamilyINet, Flags: tableFlagOwner})
+	table := conn.AddTable(&nftables.Table{Name: fmt.Sprintf("qthrone-guard-%d-probe", os.Getpid()), Family: nftables.TableFamilyINet, Flags: tableFlagOwner})
 	if labels {
 		chain := conn.AddChain(&nftables.Chain{Name: "probe", Table: table})
 		conn.AddRule(&nftables.Rule{Table: table, Chain: chain, Exprs: matchLabel()})

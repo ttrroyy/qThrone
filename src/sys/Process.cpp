@@ -23,7 +23,7 @@ namespace {
         PostPassiveWarning(QObject::tr("IPv4 forwarding breaks Tun mode"),
                            QObject::tr("IPv4 forwarding is on for the network adapter \"%1\", usually because Mobile Hotspot or Internet Connection Sharing is sharing it.\n\n"
                                        "Windows then ignores the adapter binding that keeps Throne's own connections out of the Tun, so they loop back into it and fail.\n\n"
-                                       "To fix this, share the hotspot from the throne-tun adapter instead of \"%1\" (Settings > Mobile hotspot > Share my internet connection from), or turn the hotspot off while using Tun mode.")
+                                       "To fix this, share the hotspot from the qthrone-tun adapter instead of \"%1\" (Settings > Mobile hotspot > Share my internet connection from), or turn the hotspot off while using Tun mode.")
                                .arg(adapter));
     }
 }

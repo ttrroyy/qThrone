@@ -119,7 +119,7 @@ static QString autoRunUserName() {
 
 static QString autoRunTaskName(const QString &seed) {
     const QByteArray hash = QCryptographicHash::hash(seed.toUtf8(), QCryptographicHash::Md5).toHex().left(8);
-    return "Throne AutoRun " + QString::fromLatin1(hash);
+    return "qThrone AutoRun " + QString::fromLatin1(hash);
 }
 
 static QString autoRunExeKey() {

@@ -38,24 +38,24 @@ build_installer() {
         "$(cygpath -w "$ROOT/script/windows_installer.iss")"
 }
 
-# Hard links give the archive its Throne/ root without moving a dir other tasks still read.
+# Hard links give the archive its qThrone/ root without moving a dir other tasks still read.
 zip_dir() {
     mkdir -p "$WORK/$2"
-    cp -al "$DEPLOY/$1" "$WORK/$2/Throne"
+    cp -al "$DEPLOY/$1" "$WORK/$2/qThrone"
     cd "$WORK/$2"
     if command -v zip >/dev/null; then
-        zip -q -r "$DEPLOY/qThrone-$TAG-$2.zip" Throne
+        zip -q -r "$DEPLOY/qThrone-$TAG-$2.zip" qThrone
     else
         # Windows runners ship 7-Zip but not Info-ZIP.
-        7z a -tzip -mx=5 -bd -bso0 "$DEPLOY/qThrone-$TAG-$2.zip" Throne
+        7z a -tzip -mx=5 -bd -bso0 "$DEPLOY/qThrone-$TAG-$2.zip" qThrone
     fi
 }
 
 zip_app() {
-    mkdir -p "$WORK/$2/Throne"
-    mv "$DEPLOY/$1/Throne.app" "$WORK/$2/Throne/"
+    mkdir -p "$WORK/$2/qThrone"
+    mv "$DEPLOY/$1/qThrone.app" "$WORK/$2/qThrone/"
     cd "$WORK/$2"
-    zip -q --symlinks -r "$DEPLOY/qThrone-$TAG-$2.zip" Throne
+    zip -q --symlinks -r "$DEPLOY/qThrone-$TAG-$2.zip" qThrone
 }
 
 zip_debug() {
@@ -98,7 +98,7 @@ windows)
     ;;
 linux-amd64 | linux-arm64)
     arch="${TARGET#linux-}"
-    untar "linux-$arch*" --exclude=Throne.debug
+    untar "linux-$arch*" --exclude=qThrone.debug
     TASKS=(
         "deb-$arch pack_deb $arch"
         "rpm-$arch pack_rpm $arch"
@@ -108,7 +108,7 @@ linux-amd64 | linux-arm64)
     )
     ;;
 macos)
-    untar 'darwin*' --exclude=Throne.dSYM
+    untar 'darwin*' --exclude=qThrone.dSYM
     TASKS=(
         "zip-macos-arm64 zip_app darwin-arm64 macos-arm64"
         "zip-macos-amd64 zip_app darwin-amd64 macos-amd64"
@@ -116,20 +116,20 @@ macos)
     )
     ;;
 debug)
-    untar linux-amd64 --wildcards '*/Throne.debug'
-    untar linux-arm64 --wildcards '*/Throne.debug'
-    untar 'windows*' --wildcards '*/Throne.pdb'
-    untar 'darwin*' --wildcards '*/Throne.dSYM/*'
+    untar linux-amd64 --wildcards '*/qThrone.debug'
+    untar linux-arm64 --wildcards '*/qThrone.debug'
+    untar 'windows*' --wildcards '*/qThrone.pdb'
+    untar 'darwin*' --wildcards '*/qThrone.dSYM/*'
     cd "$DEPLOY"
     mkdir -p debug
-    mv linux-amd64/Throne.debug "debug/qThrone-$TAG-linux-amd64.debug"
-    mv linux-arm64/Throne.debug "debug/qThrone-$TAG-linux-arm64.debug"
+    mv linux-amd64/qThrone.debug "debug/qThrone-$TAG-linux-amd64.debug"
+    mv linux-arm64/qThrone.debug "debug/qThrone-$TAG-linux-arm64.debug"
     for dir in windows-amd64 windows-arm64 windowslegacy-386 windowslegacy-amd64; do
-        mv "$dir/Throne.pdb" "debug/qThrone-$TAG-$dir.pdb"
+        mv "$dir/qThrone.pdb" "debug/qThrone-$TAG-$dir.pdb"
     done
-    mv darwin-arm64/Throne.app/Contents/MacOS/Throne.dSYM "debug/qThrone-$TAG-macos-arm64.dSYM"
-    mv darwin-amd64/Throne.app/Contents/MacOS/Throne.dSYM "debug/qThrone-$TAG-macos-amd64.dSYM"
-    mv darwinlegacy-amd64/Throne.app/Contents/MacOS/Throne.dSYM "debug/qThrone-$TAG-macoslegacy-amd64.dSYM"
+    mv darwin-arm64/qThrone.app/Contents/MacOS/qThrone.dSYM "debug/qThrone-$TAG-macos-arm64.dSYM"
+    mv darwin-amd64/qThrone.app/Contents/MacOS/qThrone.dSYM "debug/qThrone-$TAG-macos-amd64.dSYM"
+    mv darwinlegacy-amd64/qThrone.app/Contents/MacOS/qThrone.dSYM "debug/qThrone-$TAG-macoslegacy-amd64.dSYM"
     TASKS=("debug-symbols zip_debug")
     ;;
 *)

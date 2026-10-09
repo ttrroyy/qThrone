@@ -195,10 +195,11 @@ void MainWindow::on_menu_exit_triggered() {
     if (exit_reason == ExitReason::RunUpdater) {
         QDir::setCurrent(QApplication::applicationDirPath());
 #ifdef Q_OS_WIN
-        QFile::copy("./updater.exe", "./updater.old");
-        QProcess::startDetached("./updater.old", QStringList{});
+        QFile::remove("./qThroneUpdater.old");
+        QFile::copy("./qThroneUpdater.exe", "./qThroneUpdater.old");
+        QProcess::startDetached("./qThroneUpdater.old", QStringList{QString::number(QCoreApplication::applicationPid())});
 #else
-        QProcess::startDetached("./updater", QStringList{});
+        QProcess::startDetached("./qThroneUpdater", QStringList{QString::number(QCoreApplication::applicationPid())});
 #endif
     } else if (restart && !relaunched) {
         QDir::setCurrent(QApplication::applicationDirPath());
@@ -798,6 +799,9 @@ void MainWindow::CheckUpdate() {
 
     runOnUiThread([=,this] {
         auto allow_updater = !Configs::dataManager->settingsRepo->flag_use_appdata;
+#ifdef Q_OS_MACOS
+        allow_updater = false;
+#endif
         QMessageBox box(QMessageBox::Question, QObject::tr("Update") + note_pre_release,
                         QObject::tr("Update found: %1\nRelease note:\n%2").arg(assets_name, release_note));
         QAbstractButton *btn1 = nullptr;
@@ -817,7 +821,7 @@ void MainWindow::CheckUpdate() {
                 }
                 QString errors;
                 if (!release_download_url.isEmpty()) {
-                    auto res = NetworkRequestHelper::DownloadAsset(release_download_url, "Throne.zip", false, true);
+                    auto res = NetworkRequestHelper::DownloadAsset(release_download_url, "qThrone.zip", false, true);
                     if (!res.isEmpty()) {
                         errors += res;
                     }

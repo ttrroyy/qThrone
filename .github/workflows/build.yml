@@ -5,6 +5,7 @@ on:
       tag:
         description: "Release Tag and version"
         required: true
+        default: "1.0.0-beta.1"
       publish:
         description: "r for normal release, p for prerelease, leave empty to not publish anything"
         required: false
@@ -21,6 +22,11 @@ jobs:
           cache-dependency-path: qwdtt/go.sum
       - name: Test RAW, WG and authenticated SOCKS TCP/UDP
         working-directory: qwdtt
+        run: |
+          go test -race ./...
+          go vet ./...
+      - name: Test updater archive validation
+        working-directory: updater
         run: |
           go test -race ./...
           go vet ./...
@@ -361,6 +367,11 @@ jobs:
           ninja
           cd ..
           ./script/deploy_linux64_system_qt.sh
+      - name: Test qWDTT clipboard and subscription import
+        if: contains(matrix.platform, 'ubuntu') && matrix.qt_version == '6.2.0'
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ./build/qThrone --self-test-qwdtt-import
       - name: macOS - Generate MakeFile and Build
         shell: bash
         if: contains( matrix.platform, 'macos' )
@@ -463,18 +474,24 @@ jobs:
           name: Deployment-${{ github.sha }}
           path: deployment
           compression-level: 0
-      - name: Installing ghr
+      - name: Publish release
+        if: github.event.inputs.publish == 'p' || github.event.inputs.publish == 'r'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.event.inputs.tag }}
+          RELEASE_KIND: ${{ github.event.inputs.publish }}
+          RELEASE_SHA: ${{ github.sha }}
         run: |
-          curl -Lo - https://github.com/tcnksm/ghr/releases/download/v0.17.0/ghr_v0.17.0_linux_amd64.tar.gz | tar xzv
-          mv ghr*linux_amd64/ghr .
-      - name: PreRelease
-        if: github.event.inputs.publish == 'p'
-        run: |
-          ./ghr -prerelease -delete -c ${{ github.sha }} -t "${{ github.token }}" -n "${{ github.event.inputs.tag }}" "${{ github.event.inputs.tag }}" deployment
-      - name: Release
-        if: github.event.inputs.publish == 'r'
-        run: |
-          ./ghr -delete -c ${{ github.sha }} -t "${{ github.token }}" -n "${{ github.event.inputs.tag }}" "${{ github.event.inputs.tag }}" deployment
+          set -euo pipefail
+          python3 script/release_notes.py > "$RUNNER_TEMP/release-notes.md"
+          args=()
+          if [[ "$RELEASE_KIND" == p ]]; then args+=(--prerelease); fi
+          title="qThrone $RELEASE_TAG"
+          if [[ "$RELEASE_TAG" == '1.0.0-beta.1' ]]; then title='qThrone 1.0 Beta 1'; fi
+          gh release create "$RELEASE_TAG" deployment/* \
+            --target "$RELEASE_SHA" --title "$title" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" "${args[@]}"
   # Updates the AUR package after a stable release.
   publish-aur:
     name: Publish AUR Package

@@ -130,7 +130,7 @@ func (b *wfpBackend) arm(allowLAN bool, tuns []tunAdapter, appIDs []*fwpByteBlob
 	b.access.Lock()
 	defer b.access.Unlock()
 	session := fwpmSession0{
-		displayData:          displayData("Throne kill switch"),
+		displayData:          displayData("qThrone kill switch"),
 		flags:                fwpmSessionFlagDynamic,
 		txnWaitTimeoutInMSec: 10 * 1000,
 	}
@@ -212,13 +212,13 @@ func (b *wfpBackend) addSublayer() error {
 	if b.sublayer, err = windows.GenerateGUID(); err != nil {
 		return err
 	}
-	provider := fwpmProvider0{providerKey: b.provider, displayData: displayData("Throne")}
+	provider := fwpmProvider0{providerKey: b.provider, displayData: displayData("qThrone")}
 	if err = fwpmProviderAdd0(b.engine, &provider); err != nil {
 		return fmt.Errorf("add provider: %w", err)
 	}
 	sublayer := fwpmSublayer0{
 		subLayerKey: b.sublayer,
-		displayData: displayData("Throne kill switch"),
+		displayData: displayData("qThrone kill switch"),
 		providerKey: &b.provider,
 		weight:      0xFFFF,
 	}
@@ -244,7 +244,7 @@ func (b *wfpBackend) install(rules []wfpRule) ([]uint64, error) {
 
 func (b *wfpBackend) addFilter(rule wfpRule, layer windows.GUID) (uint64, error) {
 	filter := fwpmFilter0{
-		displayData: displayData("Throne: " + rule.name),
+		displayData: displayData("qThrone: " + rule.name),
 		providerKey: &b.provider,
 		layerKey:    layer,
 		subLayerKey: b.sublayer,
@@ -339,7 +339,7 @@ func (b *wfpBackend) verify() error {
 func resolveAppIDs(extraPaths []string) (appIDs []*fwpByteBlob, skipped []string, err error) {
 	self, err := os.Executable()
 	if err != nil {
-		return nil, nil, fmt.Errorf("locate the ThroneCore executable: %w", err)
+		return nil, nil, fmt.Errorf("locate the qThroneCore executable: %w", err)
 	}
 	appID, err := appIDFromFile(self)
 	if err != nil {
@@ -384,7 +384,7 @@ func findTuns(name string) ([]tunAdapter, error) {
 	return tuns, nil
 }
 
-// Windows names a new adapter "throne-tun 2" while a stale instance still holds the plain name.
+// Windows names a new adapter "qthrone-tun 2" while a stale instance still holds the plain name.
 func isTunAlias(alias, name string) bool {
 	if len(alias) < len(name) || !strings.EqualFold(alias[:len(name)], name) {
 		return false

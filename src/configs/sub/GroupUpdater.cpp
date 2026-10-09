@@ -12,6 +12,8 @@
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QJsonDocument>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QMutexLocker>
 #include <QThreadPool>
 #include <QUrl>
@@ -645,6 +647,51 @@ namespace Subscription {
         if (!announceMsg.isEmpty()) {
             subInfo.announce = announceMsg;
             subInfo.valid = true;
+        }
+
+        // Android qWDTT subscriptions carry their title and quota in the JSON body.
+        // HTTP subscription headers take precedence over body metadata.
+        auto metadataBody = body.trimmed();
+        if (!metadataBody.startsWith('{') && !metadataBody.startsWith('[')) {
+            const auto decoded = DecodeB64IfValid(metadataBody);
+            if (!decoded.isEmpty()) metadataBody = decoded.trimmed();
+        }
+        const auto metadataDoc = QJsonDocument::fromJson(metadataBody);
+        auto metadata = metadataDoc.object();
+        auto profiles = metadataDoc.isArray() ? metadataDoc.array() : metadata.value("profiles").toArray();
+        if (profiles.isEmpty()) profiles = metadata.value("servers").toArray();
+        bool isQwdttSubscription = false;
+        for (const auto &profile : profiles) {
+            const auto object = profile.toObject();
+            const auto type = object.value("type").toString();
+            if (object.contains("peer") && (type.isEmpty() || type == "qwdtt" || type == "wdtt")) {
+                isQwdttSubscription = true;
+                break;
+            }
+        }
+        if (isQwdttSubscription) {
+            if (metadataDoc.isArray() && !profiles.isEmpty()) metadata = profiles.first().toObject();
+            if (subInfo.title.isEmpty()) {
+                subInfo.title = metadata.value("subscriptionName").toString(metadata.value("groupName").toString());
+                if (!subInfo.title.isEmpty()) subInfo.valid = true;
+            }
+            if (subInfo.announce.isEmpty()) {
+                subInfo.announce = metadata.value("description").toString(metadata.value("info").toString());
+                if (!subInfo.announce.isEmpty()) subInfo.valid = true;
+            }
+            if (!userInfoSeen && metadataDoc.isObject()) {
+                const auto used = metadata.value("trafficUsedMb").toDouble(metadata.value("trafficMb").toDouble());
+                const auto limit = metadata.value("trafficLimitMb").toDouble(metadata.value("trafficLimit").toDouble());
+                // Keep conversions within qint64 and match Android's megabyte units.
+                constexpr double maxMegabytes = 8.0e12;
+                if (used >= 0 && limit > 0 && used <= maxMegabytes && limit <= maxMegabytes) {
+                    subInfo.download = static_cast<qint64>(used * 1024 * 1024);
+                    subInfo.total = static_cast<qint64>(limit * 1024 * 1024);
+                    subInfo.has_quota = true;
+                    subInfo.valid = true;
+                    userInfoSeen = true;
+                }
+            }
         }
 
         const QByteArray head = metadataHead(body);

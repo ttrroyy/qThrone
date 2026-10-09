@@ -221,7 +221,9 @@ namespace {
     }
 }
 
-#define LOCAL_SERVER_PREFIX "throne-"
+#define LOCAL_SERVER_PREFIX "qthrone-"
+
+int TestQwdttImport();
 
 int main(int argc, char* argv[]) {
     Logging::InstallQtMessageHandler();
@@ -236,6 +238,7 @@ int main(int argc, char* argv[]) {
     QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
     QApplication::setQuitOnLastWindowClosed(false);
     QApplication a(argc, argv);
+    if (QApplication::arguments().contains("--self-test-qwdtt-import")) return TestQwdttImport();
 
 #ifdef Q_OS_MACOS
     // Install before the event loop so launch-by-deeplink FileOpen events are caught.

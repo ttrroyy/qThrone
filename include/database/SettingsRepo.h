@@ -65,7 +65,7 @@ namespace Configs {
         // Persisted settings.
         QString mainWindowGeometry;
         QString log_level = "info";
-        QString test_latency_url = "http://cp.cloudflare.com/";
+        QString test_latency_url = "http://www.google.com/generate_204";
         // Fetched WITHOUT any proxy, so it must be reachable directly; empty falls back to the OS.
         QString direct_test_url = "";
         int url_test_timeout_ms = 3000;

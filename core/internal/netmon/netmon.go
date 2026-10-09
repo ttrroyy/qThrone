@@ -54,7 +54,7 @@ func Finder() control.InterfaceFinder {
 	return finder
 }
 
-// nil when the monitor is unavailable; TUN and loopback are excluded, so the result is safe to bind egress to while throne-tun is up.
+// nil when the monitor is unavailable; TUN and loopback are excluded, so the result is safe to bind egress to while qthrone-tun is up.
 func DefaultInterface() *control.Interface {
 	if monitor == nil {
 		return nil

@@ -1,4 +1,5 @@
 #include "include/configs/outbounds/qwdtt.h"
+#include "include/configs/common/utils.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -70,14 +71,14 @@ bool qwdtt::ParseFromJson(const QJsonObject &o) {
 
 bool qwdtt::ParseFromLink(const QString &link) {
     QString value = link.trimmed();
-    if (value.startsWith("qwdtt:config")) value.replace(0, 12, "qwdtt://config");
-    if (value.startsWith("qwdtt://")) {
+    if (value.startsWith("qwdtt:config", Qt::CaseInsensitive)) value.replace(0, 12, "qwdtt://config");
+    if (value.startsWith("qwdtt://", Qt::CaseInsensitive)) {
         const QUrl u(value);
-        if (!u.isValid() || u.host() != "config") return false;
+        if (!u.isValid() || u.host().compare("config", Qt::CaseInsensitive) != 0) return false;
         const QUrlQuery q(u);
         QJsonObject o{{"type", "qwdtt"}};
         for (const auto &key : {"peer", "name", "pass", "password", "hashes", "mode", "obfs", "go_dns", "device_id"}) {
-            if (q.hasQueryItem(key)) o[key] = q.queryItemValue(key, QUrl::FullyDecoded);
+            if (q.hasQueryItem(key)) o[key] = formDecodedQueryValue(q, key);
         }
         for (const auto &key : {"raw_port", "workers"}) {
             if (q.hasQueryItem(key)) { bool ok; int n = q.queryItemValue(key).toInt(&ok); if (!ok) return false; o[key] = n; }
@@ -94,7 +95,7 @@ bool qwdtt::ParseFromLink(const QString &link) {
         }
         return ParseFromJson(o);
     }
-    if (!value.startsWith("wdtt://")) return false;
+    if (!value.startsWith("wdtt://", Qt::CaseInsensitive)) return false;
     value.remove(0, 7);
     const int fragment = value.indexOf('#');
     QString label;
@@ -120,17 +121,21 @@ QJsonObject qwdtt::ExportIdentity() { auto o = ExportToJson(); o.remove("tag"); 
 QString qwdtt::ExportToLink() {
     QUrl u("qwdtt://config");
     QUrlQuery q;
-    q.addQueryItem("peer", peerString(server, server_port));
-    q.addQueryItem("pass", password);
-    q.addQueryItem("hashes", hashes.join(','));
+    // Android uses form encoding: encode literal '+' so it survives import there.
+    const auto addText = [&q](const QString &key, const QString &value) {
+        q.addQueryItem(key, QString::fromLatin1(QUrl::toPercentEncoding(value)));
+    };
+    addText("peer", peerString(server, server_port));
+    addText("pass", password);
+    addText("hashes", hashes.join(','));
     q.addQueryItem("mode", mode);
     q.addQueryItem("raw_port", QString::number(rawPort));
     q.addQueryItem("workers", QString::number(workers));
     q.addQueryItem("turn_tcp", turnTCP ? "1" : "0");
     q.addQueryItem("obfs", obfs);
-    q.addQueryItem("go_dns", goDNS);
-    q.addQueryItem("device_id", deviceID);
-    if (!name.isEmpty()) q.addQueryItem("name", name);
+    addText("go_dns", goDNS);
+    addText("device_id", deviceID);
+    if (!name.isEmpty()) addText("name", name);
     u.setQuery(q);
     return u.toString(QUrl::FullyEncoded);
 }

@@ -366,9 +366,9 @@ void Windows_ConfigureWER() {
 
     // The core is a separate process: its fatal Go runtime aborts are invisible to anything installed in this one.
     const bool ok = RegisterWerApp(exeName, g_dumpPathTemplate) &&
-                    RegisterWerApp(L"ThroneCore.exe", g_dumpPathTemplate);
+                    RegisterWerApp(L"qThroneCore.exe", g_dumpPathTemplate);
     if (ok) {
-        LOG_INFO("WER LocalDumps registered for Throne.exe and ThroneCore.exe");
+        LOG_INFO("WER LocalDumps registered for qThrone.exe and qThroneCore.exe");
     } else {
         LOG_INFO("WER LocalDumps not registered (needs admin); crashes that bypass "
                  "the exception filter will go to %LOCALAPPDATA%\\CrashDumps if "

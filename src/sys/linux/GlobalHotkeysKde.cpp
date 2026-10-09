@@ -15,8 +15,8 @@
 
 namespace {
     const QString kService = "org.kde.kglobalaccel";
-    const QString kComponent = "throne";
-    const QString kComponentPath = "/component/throne";
+    const QString kComponent = "qthrone";
+    const QString kComponentPath = "/component/qthrone";
     const QString kComponentInterface = "org.kde.kglobalaccel.Component";
     constexpr uint kSetPresent = 2;
     constexpr uint kNoAutoloading = 4;
@@ -47,7 +47,7 @@ namespace {
     }
 
     QStringList actionId(const QString &name, const QString &text) {
-        return {kComponent, name, "Throne", text};
+        return {kComponent, name, "qThrone", text};
     }
 
     QDBusMessage callKGlobalAccel(const QString &method, const QVariantList &arguments) {

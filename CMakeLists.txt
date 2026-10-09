@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(Throne VERSION 0.1)
+project(qThrone VERSION 1.0)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -304,6 +304,7 @@ set(PROJECT_SOURCES
         include/ui/profile/edit_http.ui
         include/ui/profile/edit_socks.h
         src/configs/outbounds/qwdtt.cpp
+        src/configs/sub/qwdtt_import_test.cpp
         include/configs/outbounds/qwdtt.h
         src/ui/profile/edit_qwdtt.cpp
         include/ui/profile/edit_qwdtt.h
@@ -682,7 +683,7 @@ set_target_properties(Throne PROPERTIES
         MACOSX_BUNDLE_ICON_FILE "Throne.icns"
         RESOURCE ${MACOSX_ICON}
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/res/MacOSXBundleInfo.plist
-        MACOSX_BUNDLE_GUI_IDENTIFIER moe.Throne.macosx
+        MACOSX_BUNDLE_GUI_IDENTIFIER moe.qThrone.macosx
         MACOSX_BUNDLE TRUE
         WIN32_EXECUTABLE TRUE
 )
@@ -740,4 +741,5 @@ target_link_libraries(Throne PRIVATE
         ${PLATFORM_LIBRARIES}
 )
 
+set_target_properties(Throne PROPERTIES OUTPUT_NAME qThrone)
 qt_finalize_executable(Throne)

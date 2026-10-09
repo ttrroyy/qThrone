@@ -11,12 +11,12 @@ from urllib.request import urlopen, urlretrieve
 from pathlib import Path
 from typing import Union
 
-REPO = "throneproj/Throne"
+REPO = "ttrroyy/qThrone"
 
-APPDIR = Path("/opt/Throne")
+APPDIR = Path("/opt/qThrone")
 DESKTOPDIR = Path("/usr/share/applications")
 
-CONFIGDIR = Path.home() / ".config/Throne"
+CONFIGDIR = Path.home() / ".config/qThrone"
 AUTOSTARTDIR = Path.home() / ".config/autostart"
 
 
@@ -50,13 +50,13 @@ def remove_path(path: Path) -> bool:
 
 
 # Returns "version" or "unknown" when installation exists
-# Returns None when neither the Version file nor the Throne executable are found
+# Returns None when neither the Version file nor the qThrone executable are found
 def get_installed_version(path: Path) -> Union[str, None]:
     if (path / "Version").exists():
         with open(path / Path("Version"), "r") as file:
             return file.read().strip()
 
-    if (path / "Throne").exists():
+    if (path / "qThrone").exists():
         return "unknown"
 
     return None
@@ -198,7 +198,7 @@ def run(main):
         curses.curs_set(0)
         init_colors()
         scr.clear()
-        scr.addstr(0, 0, "┌  Welcome to Throne CLI manager!")
+        scr.addstr(0, 0, "┌  Welcome to qThrone CLI manager!")
         scr.addstr(1, 0, "|")
         main(scr, 2)
 
@@ -213,7 +213,7 @@ def main(scr, y):
     arch = get_arch()
     version = get_installed_version(APPDIR)
     if version:
-        y = message(scr, y, f"Looks like you already have Throne ({version}) installed")
+        y = message(scr, y, f"Looks like you already have qThrone ({version}) installed")
         bar(scr, y, 0, "|", "", C_DIM)
         scr.refresh()
         y += 1
@@ -251,28 +251,28 @@ def main(scr, y):
             version = release["version"]
             url = release["assets"][arch]
 
-            p = Progress(scr, y, f"Downloading Throne ({version}) from GitHub")
+            p = Progress(scr, y, f"Downloading qThrone ({version}) from GitHub")
             urlretrieve(
                 url,
-                tmpdir / "Throne.zip",
+                tmpdir / "qThrone.zip",
                 p.hook,
             )
             y = p.next_y()
 
             y = message(scr, y, "Unpacking zip archive")
-            with ZipFile(tmpdir / "Throne.zip", "r") as zip:
+            with ZipFile(tmpdir / "qThrone.zip", "r") as zip:
                 zip.extractall(tmpdir)
 
             y = message(scr, y, "Creating .desktop file")
-            with open(tmpdir / "Throne.desktop", "w") as file:
+            with open(tmpdir / "qThrone.desktop", "w") as file:
                 file.write(f"""[Desktop Entry]
 Version={version}
-Name=Throne
+Name=qThrone
 GenericName=Proxy Manager
 Comment=Qt based cross-platform GUI proxy configuration manager (backend: sing-box)
-Exec={APPDIR}/Throne -appdata
-Icon={APPDIR}/Throne.png
-StartupWMClass=Throne
+Exec={APPDIR}/qThrone -appdata
+Icon={APPDIR}/qThrone.png
+StartupWMClass=qThrone
 Terminal=false
 Type=Application
 Categories=Network;Application;
@@ -284,21 +284,22 @@ Keywords=proxy;vpn;network;privacy;
             install(tmpdir / "Version", APPDIR / "Version", 0o644)
 
             y = message(scr, y, f"Installing binaries to {APPDIR}")
-            for name in ("ThroneCore", "Throne"):
-                install(tmpdir / "Throne" / name, APPDIR / name, 0o755)
-            usr_src = tmpdir / "Throne/usr"
+            for name in ("qThroneCore", "qThrone", "qwdtt", "qThroneUpdater"):
+                install(tmpdir / "qThrone" / name, APPDIR / name, 0o755)
+            usr_src = tmpdir / "qThrone/usr"
             for f in usr_src.rglob("*"):
                 if f.is_file():
                     rel = f.relative_to(usr_src)
                     install(f, APPDIR / "usr" / rel, 0o644)
-            install(tmpdir / "Throne/Throne.png", APPDIR / "Throne.png", 0o644)
+            install(tmpdir / "qThrone/qThrone.png", APPDIR / "qThrone.png", 0o644)
+            install(tmpdir / "qThrone/qwdtt-LICENSE", APPDIR / "qwdtt-LICENSE", 0o644)
 
             y = message(scr, y, f"Installing .desktop to {DESKTOPDIR}")
-            install(tmpdir / "Throne.desktop", DESKTOPDIR / "Throne.desktop", 0o644)
+            install(tmpdir / "qThrone.desktop", DESKTOPDIR / "qThrone.desktop", 0o644)
 
     elif action == "Uninstall":
         if version is None:
-            y = message(scr, y, "Throne installation was not found", ok=False)
+            y = message(scr, y, "qThrone installation was not found", ok=False)
             scr.addstr(y, 0, "└  Press any key to exit")
             scr.refresh()
             scr.getch()
@@ -307,7 +308,7 @@ Keywords=proxy;vpn;network;privacy;
         confirm, y = select(
             scr,
             y,
-            "Are you sure you want to uninstall Throne?",
+            "Are you sure you want to uninstall qThrone?",
             ["Yes", "No"],
         )
 
@@ -321,7 +322,7 @@ Keywords=proxy;vpn;network;privacy;
         remove_path(APPDIR)
 
         y = message(scr, y, f"Removing .desktop file from {DESKTOPDIR}")
-        remove_path(DESKTOPDIR / "Throne.desktop")
+        remove_path(DESKTOPDIR / "qThrone.desktop")
 
         y = message(scr, y, "Uninstallation successfully completed!")
     scr.addstr(y, 0, "└  Press any key to exit")

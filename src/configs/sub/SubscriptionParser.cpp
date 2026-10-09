@@ -73,7 +73,8 @@ namespace Subscription {
         const char *typeForScheme(std::string_view link) {
             for (const auto &p : kProtocols) {
                 for (const char *scheme : p.schemes) {
-                    if (scheme != nullptr && link.starts_with(scheme)) return p.type;
+                    if (scheme != nullptr && (std::string_view(p.type) == "qwdtt"
+                        ? scan::startsWithNoCase(link, scheme) : link.starts_with(scheme))) return p.type;
                 }
             }
             return nullptr;
@@ -620,6 +621,11 @@ namespace Subscription {
         }
 
         void Parser::link(std::string_view line, int depth, const QString &overrideName) {
+            // Bot exports wrap share links in Markdown code spans.
+            if (line.size() >= 2 && line.front() == '`' && line.back() == '`') {
+                auto unwrapped = scan::trim(line.substr(1, line.size() - 2));
+                if (const auto type = typeForScheme(unwrapped); type && std::string_view(type) == "qwdtt") line = unwrapped;
+            }
             if (line.starts_with("//") || line.starts_with("#") || line.size() < 2) return;
 
             if (line.starts_with("json://")) {
@@ -644,7 +650,10 @@ namespace Subscription {
             } else {
                 ent = Configs::ProfilesRepo::NewProfile(profileType);
             }
-            if (!ent->outbound->ParseFromLink(str)) return;
+            if (!ent->outbound->ParseFromLink(str)) {
+                if (std::string_view(profileType) == "qwdtt") log("Invalid qWDTT link: check the peer address, ports and mode.");
+                return;
+            }
 
             if (std::string_view(profileType) == "wireguard") setNameIfEmpty(*ent, {overrideName});
 

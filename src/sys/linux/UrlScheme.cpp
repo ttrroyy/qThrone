@@ -10,7 +10,7 @@
 #include <QTextStream>
 
 // Both associations live in this one entry, told apart by its MimeType list.
-static const QString kDesktopId = "throne-url-handler.desktop";
+static const QString kDesktopId = "qthrone-url-handler.desktop";
 
 static const QStringList kLinkTypes = {"x-scheme-handler/throne"};
 static const QStringList kConfigTypes = {"application/json", "application/yaml", "text/yaml"};
@@ -87,7 +87,7 @@ static void writeEntry(const QStringList &types) {
             QTextStream ts(&f);
             ts << "[Desktop Entry]\n"
                << "Type=Application\n"
-               << "Name=Throne\n"
+               << "Name=qThrone\n"
                << "Icon=" << iconTarget() << "\n"
                << execLine() << "\n"
                << "MimeType=" << types.join(';') << ";\n"
@@ -113,7 +113,7 @@ bool UrlScheme_AutoRegisterByDefault() {
     return true;
 #else
     const QString target = execTarget();
-    for (const QString &path : QStandardPaths::locateAll(QStandardPaths::ApplicationsLocation, "Throne.desktop")) {
+    for (const QString &path : QStandardPaths::locateAll(QStandardPaths::ApplicationsLocation, "qThrone.desktop")) {
         QFile f(path);
         if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
         while (!f.atEnd()) {
