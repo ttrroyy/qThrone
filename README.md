@@ -1,96 +1,73 @@
 # qThrone
 
-Throne fork with qWDTT RAW/WG support, four VK call hash fields and a white TUN tray icon.
-Releases are built with the **qThrone release** GitHub Actions workflow.
-The documentation below describes upstream Throne; its download links point to the upstream project.
+Кроссплатформенный клиент для управления прокси на Qt с ядрами [sing-box](https://github.com/SagerNet/sing-box) и [Xray](https://github.com/XTLS/Xray-core).
 
-## Original Throne documentation
+Форк [Throne](https://github.com/throneproj/Throne) с поддержкой qWDTT в режимах RAW и WG. Сохранены интерфейс, маршрутизация и управление подключениями оригинального проекта.
 
-Qt based Desktop cross-platform GUI proxy utility, empowered by [Sing-box](https://github.com/SagerNet/sing-box)
+[Скачать](https://github.com/tttroyy/qThrone/releases) · [Исходный Throne](https://github.com/throneproj/Throne)
 
-Supports Windows 11/10/8/7 / Linux / MacOS out of the box.
+## Возможности
 
-<img width="1002" height="789" alt="image" src="https://github.com/user-attachments/assets/af4a8e32-7e55-430c-9402-ec2d665cf71a" />
+- Системный прокси и TUN.
+- Профили qWDTT (RAW) и qWDTT (WG); RAW выбран по умолчанию.
+- Четыре отдельных поля для хешей звонков VK.
+- Импорт ссылок qWDTT и подписок, экспорт настроек профиля.
+- Выбор транспорта TURN UDP/TCP и маскировки Audio/Video.
+- Белая иконка в трее при включённом TUN.
+- Проверка обновлений из репозитория qThrone.
+- Профили, группы, правила маршрутизации и подписки Throne.
 
-### Note on MacOS releases
-Apple platforms have a very strict security policy and since Throne does not have a signed certificate, you will have to remove the quarantine using `xattr -d com.apple.quarantine /path/to/throne.app`. Move `Throne.app` to `/Applications` before the first launch — the built-in privilege escalation opens `Terminal` to make the core setuid-root, and that step can fail while the app is still inside `~/Downloads`.
+## Платформы
 
-### GitHub Releases (Portable ZIP)
+| Система | Сборки |
+|---|---|
+| Windows | x64, ARM64 и x86; ZIP и установщик EXE; legacy-варианты |
+| Linux | x64 и ARM64; ZIP, DEB и RPM; варианты с системным Qt |
+| macOS | Intel и Apple Silicon; ZIP с приложением; legacy-вариант Intel |
 
-[![GitHub All Releases](https://img.shields.io/github/downloads/throneproj/Throne/total?label=downloads-total&logo=github&style=flat-square)](https://github.com/throneproj/Throne/releases)
+Исполняемый файл внутри пакета сохраняет имя `Throne.exe` / `Throne`, приложение macOS — `Throne.app`.
 
-# Linux CLI installer
-```bash
-curl -fsSL https://raw.githubusercontent.com/throneproj/Throne/dev/script/install_linux.py | sudo python3
-```
+## Протоколы
 
-### RPM repository
-[Throne RPM repository](https://parhelia512.github.io/) for Fedora/RHEL and openSUSE/SLE.
+qWDTT RAW/WG, SOCKS, HTTP(S), Shadowsocks, Trojan, VMess, VLESS, Xray VLESS, TUIC, Hysteria/Hysteria2, AnyTLS, Mieru, Snell, NaïveProxy, Juicity, TrustTunnel, ShadowTLS, WireGuard/AmneziaWG, MASQUE, SSH, OpenVPN и OpenConnect.
 
-## Supported protocols
+Также доступны пользовательские конфигурации sing-box и Xray, цепочки подключений и дополнительные ядра.
 
-- SOCKS
-- HTTP(S)
-- Shadowsocks
-- Trojan
-- VMess
-- VLESS
-- TUIC
-- Hysteria
-- Hysteria2
-- AnyTLS
-- Mieru
-- Snell
-- NaïveProxy
-- Juicity
-- TrustTunnel
-- ShadowTLS
-- Wireguard
-- AmneziaWG
-- MASQUE
-- SSH
-- Xray VLESS
-- OpenVPN/OpenConnect
-- Custom Outbound (Both Sing-box and Xray)
-- Custom Config (Both Sing-box and Xray)
-- Chaining outbounds
-- Extra Core
+## qWDTT
 
-## Subscription Formats
+Для подключения нужны совместимый VPS, пароль и от одного до четырёх хешей звонков VK. RAW требует включённого RAW listener на сервере; для сервера с поддержкой только WireGuard выберите WG.
 
-Various formats are supported, including share links, various JSON representation of Sing-box configs, and v2rayN link format as well as limited support for Shadowsocks and Clash formats.
+Основной порт профиля используется в режиме WG, отдельный RAW-порт — в режиме RAW. Локальные порты клиент выделяет автоматически. Устанавливать отдельное приложение WireGuard не требуется.
 
-Deeplinks are also supported, read the [documentation](https://throneproj.github.io/advanced/deeplinks/) for more information.
+Поддерживаются ссылки `qwdtt://config`, `qwdtt:config`, старые `wdtt://`, текстовые и Base64-подписки, JSON-профили. Если режим не указан, выбирается RAW.
 
-## Credits
+Для qWDTT сохраняются ограничения дополнительных ядер Throne: профиль не участвует в Auto Selector, IP-сканере и массовых serverless-тестах. IP-туннель использует IPv4. Решение капчи VK выполняется встроенным Go/RJS-кодом; Android WebView fallback отсутствует.
 
-- [SagerNet/sing-box](https://github.com/SagerNet/sing-box)
-- [XTLS/Xray-core](https://github.com/xtls/xray-core)
+## Подписки
+
+Поддерживаются ссылки профилей, JSON-конфигурации sing-box и Xray, формат ссылок v2rayN, а также поддерживаемые Throne форматы Shadowsocks и Clash.
+
+## Примечания
+
+- TUN требует системных прав доступа, как в оригинальном Throne.
+- Завершайте приложение штатно, чтобы оно восстановило настройки системного прокси.
+- Сборки `system-qt` для Linux используют Qt из системы; остальные пакеты содержат необходимые библиотеки Qt.
+- Сборки macOS не подписаны сертификатом Apple. Особенности запуска описаны в [документации Throne](https://github.com/throneproj/Throne#note-on-macos-releases).
+
+## Используемые проекты
+
+- [Throne](https://github.com/throneproj/Throne)
+- [qWDTT](https://github.com/SpaceNeuroX/proxy-turn-vk-android)
+- [PWDTT](https://github.com/luminescq/PWDTT) — desktop-клиент, использованный для изучения поведения протокола
+- [sing-box](https://github.com/SagerNet/sing-box)
+- [Xray-core](https://github.com/XTLS/Xray-core)
 - [Qv2ray](https://github.com/Qv2ray/Qv2ray)
 - [Qt](https://www.qt.io/)
 - [simple-protobuf](https://github.com/tonda-kriz/simple-protobuf)
 - [fkYAML](https://github.com/fktn-k/fkYAML)
 - [quirc](https://github.com/dlbeer/quirc)
-- [srombauts/sqlitecpp](https://github.com/srombauts/sqlitecpp)
+- [SQLiteCpp](https://github.com/srombauts/SQLiteCpp)
 
-## FAQ
-**How does this project differ from the original Nekoray?** <br/>
-Nekoray's developer partially abandoned the project on December of 2023, some minor updates were done recently but the project is now officially archived. This project was meant to continue the way of the original project, with lots of improvements, tons of new features and also, removal of obsolete features and simplifications.
+## Лицензия
 
-**Why does my Anti-Virus detect Throne and/or its Core as malware?** <br/>
-Throne's built-in update functionallity downloads the new release, removes the old files and replaces them with the new ones, which is quite simliar to what malwares do, remove your files and replace them with an encrypted version of your files.
-
-**Is setting the `SUID` bit really needed on Linux?** <br/>
-To create and manage a system TUN interface, root access is required, without it, you will have to grant the Core some `Cap_xxx_admin` and still, need to enter your password 3 to 4 times per TUN activation. You can also opt to disable the automatic privilege escalation in `Basic Settings`->`Security`, but note that features that require root access will stop working unless you manually grant the needed permissions.
-
-**Why does my internet stop working after I force quit Throne?** <br/>
-If Throne is force-quit while `System proxy` is enabled, the process ends immediately and Throne cannot reset the proxy. <br/>
-Solution:
-- Always close Throne normally.
-- If you force quit by accident, open Throne again, enable `System proxy`, then disable it- this will reset the settings.
-
-**Where are the downloadable route profiles/rulesets coming from?**<br/>
-They are located at the [routeprofiles](https://github.com/throneproj/routeprofiles) repository.
-
-**How does "Throne-\<version\>-debian-system-qt-x64.deb" differ from "Throne-\<version\>-debian-x64.deb" and why is the latter 3 times heavier then the former?**<br/>
-The first one does not pack the Qt libraries and relies on those installed on the host. The second one packs everything needed with itself, thus being heavier. The reason the first one exists is that on legacy systems provided Qt libraries use unsupported system features. If a graphical interface fails to load for your system, you may try to download the system-qt version and install fitting Qt libraries from your package manager or compile them from source.
+[GPL-3.0](LICENSE). Лицензия исходников qWDTT сохранена в [qwdtt/LICENSE](qwdtt/LICENSE).
