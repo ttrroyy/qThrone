@@ -391,7 +391,7 @@ jobs:
         if: contains(matrix.platform, 'ubuntu') && matrix.qt_version == '6.2.0'
         env:
           QT_QPA_PLATFORM: offscreen
-        run: ./build/qThrone --self-test-qwdtt-import
+        run: '"$DEST/qThrone" --self-test-qwdtt-import'
       - name: macOS - Generate MakeFile and Build
         shell: bash
         if: contains( matrix.platform, 'macos' )

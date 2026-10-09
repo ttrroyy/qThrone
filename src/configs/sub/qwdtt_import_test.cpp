@@ -1,12 +1,33 @@
 #include "include/configs/sub/SubscriptionParser.hpp"
 #include "include/configs/outbounds/qwdtt.h"
 #include "include/configs/generate.h"
+#include "include/global/Configs.hpp"
+#include "include/database/ProfilesRepo.h"
+#include "include/database/GroupsRepo.h"
+#include "include/database/RoutesRepo.h"
+#include "include/database/OtpProfilesRepo.h"
+#include "include/database/TrafficStatsRepo.h"
+#include "include/database/MarkersRepo.h"
+#include "include/database/IpListsRepo.h"
+#include "include/database/IpScansRepo.h"
 #include <QDebug>
+#include <QTemporaryDir>
+#include <QScopeGuard>
 #include "include/global/Version.hpp"
 #include "include/ui/profile/edit_qwdtt.h"
 
 int TestQwdttImport() {
     qInstallMessageHandler(nullptr);
+    // This entry point runs before normal application/database initialization.
+    // Configuration generation needs repositories, all owned by this fixture.
+    QTemporaryDir fixture;
+    if (!fixture.isValid()) return 1;
+    auto *previousManager = Configs::dataManager;
+    Configs::initDB(fixture.filePath("throne.db").toStdString());
+    const auto restoreManager = qScopeGuard([previousManager] {
+        delete Configs::dataManager;
+        Configs::dataManager = previousManager;
+    });
     int failures = 0;
     const auto check = [&failures](bool ok, const char *name) {
         if (!ok) { qCritical() << "qWDTT import test failed:" << name; ++failures; }
@@ -26,7 +47,8 @@ int TestQwdttImport() {
     check(defaults.ParseFromLink(QString::fromUtf8(android) + "&vk_anon_path=legacy&captcha_mode=wv"), "captcha mode import");
     Configs::qwdtt exported;
     check(exported.ParseFromLink(defaults.ExportToLink()) && exported.vkAnonPath == "legacy" && exported.captchaMode == "wv", "captcha settings round trip");
-    const auto testProfiles = parse(android);
+    auto testProfiles = parse(android);
+    for (auto &profile : testProfiles) check(Configs::dataManager->profilesRepo->AddProfile(profile), "save test profile to isolated repository");
     auto tests = Configs::BuildTestConfig(testProfiles);
     check(tests->error.isEmpty() && tests->fullConfigs.size() == 1 && tests->qwdttConfigs.size() == 1, "qWDTT test config uses a session-owned bridge");
     EditQWDTT editor;
