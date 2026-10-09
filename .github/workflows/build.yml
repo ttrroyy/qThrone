@@ -13,7 +13,11 @@ jobs:
   test-qwdtt:
     permissions:
       contents: read
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-go@v7.0.0
@@ -21,11 +25,13 @@ jobs:
           go-version: "1.27.2"
           cache-dependency-path: qwdtt/go.sum
       - name: Test RAW, WG and authenticated SOCKS TCP/UDP
+        shell: bash
         working-directory: qwdtt
         run: |
           go test -race ./...
           go vet ./...
       - name: Test updater archive validation
+        shell: bash
         working-directory: updater
         run: |
           go test -race ./...
@@ -36,6 +42,7 @@ jobs:
           version: "31.1"
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Test extra-core shutdown and qWDTT probe lifecycle
+        shell: bash
         working-directory: core
         run: |
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12

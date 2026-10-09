@@ -324,7 +324,9 @@ func TestWGNetstackTCPAndUDP(t *testing.T) {
 	pa, pb := freeUDPPort(t), freeUDPPort(t)
 	b64 := base64.StdEncoding.EncodeToString
 	conf := func(private, public []byte, address string, port int) string {
-		return fmt.Sprintf("[Interface]\nPrivateKey = %s\nAddress = %s/24\n[Peer]\nPublicKey = %s\nAllowedIPs = 10.201.0.0/24\nEndpoint = 127.0.0.1:%d\n", b64(private), address, b64(public), port)
+		// Configure both listen ports before any handshake can teach the peer an
+		// ephemeral endpoint which disappears when IpcSet rebinds the socket.
+		return fmt.Sprintf("[Interface]\nPrivateKey = %s\nAddress = %s/24\n[Peer]\nPublicKey = %s\nAllowedIPs = 10.201.0.0/24\nEndpoint = 127.0.0.1:%d\nPersistentKeepalive = 0\n", b64(private), address, b64(public), port)
 	}
 	a, an, e := startUserspaceWireGuard(conf(ka.Bytes(), kb.PublicKey().Bytes(), "10.201.0.1", pb))
 	if e != nil {
