@@ -21,22 +21,32 @@ Expand-Archive -LiteralPath $newArchive -DestinationPath (Join-Path $workspace '
 $expectedExecutable = Join-Path $workspace 'expected/qThrone/qThrone.exe'
 $gui = $null
 $updater = $null
-try {
-    $gui = Start-Process -FilePath $executable -ArgumentList '-tray' -WorkingDirectory $app -PassThru -WindowStyle Hidden
+function Wait-ForGuiAndCore([Diagnostics.Process]$process) {
     $deadline = [DateTime]::UtcNow.AddSeconds(45)
     do {
         Start-Sleep -Milliseconds 500
-        $text = if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Raw } else { '' }
-        $gui.Refresh()
-        if ($gui.HasExited) { throw "Baseline GUI exited: $($gui.ExitCode)" }
-    } until ($text.Contains('Core Has Successfully Connected to qThrone!') -or [DateTime]::UtcNow -gt $deadline)
-    if (!$text.Contains('Core Has Successfully Connected to qThrone!')) { throw 'Baseline GUI/core startup timed out' }
+        $process.Refresh()
+        if ($process.HasExited) { throw "GUI exited: $($process.ExitCode)" }
+        $core = Get-CimInstance Win32_Process -Filter "ParentProcessId=$($process.Id)" | Where-Object { $_.Name -eq 'qThroneCore.exe' }
+    } until (($process.MainWindowHandle -ne 0 -and $core) -or [DateTime]::UtcNow -gt $deadline)
+    if ($process.MainWindowHandle -eq 0 -or !$core) { throw 'GUI/core process startup timed out' }
+    Start-Sleep -Seconds 3
+}
+function Close-TestGui([Diagnostics.Process]$process) {
+    $process.Refresh()
+    if (!$process.CloseMainWindow() -or !$process.WaitForExit(30000)) { throw 'GUI did not shut down normally' }
+    if ($process.ExitCode -ne 0) { throw "GUI shutdown failed: $($process.ExitCode)" }
+}
+try {
+    python $fixture prepare $app
+    if ($LASTEXITCODE -ne 0) { throw 'Cannot prepare isolated portable settings' }
+    $gui = Start-Process -FilePath $executable -WorkingDirectory $app -PassThru -WindowStyle Hidden
+    Wait-ForGuiAndCore $gui
     $oldProcessId = $gui.Id
-    # Close only the isolated test instance and its own core before replacement.
-    Get-CimInstance Win32_Process -Filter "ParentProcessId=$oldProcessId" | Where-Object { $_.Name -eq 'qThroneCore.exe' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-    Stop-Process -Id $oldProcessId -Force
-    $gui.WaitForExit()
-    Start-Sleep -Seconds 1
+    # A normal shutdown flushes the buffered startup log before assertions.
+    Close-TestGui $gui
+    $text = Get-Content -LiteralPath $log -Raw
+    if (!$text.Contains('Core Has Successfully Connected to qThrone!')) { throw 'Baseline GUI/core IPC connection failed' }
     python $fixture seed $app
     if ($LASTEXITCODE -ne 0) { throw 'Cannot prepare the upgrade fixture' }
     Copy-Item -LiteralPath $newArchive -Destination (Join-Path $app 'qThrone.zip')
@@ -57,13 +67,21 @@ try {
     $deadline = [DateTime]::UtcNow.AddSeconds(45)
     do {
         Start-Sleep -Milliseconds 500
-        $text = if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Raw } else { '' }
-    } until (($text.Contains("version   : $Version") -and $text.Contains('Core Has Successfully Connected to qThrone!')) -or [DateTime]::UtcNow -gt $deadline)
-    if (!$text.Contains("version   : $Version") -or !$text.Contains('Core Has Successfully Connected to qThrone!')) { throw 'Updated GUI/core restart timed out' }
+        $restarted = Get-CimInstance Win32_Process -Filter "Name='qThrone.exe'" | Where-Object { $_.ExecutablePath -eq $executable }
+    } until ($restarted -or [DateTime]::UtcNow -gt $deadline)
+    if (!$restarted) { throw 'Updated GUI restart timed out' }
+    $gui = Get-Process -Id $restarted.ProcessId
+    Wait-ForGuiAndCore $gui
+    Close-TestGui $gui
+    $text = Get-Content -LiteralPath $log -Raw
+    if (!$text.Contains("version   : $Version") -or !$text.Contains('Core Has Successfully Connected to qThrone!')) { throw 'Updated GUI/core IPC connection failed' }
     if ((Get-FileHash -LiteralPath $executable).Hash -ne (Get-FileHash -LiteralPath $expectedExecutable).Hash) { throw 'Restarted executable differs from the new release' }
     python $fixture verify $app
     if ($LASTEXITCODE -ne 0) { throw 'User data was not preserved' }
     Write-Output "qThrone $baseline -> qThrone ${Version}: downloaded, replaced, restarted and preserved user data"
+} catch {
+    if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Tail 80 }
+    throw
 } finally {
     Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($app, [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 }

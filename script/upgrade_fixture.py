@@ -5,6 +5,14 @@ from pathlib import Path
 
 action, directory = sys.argv[1:3]
 root = Path(directory)
+if action == 'prepare':
+    (root / 'config').mkdir(exist_ok=True)
+    connection = sqlite3.connect(root / 'config/throne.db')
+    connection.execute('CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL)')
+    connection.execute("INSERT OR REPLACE INTO settings(key,value) VALUES('disable_tray','true')")
+    connection.commit()
+    connection.close()
+    raise SystemExit(0)
 connection = sqlite3.connect(root / 'config/throne.db')
 if action == 'seed':
     connection.execute("INSERT INTO groups(id,name,url,skip_auto_update,profiles_json) VALUES(901,'Upgrade subscription','https://example.invalid/subscription',1,'[901,902]')")
