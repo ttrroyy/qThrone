@@ -19,6 +19,7 @@ import (
 )
 
 var errCaptchaWindowClosed = errors.New("VK captcha window was closed")
+var errCaptchaInteractionRequired = errors.New("VK captcha requires an interactive connection; background test skipped")
 
 var captchaWindow = make(chan struct{}, 1)
 
@@ -70,6 +71,10 @@ func captchaSuccessToken(body []byte) string {
 // Mirrors Android's captchaNotRobot.check response handling. The browser owns
 // a temporary profile; existing browser tabs, accounts and cookies are untouched.
 func solveDesktopCaptcha(parent context.Context, redirect string) (string, error) {
+	return solveDesktopCaptchaMode(parent, redirect, true)
+}
+
+func solveDesktopCaptchaMode(parent context.Context, redirect string, visible bool) (string, error) {
 	if err := parent.Err(); err != nil {
 		return "", err
 	}
@@ -89,11 +94,18 @@ func solveDesktopCaptcha(parent context.Context, redirect string) (string, error
 		return "", errors.New("cannot create private captcha browser profile")
 	}
 	defer os.RemoveAll(profile)
+	proxy, closeProxy, err := startCaptchaProxy(ctx)
+	if err != nil {
+		return "", errors.New("cannot start private captcha connection")
+	}
+	defer closeProxy()
 	opts := append([]chromedp.ExecAllocatorOption{}, chromedp.DefaultExecAllocatorOptions[:]...)
 	if edge := edgeExecutable(); edge != "" {
 		opts = append(opts, chromedp.ExecPath(edge))
 	}
-	opts = append(opts, chromedp.Flag("headless", false), chromedp.UserDataDir(profile), chromedp.Flag("app", "about:blank"), chromedp.Flag("remote-debugging-address", "127.0.0.1"))
+	// Do not combine --app with the allocator's initial about:blank tab:
+	// Chromium may create two windows and attach navigation to the hidden one.
+	opts = append(opts, chromedp.Flag("headless", !visible), chromedp.UserDataDir(profile), chromedp.WindowSize(520, 700), chromedp.ProxyServer(proxy), chromedp.Flag("remote-debugging-address", "127.0.0.1"))
 	alloc, closeAlloc := chromedp.NewExecAllocator(ctx, opts...)
 	defer closeAlloc()
 	page, closePage := chromedp.NewContext(alloc)
@@ -136,8 +148,12 @@ func solveDesktopCaptcha(parent context.Context, redirect string) (string, error
 			}()
 		}
 	})
-	if chromedp.Run(page, network.Enable(), chromedp.Navigate(redirect)) != nil {
-		return "", fmt.Errorf("cannot open VK captcha: Chrome, Edge or Chromium is required")
+	if err := chromedp.Run(page, network.Enable(), chromedp.Navigate(redirect)); err != nil {
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+		// Navigation errors may contain the secret captcha URL; don't log them.
+		return "", fmt.Errorf("cannot load VK captcha in the private browser")
 	}
 	select {
 	case value := <-token:

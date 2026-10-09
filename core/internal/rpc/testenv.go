@@ -39,6 +39,9 @@ func prepareTestEnv(current bool, needXray bool, xrayConfig string, xrayFullConf
 		outTags := tags
 		if _, exists := box.Outbound().Outbound("proxy"); exists {
 			outTags = []string{"proxy"}
+			if len(qwdttConfig) > 0 && qwdttConfig[0] != "" {
+				useDefaultOutbound = false
+			}
 		} else {
 			useDefaultOutbound = true
 		}

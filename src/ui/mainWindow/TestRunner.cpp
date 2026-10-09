@@ -132,6 +132,9 @@ void TestRunner::applyUrlResult(const std::shared_ptr<Configs::Profile>& ent, co
         ent->SetLatency(res.latency_ms.value());
     } else if (isTestAborted(error)) {
         ent->SetLatency(0);
+    } else if (error.startsWith("qWDTT test not started:")) {
+        ent->SetLatency(0);
+        MW_show_log(MainWindow::tr("[%1] test error: %2").arg(ent->outbound->DisplayTypeAndName(), error));
     } else if (vpnConnected != nullptr && isVpnProfile(ent)
                && vpnConnected->value(QString::fromStdString(res.outbound_tag.value()), false)) {
         ent->SetLatency(Configs::kLatencyConnectOnly);
@@ -675,7 +678,7 @@ void TestRunner::runSpeedProbe(const Target& target)
         } else {
             ent->dl_speed = "N/A";
             ent->ul_speed = "N/A";
-            ent->SetLatency(-1);
+            ent->SetLatency(error.startsWith("qWDTT test not started:") ? 0 : -1);
             ent->test_country = "";
             MW_show_log(MainWindow::tr("[%1] speed test error: %2").arg(ent->outbound->DisplayTypeAndName(), error));
         }

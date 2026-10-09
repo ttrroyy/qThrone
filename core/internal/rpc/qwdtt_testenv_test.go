@@ -3,9 +3,43 @@ package rpc
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
+
+	"ThroneCore/gen"
 )
+
+func TestQWDTTStartupFailureIsNotServerUnavailable(t *testing.T) {
+	s := &server{}
+	result, err := s.Test(context.Background(), &gen.TestReq{QwdttConfig: To(`{"socks":"0.0.0.0:9000"}`)})
+	if err != nil || len(result.Results) != 1 || !strings.HasPrefix(result.Results[0].GetError(), "qWDTT test not started:") {
+		t.Fatalf("URL startup failure classification: %v %v", result, err)
+	}
+	speed, err := s.SpeedTest(context.Background(), &gen.SpeedTestRequest{
+		TestDownload: To(true), TestUpload: To(false), SimpleDownload: To(false), OnlyCountry: To(false),
+		QwdttConfig: To(`{"socks":"0.0.0.0:9000"}`),
+	})
+	if err != nil || len(speed.Results) != 1 || !strings.HasPrefix(speed.Results[0].GetError(), "qWDTT test not started:") {
+		t.Fatalf("speed startup failure classification: %v %v", speed, err)
+	}
+}
+
+func TestQWDTTProbeDisablesInteractiveCaptcha(t *testing.T) {
+	input := `{"peer":"test.invalid:56000","device_id":"fake-device","hashes":["fake-hash"],"probe_only":false}`
+	output, err := noninteractiveQWDTTConfig(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c map[string]json.RawMessage
+	if json.Unmarshal([]byte(output), &c) != nil || string(c["probe_only"]) != "true" || string(c["hashes"]) != `["fake-hash"]` {
+		t.Fatal("probe changed credentials or allowed an interactive browser")
+	}
+	if _, err := noninteractiveQWDTTConfig("null"); err == nil {
+		t.Fatal("null config accepted")
+	}
+}
 
 func TestQWDTTProbeRejectsNonLoopbackListeners(t *testing.T) {
 	for _, config := range []string{`{}`, `not-json`, `{"socks":"0.0.0.0:9000"}`, `{"socks":"example.invalid:9000"}`, `{"socks":"127.0.0.1:0"}`} {

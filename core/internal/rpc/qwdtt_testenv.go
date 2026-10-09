@@ -117,6 +117,11 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}
+	config, err = noninteractiveQWDTTConfig(config)
+	if err != nil {
+		release()
+		return nil, err
+	}
 	path, folder, err := process.CreateExtraConfig(config)
 	if err != nil {
 		release()
@@ -141,11 +146,21 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 		select {
 		case <-child.Done():
 			cleanup()
-			return nil, errors.New("qWDTT exited before its SOCKS bridge was ready")
+			return nil, errors.New("qWDTT authentication or bridge startup failed; connect interactively and retry the test")
 		case <-readyCtx.Done():
 			cleanup()
 			return nil, errors.New("qWDTT test cancelled or bridge startup timed out")
 		case <-time.After(100 * time.Millisecond):
 		}
 	}
+}
+
+func noninteractiveQWDTTConfig(config string) (string, error) {
+	var c map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(config), &c); err != nil || c == nil {
+		return "", errors.New("invalid qWDTT test config")
+	}
+	c["probe_only"] = json.RawMessage("true")
+	b, err := json.Marshal(c)
+	return string(b), err
 }

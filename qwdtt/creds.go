@@ -610,6 +610,12 @@ func solveCaptchaBySelectedMode(
 	profile Profile,
 	savedProfile *SavedProfile,
 ) (string, error) {
+	if desktopBridgeMode && desktopProbeOnly {
+		if bridgeCancel != nil {
+			bridgeCancel()
+		}
+		return "", errCaptchaInteractionRequired
+	}
 	if fresh, err := rotateCaptchaProfile(); err == nil {
 		savedProfile = fresh
 	} else {
@@ -716,12 +722,20 @@ func requestWebViewCaptcha(streamID int, captchaErr *VkCaptchaError, mode string
 		if captchaErr == nil {
 			return "", fmt.Errorf("VK captcha data is missing")
 		}
-		log.Printf("[qWDTT] VK требует капчу. Открываю отдельное окно браузера.")
+		if desktopProbeOnly {
+			return "", errCaptchaInteractionRequired
+		}
+		visible := mode != "auto"
+		if visible {
+			log.Printf("[qWDTT] VK требует ручное решение капчи. Открываю окно браузера.")
+		}
 		ctx := bridgeContext
 		if ctx == nil {
 			ctx = context.Background()
 		}
-		token, err := solveDesktopCaptcha(ctx, captchaErr.RedirectURI)
+		ctx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+		token, err := solveDesktopCaptchaMode(ctx, captchaErr.RedirectURI, visible)
 		if errors.Is(err, errCaptchaWindowClosed) && bridgeCancel != nil {
 			bridgeCancel()
 		}

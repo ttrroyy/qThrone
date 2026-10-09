@@ -15,7 +15,7 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 		in.GetXrayOutboundDnsStrategy(), in.GetQwdttConfig())
 	if err != nil {
 		if in.GetQwdttConfig() != "" {
-			return &gen.TestResp{Results: []*gen.URLTestResp{{OutboundTag: To("proxy"), LatencyMs: To(int32(0)), Error: To(err.Error())}}}, nil
+			return &gen.TestResp{Results: []*gen.URLTestResp{{OutboundTag: To("proxy"), LatencyMs: To(int32(0)), Error: To("qWDTT test not started: " + err.Error())}}}, nil
 		}
 		if errors.Is(err, errInstanceNotRunning) {
 			return &gen.TestResp{Results: []*gen.URLTestResp{{
@@ -35,7 +35,7 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 	}
 
 	// A muxed config needs a warm connection; the live instance already is one.
-	twice := !in.GetTestCurrent()
+	twice := !in.GetTestCurrent() || in.GetQwdttConfig() != ""
 	var results []*probe.URLTestResult
 	if in.GetQwdttConfig() != "" {
 		results = probe.BatchURLTestTo(testCtx, env.box, env.tags, in.GetUrl(),

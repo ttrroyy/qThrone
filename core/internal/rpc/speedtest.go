@@ -38,7 +38,7 @@ func (s *server) SpeedTest(ctx context.Context, in *gen.SpeedTestRequest) (*gen.
 		in.GetXrayOutboundDnsStrategy(), in.GetQwdttConfig())
 	if err != nil {
 		if in.GetQwdttConfig() != "" {
-			return &gen.SpeedTestResponse{Results: []*gen.SpeedTestResult{{OutboundTag: To("proxy"), Error: To(err.Error())}}}, nil
+			return &gen.SpeedTestResponse{Results: []*gen.SpeedTestResult{{OutboundTag: To("proxy"), Error: To("qWDTT test not started: " + err.Error())}}}, nil
 		}
 		if errors.Is(err, errInstanceNotRunning) {
 			return &gen.SpeedTestResponse{Results: []*gen.SpeedTestResult{{

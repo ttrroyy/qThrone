@@ -15,6 +15,7 @@ import (
 
 // Secrets travel in Throne's private, temporary extra-core config, never argv.
 type bridgeConfig struct {
+	ProbeOnly   bool     `json:"probe_only"`
 	VKAnonPath  string   `json:"vk_anon_path"`
 	CaptchaMode string   `json:"captcha_mode"`
 	Peer        string   `json:"peer"`
@@ -33,6 +34,7 @@ type bridgeConfig struct {
 }
 
 var desktopBridgeMode bool
+var desktopProbeOnly bool
 var bridgeContext context.Context
 var bridgeCancel context.CancelFunc
 
@@ -122,6 +124,7 @@ func applyBridgeConfig(filename string) error {
 		return err
 	}
 	desktopBridgeMode = true
+	desktopProbeOnly = c.ProbeOnly
 	mode := "socks"
 	if c.Mode == "raw" {
 		mode = "rawtun"
