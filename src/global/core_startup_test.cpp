@@ -6,6 +6,7 @@
 #include <QLocalSocket>
 #include <QProcess>
 #include <QProcessEnvironment>
+#include <QTemporaryDir>
 #include <QUuid>
 
 // Run inside the packaged GUI executable so the core's parent identity check
@@ -19,7 +20,18 @@ int TestCoreStartup() {
     }
     QLocalServer server;
     server.setSocketOptions(QLocalServer::UserAccessOption);
-    if (!server.listen("qthrone-test-" + QUuid::createUuid().toString(QUuid::WithoutBraces))) {
+    QString socketName = "qthrone-test-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
+#ifdef Q_OS_UNIX
+    // macOS runner TMPDIR plus a UUID exceeds Qt 6.4's Unix socket path limit.
+    // Keep the socket in a private directory with a short absolute path.
+    QTemporaryDir socketDirectory("/tmp/qthrone-test-XXXXXX");
+    if (!socketDirectory.isValid()) {
+        qCritical() << "Cannot create the core startup test socket directory";
+        return 1;
+    }
+    socketName = socketDirectory.filePath("core");
+#endif
+    if (!server.listen(socketName)) {
         qCritical() << "Core startup test socket:" << server.errorString();
         return 1;
     }

@@ -13,5 +13,6 @@ print("- Адрес теста задержки по умолчанию: http://
 print("- Исправлен путь запуска упакованного ядра qThroneCore.")
 print("- Добавлена проверка запуска ядра и подключения к программе перед публикацией пакетов.")
 print("- Исправлена проверка обновлений для версий 1.0-beta.N и перехода на стабильную 1.0.")
+print("- Исправлен порядок подписи macOS-пакетов; добавлена проверка итоговой подписи.")
 print()
 print(f"Основа: Throne {version['throne_version']}, ветка dev, коммит [{version['throne_commit'][:8]}](https://github.com/throneproj/Throne/commit/{version['throne_commit']}).")
