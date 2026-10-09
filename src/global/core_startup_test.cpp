@@ -11,6 +11,7 @@
 // Run inside the packaged GUI executable so the core's parent identity check
 // verifies the same executable name and directory as a normal application start.
 int TestCoreStartup() {
+    qInstallMessageHandler(nullptr);
     const auto path = Configs::FindCoreRealPath();
     if (!QFileInfo::exists(path)) {
         qCritical() << "Packaged core is missing:" << path;

@@ -4,6 +4,7 @@
 #include "include/global/Version.hpp"
 
 int TestQwdttImport() {
+    qInstallMessageHandler(nullptr);
     int failures = 0;
     const auto check = [&failures](bool ok, const char *name) {
         if (!ok) { qCritical() << "qWDTT import test failed:" << name; ++failures; }
