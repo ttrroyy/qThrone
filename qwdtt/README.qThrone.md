@@ -37,4 +37,3 @@ go vet ./...
 
 Tests exercise TCP/UDP through the SOCKS bridge, actual raw IP stacks and two actual
 userspace WireGuard devices. They do not authenticate to VK or provision a VPS.
-See ../QTHRONE_GUIDE_RU.md for release setup and the limits of validation.

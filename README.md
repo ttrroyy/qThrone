@@ -1,12 +1,8 @@
 # qThrone
 
-Fork of Throne with qWDTT RAW/WG profiles and a white TUN tray icon.
-See [the Russian setup, release and update guide](QTHRONE_GUIDE_RU.md).
-Build your fork using **Actions → qThrone release**; links in the inherited
-documentation below refer to the original Throne project.
-
-The network adapter has automated local tests; a complete GUI release and live
-VK/VPS connection still require validation in your fork before a stable release.
+Throne fork with qWDTT RAW/WG support, four VK call hash fields and a white TUN tray icon.
+Releases are built with the **qThrone release** GitHub Actions workflow.
+The documentation below describes upstream Throne; its download links point to the upstream project.
 
 ## Original Throne documentation
 
