@@ -5,7 +5,7 @@ on:
       tag:
         description: "Release Tag and version"
         required: true
-        default: "1.0.0-beta.1"
+        default: "1.0-beta.1"
       publish:
         description: "r for normal release, p for prerelease, leave empty to not publish anything"
         required: false
@@ -383,6 +383,22 @@ jobs:
           ninja
           cd ..
           ./script/deploy_macos.sh
+      - name: Test packaged Windows core startup
+        if: contains(matrix.platform, 'windows')
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath "$env:DEST/qThrone.exe" -ArgumentList '--self-test-core-startup' -Wait -PassThru -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { throw "Packaged core startup failed: $($process.ExitCode)" }
+      - name: Test packaged Linux core startup
+        if: contains(matrix.platform, 'ubuntu') && matrix.qt_version == '6.2.0'
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: '"$DEST/qThrone" --self-test-core-startup'
+      - name: Test packaged macOS core startup
+        if: contains(matrix.platform, 'macos')
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: '"$DEST/qThrone.app/Contents/MacOS/qThrone" --self-test-core-startup'
       # ========================================================================================================= Deployments
       - name: Tar files
         shell: bash
@@ -488,7 +504,6 @@ jobs:
           args=()
           if [[ "$RELEASE_KIND" == p ]]; then args+=(--prerelease); fi
           title="qThrone $RELEASE_TAG"
-          if [[ "$RELEASE_TAG" == '1.0.0-beta.1' ]]; then title='qThrone 1.0 Beta 1'; fi
           gh release create "$RELEASE_TAG" deployment/* \
             --target "$RELEASE_SHA" --title "$title" \
             --notes-file "$RUNNER_TEMP/release-notes.md" "${args[@]}"

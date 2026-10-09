@@ -305,6 +305,7 @@ set(PROJECT_SOURCES
         include/ui/profile/edit_socks.h
         src/configs/outbounds/qwdtt.cpp
         src/configs/sub/qwdtt_import_test.cpp
+        src/global/core_startup_test.cpp
         include/configs/outbounds/qwdtt.h
         src/ui/profile/edit_qwdtt.cpp
         include/ui/profile/edit_qwdtt.h

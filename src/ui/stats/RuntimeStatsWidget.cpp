@@ -59,7 +59,7 @@ RuntimeStatsWidget::RuntimeStatsWidget(QWidget* parent) : QWidget(parent), ui(ne
     ui->cpuChart->setCaption(tr("CPU"));
     ui->ramChart->setCaption(tr("RAM"));
     ui->labelThroneName->setText(QStringLiteral("<span style=\"color:%1\">●</span> %2")
-                                     .arg(kRuntimeThroneColor.name(), "Throne"));
+                                     .arg(kRuntimeThroneColor.name(), "qThrone"));
     ui->labelCoreName->setText(QStringLiteral("<span style=\"color:%1\">●</span> %2")
                                    .arg(kRuntimeCoreColor.name(), tr("Core")));
 

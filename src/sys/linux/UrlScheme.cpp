@@ -45,10 +45,10 @@ static QString desktopFilePath() {
 // "throne" is in no icon theme for the /opt and AppImage layouts, so unpack a copy and use an absolute path.
 static QString iconTarget() {
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    const QString path = dir + "/throne.png";
+    const QString path = dir + "/qthrone.png";
     QDir().mkpath(dir);
     QFile::remove(path);
-    return QFile::copy(":/Throne/Throne.png", path) ? path : QStringLiteral("throne");
+    return QFile::copy(":/Throne/Throne.png", path) ? path : QStringLiteral("qthrone");
 }
 
 struct DesktopEntry {

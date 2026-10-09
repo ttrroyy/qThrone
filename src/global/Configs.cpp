@@ -56,7 +56,7 @@ namespace Configs {
         const auto wrapped = QStandardPaths::findExecutable("qThroneCore");
         if (!wrapped.isEmpty()) return wrapped;
 #endif
-        auto fn = QApplication::applicationDirPath() + "/ThroneCore";
+        auto fn = QApplication::applicationDirPath() + "/qThroneCore";
 #ifdef Q_OS_WIN
         fn += ".exe";
 #endif

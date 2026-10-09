@@ -1,6 +1,7 @@
 #include "include/configs/sub/SubscriptionParser.hpp"
 #include "include/configs/outbounds/qwdtt.h"
 #include <QDebug>
+#include "include/global/Version.hpp"
 
 int TestQwdttImport() {
     int failures = 0;
@@ -36,6 +37,14 @@ int TestQwdttImport() {
     }
     check(parse(android + "\n" + android).size() == 2, "text subscription");
     check(parse("qwdtt://config?peer=203.0.113.10%3Ainvalid&pass=test").isEmpty(), "invalid server port");
-    qInfo() << "qWDTT import tests:" << failures << "failures";
+    check(ReleaseVersion::IsNewer("1.0-beta.2", "1.0-beta.1"), "next beta update");
+    check(ReleaseVersion::IsNewer("1.0", "1.0-beta.3"), "beta to stable update");
+    check(!ReleaseVersion::IsNewer("1.0-beta.4", "1.0"), "stable cannot downgrade to beta");
+    check(!ReleaseVersion::IsNewer("1.0-beta.1", "1.0.0-beta.1"), "optional patch equivalence");
+    check(ReleaseVersion::IsNewer("1.1-beta.1", "1.0"), "next minor beta");
+    check(!ReleaseVersion::IsNewer("invalid", "1.0"), "invalid update version");
+    check(ReleaseVersion::FromAsset("qThrone-1.0-beta.2-windows-amd64.zip") == "1.0-beta.2", "beta asset version");
+    check(ReleaseVersion::FromAsset("qThrone-1.0-linux-amd64.tar.gz") == "1.0", "stable asset version");
+    qInfo() << "qWDTT import and release version tests:" << failures << "failures";
     return failures == 0 ? 0 : 1;
 }

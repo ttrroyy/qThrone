@@ -620,7 +620,7 @@ void DialogBasicSettings::on_backup_create_clicked() {
     QString filePath = QFileDialog::getSaveFileName(
         this,
         tr("Create Backup"),
-        QDir::homePath() + "/Throne-backup.thrbackup",
+        QDir::homePath() + "/qThrone-backup.thrbackup",
         tr("Throne Backup (*.thrbackup)")
     );
     if (filePath.isEmpty()) return;

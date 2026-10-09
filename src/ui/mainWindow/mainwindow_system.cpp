@@ -1,3 +1,4 @@
+#include "include/global/Version.hpp"
 #include "include/ui/mainwindow.h"
 #include "NkrVersion.h"
 
@@ -548,71 +549,7 @@ void MainWindow::restart_core_for_guard(const StartRequest &request) {
 namespace {
 
 bool isNewer(QString assetName) {
-    if (QString(NKR_VERSION).isEmpty()) return false;
-    assetName = assetName.mid(assetName.indexOf('-') + 1); // release product prefix
-    if (assetName.count('-') < 1) return false;
-    QString version;
-    auto spl = assetName.split('-');
-    version += spl[0];
-    if (spl[1].contains("beta") || spl[1].contains("alpha") || spl[1].contains("rc")) version += "."+spl[1];
-    auto parts = version.split("."); // [1,2,3,beta,13]
-    auto currentParts = QString(NKR_VERSION).replace("-", ".").split('.');
-    if (parts.size() < 3 || currentParts.size() < 3)
-    {
-        MW_show_log("Version strings seem to be invalid" + QString(NKR_VERSION) + " and " + version);
-        return false;
-    }
-    std::vector<int> verNums;
-    std::vector<int> currNums;
-    verNums.push_back(parts[0].toInt());
-    verNums.push_back(parts[1].toInt());
-    verNums.push_back(parts[2].toInt());
-    if (parts.size() > 3)
-    {
-        if (parts[3] == "alpha") verNums.push_back(1);
-        if (parts[3] == "beta") verNums.push_back(2);
-        if (parts[3] == "rc") verNums.push_back(3);
-        if (parts.size() > 4) verNums.push_back(parts[4].toInt());
-    }
-
-    currNums.push_back(currentParts[0].toInt());
-    currNums.push_back(currentParts[1].toInt());
-    currNums.push_back(currentParts[2].toInt());
-    if (currentParts.size() > 3)
-    {
-        if (currentParts[3] == "alpha") currNums.push_back(1);
-        if (currentParts[3] == "beta") currNums.push_back(2);
-        if (currentParts[3] == "rc") currNums.push_back(3);
-        if (currentParts.size() > 4) currNums.push_back(currentParts[4].toInt());
-    }
-
-    if (verNums.size() < 3 || currNums.size() < 3)
-    {
-        MW_show_log("Version strings seem to be invalid" + QString(NKR_VERSION) + " and " + version);
-        return false;
-    }
-
-    for (int i=0;i<3;i++)
-    {
-        if (verNums[i] > currNums[i]) return true;
-        if (verNums[i] < currNums[i]) return false;
-    }
-
-    if (verNums.size() == 5 && currNums.size() == 3) return false;
-    if (verNums.size() == 3 && currNums.size() == 5) return true;
-    if (verNums.size() == 5 && currNums.size() == 5)
-    {
-        for (int i=3;i<5;i++)
-        {
-            if (verNums[i] > currNums[i]) return true;
-            if (verNums[i] < currNums[i]) return false;
-        }
-    } else
-    {
-		MW_show_log("There are no updates. You have the latest version - " + QString(NKR_VERSION));
-        return false;
-    }
-    return false;
+    return ReleaseVersion::IsNewer(ReleaseVersion::FromAsset(assetName), QString(NKR_VERSION));
 }
 
 constexpr auto dashboardDownloadURL = "https://github.com/SagerNet/sing-box-dashboard/archive/refs/heads/gh-pages.zip";
