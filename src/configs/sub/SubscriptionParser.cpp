@@ -49,6 +49,7 @@ namespace Subscription {
         };
 
         constexpr Protocol kProtocols[] = {
+            {"qwdtt", {"qwdtt://", "qwdtt:config", "wdtt://"}, {"qwdtt", "wdtt"}, {}},
             {"socks", {"socks5://", "socks4://", "socks4a://", "socks://"}, {"socks"}, {"socks5"}},
             {"http", {"http://", "https://"}, {"http"}, {"http"}},
             {"shadowsocks", {"ss://"}, {"shadowsocks"}, {"ss"}},
@@ -408,6 +409,36 @@ namespace Subscription {
         }
 
         void Parser::json(const QJsonDocument &doc, std::string_view text) {
+            // qWDTT Android subscriptions are profile arrays or {profiles/servers:[...]}.
+            QJsonArray qProfiles;
+            if (doc.isArray()) qProfiles = doc.array();
+            else if (doc.isObject()) {
+                const auto o = doc.object();
+                if (o.contains("peer") || o["type"].toString() == "qwdtt" || o["type"].toString() == "wdtt") qProfiles.append(o);
+                else if (o["profiles"].isArray()) qProfiles = o["profiles"].toArray();
+                else if (o["servers"].isArray()) qProfiles = o["servers"].toArray();
+            }
+            const auto isQwdtt = [](const QJsonObject &o) {
+                const auto type = o["type"].toString();
+                return type == "qwdtt" || type == "wdtt" || (type.isEmpty() && o.contains("peer"));
+            };
+            if (std::any_of(qProfiles.cbegin(), qProfiles.cend(), [&](const QJsonValue &v) { return isQwdtt(v.toObject()); })) {
+                // Preserve every protocol and the original document order.
+                for (const auto &value : qProfiles) {
+                    if (!value.isObject()) continue;
+                    const auto o = value.toObject();
+                    if (isQwdtt(o)) {
+                        auto ent = Configs::ProfilesRepo::NewProfile("qwdtt");
+                        if (ent->outbound->ParseFromJson(o)) produce(ent);
+                        else log("Invalid qWDTT profile");
+                    } else {
+                        const QJsonDocument item(o);
+                        const auto bytes = item.toJson(QJsonDocument::Compact);
+                        json(item, scan::view(bytes));
+                    }
+                }
+                return;
+            }
             // Xray first: its configs share the "outbounds" wrapper with sing-box.
             const auto xrayType = getXraySubType(doc);
             if (xrayType == XraySubType::outboundObject) {

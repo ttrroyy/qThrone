@@ -4,6 +4,7 @@
 
 #include <QHash>
 #include <QPixmap>
+#include <QPainter>
 
 #include <optional>
 
@@ -49,7 +50,22 @@ QIcon Icon::GetTrayIcon(TrayIconStatus status) {
 
     // A custom set without Connecting.png keeps its own Off icon rather than mixing in the bundled one.
     const QString customFallback = status == TrayIconStatus::Connecting ? statusName(TrayIconStatus::None) : QString();
-    const QIcon icon = loadNamedIcon(statusName(status), useCustom, customFallback);
+    QIcon icon = loadNamedIcon(statusName(status), useCustom, customFallback);
+    if (status == TrayIconStatus::Vpn) {
+        // Preserve the original silhouette, transparency and antialiased edges.
+        QIcon white;
+        auto sizes = icon.availableSizes();
+        if (sizes.isEmpty()) sizes = {QSize(16,16), QSize(32,32), QSize(64,64)};
+        for (const auto &size : sizes) {
+            auto pixmap = icon.pixmap(size);
+            QPainter painter(&pixmap);
+            painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+            painter.fillRect(pixmap.rect(), Qt::white);
+            painter.end();
+            white.addPixmap(pixmap);
+        }
+        icon = white;
+    }
     g_trayIcons.insert(status, icon);
     return icon;
 }

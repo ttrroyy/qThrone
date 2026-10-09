@@ -71,7 +71,7 @@ namespace Scanner {
     } // namespace
 
     bool IsScanBaseType(const QString &type) {
-        return !type.isEmpty() && type != QLatin1String("custom") && type != QLatin1String("extracore") &&
+        return !type.isEmpty() && type != QLatin1String("custom") && type != QLatin1String("extracore") && type != QLatin1String("qwdtt") &&
                type != QLatin1String("tailscale") && type != QLatin1String("autoselector") && type != QLatin1String("direct");
     }
 

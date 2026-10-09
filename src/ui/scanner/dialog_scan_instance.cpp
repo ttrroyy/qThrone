@@ -60,7 +60,7 @@ namespace {
     constexpr int kScanInstanceResultsPreview = 50000;
 
     const QStringList kScanInstanceCandidateExclusions = {
-        QStringLiteral("custom"), QStringLiteral("extracore"), QStringLiteral("tailscale"),
+        QStringLiteral("custom"), QStringLiteral("extracore"), QStringLiteral("qwdtt"), QStringLiteral("tailscale"),
         QStringLiteral("autoselector"), QStringLiteral("direct"),
     };
 

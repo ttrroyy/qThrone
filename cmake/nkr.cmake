@@ -3,6 +3,10 @@ if (NOT DEFINED INPUT_VERSION)
     set(INPUT_VERSION "$ENV{INPUT_VERSION}")
 endif ()
 set(NKR_VERSION "${INPUT_VERSION}")
+set(QTHRONE_REPOSITORY "$ENV{GITHUB_REPOSITORY}" CACHE STRING "qThrone GitHub repository (owner/name)")
+if (QTHRONE_REPOSITORY STREQUAL "throneproj/Throne")
+    set(QTHRONE_REPOSITORY "")
+endif ()
 
 # Derive numeric parts for Windows PE VERSIONINFO (X.Y.Z.W) from NKR_VERSION.
 # Examples:

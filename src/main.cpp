@@ -284,7 +284,7 @@ int main(int argc, char* argv[]) {
 #ifdef NKR_CPP_USE_APPDATA
     useAppdata = true;
 #endif
-    QApplication::setApplicationName("Throne");
+    QApplication::setApplicationName("qThrone");
     if(useAppdata) {
         if (!appdataDir.isEmpty()) {
             wd.setPath(appdataDir);

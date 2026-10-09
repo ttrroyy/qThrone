@@ -39,6 +39,12 @@ case "$GOOS" in
     ;;
 esac
 
+#### qWDTT: portable userspace bridge (RAW/WG, no host WireGuard interface) ####
+pushd qwdtt
+CGO_ENABLED=0 $GOCMD build -trimpath -ldflags="-s -w" -o "$DEST/qwdtt$([[ "$GOOS" == "windows" ]] && echo ".exe")" .
+cp LICENSE "$DEST/qwdtt-LICENSE"
+popd
+
 #### Go: core ####
 pushd core
 pushd gen

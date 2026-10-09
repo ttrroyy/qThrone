@@ -9554,4 +9554,27 @@ Remove that endpoint from this routing profile as well?</source>
         <translation>Страница %1/%2</translation>
     </message>
 </context>
+<context>
+    <name>EditQWDTT</name>
+    <message><source>Tunnel mode</source><translation>Режим туннеля</translation></message>
+    <message><source>Password</source><translation>Пароль</translation></message>
+    <message><source>Call hash or VK call link</source><translation>Хеш звонка или ссылка на звонок VK</translation></message>
+    <message><source>VK hash %1</source><translation>Хеш VK %1</translation></message>
+    <message><source>RAW server port</source><translation>Порт RAW на сервере</translation></message>
+    <message><source>qWDTT RAW listener, normally 56003. The main server port is used by WG.</source><translation>Порт RAW qWDTT, обычно 56003. Основной порт сервера используется для WG.</translation></message>
+    <message><source>Workers</source><translation>Воркеры</translation></message>
+    <message><source>TURN transport</source><translation>Транспорт TURN</translation></message>
+    <message><source>Audio</source><translation>Аудио</translation></message>
+    <message><source>Video</source><translation>Видео</translation></message>
+    <message><source>Obfuscation</source><translation>Маскировка</translation></message>
+    <message><source>VK DNS</source><translation>DNS для VK</translation></message>
+    <message><source>Device ID</source><translation>ID устройства</translation></message>
+    <message><source>Generated automatically. Keep it unchanged for passwords bound to a device.</source><translation>Создаётся автоматически. Не меняйте для паролей, привязанных к устройству.</translation></message>
+    <message><source>Server address is required.</source><translation>Укажите адрес сервера.</translation></message>
+    <message><source>Server port must be between 1 and 65535.</source><translation>Порт сервера должен быть от 1 до 65535.</translation></message>
+    <message><source>Enter a valid connection password.</source><translation>Укажите корректный пароль подключения.</translation></message>
+    <message><source>Enter one to four VK call hashes.</source><translation>Укажите от одного до четырёх хешей звонков VK.</translation></message>
+    <message><source>Workers must be a multiple of 9.</source><translation>Число воркеров должно быть кратно 9.</translation></message>
+    <message><source>Enter a valid device ID.</source><translation>Укажите корректный ID устройства.</translation></message>
+</context>
 </TS>

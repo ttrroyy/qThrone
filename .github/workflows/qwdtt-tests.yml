@@ -1,0 +1,27 @@
+name: qWDTT tests
+on:
+  push:
+    paths: ['qwdtt/**', '.github/workflows/qwdtt-tests.yml']
+  pull_request:
+    paths: ['qwdtt/**', '.github/workflows/qwdtt-tests.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version: '1.27.2'
+          cache-dependency-path: qwdtt/go.sum
+      - name: TCP, UDP, RAW, WireGuard and shutdown tests
+        working-directory: qwdtt
+        run: go test -race -count=1 -timeout 120s ./...
+      - name: Vet
+        working-directory: qwdtt
+        run: go vet ./...

@@ -15,20 +15,20 @@
 #endif
 
 [Setup]
-AppId={{29950A94-3C8D-4043-9E00-36AB69F78042}
-AppName=Throne
+AppId={{791A78A7-02DF-4E18-990D-1A73186F6778}
+AppName=qThrone
 AppVersion={#AppVersion}
-AppVerName=Throne {#AppVersion}
-AppPublisher=Throne
+AppVerName=qThrone {#AppVersion}
+AppPublisher=qThrone
 VersionInfoVersion={#AppVersionMajor}.{#AppVersionMinor}.{#AppVersionPatch}.{#AppVersionBuild}
-VersionInfoProductName=Throne
-VersionInfoDescription=Throne Setup
+VersionInfoProductName=qThrone
+VersionInfoDescription=qThrone Setup
 VersionInfoCopyright=Throne
 SourceDir=..
 OutputDir=deployment
-OutputBaseFilename=ThroneSetup
+OutputBaseFilename=qThroneSetup
 SetupIconFile=res\Throne.ico
-UninstallDisplayName=Throne
+UninstallDisplayName=qThrone
 UninstallDisplayIcon={app}\Throne.exe
 WizardStyle=modern
 PrivilegesRequired=lowest
@@ -49,7 +49,7 @@ LZMANumBlockThreads=4
 LZMABlockSize=118784
 
 [Messages]
-SelectDirBrowseLabel=To continue, click Next. If the folder you choose is not named Throne, Setup creates a Throne folder inside it, so uninstalling only ever removes Throne's own folder.
+SelectDirBrowseLabel=To continue, click Next. If the folder you choose is not named qThrone, Setup creates a qThrone folder inside it, so uninstalling only ever removes qThrone's own folder.
 
 [Files]
 Source: "deployment\windows-amd64\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion; Check: IsX64OS; MinVersion: 10.0.17763
@@ -58,21 +58,21 @@ Source: "deployment\windows-arm64\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags
 Source: "deployment\windowslegacy-386\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion; Check: IsX86OS
 
 [Icons]
-Name: "{autoprograms}\Throne"; Filename: "{app}\Throne.exe"
-Name: "{autodesktop}\Throne"; Filename: "{app}\Throne.exe"
+Name: "{autoprograms}\qThrone"; Filename: "{app}\Throne.exe"
+Name: "{autodesktop}\qThrone"; Filename: "{app}\Throne.exe"
 
 [Registry]
-Root: HKA; Subkey: "Software\Throne"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\qThrone"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
 
 [UninstallDelete]
 Type: files; Name: "{app}\updater.old"
 
 [Run]
-Filename: "{app}\Throne.exe"; Description: "{cm:LaunchProgram,Throne}"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\Throne.exe"; Description: "{cm:LaunchProgram,qThrone}"; Flags: postinstall nowait skipifsilent
 
 [Code]
 const
-  LegacyUninstall = 'Microsoft\Windows\CurrentVersion\Uninstall\Throne';
+  LegacyUninstall = 'Microsoft\Windows\CurrentVersion\Uninstall\qThrone';
 
 var
   DeleteUserData: Boolean;
@@ -103,12 +103,12 @@ end;
 // An NSIS install keeps its folder, since Throne's config lives next to the exe.
 function DefaultInstallDir(Param: String): String;
 begin
-  if LegacyValue('Throne', 'InstallPath', Result) then
+  if LegacyValue('qThrone', 'InstallPath', Result) then
     Exit;
   if IsAdminInstallMode then
-    Result := ExpandConstant('{autopf}\Throne')
+    Result := ExpandConstant('{autopf}\qThrone')
   else
-    Result := ExpandConstant('{localappdata}\Throne');
+    Result := ExpandConstant('{localappdata}\qThrone');
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -121,9 +121,9 @@ begin
     Exit;
   Dir := RemoveBackslashUnlessRoot(WizardDirValue);
   // Uninstalling can delete <dir>\config, so Throne must get a folder of its own.
-  if CompareText(ExtractFileName(Dir), 'Throne') <> 0 then
+  if CompareText(ExtractFileName(Dir), 'qThrone') <> 0 then
   begin
-    Dir := AddBackslash(Dir) + 'Throne';
+    Dir := AddBackslash(Dir) + 'qThrone';
     WizardForm.DirEdit.Text := Dir;
   end;
   if IsAdminInstallMode then
@@ -166,7 +166,7 @@ begin
   try
     Locator := CreateOleObject('WbemScripting.SWbemLocator');
     Service := Locator.ConnectServer('.', 'root\CIMV2');
-    Processes := Service.ExecQuery('SELECT * FROM Win32_Process WHERE Name = ''Throne.exe'' OR Name = ''ThroneCore.exe''');
+    Processes := Service.ExecQuery('SELECT * FROM Win32_Process WHERE Name = ''Throne.exe'' OR Name = ''ThroneCore.exe'' OR Name = ''qwdtt.exe''');
     for I := 0 to Processes.Count - 1 do
     begin
       Process := Processes.ItemIndex(I);
@@ -230,7 +230,7 @@ begin
     Exit;
   Folder := Lowercase(AddBackslash(Folder));
   if (Pos(Lowercase(AddBackslash(ExpandConstant('{app}'))), Folder) = 1) or
-     (Pos(Lowercase(ExpandConstant('{localappdata}\Throne\')), Folder) = 1) then
+     (Pos(Lowercase(ExpandConstant('{localappdata}\qThrone\')), Folder) = 1) then
     RegDeleteKeyIncludingSubkeys(HKEY_LOCAL_MACHINE, SubKey);
 end;
 
@@ -245,17 +245,17 @@ begin
     RemoveAssociations;
     RemoveCrashDumpKey('Throne.exe');
     RemoveCrashDumpKey('ThroneCore.exe');
-    DeleteUserData := SuppressibleMsgBox('Also delete your Throne profiles, settings and logs?' + #13#10#13#10 +
-      'Choose No if you plan to reinstall Throne later and want to keep them.', mbConfirmation, MB_YESNO, IDYES) = IDYES;
+    DeleteUserData := SuppressibleMsgBox('Also delete your qThrone profiles, settings and logs?' + #13#10#13#10 +
+      'Choose No if you plan to reinstall qThrone later and want to keep them.', mbConfirmation, MB_YESNO, IDYES) = IDYES;
   end
   else if (CurUninstallStep = usPostUninstall) and DeleteUserData then
   begin
     if FileExists(App + '\config\throne.db') then
       DelTree(App + '\config', True, True, True);
     // Where Throne keeps its config when its own folder is not writable (Qt's AppConfigLocation).
-    DelTree(ExpandConstant('{localappdata}\Throne\config'), True, True, True);
-    RemoveDir(ExpandConstant('{localappdata}\Throne'));
-    DelTree(ExpandConstant('{userappdata}\Throne'), True, True, True);
+    DelTree(ExpandConstant('{localappdata}\qThrone\config'), True, True, True);
+    RemoveDir(ExpandConstant('{localappdata}\qThrone'));
+    DelTree(ExpandConstant('{userappdata}\qThrone'), True, True, True);
     RemoveDir(App);
   end;
 end;

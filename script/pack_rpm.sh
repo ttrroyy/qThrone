@@ -34,17 +34,17 @@ mkdir -p "$WORK"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS}
 
 cat >"$WORK/Throne.desktop" <<-EOF
 [Desktop Entry]
-Name=Throne
+Name=qThrone
 Comment=Qt based cross-platform GUI proxy configuration manager (backend: sing-box)
-Exec=sh -c "PATH=/opt/Throne:\$PATH /opt/Throne/Throne -appdata"
-Icon=/opt/Throne/Throne.png
+Exec=sh -c "PATH=/opt/qThrone:\$PATH /opt/qThrone/Throne -appdata"
+Icon=/opt/qThrone/Throne.png
 Terminal=false
 Type=Application
 Categories=Network;Application;
 EOF
 
 cat >"$WORK/Throne.spec" <<-EOF
-Name: throne
+Name: qthrone
 Version: ${RPM_VERSION}
 Release: 1
 Summary: Qt based cross-platform GUI proxy configuration manager (backend: sing-box)
@@ -62,15 +62,15 @@ Qt based cross-platform GUI proxy configuration manager (backend: sing-box).
 
 %install
 rm -rf %{buildroot}
-mkdir -p %{buildroot}/opt/Throne
-cp -a ${SRC_DIR}/. %{buildroot}/opt/Throne/
-rm -f %{buildroot}/opt/Throne/Throne.debug
+mkdir -p %{buildroot}/opt/qThrone
+cp -a ${SRC_DIR}/. %{buildroot}/opt/qThrone/
+rm -f %{buildroot}/opt/qThrone/Throne.debug
 mkdir -p %{buildroot}/usr/share/applications
-cp ${WORK}/Throne.desktop %{buildroot}/usr/share/applications/Throne.desktop
+cp ${WORK}/Throne.desktop %{buildroot}/usr/share/applications/qThrone.desktop
 
 %files
-/opt/Throne
-/usr/share/applications/Throne.desktop
+/opt/qThrone
+/usr/share/applications/qThrone.desktop
 
 %post
 update-desktop-database &> /dev/null || :
@@ -86,4 +86,4 @@ rpmbuild -bb \
   --target "$RPM_ARCH" \
   "$WORK/Throne.spec"
 
-mv "$WORK/RPMS/$RPM_ARCH/throne-${RPM_VERSION}-1.${RPM_ARCH}.rpm" "Throne-$TAG-fedora-$ARCH$SUFFIX.rpm"
+mv "$WORK/RPMS/$RPM_ARCH/qthrone-${RPM_VERSION}-1.${RPM_ARCH}.rpm" "qThrone-$TAG-fedora-$ARCH$SUFFIX.rpm"

@@ -13,6 +13,8 @@ cp $GITHUB_WORKSPACE/res/public/Throne.png $DEST
 #### copy Core ####
 source "$(dirname "$0")/extract_core_artifact.sh"
 cp deployment/${DEST_SUFFIX%-system-qt}/ThroneCore $DEST
+cp deployment/${DEST_SUFFIX%-system-qt}/qwdtt $DEST
+cp deployment/${DEST_SUFFIX%-system-qt}/qwdtt-LICENSE $DEST
 rm -rf deployment/${DEST_SUFFIX%-system-qt}
 
 # handle debug info

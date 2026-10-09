@@ -303,6 +303,10 @@ set(PROJECT_SOURCES
         src/ui/profile/edit_http.cpp
         include/ui/profile/edit_http.ui
         include/ui/profile/edit_socks.h
+        src/configs/outbounds/qwdtt.cpp
+        include/configs/outbounds/qwdtt.h
+        src/ui/profile/edit_qwdtt.cpp
+        include/ui/profile/edit_qwdtt.h
         src/ui/profile/edit_socks.cpp
         include/ui/profile/edit_socks.ui
         include/ui/profile/edit_hysteria.h

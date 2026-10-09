@@ -1,4 +1,5 @@
 #include "include/configs/generate.h"
+#include "include/configs/outbounds/qwdtt.h"
 #include "include/api/RPC.h"
 #include "include/configs/AutoSelectorPlan.h"
 #include "include/configs/common/utils.h"
@@ -832,6 +833,9 @@ namespace Configs {
                 MW_show_log("INVALID ENT TYPE, NEEDED EXTRACORE GOT NULLPTR");
                 ctx.error = "failed to cast to extracore, type is: " + extraCoreEnt->type;
                 return;
+            }
+            if (auto *q = dynamic_cast<qwdtt *>(outbound)) {
+                if (auto error = q->Prepare(); !error.isEmpty()) { ctx.error = error; return; }
             }
             auto &extraCoreData = *ctx.result->extraCoreData;
             extraCoreData.path = QFileInfo(outbound->extraCorePath).canonicalFilePath();

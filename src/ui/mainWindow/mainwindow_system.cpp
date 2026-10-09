@@ -548,7 +548,8 @@ namespace {
 
 bool isNewer(QString assetName) {
     if (QString(NKR_VERSION).isEmpty()) return false;
-    assetName = assetName.mid(7); // take out Throne-
+    assetName = assetName.mid(assetName.indexOf('-') + 1); // release product prefix
+    if (assetName.count('-') < 1) return false;
     QString version;
     auto spl = assetName.split('-');
     version += spl[0];
@@ -755,7 +756,12 @@ void MainWindow::CheckUpdate() {
     // Releases carry no checksum or signature, so TLS is all that vouches for the download URL and the archive.
     HttpGetOptions options;
     options.strictTls = true;
-    auto resp = NetworkRequestHelper::HttpGet("https://api.github.com/repos/throneproj/Throne/releases", options);
+    const QString forkRepository = QStringLiteral(QTHRONE_REPOSITORY);
+    if (forkRepository.isEmpty()) {
+        runOnUiThread([=,this] { MessageBoxInfo(tr("Update"), tr("This qThrone build has no update repository configured.")); });
+        return;
+    }
+    auto resp = NetworkRequestHelper::HttpGet("https://api.github.com/repos/" + forkRepository + "/releases", options);
     if (!resp.error.isEmpty()) {
         runOnUiThread([=,this] {
             MessageBoxWarning(QObject::tr("Update"), QObject::tr("Requesting update error: %1").arg(resp.error + "\n" + resp.data));
