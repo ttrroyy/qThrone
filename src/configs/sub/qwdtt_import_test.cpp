@@ -48,7 +48,11 @@ int TestQwdttImport() {
     Configs::qwdtt exported;
     check(exported.ParseFromLink(defaults.ExportToLink()) && exported.vkAnonPath == "legacy" && exported.captchaMode == "wv", "captcha settings round trip");
     auto testProfiles = parse(android);
-    for (auto &profile : testProfiles) check(Configs::dataManager->profilesRepo->AddProfile(profile), "save test profile to isolated repository");
+    const auto fixtureGroups = Configs::dataManager->groupsRepo->GetAllGroupIds();
+    check(!fixtureGroups.isEmpty(), "isolated repository has a group");
+    if (!fixtureGroups.isEmpty()) {
+        for (auto &profile : testProfiles) check(Configs::dataManager->profilesRepo->AddProfile(profile, fixtureGroups.first()), "save test profile to isolated repository");
+    }
     auto tests = Configs::BuildTestConfig(testProfiles);
     check(tests->error.isEmpty() && tests->fullConfigs.size() == 1 && tests->qwdttConfigs.size() == 1, "qWDTT test config uses a session-owned bridge");
     EditQWDTT editor;
