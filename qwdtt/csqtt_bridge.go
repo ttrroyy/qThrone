@@ -192,7 +192,7 @@ func runCSQTTBridge(path string) error {
 		listener.Close()
 	}()
 	fmt.Println("[CSQTT] SOCKS bridge ready")
-	err = serveBridgeSOCKS(ctx, listener, network.DialContext, c.SOCKSUser, c.SOCKSPass)
+	err = serveBridgeSOCKS(ctx, listener, csqttTunnelDial(network.DialContext, dns), c.SOCKSUser, c.SOCKSPass)
 	if ctx.Err() != nil {
 		return nil
 	}
@@ -207,10 +207,31 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 	}
 	var solvers sync.WaitGroup
 	defer solvers.Wait()
+	var pendingConfig string
+	workerReady, configSent := false, false
+	forwardReadyConfig := func() {
+		if !workerReady || pendingConfig == "" || configSent || ctx.Err() != nil {
+			return
+		}
+		select {
+		case configs <- pendingConfig:
+			configSent = true
+		default:
+		}
+	}
 	scanner := bufio.NewScanner(reader)
 	scanner.Buffer(make([]byte, 4096), 65536)
 	for scanner.Scan() {
 		line := scanner.Text()
+		if i := strings.Index(line, "__CSQTT_EVENT__|READY|"); i >= 0 {
+			var event struct {
+				Worker *int `json:"worker"`
+			}
+			if json.Unmarshal([]byte(line[i+len("__CSQTT_EVENT__|READY|"):]), &event) == nil && event.Worker != nil {
+				workerReady = true
+				forwardReadyConfig()
+			}
+		}
 		if os.Getenv("CSQTT_DIAGNOSTICS") == "1" {
 			for _, kind := range []string{"STATS", "READY", "ACTIVE_ZERO", "NETWORK_SUSPECT", "SERVER_RESTART", "STOPPED"} {
 				prefix := "__CSQTT_EVENT__|" + kind + "|"
@@ -246,10 +267,8 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 				Config string `json:"config"`
 			}
 			if json.Unmarshal([]byte(line[i+len("__CSQTT_EVENT__|CONFIG|"):]), &event) == nil {
-				select {
-				case configs <- event.Config:
-				default:
-				}
+				pendingConfig = event.Config
+				forwardReadyConfig()
 			}
 		}
 		if i := strings.Index(line, "CAPTCHA_SOLVE|"); i >= 0 {

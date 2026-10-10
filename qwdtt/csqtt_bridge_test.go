@@ -7,6 +7,24 @@ import (
 	"testing"
 )
 
+func TestCSQTTWaitsForRegisteredWorker(t *testing.T) {
+	config := "__CSQTT_EVENT__|CONFIG|{\"config\":\"test-config\"}\n"
+	ready := "__CSQTT_EVENT__|READY|{\"worker\":0}\n"
+	for _, tc := range []struct {
+		logs  string
+		count int
+	}{
+		{config, 0}, {ready, 0}, {config + ready, 1}, {ready + config, 1},
+		{config + ready + ready + config, 1}, {config + "__CSQTT_EVENT__|READY|{}\n", 0},
+	} {
+		configs := make(chan string, 4)
+		scanCSQTTOutput(context.Background(), &bridgeConfig{}, strings.NewReader(tc.logs), configs, func(string) {})
+		if len(configs) != tc.count {
+			t.Fatalf("readiness count = %d, want %d", len(configs), tc.count)
+		}
+	}
+}
+
 func TestCSQTTFatalRejectionCancelsBeforeReady(t *testing.T) {
 	for _, marker := range []string{"FATAL_AUTH: пароль привязан к другому устройству", "FATAL_PROTOCOL: incompatible server"} {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -66,7 +84,7 @@ func TestCSQTTManualCaptchaAndConfigEvents(t *testing.T) {
 	configs := make(chan string, 1)
 	commands := make(chan string, 1)
 	event, _ := json.Marshal(map[string]string{"config": "TUNCONF:10.66.67.42:1.1.1.1:19000:stream-v2"})
-	logs := "[time] __CSQTT_EVENT__|CONFIG|" + string(event) + "\nCAPTCHA_SOLVE|manual|https://vk.com/captcha|fake-session\n"
+	logs := "[time] __CSQTT_EVENT__|CONFIG|" + string(event) + "\n__CSQTT_EVENT__|READY|{\"worker\":0}\nCAPTCHA_SOLVE|manual|https://vk.com/captcha|fake-session\n"
 	scanCSQTTOutput(context.Background(), &bridgeConfig{ProbeOnly: true, InteractiveCaptcha: true}, strings.NewReader(logs), configs, func(command string) { commands <- command })
 	if len(configs) != 1 || <-commands != "CAPTCHA_RESULT|fake-token" {
 		t.Fatal("transport event not handled")

@@ -53,7 +53,11 @@ int TestQwdttImport() {
             cs->turnTCP = true;
             check(cs->DisplayType() == "CSQTT (TCP)", "CSQTT TCP transport label");
             Configs::csqtt roundtrip;
+            cs->name = QString::fromUtf8("Тест + # CSQTT");
             check(roundtrip.ParseFromLink(cs->ExportToLink()) && roundtrip.hashes == cs->hashes && roundtrip.password == cs->password, "CSQTT original link round trip");
+            check(roundtrip.name == cs->name, "CSQTT profile name survives link round trip");
+            Configs::csqtt named;
+            check(named.ParseFromLink(QString::fromUtf8(csqttLink) + "&remark=Panel%20name") && named.name == "Panel name", "CSQTT panel remark imports as profile name");
         }
         EditCSQTT csEditor;
         csEditor.onStart(csProfiles.first());

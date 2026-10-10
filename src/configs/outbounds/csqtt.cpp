@@ -41,8 +41,9 @@ bool csqtt::ParseFromJson(const QJsonObject &object) {
 }
 bool csqtt::ParseFromLink(const QString &link) {
     QUrl url(link.trimmed());
-    if (!url.isValid() || url.scheme().compare("csqtt",Qt::CaseInsensitive) || url.hasFragment()) return false;
+    if (!url.isValid() || url.scheme().compare("csqtt",Qt::CaseInsensitive)) return false;
     QJsonObject object{{"type","csqtt"}};
+    if (url.hasFragment()) object["tag"] = url.fragment(QUrl::FullyDecoded);
     if (url.host().compare("connect",Qt::CaseInsensitive) == 0) {
         if (!url.userInfo().isEmpty() || url.port() != -1 || !url.path().isEmpty()) return false;
         auto query = url.query(QUrl::FullyEncoded).replace("&amp;","&");
@@ -61,6 +62,9 @@ bool csqtt::ParseFromLink(const QString &link) {
             }
         }
         const auto decode = [&values](const QString &key) { return QUrl::fromPercentEncoding(values[key].toUtf8()); };
+        for (const auto &key : {QStringLiteral("name"), QStringLiteral("remark")}) {
+            if (!decode(key).isEmpty()) { object["tag"] = decode(key); break; }
+        }
         if (decode("v") != "2") return false;
         object["server"] = decode("host");
         bool ok; int port = decode("peer").toInt(&ok); if (!ok) return false;
@@ -99,6 +103,7 @@ QString csqtt::ExportToLink() {
     QString result = "csqtt://connect?v=2&host="+encode(server)+"&peer="+QString::number(server_port)+"&password="+encode(password);
     QStringList encoded; for (const auto &hash : hashes) encoded.append(encode(hash));
     if (!encoded.isEmpty()) result += "&hashes="+encoded.join('+');
+    if (!name.isEmpty()) result += "#"+encode(name);
     return result;
 }
 QString csqtt::Prepare() {
