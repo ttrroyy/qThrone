@@ -15,8 +15,8 @@ def job_section(workflow, name):
     match = re.search(rf"(?ms)^  {re.escape(name)}:\n(.*?)(?=^  [\w-]+:\n|\Z)", workflow)
     if not match:
         raise RuntimeError("Missing workflow job: " + name)
-    # Only the new job-level resume condition may differ; commands and pins may not.
-    return "\n".join(line for line in match[1].splitlines() if not line.startswith("    if: "))
+    # Display names and resume conditions do not alter commands or build inputs.
+    return "\n".join(line for line in match[1].splitlines() if not line.startswith(("    if: ", "    name: ")))
 
 
 def main():
@@ -37,10 +37,10 @@ def main():
     if run["path"] != ".github/workflows/build.yml" or run["status"] != "completed":
         raise RuntimeError("Select a completed qThrone release build")
     jobs = api("/actions/runs/" + run_id + "/jobs?per_page=100")["jobs"]
-    for prefix, count in (("build-go (", 9), ("test-qwdtt (", 3), ("build-android", 1)):
+    for prefix, count in (("build-go (", 9), (("test-qwdtt (", "qWDTT and CSQTT tests ("), 3), ("build-android", 1)):
         required = [job for job in jobs if job["name"].startswith(prefix)]
         if len(required) != count or any(job["conclusion"] != "success" for job in required):
-            raise RuntimeError("Required source build checks did not pass: " + prefix)
+            raise RuntimeError("Required source build checks did not pass: " + str(prefix))
     sha = run["head_sha"]
     if not re.fullmatch(r"[0-9a-f]{40}", sha):
         raise RuntimeError("Invalid source commit")

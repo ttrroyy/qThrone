@@ -30,6 +30,7 @@ jobs:
           COMMON_RUN_ID: ${{ inputs.common_run_id }}
         run: python3 script/verify_common_artifacts.py
   test-qwdtt:
+    name: qWDTT and CSQTT tests (${{ matrix.os }})
     if: inputs.common_run_id == ''
     permissions:
       contents: read
