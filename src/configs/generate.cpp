@@ -1,5 +1,6 @@
 #include "include/configs/generate.h"
 #include "include/configs/outbounds/qwdtt.h"
+#include "include/configs/outbounds/csqtt.h"
 #include "include/api/RPC.h"
 #include "include/configs/AutoSelectorPlan.h"
 #include "include/configs/common/utils.h"
@@ -348,6 +349,11 @@ namespace Configs {
             // Tests can start the bundled qWDTT while another profile owns the TUN.
             // Only this application's helper gets the existing extra-core exemption.
             QString name = "qwdtt";
+#ifdef Q_OS_WIN
+            name += ".exe";
+#endif
+            add(QFileInfo(QCoreApplication::applicationDirPath() + "/" + name).canonicalFilePath());
+            name = "csqtt-transport";
 #ifdef Q_OS_WIN
             name += ".exe";
 #endif
@@ -849,6 +855,10 @@ namespace Configs {
             }
             if (auto *q = dynamic_cast<qwdtt *>(outbound)) {
                 if (auto error = q->Prepare(); !error.isEmpty()) { ctx.error = error; return; }
+                ctx.qwdttIPv4Only = true;
+            }
+            if (auto *c = dynamic_cast<csqtt *>(outbound)) {
+                if (auto error = c->Prepare(); !error.isEmpty()) { ctx.error = error; return; }
                 ctx.qwdttIPv4Only = true;
             }
             auto &extraCoreData = *ctx.result->extraCoreData;
@@ -2765,11 +2775,14 @@ namespace Configs {
 
         for (const auto& item : profiles)
         {
-            if (item->type == "qwdtt") {
+            if (item->type == "qwdtt" || item->type == "csqtt") {
                 // Clone runtime fields so probing cannot replace live SOCKS credentials.
-                qwdtt outbound;
+                std::unique_ptr<extracore> holder;
+                if (item->type == "csqtt") holder = std::make_unique<csqtt>();
+                else holder = std::make_unique<qwdtt>();
+                auto &outbound = *holder;
                 if (!outbound.ParseFromJson(item->outbound->ExportToJson())) { item->SetLatency(-1); continue; }
-                if (auto error = outbound.Prepare(); !error.isEmpty()) { MW_show_log(error); item->SetLatency(-1); continue; }
+                if (auto error = item->type == "csqtt" ? static_cast<csqtt &>(outbound).Prepare() : static_cast<qwdtt &>(outbound).Prepare(); !error.isEmpty()) { MW_show_log(error); item->SetLatency(-1); continue; }
                 auto built = outbound.Build();
                 if (!built.error.isEmpty()) { MW_show_log(built.error); item->SetLatency(-1); continue; }
                 built.object["tag"] = "proxy";

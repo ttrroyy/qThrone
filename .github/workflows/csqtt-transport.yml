@@ -1,0 +1,43 @@
+name: Original CSQTT transport
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Fetch pinned original CSQTT
+        shell: bash
+        run: |
+          git init csqtt-source
+          git -C csqtt-source fetch --depth=1 https://github.com/amurcanov/csqtt.git 71712b07dbabe16fa43f5a248dc69e1ab9f3a270
+          git -C csqtt-source checkout FETCH_HEAD
+          python3 script/prepare_csqtt.py csqtt-source
+      - name: Install Rust
+        shell: bash
+        run: rustup toolchain install 1.97.1 --profile minimal
+      - name: Build original transport with desktop I/O
+        shell: bash
+        run: |
+          cargo +1.97.1 test --locked --manifest-path csqtt-source/rust-client/Cargo.toml
+          cargo +1.97.1 build --release --locked --manifest-path csqtt-source/rust-client/Cargo.toml
+          mkdir -p csqtt-artifact
+          if [ "$RUNNER_OS" = Windows ]; then
+            cp csqtt-source/rust-client/target/release/client.exe csqtt-artifact/csqtt-transport.exe
+          else
+            cp csqtt-source/rust-client/target/release/client csqtt-artifact/csqtt-transport
+          fi
+          cp csqtt-source/LICENSE csqtt-artifact/CSQTT-LICENSE
+          printf '%s\n' 'Original source: https://github.com/amurcanov/csqtt' 'Revision: 71712b07dbabe16fa43f5a248dc69e1ab9f3a270' 'Desktop changes: script/prepare_csqtt.py in qThrone' > csqtt-artifact/CSQTT-SOURCE
+          tar -czf csqtt-artifact/csqtt-source.tar.gz --exclude=target --exclude=.git -C csqtt-source rust-client shared LICENSE
+      - uses: actions/upload-artifact@v7.0.1
+        with:
+          name: csqtt-transport-${{ runner.os }}-${{ runner.arch }}
+          path: csqtt-artifact
+          if-no-files-found: error

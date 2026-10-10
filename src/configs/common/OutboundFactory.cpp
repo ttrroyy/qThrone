@@ -26,6 +26,7 @@
 #include "include/configs/outbounds/custom.h"
 #include "include/configs/outbounds/extracore.h"
 #include "include/configs/outbounds/qwdtt.h"
+#include "include/configs/outbounds/csqtt.h"
 #include "include/configs/outbounds/naive.h"
 #include "include/configs/outbounds/direct.h"
 
@@ -34,6 +35,7 @@ namespace Configs
     outbound* NewOutboundByType(const QString& type)
     {
         if (type == "qwdtt" || type == "wdtt") return new qwdtt();
+        if (type == "csqtt") return new csqtt();
         if (type == "socks") return new socks();
         if (type == "http") return new http();
         if (type == "shadowsocks") return new shadowsocks();

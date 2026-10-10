@@ -304,6 +304,10 @@ set(PROJECT_SOURCES
         include/ui/profile/edit_http.ui
         include/ui/profile/edit_socks.h
         src/configs/outbounds/qwdtt.cpp
+        src/configs/outbounds/csqtt.cpp
+        include/configs/outbounds/csqtt.h
+        src/ui/profile/edit_csqtt.cpp
+        include/ui/profile/edit_csqtt.h
         src/configs/sub/qwdtt_import_test.cpp
         src/global/core_startup_test.cpp
         include/configs/outbounds/qwdtt.h

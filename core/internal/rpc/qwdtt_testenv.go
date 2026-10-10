@@ -33,12 +33,13 @@ var activeQWDTTProbeKeyValid bool
 func qwdttSessionKey(config string) ([32]byte, bool) {
 	var c struct {
 		Peer     string `json:"peer"`
+		Backend  string `json:"backend"`
 		DeviceID string `json:"device_id"`
 	}
 	if json.Unmarshal([]byte(config), &c) != nil || c.Peer == "" || c.DeviceID == "" {
 		return [32]byte{}, false
 	}
-	return sha256.Sum256([]byte(c.Peer + "\x00" + c.DeviceID)), true
+	return sha256.Sum256([]byte(c.Backend + "\x00" + c.Peer + "\x00" + c.DeviceID)), true
 }
 
 // Separate devices/servers can run together. Duplicate profiles must not share
@@ -83,6 +84,7 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	var c struct {
 		SOCKS    string `json:"socks"`
 		Peer     string `json:"peer"`
+		Backend  string `json:"backend"`
 		DeviceID string `json:"device_id"`
 	}
 	if json.Unmarshal([]byte(config), &c) != nil {
@@ -141,7 +143,15 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 		release()
 		return nil, err
 	}
-	child := process.NewProcess(filepath.Join(filepath.Dir(executable), name), []string{"-config", path}, false)
+	argument := "-config"
+	if c.Backend == "csqtt" {
+		argument = "-csqtt-config"
+	} else if c.Backend != "" {
+		release()
+		os.RemoveAll(folder)
+		return nil, errors.New("unknown probe transport")
+	}
+	child := process.NewProcess(filepath.Join(filepath.Dir(executable), name), []string{argument, path}, false)
 	child.SetBackgroundProbe()
 	child.SetCleanupPath(folder)
 	child.EnableStdinShutdown("STOP")

@@ -108,6 +108,13 @@ func sanitizeHashCheckMessage(message string) string {
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+	if len(os.Args) == 3 && os.Args[1] == "-csqtt-config" {
+		if err := runCSQTTBridge(os.Args[2]); err != nil {
+			log.Printf("[CSQTT] %v", err)
+			os.Exit(1)
+		}
+		return
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
