@@ -9,6 +9,7 @@
 ## Поддерживаемые протоколы
 
 - qWDTT (RAW/WG)
+- CSQTT (TCP/UDP, оригинальный amurcanov)
 - SOCKS
 - HTTP(S)
 - Shadowsocks

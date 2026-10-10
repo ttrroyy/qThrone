@@ -284,7 +284,7 @@ Keywords=proxy;vpn;network;privacy;
             install(tmpdir / "Version", APPDIR / "Version", 0o644)
 
             y = message(scr, y, f"Installing binaries to {APPDIR}")
-            for name in ("qThroneCore", "qThrone", "qwdtt", "qThroneUpdater"):
+            for name in ("qThroneCore", "qThrone", "qwdtt", "csqtt-transport", "qThroneUpdater"):
                 install(tmpdir / "qThrone" / name, APPDIR / name, 0o755)
             usr_src = tmpdir / "qThrone/usr"
             for f in usr_src.rglob("*"):
@@ -293,6 +293,8 @@ Keywords=proxy;vpn;network;privacy;
                     install(f, APPDIR / "usr" / rel, 0o644)
             install(tmpdir / "qThrone/qThrone.png", APPDIR / "qThrone.png", 0o644)
             install(tmpdir / "qThrone/qwdtt-LICENSE", APPDIR / "qwdtt-LICENSE", 0o644)
+            for name in ("CSQTT-LICENSE", "CSQTT-SOURCE", "csqtt-source.tar.gz"):
+                install(tmpdir / "qThrone" / name, APPDIR / name, 0o644)
 
             y = message(scr, y, f"Installing .desktop to {DESKTOPDIR}")
             install(tmpdir / "qThrone.desktop", DESKTOPDIR / "qThrone.desktop", 0o644)

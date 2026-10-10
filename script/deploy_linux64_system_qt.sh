@@ -16,6 +16,10 @@ cp deployment/${DEST_SUFFIX%-system-qt}/qThroneCore $DEST
 cp deployment/${DEST_SUFFIX%-system-qt}/qThroneUpdater $DEST
 cp deployment/${DEST_SUFFIX%-system-qt}/qwdtt $DEST
 cp deployment/${DEST_SUFFIX%-system-qt}/qwdtt-LICENSE $DEST
+cp deployment/${DEST_SUFFIX%-system-qt}/csqtt-transport $DEST
+cp deployment/${DEST_SUFFIX%-system-qt}/CSQTT-LICENSE $DEST
+cp deployment/${DEST_SUFFIX%-system-qt}/CSQTT-SOURCE $DEST
+cp deployment/${DEST_SUFFIX%-system-qt}/csqtt-source.tar.gz $DEST
 rm -rf deployment/${DEST_SUFFIX%-system-qt}
 
 # handle debug info

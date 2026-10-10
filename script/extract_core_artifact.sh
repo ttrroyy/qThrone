@@ -11,3 +11,10 @@ fi
 
 # No -C: MSYS tar cannot chdir into the backslashed $GITHUB_WORKSPACE on Windows.
 tar xzf "$TARBALL"
+
+# The separately licensed original transport is built for this GUI target.
+if [ -d csqtt-artifact ]; then
+    CSQTT_DEST="deployment/${DEST_SUFFIX%-system-qt}"
+    mkdir -p "$CSQTT_DEST"
+    cp csqtt-artifact/* "$CSQTT_DEST/"
+fi

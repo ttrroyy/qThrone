@@ -63,3 +63,21 @@ dispatcher.write_text(before + separator + tests, encoding="utf-8", newline="\n"
 integration = root / "rust-client/turn_integration_tests.rs"
 source = integration.read_text(encoding="utf-8").replace('#[cfg(unix)]', '#[cfg(any(target_os = "linux", target_os = "android"))]')
 integration.write_text(source, encoding="utf-8", newline="\n")
+
+# UDP batching returns the currently available prefix, not a promise that the
+# sender's entire batch arrived in one poll. Preserve content/order assertions.
+udp = root / "rust-client/udp_batch.rs"
+source = udp.read_text(encoding="utf-8")
+old = "let received = recv_connected(&receiver, &mut packets).await.unwrap();"
+new = '''let received = tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            let mut received = 0;
+            while received < packets.len() {
+                let count = recv_connected(&receiver, &mut packets[received..]).await.unwrap();
+                assert!(count > 0);
+                received += count;
+            }
+            received
+        }).await.expect("UDP test packets did not arrive");'''
+if old not in source:
+    raise SystemExit("CSQTT UDP fixture changed")
+udp.write_text(source.replace(old, new), encoding="utf-8", newline="\n")

@@ -5,7 +5,7 @@ on:
       tag:
         description: "Release Tag and version"
         required: true
-        default: "1.0-beta.7"
+        default: "1.0-beta.8"
       publish:
         description: "r for normal release, p for prerelease, leave empty to not publish anything"
         required: false
@@ -342,6 +342,9 @@ jobs:
           key: ${{ matrix.dest_suffix }}-${{ matrix.qt_version }}
           variant: ${{ matrix.launcher }}
           max-size: 500M
+      - name: Build original CSQTT transport
+        shell: bash
+        run: bash script/build_csqtt.sh
       - name: Download Artifacts
         uses: actions/download-artifact@v8.0.1
         with:

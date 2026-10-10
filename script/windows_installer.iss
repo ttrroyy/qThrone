@@ -166,7 +166,7 @@ begin
   try
     Locator := CreateOleObject('WbemScripting.SWbemLocator');
     Service := Locator.ConnectServer('.', 'root\CIMV2');
-    Processes := Service.ExecQuery('SELECT * FROM Win32_Process WHERE Name = ''qThrone.exe'' OR Name = ''qThroneCore.exe'' OR Name = ''qwdtt.exe''');
+    Processes := Service.ExecQuery('SELECT * FROM Win32_Process WHERE Name = ''qThrone.exe'' OR Name = ''qThroneCore.exe'' OR Name = ''qwdtt.exe'' OR Name = ''csqtt-transport.exe''');
     for I := 0 to Processes.Count - 1 do
     begin
       Process := Processes.ItemIndex(I);
