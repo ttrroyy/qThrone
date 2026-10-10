@@ -128,6 +128,7 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 		return nil, err
 	}
 	child := process.NewProcess(filepath.Join(filepath.Dir(executable), name), []string{"-config", path}, false)
+	child.SetBackgroundProbe()
 	child.SetCleanupPath(folder)
 	child.EnableStdinShutdown("STOP")
 	if err = child.Start(); err != nil {

@@ -2,11 +2,61 @@ package process
 
 import (
 	"bufio"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestFailedProbeHelper(t *testing.T) {
+	if len(os.Args) > 1 && os.Args[len(os.Args)-1] == "qthrone-failed-probe-helper" {
+		os.Exit(1)
+	}
+}
+
+func TestFailedProbeDoesNotSignalActiveProfileCrash(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, probe := range []bool{false, true} {
+		r, w, err := os.Pipe()
+		if err != nil {
+			t.Fatal(err)
+		}
+		previous := os.Stdout
+		os.Stdout = w
+		p := NewProcess(exe, []string{"-test.run=^TestFailedProbeHelper$", "qthrone-failed-probe-helper"}, true)
+		if probe {
+			p.SetBackgroundProbe()
+		}
+		err = p.Start()
+		if err == nil {
+			select {
+			case <-p.Done():
+			case <-time.After(5 * time.Second):
+				p.Stop()
+				err = os.ErrDeadlineExceeded
+			}
+		}
+		os.Stdout = previous
+		_ = w.Close()
+		output, readErr := io.ReadAll(r)
+		_ = r.Close()
+		if err != nil || readErr != nil {
+			t.Fatalf("child exit: %v %v", err, readErr)
+		}
+		crash := strings.Contains(string(output), "Extra process exited unexpectedly")
+		if crash == probe {
+			t.Fatalf("probe=%v emitted wrong crash signal: %s", probe, output)
+		}
+		if probe && !strings.Contains(string(output), "Background probe process exited") {
+			t.Fatalf("probe failure was not logged: %s", output)
+		}
+	}
+}
 
 func TestStdinShutdownHelper(t *testing.T) {
 	if len(os.Args) < 3 || os.Args[len(os.Args)-2] != "qthrone-stdin-helper" {

@@ -13,15 +13,16 @@ import (
 const extraCorePrefix = "Extra Core"
 
 type Process struct {
-	path        string
-	args        []string
-	noOut       bool
-	cleanupPath string
-	run         running
-	stopped     atomic.Bool
-	stopCommand string
-	stdin       *os.File
-	done        chan struct{}
+	path            string
+	args            []string
+	noOut           bool
+	backgroundProbe bool
+	cleanupPath     string
+	run             running
+	stopped         atomic.Bool
+	stopCommand     string
+	stdin           *os.File
+	done            chan struct{}
 }
 
 type running interface {
@@ -40,6 +41,9 @@ func (p *Process) SetCleanupPath(path string) {
 
 // EnableStdinShutdown is opt-in; ordinary extra cores retain their kill behavior.
 func (p *Process) EnableStdinShutdown(command string) { p.stopCommand = command }
+
+// Probe failures belong to the test RPC, not the active profile crash handler.
+func (p *Process) SetBackgroundProbe() { p.backgroundProbe = true }
 
 func (p *Process) Start() error {
 	var input *os.File
@@ -72,7 +76,11 @@ func (p *Process) Start() error {
 		fmt.Println(p.path, ":", "process started, waiting for it to end")
 		_ = p.run.Wait()
 		if !p.stopped.Load() {
-			fmt.Println("Extra process exited unexpectedly")
+			if p.backgroundProbe {
+				fmt.Println("Background probe process exited")
+			} else {
+				fmt.Println("Extra process exited unexpectedly")
+			}
 		}
 		p.cleanup()
 	}()
