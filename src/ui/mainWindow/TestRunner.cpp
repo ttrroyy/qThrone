@@ -9,6 +9,8 @@
 #include "include/stats/traffic/TrafficStatsManager.hpp"
 
 #include <QSemaphore>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QThread>
 #include <QThreadPool>
 
