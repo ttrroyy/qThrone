@@ -29,11 +29,18 @@ func TestInvalidLinks(t *testing.T) {
 		strings.Replace(base, "peer=46000", "peer=0", 1),
 		base + "&hashes=", base + "&hashes=short", base + "#name",
 		base + "&hashes=abcdefghijklmnop1+abcdefghijklmnop1",
-		base + "&hashes=abcdefghijklmnop1+abcdefghijklmnop2+abcdefghijklmnop3+abcdefghijklmnop4+abcdefghijklmnop5+abcdefghijklmnop6+abcdefghijklmnop7",
 	} {
 		if _, err := ParseLink(raw); err == nil {
 			t.Fatal("invalid link accepted")
 		}
+	}
+}
+
+func TestExcessHashesKeepFirstSix(t *testing.T) {
+	raw := "csqtt://connect?v=2&host=203.0.113.7&peer=46000&password=secret&hashes=abcdefghijklmnop1+abcdefghijklmnop2+abcdefghijklmnop3+abcdefghijklmnop4+abcdefghijklmnop5+abcdefghijklmnop6+ignored"
+	l, err := ParseLink(raw)
+	if err != nil || len(l.Hashes) != 6 || l.Hashes[0] != "abcdefghijklmnop1" || l.Hashes[5] != "abcdefghijklmnop6" {
+		t.Fatal("excess hashes prevented import or changed order")
 	}
 }
 

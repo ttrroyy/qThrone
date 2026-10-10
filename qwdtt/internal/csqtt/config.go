@@ -72,7 +72,7 @@ func ParseLink(raw string) (Link, error) {
 		if value, present := params["hashes"]; present {
 			parts := strings.Split(value, "+")
 			if len(parts) > 6 {
-				return l, invalid
+				parts = parts[:6]
 			}
 			seen := map[string]bool{}
 			for _, part := range parts {

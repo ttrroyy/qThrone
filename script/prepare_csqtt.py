@@ -49,3 +49,17 @@ source = source.replace('#[cfg(unix)]', '#[cfg(any(target_os = "linux", target_o
 source = source.replace('#[cfg(not(unix))]', '#[cfg(not(any(target_os = "linux", target_os = "android")))]')
 source = source.replace('#[cfg(all(test, unix))]', '#[cfg(all(test, any(target_os = "linux", target_os = "android")))]')
 tun.write_text(source, encoding="utf-8", newline="\n")
+
+# Upstream FD integration fixtures also use Linux abstract socket addresses.
+# Keep those tests on Linux; UDP transport tests still run on every platform.
+dispatcher = root / "rust-client/dispatcher.rs"
+source = dispatcher.read_text(encoding="utf-8")
+marker = "#[cfg(test)]\nmod tests {"
+before, separator, tests = source.partition(marker)
+if not separator:
+    raise SystemExit("CSQTT dispatcher test boundary changed")
+tests = tests.replace('#[cfg(unix)]', '#[cfg(any(target_os = "linux", target_os = "android"))]')
+dispatcher.write_text(before + separator + tests, encoding="utf-8", newline="\n")
+integration = root / "rust-client/turn_integration_tests.rs"
+source = integration.read_text(encoding="utf-8").replace('#[cfg(unix)]', '#[cfg(any(target_os = "linux", target_os = "android"))]')
+integration.write_text(source, encoding="utf-8", newline="\n")

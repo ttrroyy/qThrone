@@ -28,7 +28,7 @@ bool csqtt::ParseFromJson(const QJsonObject &object) {
     password = object["password"].toString();
     hashes.clear();
     for (const auto &hash : object["hashes"].toArray()) hashes.append(hash.toString());
-    hashes = NormalizeHashes(hashes);
+    hashes = NormalizeHashes(hashes.mid(0,6));
     workers = NormalizeWorkers(object["workers"].toInt(18),hashes.size());
     turnTCP = object["turn_tcp"].toBool(false);
     obfs = object["obfs"].toString("audio");
@@ -68,10 +68,11 @@ bool csqtt::ParseFromLink(const QString &link) {
         object["password"] = decode("password");
         if (values.contains("hashes")) {
             QStringList list;
-            for (const auto &hash : values["hashes"].split('+')) list.append(QUrl::fromPercentEncoding(hash.toUtf8()));
-            if (list.size() < 1 || list.size() > 6) return false;
+            const auto encodedHashes = values["hashes"].split('+').mid(0,6);
+            for (const auto &hash : encodedHashes) list.append(QUrl::fromPercentEncoding(hash.toUtf8()));
+            if (list.size() < 1) return false;
             list = NormalizeHashes(list);
-            if (list.size() < 1 || list.size() != values["hashes"].split('+').size()) return false;
+            if (list.size() < 1 || list.size() != encodedHashes.size()) return false;
             QSet<QString> seen;
             for (const auto &hash : list) {
                 if (hash.size() < 16 || hash.contains(QRegularExpression("\\s")) || seen.contains(hash)) return false;

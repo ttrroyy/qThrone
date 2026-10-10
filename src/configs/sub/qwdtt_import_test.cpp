@@ -1,5 +1,6 @@
 #include "include/configs/sub/SubscriptionParser.hpp"
 #include "include/configs/outbounds/qwdtt.h"
+#include "include/configs/outbounds/csqtt.h"
 #include "include/configs/generate.h"
 #include "include/global/Configs.hpp"
 #include "include/database/ProfilesRepo.h"
@@ -15,6 +16,7 @@
 #include <QScopeGuard>
 #include "include/global/Version.hpp"
 #include "include/ui/profile/edit_qwdtt.h"
+#include "include/ui/profile/edit_csqtt.h"
 
 int TestQwdttImport() {
     qInstallMessageHandler(nullptr);
@@ -40,6 +42,36 @@ int TestQwdttImport() {
         Subscription::ParseDocument(body, sink);
         return profiles;
     };
+    const QByteArray csqttLink = "csqtt://connect?v=2&host=203.0.113.7&peer=46000&password=p%40ss&hashes=abcdefghijklmno%2Bp+abcdefghijklmnop2";
+    const auto csProfiles = parse(csqttLink);
+    check(csProfiles.size() == 1, "CSQTT subscription link imports one profile");
+    if (csProfiles.size() == 1) {
+        auto *cs = dynamic_cast<Configs::csqtt *>(csProfiles.first()->outbound.get());
+        check(cs && cs->hashes.size() == 2 && cs->hashes.first() == "abcdefghijklmno+p", "CSQTT hash plus survives URL decoding");
+        if (cs) {
+            check(cs->DisplayType() == "CSQTT (UDP)", "CSQTT default transport label");
+            cs->turnTCP = true;
+            check(cs->DisplayType() == "CSQTT (TCP)", "CSQTT TCP transport label");
+            Configs::csqtt roundtrip;
+            check(roundtrip.ParseFromLink(cs->ExportToLink()) && roundtrip.hashes == cs->hashes && roundtrip.password == cs->password, "CSQTT original link round trip");
+        }
+        EditCSQTT csEditor;
+        csEditor.onStart(csProfiles.first());
+        auto *csWorkers = csEditor.findChild<QComboBox *>("csqttWorkers");
+        for (int count = 1; count <= 6; ++count) {
+            auto *hash = csEditor.findChild<QLineEdit *>(QString("csqttHash%1").arg(count));
+            check(hash != nullptr, "CSQTT editor exposes six hash fields");
+            if (hash) hash->setText(QString("abcdefghijklmnop%1").arg(count));
+        }
+        check(csWorkers && csWorkers->count() == 14 && csWorkers->itemData(13).toInt() == 126, "CSQTT selector caps six hashes at 126 workers");
+    }
+    check(parse("csqtt://connect?v=3&host=203.0.113.7&peer=46000&password=secret").isEmpty(), "unknown CSQTT link version rejected");
+    const auto excessCSQTT = parse("csqtt://connect?v=2&host=203.0.113.7&peer=46000&password=secret&hashes=abcdefghijklmnop1+abcdefghijklmnop2+abcdefghijklmnop3+abcdefghijklmnop4+abcdefghijklmnop5+abcdefghijklmnop6+ignored");
+    check(excessCSQTT.size() == 1, "excess CSQTT hashes do not prevent import");
+    if (excessCSQTT.size() == 1) {
+        auto *cs = dynamic_cast<Configs::csqtt *>(excessCSQTT.first()->outbound.get());
+        check(cs && cs->hashes.size() == 6 && cs->hashes.first() == "abcdefghijklmnop1" && cs->hashes.last() == "abcdefghijklmnop6", "CSQTT retains first six hashes in order");
+    }
     Configs::qwdtt defaults;
     check(defaults.mode == "raw" && defaults.turnTCP, "new profiles default to RAW TCP");
     check(defaults.ParseFromLink(QString::fromUtf8(android)) && defaults.turnTCP, "Android links default to TCP");

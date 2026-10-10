@@ -74,7 +74,7 @@ namespace Subscription {
         const char *typeForScheme(std::string_view link) {
             for (const auto &p : kProtocols) {
                 for (const char *scheme : p.schemes) {
-                    if (scheme != nullptr && (std::string_view(p.type) == "qwdtt"
+                    if (scheme != nullptr && ((std::string_view(p.type) == "qwdtt" || std::string_view(p.type) == "csqtt")
                         ? scan::startsWithNoCase(link, scheme) : link.starts_with(scheme))) return p.type;
                 }
             }
