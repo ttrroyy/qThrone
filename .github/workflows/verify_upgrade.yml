@@ -103,6 +103,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 script/release_notes.py > "$RUNNER_TEMP/release-notes.md"
+          tag_sha=$(gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" --jq '.object.sha')
+          test "$tag_sha" = "$RELEASE_SHA"
           gh release create "$RELEASE_TAG" deployment/* \
-            --target "$RELEASE_SHA" --title "qThrone $RELEASE_TAG" --prerelease \
+            --verify-tag --title "qThrone $RELEASE_TAG" --prerelease \
             --notes-file "$RUNNER_TEMP/release-notes.md"
