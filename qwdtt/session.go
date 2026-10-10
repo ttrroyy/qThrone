@@ -882,6 +882,9 @@ func stopSessionIO(sessCtx, ctx context.Context, activeConn net.Conn, raw bool, 
 			_, _ = activeConn.Write([]byte("DISCONNECT_RAW:" + deviceID))
 		}
 		_ = activeConn.SetDeadline(time.Now())
+		// A concurrent GETCONF can replace its read deadline after cancellation.
+		// Close after DISCONNECT so cancellation cannot be undone by that update.
+		_ = activeConn.Close()
 	})
 	return func() {
 		if !stopConn() {
