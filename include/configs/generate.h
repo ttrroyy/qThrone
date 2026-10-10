@@ -18,6 +18,7 @@ namespace Configs
         QString args;
         QString config;
         bool noLog = false;
+        QString outboundTag;
     };
 
     struct TrafficChainGroup {
@@ -41,6 +42,7 @@ namespace Configs
         // Opaque full configs, one instance each; never merged into xrayConfig.
         QStringList xrayFullConfigs;
         std::shared_ptr<ExtraCoreData> extraCoreData = std::make_shared<ExtraCoreData>();
+        QList<ExtraCoreData> routedExtraCores;
 
         QList<TrafficChainGroup> chainGroups;
         QList<AutoSelectorBuildInfo> autoSelectors;

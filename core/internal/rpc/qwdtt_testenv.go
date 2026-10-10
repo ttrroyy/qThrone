@@ -26,10 +26,6 @@ type qwdttProbeGate struct {
 var qwdttProbeMu sync.Mutex
 var qwdttProbeGates = make(map[[32]byte]*qwdttProbeGate)
 
-// Protected by lifecycleMu; only identifies the active qWDTT session.
-var activeQWDTTProbeKey [32]byte
-var activeQWDTTProbeKeyValid bool
-
 func qwdttSessionKey(config string) ([32]byte, bool) {
 	var c struct {
 		Peer     string `json:"peer"`
@@ -107,10 +103,7 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	if !validKey {
 		return nil, errors.New("invalid qWDTT test session identity")
 	}
-	lifecycleMu.Lock()
-	active := extraProcess != nil && strings.TrimSuffix(strings.ToLower(filepath.Base(extraProcess.ExecutablePath())), ".exe") == "qwdtt"
-	conflicts := active && (!activeQWDTTProbeKeyValid || activeQWDTTProbeKey == key)
-	lifecycleMu.Unlock()
+	_, conflicts := activeTransportTag(config)
 	if conflicts {
 		return nil, errors.New("this qWDTT device is already connected; test its active profile instead")
 	}

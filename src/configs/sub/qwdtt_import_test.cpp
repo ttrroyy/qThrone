@@ -91,6 +91,50 @@ int TestQwdttImport() {
     }
     auto tests = Configs::BuildTestConfig(testProfiles);
     check(tests->error.isEmpty() && tests->fullConfigs.size() == 1 && tests->qwdttConfigs.size() == 1, "qWDTT test config uses a session-owned bridge");
+    if (!fixtureGroups.isEmpty() && !testProfiles.isEmpty() && !csProfiles.isEmpty()) {
+        auto cs = csProfiles.first();
+        check(Configs::dataManager->profilesRepo->AddProfile(cs, fixtureGroups.first()), "save routed CSQTT fixture");
+        auto mains = parse("vless://00000000-0000-4000-8000-000000000001@203.0.113.12:443?type=tcp&security=none#Routing-main");
+        check(mains.size() == 1, "parse main VLESS fixture");
+        if (mains.size() == 1) {
+            auto main = mains.first();
+            check(Configs::dataManager->profilesRepo->AddProfile(main, fixtureGroups.first()), "save main VLESS fixture");
+            auto route = std::make_shared<Configs::RouteProfile>();
+            route->name = "Multiple tunnel outputs";
+            auto domain = std::make_shared<Configs::RouteRule>();
+            domain->outboundID = cs->id;
+            domain->domain_suffix = {"example.invalid"};
+            auto application = std::make_shared<Configs::RouteRule>();
+            application->outboundID = testProfiles.first()->id;
+            application->process_name = {"routing-test.exe"};
+            route->Rules = {domain, application};
+            check(Configs::dataManager->routesRepo->AddRouteProfile(route), "save mixed transport routing fixture");
+            auto *settings = Configs::dataManager->settingsRepo.get();
+            const auto oldRoute = settings->current_route_id;
+            settings->current_route_id = route->id;
+            const auto restoreRoute = qScopeGuard([settings, oldRoute] { settings->current_route_id = oldRoute; });
+            const auto mixed = Configs::BuildSingBoxConfig(main);
+            check(mixed->error.isEmpty() && mixed->routedExtraCores.size() == 2,
+                  "VLESS with separate qWDTT and CSQTT routing outputs builds");
+            for (const auto &transport : mixed->routedExtraCores) {
+                bool matched = false;
+                const auto config = QJsonDocument::fromJson(transport.config.toUtf8()).object();
+                const auto port = config["socks"].toString().section(':', -1).toInt();
+                for (const auto &value : mixed->coreConfig["outbounds"].toArray()) {
+                    const auto outbound = value.toObject();
+                    if (outbound["tag"] == transport.outboundTag) {
+                        matched = outbound["type"] == "socks" && outbound["server_port"].toInt() == port &&
+                                  outbound["password"] == config["socks_pass"];
+                    }
+                }
+                check(matched, "routing outbound points at its own authenticated transport bridge");
+            }
+            const auto reused = Configs::BuildSingBoxConfig(testProfiles.first());
+            check(reused->error.isEmpty() && reused->routedExtraCores.size() == 1 &&
+                  !reused->extraCoreData->path.isEmpty(),
+                  "main tunnel referenced in a routing rule starts only once");
+        }
+    }
     if (!testProfiles.isEmpty()) {
         const auto &settings = Configs::dataManager->settingsRepo;
         const bool oldTun = settings->spmode_vpn;

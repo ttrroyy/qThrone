@@ -56,7 +56,9 @@ func (s *server) SpeedTest(ctx context.Context, in *gen.SpeedTestRequest) (*gen.
 
 	res := make([]*gen.SpeedTestResult, 0, len(results))
 	for _, data := range results {
-		res = append(res, speedTestResultToProto(*data))
+		result := speedTestResultToProto(*data)
+		result.OutboundTag = To(env.resultTag(data.Tag))
+		res = append(res, result)
 	}
 
 	return &gen.SpeedTestResponse{Results: res}, nil

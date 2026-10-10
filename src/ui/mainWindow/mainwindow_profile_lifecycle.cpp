@@ -262,28 +262,50 @@ void MainWindow::profile_start(const StartRequest &request) {
                 req.xray_full_idle_seconds = 0;
             }
         }
-        if (!result->extraCoreData->path.isEmpty())
+        auto extraCores = result->routedExtraCores;
+        if (!result->extraCoreData->path.isEmpty()) extraCores.prepend(*result->extraCoreData);
+        for (const auto &extraCore : extraCores)
         {
-            if (!Sys::KillSwitch::instance()->permitExtraCore(result->extraCoreData->path)) {
-                runOnUiThread([restartPrompt] { if (restartPrompt) restartPrompt->dismiss(); });
-                MW_show_log(tr("[Kill switch] The extra core %1 could not be allowed through the kill switch.").arg(result->extraCoreData->path));
-                finish(StartOutcome::ExtraCoreBlocked, {});
-                if (!resolved.interactive) return false;
-                runOnUiThread([this] {
-                    if (Sys::KillSwitch::instance()->state() == Sys::KillSwitch::State::Failed) {
-                        show_kill_switch_problem();
-                    } else {
-                        ShowPassiveWarning(tr("Kill switch"),
-                                           tr("The kill switch could not be updated to allow this profile's extra core, so the profile was not started. See the log for details."));
-                    }
-                });
-                return false;
+            QStringList transportPaths{extraCore.path};
+            if (extraCore.args.startsWith("-csqtt-config")) {
+                QString nativeName = "csqtt-transport";
+#ifdef Q_OS_WIN
+                nativeName += ".exe";
+#endif
+                transportPaths.append(QFileInfo(QFileInfo(extraCore.path).dir().filePath(nativeName)).canonicalFilePath());
             }
-            req.need_extra_process = true;
-            req.extra_process_path = result->extraCoreData->path.toStdString();
-            req.extra_process_args = result->extraCoreData->args.toStdString();
-            req.extra_process_conf = result->extraCoreData->config.toStdString();
-            req.extra_no_out = result->extraCoreData->noLog;
+            for (const auto &transportPath : transportPaths) {
+                if (transportPath.isEmpty() || !Sys::KillSwitch::instance()->permitExtraCore(transportPath)) {
+                    runOnUiThread([restartPrompt] { if (restartPrompt) restartPrompt->dismiss(); });
+                    MW_show_log(tr("[Kill switch] The extra core %1 could not be allowed through the kill switch.").arg(transportPath));
+                    finish(StartOutcome::ExtraCoreBlocked, {});
+                    if (!resolved.interactive) return false;
+                    runOnUiThread([this] {
+                        if (Sys::KillSwitch::instance()->state() == Sys::KillSwitch::State::Failed) {
+                            show_kill_switch_problem();
+                        } else {
+                            ShowPassiveWarning(tr("Kill switch"),
+                                               tr("The kill switch could not be updated to allow this profile's extra core, so the profile was not started. See the log for details."));
+                        }
+                    });
+                    return false;
+                }
+            }
+            libcore::RoutedExtraProcess transport;
+            transport.path = extraCore.path.toStdString();
+            transport.args = extraCore.args.toStdString();
+            transport.config = extraCore.config.toStdString();
+            transport.no_out = extraCore.noLog;
+            transport.outbound_tag = extraCore.outboundTag.toStdString();
+            if (extraCore.outboundTag == "proxy") {
+                req.need_extra_process = true;
+                req.extra_process_path = transport.path;
+                req.extra_process_args = transport.args;
+                req.extra_process_conf = transport.config;
+                req.extra_no_out = transport.no_out;
+            } else {
+                req.routed_extra_processes.push_back(std::move(transport));
+            }
         }
         bool rpcOK;
         const QString error = defaultClient->Start(&rpcOK, req);

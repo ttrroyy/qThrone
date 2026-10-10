@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"errors"
 	"log"
 	"time"
 
@@ -15,10 +16,19 @@ import (
 )
 
 type testEnv struct {
-	box   *boxbox.Box
-	tags  []string
-	close func()
-	ctx   context.Context
+	box       *boxbox.Box
+	tags      []string
+	close     func()
+	ctx       context.Context
+	live      bool
+	reportTag string
+}
+
+func (env *testEnv) resultTag(tag string) string {
+	if env.reportTag != "" {
+		return env.reportTag
+	}
+	return tag
 }
 
 // `current` measures the running instance instead of building one, and owns nothing.
@@ -30,6 +40,22 @@ func prepareTestEnv(current bool, needXray bool, xrayConfig string, xrayFullConf
 	testCtx := probe.TestContext()
 	var boxCtx boxContextHolder
 	prepareXray := xrayPreparer(xrayDNSStrategy, boxCtx.get)
+
+	// A routed tunnel owns the same device identity as its standalone profile.
+	// Reuse its live outbound rather than starting a competing authenticated session.
+	if len(qwdttConfig) > 0 && qwdttConfig[0] != "" {
+		if tag, exists := activeTransportTag(qwdttConfig[0]); exists {
+			box := currentBox()
+			if box == nil {
+				return nil, errInstanceNotRunning
+			}
+			if _, exists := box.Outbound().Outbound(tag); !exists {
+				return nil, errors.New("active tunnel outbound is missing")
+			}
+			return &testEnv{box: box, tags: []string{tag}, reportTag: "proxy", live: true,
+				close: func() {}, ctx: probe.LiveInstance(testCtx)}, nil
+		}
+	}
 
 	if current {
 		box := currentBox()
@@ -48,7 +74,7 @@ func prepareTestEnv(current bool, needXray bool, xrayConfig string, xrayFullConf
 		if useDefaultOutbound {
 			outTags = []string{box.Outbound().Default().Tag()}
 		}
-		return &testEnv{box: box, tags: outTags, close: func() {}, ctx: testCtx}, nil
+		return &testEnv{box: box, tags: outTags, live: true, close: func() {}, ctx: testCtx}, nil
 	}
 
 	var cleanups []func()

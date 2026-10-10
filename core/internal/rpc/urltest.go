@@ -31,12 +31,13 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 
 	// Held, not re-read: StopTest rearms a fresh context, uncancelled.
 	testCtx := env.ctx
-	if in.GetTestCurrent() {
+	if env.live {
 		testCtx = probe.LiveInstance(testCtx)
 	}
 
-	// A muxed config needs a warm connection; the live instance already is one.
-	twice := !in.GetTestCurrent()
+	// A live tunnel is warm, but each test still owns a new HTTP/TLS connection.
+	// Measure its second request just like the standalone tunnel test does.
+	twice := !env.live || in.GetQwdttConfig() != ""
 	var results []*probe.URLTestResult
 	if in.GetQwdttConfig() != "" {
 		var transport struct {
@@ -44,7 +45,7 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 		}
 		_ = json.Unmarshal([]byte(in.GetQwdttConfig()), &transport)
 		var coldAllowance time.Duration
-		if twice && transport.Backend == "csqtt" {
+		if twice && !env.live && transport.Backend == "csqtt" {
 			// SOCKS hides the userspace tunnel from the ordinary VPN startup allowance.
 			// Warm it once; the measured request still uses the configured timeout.
 			coldAllowance = probe.TunnelStartupTimeout
@@ -65,7 +66,7 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 		}
 		failed[env.tags[idx]] = errStr != ""
 		res = append(res, &gen.URLTestResp{
-			OutboundTag: To(env.tags[idx]),
+			OutboundTag: To(env.resultTag(env.tags[idx])),
 			LatencyMs:   To(int32(data.Duration.Milliseconds())),
 			Error:       To(errStr),
 		})
@@ -127,10 +128,10 @@ func (s *server) IPTest(ctx context.Context, in *gen.IPTestRequest) (*gen.IPTest
 	var results []*probe.IPTestResult
 	if in.GetQwdttConfig() != "" {
 		results = probe.BatchIPTestTo(env.ctx, env.box, env.tags,
-			int(in.GetMaxConcurrency()), !current, timeout, func(*probe.IPTestResult) {})
+			int(in.GetMaxConcurrency()), !env.live, timeout, func(*probe.IPTestResult) {})
 	} else {
 		results = probe.BatchIPTest(env.ctx, env.box, env.tags,
-			int(in.GetMaxConcurrency()), !current, timeout)
+			int(in.GetMaxConcurrency()), !env.live, timeout)
 	}
 
 	res := make([]*gen.IPTestRes, 0, len(results))
@@ -140,7 +141,7 @@ func (s *server) IPTest(ctx context.Context, in *gen.IPTestRequest) (*gen.IPTest
 			errStr = data.Error.Error()
 		}
 		res = append(res, &gen.IPTestRes{
-			OutboundTag: To(env.tags[idx]),
+			OutboundTag: To(env.resultTag(env.tags[idx])),
 			Ip:          To(data.Result.IP),
 			CountryCode: To(data.Result.CountryCode),
 			Error:       To(errStr),

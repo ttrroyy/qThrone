@@ -2,23 +2,16 @@ package rpc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"net/netip"
-	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	"ThroneCore/gen"
 	"ThroneCore/internal/boxmain"
-	"ThroneCore/internal/process"
 	"ThroneCore/internal/sysdns"
 	"ThroneCore/internal/xray"
-
-	"github.com/google/shlex"
-	E "github.com/sagernet/sing/common/exceptions"
 )
 
 func (s *server) Start(ctx context.Context, in *gen.LoadConfigReq) (out *gen.ErrorResp, _ error) {
@@ -26,6 +19,9 @@ func (s *server) Start(ctx context.Context, in *gen.LoadConfigReq) (out *gen.Err
 	defer lifecycleMu.Unlock()
 
 	var err error
+	if currentBox() != nil {
+		return &gen.ErrorResp{Error: To("instance already started")}, nil
+	}
 
 	defer func() {
 		out = &gen.ErrorResp{}
@@ -43,43 +39,15 @@ func (s *server) Start(ctx context.Context, in *gen.LoadConfigReq) (out *gen.Err
 		}
 	}
 
-	if currentBox() != nil {
-		err = errors.New("instance already started")
+	if err = startExtraSessions(ctx, in); err != nil {
 		return
 	}
-
-	if *in.NeedExtraProcess {
-		args, e := shlex.Split(in.GetExtraProcessArgs())
-		if e != nil {
-			err = E.Cause(e, "Failed to parse args")
-			return
-		}
-		var extraConfPath, extraCleanupPath string
-		if in.ExtraProcessConf != nil {
-			extraConfPath, extraCleanupPath, e = process.CreateExtraConfig(*in.ExtraProcessConf)
-			if e != nil {
-				err = E.Cause(e, "Failed to create extra.conf")
-				return
-			}
-			for idx, arg := range args {
-				if strings.Contains(arg, "%s") {
-					args[idx] = fmt.Sprintf(arg, extraConfPath)
-					break
-				}
-			}
-		}
-
-		extraProcess = process.NewProcess(*in.ExtraProcessPath, args, *in.ExtraNoOut)
-		extraProcess.SetCleanupPath(extraCleanupPath)
-		if strings.EqualFold(strings.TrimSuffix(filepath.Base(in.GetExtraProcessPath()), ".exe"), "qwdtt") {
-			extraProcess.EnableStdinShutdown("STOP")
-			activeQWDTTProbeKey, activeQWDTTProbeKeyValid = qwdttSessionKey(in.GetExtraProcessConf())
-		}
-		err = extraProcess.Start()
+	defer func() {
 		if err != nil {
-			return
+			stopExtraSessions(false)
+			closeXray()
 		}
-	}
+	}()
 
 	autoRedirectMark.Store(autoRedirectMarkFor([]byte(in.GetCoreConfig())))
 
@@ -129,10 +97,7 @@ func (s *server) Start(ctx context.Context, in *gen.LoadConfigReq) (out *gen.Err
 
 	box, cancel, err := boxmain.Create([]byte(*in.CoreConfig), boxCtx.publish)
 	if err != nil {
-		if extraProcess != nil {
-			extraProcess.Stop()
-			extraProcess = nil
-		}
+		stopExtraSessions(false)
 		closeXray()
 		return
 	}
@@ -142,10 +107,7 @@ func (s *server) Start(ctx context.Context, in *gen.LoadConfigReq) (out *gen.Err
 		stopAllCores := func() {
 			box.CloseWithTimeout(cancel, time.Second*2, log.Println, true)
 			setBoxInstance(nil, nil)
-			if extraProcess != nil {
-				extraProcess.Stop()
-				extraProcess = nil
-			}
+			stopExtraSessions(false)
 			closeXray()
 		}
 
@@ -193,6 +155,7 @@ func (s *server) Stop(ctx context.Context, in *gen.EmptyReq) (out *gen.ErrorResp
 
 	box, cancel := currentInstance()
 	if box == nil {
+		stopExtraSessions(false)
 		return
 	}
 
@@ -210,18 +173,11 @@ func (s *server) Stop(ctx context.Context, in *gen.EmptyReq) (out *gen.ErrorResp
 	}
 	// Unpublished first, so a poll mid-teardown sees no instance rather than a dying one.
 	setBoxInstance(nil, nil)
-	if extraProcess != nil && strings.TrimSuffix(strings.ToLower(filepath.Base(extraProcess.ExecutablePath())), ".exe") == "qwdtt" {
-		// Send DISCONNECT_RAW while the original TUN routes still exist.
-		extraProcess.Stop()
-		extraProcess = nil
-		activeQWDTTProbeKeyValid = false
-	}
+	// Disconnect tunnel transports before removing their TUN routes.
+	stopExtraSessions(true)
 	box.CloseWithTimeout(cancel, time.Second*2, log.Println, true)
 
-	if extraProcess != nil {
-		extraProcess.Stop()
-		extraProcess = nil
-	}
+	stopExtraSessions(false)
 
 	closeXray()
 	// The Tun and its nftables rules went down with the box, so later test instances must not carry the exemption mark.

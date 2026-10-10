@@ -189,6 +189,7 @@ namespace Configs {
             bool xrayToSingTransitioned = false;
             bool proxyUsesXray = false;
             bool qwdttIPv4Only = false;
+            QList<std::shared_ptr<Profile>> preparedTransports;
             std::shared_ptr<Profile> ent = std::make_shared<Profile>(nullptr, nullptr);
             BuildPrerequisites prerequisites;
             osType os = getOS();
@@ -646,6 +647,16 @@ namespace Configs {
 
         QList<int> unwrapChain(int entID);
 
+        QJsonArray transportProcessPaths(const BuildConfigResult &result) {
+            auto paths = extraCoreProcessPaths(result.extraCoreData->path);
+            for (const auto &transport : result.routedExtraCores) {
+                for (const auto &path : extraCoreProcessPaths(transport.path)) {
+                    if (!paths.contains(path)) paths.append(path);
+                }
+            }
+            return paths;
+        }
+
         void calculatePrerequisites(BuildContext &ctx) {
             const auto &settings = *dataManager->settingsRepo;
             ctx.tunEnabled = settings.spmode_vpn;
@@ -691,7 +702,8 @@ namespace Configs {
                     ctx.error = "The routing profile is referencing outbounds that no longer exist, consider revising your settings";
                     return;
                 }
-                if ((neededEnt->outbound != nullptr && neededEnt->outbound->IsExtraCore()) || isCustomFullConfig(neededEnt) || isXrayFullConfig(neededEnt)) {
+                const bool routedTransport = neededEnt->type == "qwdtt" || neededEnt->type == "csqtt";
+                if ((neededEnt->outbound != nullptr && neededEnt->outbound->IsExtraCore() && !routedTransport) || isCustomFullConfig(neededEnt) || isXrayFullConfig(neededEnt)) {
                     ctx.error = "Outbounds used in routing profile cannot use an extra core or be a custom full config";
                     return;
                 }
@@ -844,28 +856,46 @@ namespace Configs {
                     !preReqs.tun.bypassedPrivateRanges.isEmpty() && !(routeChain->isRaw && routeChain->preventModifications);
             }
 
-            auto extraCoreEnt = resolveExtraCoreProfile(ctx.ent);
-            if (extraCoreEnt == nullptr) return;
-            auto outbound = extraCoreEnt->ExtraCore();
-            if (outbound == nullptr)
-            {
-                MW_show_log("INVALID ENT TYPE, NEEDED EXTRACORE GOT NULLPTR");
-                ctx.error = "failed to cast to extracore, type is: " + extraCoreEnt->type;
-                return;
+            auto mainExtraCore = resolveExtraCoreProfile(ctx.ent);
+            QList<std::shared_ptr<Profile>> extraCoreProfiles;
+            if (mainExtraCore != nullptr) extraCoreProfiles.append(mainExtraCore);
+            for (const auto &group : preReqs.routing.routeOutboundGroups) {
+                if (group.hopIDs.size() != 1) continue;
+                auto routed = getProfile(group.hopIDs.first());
+                if (routed == nullptr || (routed->type != "qwdtt" && routed->type != "csqtt")) continue;
+                if (mainExtraCore != nullptr && routed->id == mainExtraCore->id) continue;
+                extraCoreProfiles.append(routed);
             }
-            if (auto *q = dynamic_cast<qwdtt *>(outbound)) {
-                if (auto error = q->Prepare(); !error.isEmpty()) { ctx.error = error; return; }
-                ctx.qwdttIPv4Only = true;
+            ctx.preparedTransports = extraCoreProfiles;
+            for (const auto &extraCoreEnt : extraCoreProfiles) {
+                auto outbound = extraCoreEnt->ExtraCore();
+                if (outbound == nullptr)
+                {
+                    MW_show_log("INVALID ENT TYPE, NEEDED EXTRACORE GOT NULLPTR");
+                    ctx.error = "failed to cast to extracore, type is: " + extraCoreEnt->type;
+                    return;
+                }
+                if (auto *q = dynamic_cast<qwdtt *>(outbound)) {
+                    if (auto error = q->Prepare(); !error.isEmpty()) { ctx.error = error; return; }
+                    ctx.qwdttIPv4Only = true;
+                }
+                if (auto *c = dynamic_cast<csqtt *>(outbound)) {
+                    if (auto error = c->Prepare(); !error.isEmpty()) { ctx.error = error; return; }
+                    ctx.qwdttIPv4Only = true;
+                }
+                ExtraCoreData extraCoreData;
+                extraCoreData.path = QFileInfo(outbound->extraCorePath).canonicalFilePath();
+                extraCoreData.args = outbound->extraCoreArgs;
+                extraCoreData.config = outbound->extraCoreConf;
+                extraCoreData.noLog = outbound->noLogs;
+                if (extraCoreEnt == mainExtraCore) {
+                    extraCoreData.outboundTag = tags::proxy;
+                    *ctx.result->extraCoreData = extraCoreData;
+                } else {
+                    extraCoreData.outboundTag = preReqs.routing.outboundMap.at(extraCoreEnt->id);
+                    ctx.result->routedExtraCores.append(extraCoreData);
+                }
             }
-            if (auto *c = dynamic_cast<csqtt *>(outbound)) {
-                if (auto error = c->Prepare(); !error.isEmpty()) { ctx.error = error; return; }
-                ctx.qwdttIPv4Only = true;
-            }
-            auto &extraCoreData = *ctx.result->extraCoreData;
-            extraCoreData.path = QFileInfo(outbound->extraCorePath).canonicalFilePath();
-            extraCoreData.args = outbound->extraCoreArgs;
-            extraCoreData.config = outbound->extraCoreConf;
-            extraCoreData.noLog = outbound->noLogs;
         }
 
         // ------------------------------------------------------- small sections
@@ -1129,9 +1159,9 @@ namespace Configs {
 
             // No dns-in carve-out: Xray resolves against dns-direct in-process now, so a query on that port is an ordinary local one.
 
-            if (!ctx.forTest && !extraCoreProcessPaths(ctx.result->extraCoreData->path).isEmpty())
+            if (!ctx.forTest && !transportProcessPaths(*ctx.result).isEmpty())
             {
-                appendDnsRoute(rules, QJsonObject{{"process_path", extraCoreProcessPaths(ctx.result->extraCoreData->path)}},
+                appendDnsRoute(rules, QJsonObject{{"process_path", transportProcessPaths(*ctx.result)}},
                                tags::dnsDirect, settings.direct_dns_disable_ipv6);
             }
 
@@ -2156,11 +2186,11 @@ namespace Configs {
             if (ctx.l3Bridge) profileRules = withL3BridgeTwins(profileRules);
 
             QJsonObject extraCoreDirect;
-            if (!extraCoreProcessPaths(ctx.result->extraCoreData->path).isEmpty())
+            if (!transportProcessPaths(*ctx.result).isEmpty())
             {
                 extraCoreDirect = QJsonObject{
                     {"action", "route"},
-                    {"process_path", extraCoreProcessPaths(ctx.result->extraCoreData->path)},
+                    {"process_path", transportProcessPaths(*ctx.result)},
                     {"outbound", tags::direct},
                 };
             }

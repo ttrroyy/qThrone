@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"ThroneCore/internal/boxbox"
-	"ThroneCore/internal/process"
 	"ThroneCore/internal/xray"
 
 	"github.com/xtls/xray-core/core"
@@ -29,9 +28,6 @@ var xrayGate *xray.Gate
 
 // One gate per opaque full config; never merged into the sidecar above.
 var xrayFullGates []*xray.Gate
-
-// Reached only from Start/Stop, i.e. always under lifecycleMu.
-var extraProcess *process.Process
 
 var needUnsetDNS bool
 

@@ -57,6 +57,14 @@ message ErrorResp {
   optional string error = 1 [default = ""];
 }
 
+message RoutedExtraProcess {
+  optional string path = 1 [default = ""];
+  optional string args = 2 [default = ""];
+  optional string config = 3 [default = ""];
+  optional bool no_out = 4 [default = false];
+  optional string outbound_tag = 5 [default = ""];
+}
+
 message LoadConfigReq {
   optional string core_config = 1 [default = ""];
   optional bool disable_stats = 2 [default = false];
@@ -85,6 +93,7 @@ message LoadConfigReq {
   repeated string xray_full_configs = 16;
   // Separate from xray_idle_seconds; 0 keeps them resident once started.
   optional int32 xray_full_idle_seconds = 17 [default = 0];
+  repeated RoutedExtraProcess routed_extra_processes = 18;
 }
 
 message URLTestResp {
