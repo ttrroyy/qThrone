@@ -20,6 +20,7 @@ jobs:
       actions: read
     outputs:
       build_sha: ${{ steps.verify.outputs.build_sha }}
+      upgrade_verified: ${{ steps.verify.outputs.upgrade_verified }}
     steps:
       - uses: actions/checkout@v7.0.1
       - id: verify
@@ -38,12 +39,15 @@ jobs:
           from pathlib import Path
           run = json.loads((Path(os.environ['RUNNER_TEMP']) / 'build-run.json').read_text())
           jobs = json.loads((Path(os.environ['RUNNER_TEMP']) / 'build-jobs.json').read_text())['jobs']
-          assert run['path'] == '.github/workflows/build.yml' and run['status'] == 'completed'
-          required = [j for j in jobs if j['name'] == 'test-qwdtt' or j['name'].startswith(('build-', 'Pack '))]
-          assert len(required) == 27 and all(j['conclusion'] == 'success' for j in required), 'All build and packaging jobs must pass'
+          assert run['path'] == '.github/workflows/build.yml' and run['status'] == 'completed' and run['conclusion'] == 'success'
+          for prefixes, count in ((('qWDTT and CSQTT tests (', 'test-qwdtt ('), 3), (('build-go (',), 9), (('build-cpp (',), 11), (('Pack ',), 5), (('build-android',), 1)):
+              required = [j for j in jobs if j['name'].startswith(prefixes)]
+              assert len(required) == count and all(j['conclusion'] == 'success' for j in required), 'Required build checks failed: ' + str(prefixes)
+          upgrade_verified = any(j['name'] == 'Verify portable Windows upgrade' and j['conclusion'] == 'success' for j in jobs)
           assert json.loads(Path('version.json').read_text())['version'] == os.environ['RELEASE_TAG']
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
               output.write('build_sha=' + run['head_sha'] + '\n')
+              output.write('upgrade_verified=' + str(upgrade_verified).lower() + '\n')
           PY
           build_sha=$(python3 -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"]+"/build-run.json"))["head_sha"])')
           git fetch origin "$build_sha" --depth=1
@@ -57,6 +61,7 @@ jobs:
   test-upgrade:
     name: Verify portable Windows upgrade
     needs: verify-build
+    if: needs.verify-build.outputs.upgrade_verified != 'true'
     runs-on: windows-latest
     permissions:
       contents: read
@@ -75,7 +80,7 @@ jobs:
   publish:
     name: Publish validated prerelease
     needs: [verify-build, test-upgrade]
-    if: inputs.publish
+    if: always() && inputs.publish && needs.verify-build.result == 'success' && (needs.test-upgrade.result == 'success' || needs.test-upgrade.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -94,7 +99,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ inputs.tag }}
-          RELEASE_SHA: ${{ github.sha }}
+          RELEASE_SHA: ${{ needs.verify-build.outputs.build_sha }}
         run: |
           set -euo pipefail
           python3 script/release_notes.py > "$RUNNER_TEMP/release-notes.md"
