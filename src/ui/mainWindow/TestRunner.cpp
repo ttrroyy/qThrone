@@ -350,11 +350,11 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
     // Reset here, not on the worker: a stop() that lands before the worker runs must still count.
     stopRequested_.store(false);
 
-    runOnNewThread([this, profileIDs, panelKind, isUrl, finish]() {
+    runOnNewThread([this, profileIDs, panelKind, isUrl, finish, interactive]() {
         mw_->dataViewHtmlGenerator_.seedLatencyTest(panelKind, profileIDs.size());
         mw_->UpdateDataView(true);
 
-        auto runBatch = [this, isUrl](const QList<std::shared_ptr<Configs::Profile>>& profileSlice, const QList<int>& ids) {
+        auto runBatch = [this, isUrl, interactive](const QList<std::shared_ptr<Configs::Profile>>& profileSlice, const QList<int>& ids) {
             // Per batch, not per probe: a batch's probes drain each other's results, and tags restart each batch.
             sessionGen_.fetch_add(1);
             auto buildObject = Configs::BuildTestConfig(profileSlice);
@@ -382,6 +382,11 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
                 target.useDefaultOutbound = true;
                 target.entID = entID;
                 target.qwdttConfig = buildObject->qwdttConfigs.value(entID);
+                if (isUrl && interactive && !target.qwdttConfig.isEmpty()) {
+                    auto config = QJsonDocument::fromJson(target.qwdttConfig.toUtf8()).object();
+                    config.insert("interactive_captcha", true);
+                    target.qwdttConfig = QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact));
+                }
                 target.testCurrent = !target.qwdttConfig.isEmpty() && mw_->running && mw_->running->id == entID;
                 target.tag2entID.insert("proxy", entID);
                 individualTargets.append(target);

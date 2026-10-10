@@ -93,8 +93,9 @@ type testEnv struct {
 }
 
 // Copy of rpc.prepareTestEnv. A probe env builds its own eager Xray instances and its own box
-// (PlatformLogWriter nil: no cache.db sharing, no accounting) around a separate context holder;
-// `current` measures the running instance instead and owns nothing.
+// (PlatformLogWriter nil: no cache.db sharing, no accounting; its log reaches the sink through a
+// writer attached afterwards) around a separate context holder; `current` measures the running
+// instance instead and owns nothing.
 func prepareTestEnv(current *Instance, testCurrent bool, platform PlatformInterface, request *TestRequest) (*testEnv, error) {
 	holder := new(boxContextHolder)
 	prepareXray := xrayPreparer(request.XrayOutboundDNSStrategy, holder.get)
@@ -160,6 +161,9 @@ func prepareTestEnv(current *Instance, testCurrent bool, platform PlatformInterf
 		unwind()
 		return nil, E.Cause(err, "create service")
 	}
+	// Before Start, which flushes the lines logged so far; a disabled log is a no-op factory.
+	logFactory := boxInstance.LogFactory()
+	logFactory.AttachPlatformWriter(testLogWriter{level: logFactory.Level()})
 	holder.publish(ctx)
 	cleanups = append(cleanups, func() { closeBoxWithTimeout(cancel, boxInstance, boxCloseTimeout, false) })
 	if err = boxInstance.Start(); err != nil {

@@ -15,26 +15,28 @@ import (
 
 // Secrets travel in Throne's private, temporary extra-core config, never argv.
 type bridgeConfig struct {
-	ProbeOnly   bool     `json:"probe_only"`
-	VKAnonPath  string   `json:"vk_anon_path"`
-	CaptchaMode string   `json:"captcha_mode"`
-	Peer        string   `json:"peer"`
-	Password    string   `json:"password"`
-	Hashes      []string `json:"hashes"`
-	Mode        string   `json:"mode"`
-	Workers     int      `json:"workers"`
-	DeviceID    string   `json:"device_id"`
-	TurnTCP     bool     `json:"turn_tcp"`
-	Obfs        string   `json:"obfs"`
-	DNS         string   `json:"go_dns"`
-	Listen      string   `json:"listen"`
-	SOCKS       string   `json:"socks"`
-	SOCKSUser   string   `json:"socks_user"`
-	SOCKSPass   string   `json:"socks_pass"`
+	ProbeOnly          bool     `json:"probe_only"`
+	InteractiveCaptcha bool     `json:"interactive_captcha"`
+	VKAnonPath         string   `json:"vk_anon_path"`
+	CaptchaMode        string   `json:"captcha_mode"`
+	Peer               string   `json:"peer"`
+	Password           string   `json:"password"`
+	Hashes             []string `json:"hashes"`
+	Mode               string   `json:"mode"`
+	Workers            int      `json:"workers"`
+	DeviceID           string   `json:"device_id"`
+	TurnTCP            bool     `json:"turn_tcp"`
+	Obfs               string   `json:"obfs"`
+	DNS                string   `json:"go_dns"`
+	Listen             string   `json:"listen"`
+	SOCKS              string   `json:"socks"`
+	SOCKSUser          string   `json:"socks_user"`
+	SOCKSPass          string   `json:"socks_pass"`
 }
 
 var desktopBridgeMode bool
 var desktopProbeOnly bool
+var desktopInteractiveProbe bool
 var bridgeContext context.Context
 var bridgeCancel context.CancelFunc
 
@@ -125,6 +127,7 @@ func applyBridgeConfig(filename string) error {
 	}
 	desktopBridgeMode = true
 	desktopProbeOnly = c.ProbeOnly
+	desktopInteractiveProbe = c.ProbeOnly && c.InteractiveCaptcha
 	mode := "socks"
 	if c.Mode == "raw" {
 		mode = "rawtun"

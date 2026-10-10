@@ -127,3 +127,25 @@ func TestDesktopCaptchaResponseAndURLValidation(t *testing.T) {
 		t.Fatal("cancelled captcha attempted to open a browser")
 	}
 }
+
+func TestManualProbeOpensVisibleCaptcha(t *testing.T) {
+	oldBridge, oldProbe, oldInteractive := desktopBridgeMode, desktopProbeOnly, desktopInteractiveProbe
+	oldSolver := desktopCaptchaSolver
+	defer func() {
+		desktopBridgeMode, desktopProbeOnly, desktopInteractiveProbe = oldBridge, oldProbe, oldInteractive
+		desktopCaptchaSolver = oldSolver
+	}()
+	desktopBridgeMode, desktopProbeOnly, desktopInteractiveProbe = true, true, true
+	called := false
+	desktopCaptchaSolver = func(ctx context.Context, redirect string, visible bool) (string, error) {
+		called = true
+		if !visible || redirect != "https://id.vk.ru/captcha?session_token=fake" {
+			t.Fatal("manual probe did not request its visible captcha")
+		}
+		return "fake-success", nil
+	}
+	token, err := requestWebViewCaptcha(1, &VkCaptchaError{RedirectURI: "https://id.vk.ru/captcha?session_token=fake"}, "auto", time.Second)
+	if !called || err != nil || token != "fake-success" {
+		t.Fatalf("manual captcha result: %q %v", token, err)
+	}
+}

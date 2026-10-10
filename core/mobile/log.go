@@ -128,9 +128,24 @@ var _ log.PlatformWriter = platformLogWriter{}
 
 // Always handed to box.New for the main instance, sink or not: a non-nil PlatformLogWriter is what
 // switches on trafficcontrol, clash mode and the cache file, which Status()/Groups()/QueryOutboundStats()
-// read. Probe boxes pass nil so they never share cache.db or pay for accounting.
+// read. Probe boxes pass nil so they never share cache.db or pay for accounting, and get a testLogWriter.
 type platformLogWriter struct{}
 
 func (platformLogWriter) WriteMessage(level log.Level, message string) {
 	pump.push(int32(level), message)
+}
+
+var _ log.PlatformWriter = testLogWriter{}
+
+// A probe box's lines, marked as test output, attached to its log factory after box.New. The factory hands
+// its platform writers every line whatever its level, so the probe config's own level is applied here.
+type testLogWriter struct {
+	level log.Level
+}
+
+func (w testLogWriter) WriteMessage(level log.Level, message string) {
+	if level > w.level {
+		return
+	}
+	pump.push(int32(level), "[test] "+message)
 }

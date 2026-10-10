@@ -22,6 +22,7 @@ var errCaptchaWindowClosed = errors.New("VK captcha window was closed")
 var errCaptchaInteractionRequired = errors.New("VK captcha requires an interactive connection; background test skipped")
 
 var captchaWindow = make(chan struct{}, 1)
+var desktopCaptchaSolver = solveDesktopCaptchaMode
 
 func edgeExecutable() string {
 	for _, name := range []string{"msedge", "microsoft-edge", "microsoft-edge-stable"} {

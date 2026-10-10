@@ -41,6 +41,17 @@ func TestQWDTTProbeDisablesInteractiveCaptcha(t *testing.T) {
 	}
 }
 
+func TestQWDTTManualProbeAllowsCaptcha(t *testing.T) {
+	output, err := noninteractiveQWDTTConfig(`{"interactive_captcha":true,"captcha_mode":"auto","hashes":["fake-hash"]}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var c map[string]json.RawMessage
+	if json.Unmarshal([]byte(output), &c) != nil || string(c["probe_only"]) != "true" || string(c["interactive_captcha"]) != "true" || string(c["captcha_mode"]) != `"wv"` || string(c["hashes"]) != `["fake-hash"]` {
+		t.Fatalf("manual captcha policy: %s", output)
+	}
+}
+
 func TestQWDTTProbeRejectsNonLoopbackListeners(t *testing.T) {
 	for _, config := range []string{`{}`, `not-json`, `{"socks":"0.0.0.0:9000"}`, `{"socks":"example.invalid:9000"}`, `{"socks":"127.0.0.1:0"}`} {
 		cleanup, err := prepareQWDTTProbe(context.Background(), config)

@@ -108,6 +108,20 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
+	var interaction struct {
+		Interactive bool `json:"interactive_captcha"`
+	}
+	_ = json.Unmarshal([]byte(config), &interaction)
+	if interaction.Interactive {
+		// One interactive probe owns the browser at a time, including across servers.
+		browserRelease, browserErr := acquireQWDTTProbe(ctx, sha256.Sum256([]byte("qThrone interactive captcha browser")))
+		if browserErr != nil {
+			release()
+			return nil, browserErr
+		}
+		sessionRelease := release
+		release = func() { browserRelease(); sessionRelease() }
+	}
 	executable, err := os.Executable()
 	if err != nil {
 		release()
@@ -162,6 +176,13 @@ func noninteractiveQWDTTConfig(config string) (string, error) {
 		return "", errors.New("invalid qWDTT test config")
 	}
 	c["probe_only"] = json.RawMessage("true")
+	var interactive bool
+	_ = json.Unmarshal(c["interactive_captcha"], &interactive)
+	c["interactive_captcha"] = json.RawMessage(strconv.FormatBool(interactive))
+	if interactive {
+		// Open the WebView directly when a manual test encounters a captcha.
+		c["captcha_mode"] = json.RawMessage(`"wv"`)
+	}
 	b, err := json.Marshal(c)
 	return string(b), err
 }
