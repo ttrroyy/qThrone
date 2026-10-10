@@ -129,6 +129,37 @@ func TestOptionalGracefulShutdown(t *testing.T) {
 	}
 }
 
+func TestCSQTTDelayedShutdownHelper(t *testing.T) {
+	if len(os.Args) < 4 || os.Args[len(os.Args)-3] != "qthrone-delayed-helper" {
+		return
+	}
+	scanner := bufio.NewScanner(os.Stdin)
+	if scanner.Scan() && scanner.Text() == "STOP" {
+		time.Sleep(4 * time.Second)
+		_ = os.WriteFile(os.Args[len(os.Args)-1], []byte("clean exit"), 0600)
+		os.Exit(0)
+	}
+	os.Exit(1)
+}
+
+func TestCSQTTShutdownAllowsNativeChildCleanup(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := filepath.Join(t.TempDir(), "result")
+	p := NewProcess(exe, []string{"-test.run=^TestCSQTTDelayedShutdownHelper$", "qthrone-delayed-helper", "-csqtt-config", result}, true)
+	p.EnableStdinShutdown("STOP")
+	if err = p.Start(); err != nil {
+		t.Fatal(err)
+	}
+	p.Stop()
+	got, err := os.ReadFile(result)
+	if err != nil || string(got) != "clean exit" {
+		t.Fatal("CSQTT bridge was killed before native cleanup finished")
+	}
+}
+
 func TestOrdinaryExtraProcessStillStops(t *testing.T) {
 	exe, err := os.Executable()
 	if err != nil {

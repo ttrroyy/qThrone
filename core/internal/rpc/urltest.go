@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -35,11 +36,21 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 	}
 
 	// A muxed config needs a warm connection; the live instance already is one.
-	twice := !in.GetTestCurrent() || in.GetQwdttConfig() != ""
+	twice := !in.GetTestCurrent()
 	var results []*probe.URLTestResult
 	if in.GetQwdttConfig() != "" {
+		var transport struct {
+			Backend string `json:"backend"`
+		}
+		_ = json.Unmarshal([]byte(in.GetQwdttConfig()), &transport)
+		var coldAllowance time.Duration
+		if twice && transport.Backend == "csqtt" {
+			// SOCKS hides the userspace tunnel from the ordinary VPN startup allowance.
+			// Warm it once; the measured request still uses the configured timeout.
+			coldAllowance = probe.TunnelStartupTimeout
+		}
 		results = probe.BatchURLTestTo(testCtx, env.box, env.tags, in.GetUrl(),
-			int(in.GetMaxConcurrency()), twice, time.Duration(in.GetTestTimeoutMs())*time.Millisecond, func(*probe.URLTestResult) {})
+			int(in.GetMaxConcurrency()), twice, time.Duration(in.GetTestTimeoutMs())*time.Millisecond, func(*probe.URLTestResult) {}, coldAllowance)
 	} else {
 		results = probe.BatchURLTest(testCtx, env.box, env.tags, in.GetUrl(),
 			int(in.GetMaxConcurrency()), twice, time.Duration(in.GetTestTimeoutMs())*time.Millisecond)

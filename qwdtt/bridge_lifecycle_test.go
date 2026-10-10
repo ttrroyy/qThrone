@@ -128,7 +128,7 @@ func TestDesktopCaptchaResponseAndURLValidation(t *testing.T) {
 	}
 }
 
-func TestManualProbeOpensVisibleCaptcha(t *testing.T) {
+func TestManualProbePreservesCaptchaVisibility(t *testing.T) {
 	oldBridge, oldProbe, oldInteractive := desktopBridgeMode, desktopProbeOnly, desktopInteractiveProbe
 	oldSolver := desktopCaptchaSolver
 	defer func() {
@@ -137,15 +137,20 @@ func TestManualProbeOpensVisibleCaptcha(t *testing.T) {
 	}()
 	desktopBridgeMode, desktopProbeOnly, desktopInteractiveProbe = true, true, true
 	called := false
+	wantVisible := false
 	desktopCaptchaSolver = func(ctx context.Context, redirect string, visible bool) (string, error) {
 		called = true
-		if !visible || redirect != "https://id.vk.ru/captcha?session_token=fake" {
+		if visible != wantVisible || redirect != "https://id.vk.ru/captcha?session_token=fake" {
 			t.Fatal("manual probe did not request its visible captcha")
 		}
 		return "fake-success", nil
 	}
-	token, err := requestWebViewCaptcha(1, &VkCaptchaError{RedirectURI: "https://id.vk.ru/captcha?session_token=fake"}, "auto", time.Second)
-	if !called || err != nil || token != "fake-success" {
-		t.Fatalf("manual captcha result: %q %v", token, err)
+	for _, mode := range []string{"auto", "manual", "selected"} {
+		called = false
+		wantVisible = mode != "auto"
+		token, err := requestWebViewCaptcha(1, &VkCaptchaError{RedirectURI: "https://id.vk.ru/captcha?session_token=fake"}, mode, time.Second)
+		if !called || err != nil || token != "fake-success" {
+			t.Fatalf("captcha result: %q %v", token, err)
+		}
 	}
 }

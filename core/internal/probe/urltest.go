@@ -25,7 +25,7 @@ func BatchURLTest(ctx context.Context, i Box, outboundTags []string, url string,
 }
 
 // BatchURLTestTo hands every finished result to publish; aborted tags are returned but never published.
-func BatchURLTestTo(ctx context.Context, i Box, outboundTags []string, url string, maxConcurrency int, twice bool, timeout time.Duration, publish func(*URLTestResult)) []*URLTestResult {
+func BatchURLTestTo(ctx context.Context, i Box, outboundTags []string, url string, maxConcurrency int, twice bool, timeout time.Duration, publish func(*URLTestResult), coldAllowance ...time.Duration) []*URLTestResult {
 	if timeout <= 0 {
 		timeout = URLTestTimeout
 	}
@@ -37,10 +37,11 @@ func BatchURLTestTo(ctx context.Context, i Box, outboundTags []string, url strin
 			}
 			client, closeClient := outboundHTTPClient(ctx, i, tag, outbound)
 			defer closeClient()
-			duration, err := urlTest(ctx, client, url, firstRequestTimeout(i, tag, twice, timeout))
-			if err == nil && twice {
-				duration, err = urlTest(ctx, client, url, timeout)
+			firstTimeout := firstRequestTimeout(i, tag, twice, timeout)
+			if twice && len(coldAllowance) > 0 && coldAllowance[0] > 0 {
+				firstTimeout += coldAllowance[0]
 			}
+			duration, err := urlTestRequests(ctx, client, url, timeout, firstTimeout, twice)
 			return &URLTestResult{Duration: duration, Tag: tag, Error: err}
 		},
 		fail: func(tag string, err error) *URLTestResult {
@@ -48,6 +49,14 @@ func BatchURLTestTo(ctx context.Context, i Box, outboundTags []string, url strin
 		},
 		publish: publish,
 	})
+}
+
+func urlTestRequests(ctx context.Context, client *http.Client, url string, timeout, firstTimeout time.Duration, twice bool) (time.Duration, error) {
+	duration, err := urlTest(ctx, client, url, firstTimeout)
+	if err == nil && twice {
+		return urlTest(ctx, client, url, timeout)
+	}
+	return duration, err
 }
 
 func urlTest(ctx context.Context, client *http.Client, url string, timeout time.Duration) (time.Duration, error) {

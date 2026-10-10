@@ -5,7 +5,7 @@ on:
       tag:
         description: "Release Tag and version"
         required: true
-        default: "1.0-beta.10"
+        default: "1.0"
       publish:
         description: "r for normal release, p for prerelease, leave empty to not publish anything"
         required: false
@@ -69,7 +69,7 @@ jobs:
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
           protoc -I gen --go_out=gen --go-grpc_out=gen gen/libcore.proto
-          go test -race ./internal/process ./internal/rpc
+          go test -race ./internal/process ./internal/rpc ./internal/probe
           go vet ./internal/process ./internal/rpc
   build-go:
     if: inputs.common_run_id == ''

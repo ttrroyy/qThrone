@@ -22,6 +22,7 @@ type Process struct {
 	run             running
 	stopped         atomic.Bool
 	stopCommand     string
+	stopTimeout     time.Duration
 	stdin           *os.File
 	done            chan struct{}
 }
@@ -41,7 +42,17 @@ func (p *Process) SetCleanupPath(path string) {
 }
 
 // EnableStdinShutdown is opt-in; ordinary extra cores retain their kill behavior.
-func (p *Process) EnableStdinShutdown(command string) { p.stopCommand = command }
+func (p *Process) EnableStdinShutdown(command string) {
+	p.stopCommand = command
+	p.stopTimeout = 3 * time.Second
+	for _, arg := range p.args {
+		if arg == "-csqtt-config" {
+			// Allow the bridge's bounded native shutdown plus process cleanup.
+			p.stopTimeout = 23 * time.Second
+			break
+		}
+	}
+}
 
 // Probe failures belong to the test RPC, not the active profile crash handler.
 func (p *Process) SetBackgroundProbe() { p.backgroundProbe = true }
@@ -104,7 +115,7 @@ func (p *Process) Stop() {
 			case <-p.done:
 				p.cleanup()
 				return
-			case <-time.After(3 * time.Second):
+			case <-time.After(p.stopTimeout):
 			}
 		}
 		_ = p.run.Kill()

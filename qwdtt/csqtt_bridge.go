@@ -79,6 +79,7 @@ func runCSQTTBridge(path string) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
 	go func() {
+		defer cancel()
 		scanner := bufio.NewScanner(os.Stdin)
 		for scanner.Scan() {
 			if strings.TrimSpace(scanner.Text()) == "STOP" {
@@ -127,6 +128,13 @@ func runCSQTTBridge(path string) error {
 	if err = command.Start(); err != nil {
 		return errors.New("cannot start bundled CSQTT transport")
 	}
+	closeChildOwner, ownerErr := ownCSQTTChild(command)
+	if ownerErr != nil {
+		command.Process.Kill()
+		command.Wait()
+		return errors.New("cannot establish CSQTT transport lifetime ownership")
+	}
+	defer closeChildOwner()
 	done := make(chan struct{})
 	go func() { command.Wait(); writer.Close(); close(done) }()
 	defer func() {
@@ -134,7 +142,9 @@ func runCSQTTBridge(path string) error {
 		send("STOP")
 		select {
 		case <-done:
-		case <-time.After(5 * time.Second):
+		// The original client allows up to 9s and 8s for VK call leave tasks.
+		// Do not truncate that cleanup and leave a stale call after every probe.
+		case <-time.After(20 * time.Second):
 			command.Process.Kill()
 			<-done
 		}
@@ -276,22 +286,31 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 			if len(parts) != 4 {
 				continue
 			}
+			visible := parts[1] != "auto"
+			fmt.Println("[CSQTT] CAPTCHA_REQUIRED: требуется капча.")
 			if c.ProbeOnly && !c.InteractiveCaptcha {
 				send("CAPTCHA_RESULT|error:cancelled")
 				cancelSession()
 				continue
 			}
-			fmt.Println("[CSQTT] CAPTCHA_REQUIRED: требуется капча.")
 			solvers.Add(1)
-			go func(redirect string) {
+			go func(redirect string, visible bool) {
 				defer solvers.Done()
-				token, err := desktopCaptchaSolver(ctx, redirect, true)
+				solveCtx := ctx
+				if !visible {
+					var cancel context.CancelFunc
+					solveCtx, cancel = context.WithTimeout(ctx, 9*time.Second)
+					defer cancel()
+				}
+				token, err := desktopCaptchaSolver(solveCtx, redirect, visible)
 				if err != nil {
 					token = "error:cancelled"
-					cancelSession()
+					if visible {
+						cancelSession()
+					}
 				}
 				send("CAPTCHA_RESULT|" + token)
-			}(parts[2])
+			}(parts[2], visible)
 		}
 		// Raw transport logs may contain hashes and captcha session tokens.
 		// Only explicit public lifecycle messages are emitted by this adapter.

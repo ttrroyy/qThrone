@@ -47,7 +47,7 @@ func TestQWDTTManualProbeAllowsCaptcha(t *testing.T) {
 		t.Fatal(err)
 	}
 	var c map[string]json.RawMessage
-	if json.Unmarshal([]byte(output), &c) != nil || string(c["probe_only"]) != "true" || string(c["interactive_captcha"]) != "true" || string(c["captcha_mode"]) != `"wv"` || string(c["hashes"]) != `["fake-hash"]` {
+	if json.Unmarshal([]byte(output), &c) != nil || string(c["probe_only"]) != "true" || string(c["interactive_captcha"]) != "true" || string(c["captcha_mode"]) != `"auto"` || string(c["hashes"]) != `["fake-hash"]` {
 		t.Fatalf("manual captcha policy: %s", output)
 	}
 }

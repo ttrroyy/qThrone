@@ -239,10 +239,8 @@ func noninteractiveQWDTTConfig(config string) (string, error) {
 	var interactive bool
 	_ = json.Unmarshal(c["interactive_captcha"], &interactive)
 	c["interactive_captcha"] = json.RawMessage(strconv.FormatBool(interactive))
-	if interactive {
-		// Open the WebView directly when a manual test encounters a captcha.
-		c["captcha_mode"] = json.RawMessage(`"wv"`)
-	}
+	// Keep the profile's automatic solver chain. Interactive tests permit its
+	// browser fallback; they must not force every challenge into a visible window.
 	b, err := json.Marshal(c)
 	return string(b), err
 }

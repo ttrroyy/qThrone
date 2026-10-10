@@ -716,13 +716,13 @@ func requestWebViewCaptcha(streamID int, captchaErr *VkCaptchaError, mode string
 		if captchaErr == nil {
 			return "", fmt.Errorf("VK captcha data is missing")
 		}
+		visible := mode != "auto"
 		if desktopProbeOnly && !desktopInteractiveProbe {
 			if bridgeCancel != nil {
 				bridgeCancel()
 			}
 			return "", errCaptchaInteractionRequired
 		}
-		visible := mode != "auto" || desktopInteractiveProbe
 		if visible {
 			log.Printf("[qWDTT] VK требует ручное решение капчи. Открываю окно браузера.")
 		}

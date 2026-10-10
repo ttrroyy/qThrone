@@ -2789,7 +2789,11 @@ namespace Configs {
                 auto config = ctx.result->coreConfig;
                 config["inbounds"] = QJsonArray{};
                 config["outbounds"] = QJsonArray{built.object, QJsonObject{{"type", "direct"}, {"tag", tags::direct}}};
-                config["route"] = QJsonObject{{"final", "proxy"}, {"auto_detect_interface", true}, {"default_domain_resolver", directDomainResolver()}};
+                auto resolver = directDomainResolver();
+                // The original CSQTT IP channel assigns only an IPv4 address.
+                // Match its TUN behavior when testing through the SOCKS bridge.
+                if (item->type == "csqtt") resolver["strategy"] = "ipv4_only";
+                config["route"] = QJsonObject{{"final", "proxy"}, {"auto_detect_interface", true}, {"default_domain_resolver", resolver}};
                 res->fullConfigs[item->id] = QJsonObject2QString(config, false);
                 res->qwdttConfigs[item->id] = outbound.extraCoreConf;
                 continue;

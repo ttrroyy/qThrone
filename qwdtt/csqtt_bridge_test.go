@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCSQTTWaitsForRegisteredWorker(t *testing.T) {
@@ -88,5 +90,24 @@ func TestCSQTTManualCaptchaAndConfigEvents(t *testing.T) {
 	scanCSQTTOutput(context.Background(), &bridgeConfig{ProbeOnly: true, InteractiveCaptcha: true}, strings.NewReader(logs), configs, func(command string) { commands <- command })
 	if len(configs) != 1 || <-commands != "CAPTCHA_RESULT|fake-token" {
 		t.Fatal("transport event not handled")
+	}
+}
+
+func TestCSQTTAutoBrowserFailureKeepsNativeFallback(t *testing.T) {
+	previous := desktopCaptchaSolver
+	defer func() { desktopCaptchaSolver = previous }()
+	desktopCaptchaSolver = func(ctx context.Context, _ string, visible bool) (string, error) {
+		deadline, ok := ctx.Deadline()
+		if visible || !ok || time.Until(deadline) > 9*time.Second {
+			t.Error("automatic browser must be hidden and finish before native timeout")
+		}
+		return "", errors.New("automatic attempt failed")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	commands := make(chan string, 1)
+	scanCSQTTOutput(ctx, &bridgeConfig{InteractiveCaptcha: true}, strings.NewReader("CAPTCHA_SOLVE|auto|https://vk.com/captcha|fake-session\n"), make(chan string, 1), func(command string) { commands <- command }, cancel)
+	if ctx.Err() != nil || <-commands != "CAPTCHA_RESULT|error:cancelled" {
+		t.Fatal("automatic failure cancelled the native fallback chain")
 	}
 }
