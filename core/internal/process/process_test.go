@@ -2,6 +2,7 @@ package process
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -9,6 +10,40 @@ import (
 	"testing"
 	"time"
 )
+
+func TestOutputObserverHelper(t *testing.T) {
+	if os.Args[len(os.Args)-1] == "qthrone-output-observer-helper" {
+		fmt.Println("[CSQTT] CAPTCHA_REQUIRED")
+		os.Exit(0)
+	}
+}
+
+func TestOutputObserverReceivesMutedChildOutput(t *testing.T) {
+	exe, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	observed := make(chan struct{}, 1)
+	p := NewProcess(exe, []string{"-test.run=^TestOutputObserverHelper$", "qthrone-output-observer-helper"}, true)
+	p.SetBackgroundProbe()
+	p.SetOutputObserver(func(b []byte) {
+		if strings.Contains(string(b), "CAPTCHA_REQUIRED") {
+			select {
+			case observed <- struct{}{}:
+			default:
+			}
+		}
+	})
+	if err := p.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer p.Stop()
+	select {
+	case <-observed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("child progress was not observed")
+	}
+}
 
 func TestFailedProbeHelper(t *testing.T) {
 	if len(os.Args) > 1 && os.Args[len(os.Args)-1] == "qthrone-failed-probe-helper" {

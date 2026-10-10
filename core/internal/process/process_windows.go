@@ -19,7 +19,7 @@ import (
 )
 
 // exec.Cmd+SysProcAttr.Token routes through CreateProcessAsUser, needing SeAssignPrimaryTokenPrivilege that elevated admins lack; CreateProcessWithTokenW needs only SeImpersonatePrivilege (#1482).
-func startChild(path string, args []string, noOut bool, input *os.File) (running, error) {
+func startChild(path string, args []string, noOut bool, input *os.File, observers ...func([]byte)) (running, error) {
 	self, err := selfToken()
 	if err != nil {
 		return nil, fmt.Errorf("cannot open process token: %w", err)
@@ -27,7 +27,7 @@ func startChild(path string, args []string, noOut bool, input *os.File) (running
 	defer self.Close()
 
 	if !self.IsElevated() {
-		return startCmd(newCmd(path, args, noOut, input))
+		return startCmd(newCmd(path, args, noOut, input, observers...))
 	}
 
 	tok, err := unprivilegedToken(self)
@@ -36,16 +36,16 @@ func startChild(path string, args []string, noOut bool, input *os.File) (running
 	}
 	defer tok.Close()
 
-	return startWithToken(path, args, noOut, tok, input)
+	return startWithToken(path, args, noOut, tok, input, observers...)
 }
 
 // CreateProcessWithTokenW is served by the Secondary Logon service, which some systems disable; CreateProcessAsUser then still works for a Core running as SYSTEM.
-func startWithToken(path string, args []string, noOut bool, tok windows.Token, input *os.File) (running, error) {
-	run, err := startWithTokenW(path, args, noOut, tok, input)
+func startWithToken(path string, args []string, noOut bool, tok windows.Token, input *os.File, observers ...func([]byte)) (running, error) {
+	run, err := startWithTokenW(path, args, noOut, tok, input, observers...)
 	if err == nil {
 		return run, nil
 	}
-	cmd := newCmd(path, args, noOut, input)
+	cmd := newCmd(path, args, noOut, input, observers...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Token:         syscall.Token(tok),
 		HideWindow:    true,
@@ -61,7 +61,11 @@ func startWithToken(path string, args []string, noOut bool, tok windows.Token, i
 var procCreateProcessWithTokenW = windows.NewLazySystemDLL("advapi32.dll").NewProc("CreateProcessWithTokenW")
 
 // CreateProcessWithTokenW inherits no arbitrary handles, but the secondary-logon service still duplicates the three std handles into a 64-bit child.
-func startWithTokenW(path string, args []string, noOut bool, tok windows.Token, input *os.File) (running, error) {
+func startWithTokenW(path string, args []string, noOut bool, tok windows.Token, input *os.File, observers ...func([]byte)) (running, error) {
+	var outputObserver func([]byte)
+	if len(observers) > 0 {
+		outputObserver = observers[0]
+	}
 	exe, err := exec.LookPath(path)
 	if err != nil {
 		return nil, err
@@ -144,7 +148,7 @@ func startWithTokenW(path string, args []string, noOut bool, tok windows.Token, 
 
 	done := make(chan struct{}, 2)
 	pump := func(r *os.File) {
-		_, _ = io.Copy(&pipeLogger{prefix: extraCorePrefix, noOut: noOut}, r)
+		_, _ = io.Copy(&pipeLogger{prefix: extraCorePrefix, noOut: noOut, observer: outputObserver}, r)
 		_ = r.Close()
 		done <- struct{}{}
 	}

@@ -15,8 +15,8 @@ import (
 	"ThroneCore/internal/guard"
 )
 
-func startChild(path string, args []string, noOut bool, input *os.File) (running, error) {
-	cmd := newCmd(path, args, noOut, input)
+func startChild(path string, args []string, noOut bool, input *os.File, observers ...func([]byte)) (running, error) {
+	cmd := newCmd(path, args, noOut, input, observers...)
 	if err := applyPrivilegeDrop(cmd); err != nil {
 		return nil, err
 	}

@@ -114,7 +114,13 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	if conflicts {
 		return nil, errors.New("this qWDTT device is already connected; test its active profile instead")
 	}
-	release, err := acquireQWDTTProbe(ctx, key)
+	queueBudget := 3 * time.Minute
+	if c.Backend == "csqtt" {
+		queueBudget = 30 * time.Second
+	}
+	queueCtx, cancelQueue := context.WithTimeout(ctx, queueBudget)
+	defer cancelQueue()
+	release, err := acquireQWDTTProbe(queueCtx, key)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +130,7 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	_ = json.Unmarshal([]byte(config), &interaction)
 	if interaction.Interactive {
 		// One interactive probe owns the browser at a time, including across servers.
-		browserRelease, browserErr := acquireQWDTTProbe(ctx, sha256.Sum256([]byte("qThrone interactive captcha browser")))
+		browserRelease, browserErr := acquireQWDTTProbe(queueCtx, sha256.Sum256([]byte("qThrone interactive captcha browser")))
 		if browserErr != nil {
 			release()
 			return nil, browserErr
@@ -163,6 +169,23 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	child.SetBackgroundProbe()
 	child.SetCleanupPath(folder)
 	child.EnableStdinShutdown("STOP")
+	captchaRequired := make(chan struct{}, 1)
+	if c.Backend == "csqtt" {
+		var outputMu sync.Mutex
+		var pending string
+		var captchaOnce sync.Once
+		child.SetOutputObserver(func(b []byte) {
+			outputMu.Lock()
+			defer outputMu.Unlock()
+			pending += string(b)
+			if strings.Contains(pending, "[CSQTT] CAPTCHA_REQUIRED") {
+				captchaOnce.Do(func() { captchaRequired <- struct{}{} })
+			}
+			if len(pending) > 256 {
+				pending = pending[len(pending)-256:]
+			}
+		})
+	}
 	if err = child.Start(); err != nil {
 		release()
 		return nil, err
@@ -170,6 +193,12 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	cleanup := func() { child.Stop(); release() }
 	readyCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
+	startupBudget := 3 * time.Minute
+	if c.Backend == "csqtt" {
+		startupBudget = 30 * time.Second
+	}
+	startupTimer := time.NewTimer(startupBudget)
+	defer startupTimer.Stop()
 	for {
 		conn, e := (&net.Dialer{Timeout: 100 * time.Millisecond}).DialContext(readyCtx, "tcp", c.SOCKS)
 		if e == nil {
@@ -177,6 +206,19 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 			return cleanup, nil
 		}
 		select {
+		case <-captchaRequired:
+			if c.Interactive {
+				if !startupTimer.Stop() {
+					select {
+					case <-startupTimer.C:
+					default:
+					}
+				}
+				startupTimer.Reset(3 * time.Minute)
+			}
+		case <-startupTimer.C:
+			cleanup()
+			return nil, errors.New("transport test startup timed out")
 		case <-child.Done():
 			cleanup()
 			return nil, errors.New("qWDTT authentication or bridge startup failed; connect interactively and retry the test")

@@ -17,6 +17,7 @@ type Process struct {
 	args            []string
 	noOut           bool
 	backgroundProbe bool
+	outputObserver  func([]byte)
 	cleanupPath     string
 	run             running
 	stopped         atomic.Bool
@@ -45,6 +46,8 @@ func (p *Process) EnableStdinShutdown(command string) { p.stopCommand = command 
 // Probe failures belong to the test RPC, not the active profile crash handler.
 func (p *Process) SetBackgroundProbe() { p.backgroundProbe = true }
 
+func (p *Process) SetOutputObserver(observer func([]byte)) { p.outputObserver = observer }
+
 func (p *Process) Start() error {
 	var input *os.File
 	if p.stopCommand != "" {
@@ -56,7 +59,7 @@ func (p *Process) Start() error {
 		}
 		defer input.Close()
 	}
-	run, err := startChild(p.path, p.args, p.noOut, input)
+	run, err := startChild(p.path, p.args, p.noOut, input, p.outputObserver)
 	if err != nil {
 		if p.stdin != nil {
 			_ = p.stdin.Close()
@@ -115,10 +118,14 @@ func (p *Process) Stop() {
 	p.cleanup()
 }
 
-func newCmd(path string, args []string, noOut bool, input *os.File) *exec.Cmd {
+func newCmd(path string, args []string, noOut bool, input *os.File, observers ...func([]byte)) *exec.Cmd {
 	cmd := exec.Command(path, args...)
-	cmd.Stdout = &pipeLogger{prefix: extraCorePrefix, noOut: noOut}
-	cmd.Stderr = &pipeLogger{prefix: extraCorePrefix, noOut: noOut}
+	var observer func([]byte)
+	if len(observers) > 0 {
+		observer = observers[0]
+	}
+	cmd.Stdout = &pipeLogger{prefix: extraCorePrefix, noOut: noOut, observer: observer}
+	cmd.Stderr = &pipeLogger{prefix: extraCorePrefix, noOut: noOut, observer: observer}
 	cmd.Env = childEnv()
 	if input != nil {
 		cmd.Stdin = input

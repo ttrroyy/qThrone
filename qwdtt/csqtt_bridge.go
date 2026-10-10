@@ -211,6 +211,25 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 	scanner.Buffer(make([]byte, 4096), 65536)
 	for scanner.Scan() {
 		line := scanner.Text()
+		if os.Getenv("CSQTT_DIAGNOSTICS") == "1" {
+			for _, kind := range []string{"STATS", "READY", "ACTIVE_ZERO", "NETWORK_SUSPECT", "SERVER_RESTART", "STOPPED"} {
+				prefix := "__CSQTT_EVENT__|" + kind + "|"
+				if i := strings.Index(line, prefix); i >= 0 {
+					if kind == "STATS" {
+						var stats struct {
+							Active int   `json:"active"`
+							Up     int64 `json:"bytes_up"`
+							Down   int64 `json:"bytes_down"`
+						}
+						if json.Unmarshal([]byte(line[i+len(prefix):]), &stats) == nil {
+							fmt.Printf("[CSQTT diagnostic] active=%d up=%d down=%d\n", stats.Active, stats.Up, stats.Down)
+						}
+					} else {
+						fmt.Println("[CSQTT diagnostic] " + kind)
+					}
+				}
+			}
+		}
 		if strings.Contains(line, "FATAL_AUTH:") || strings.Contains(line, "FATAL_PROTOCOL:") {
 			message := "Сервер отказал в авторизации CSQTT. Проверьте пароль и его привязку в панели."
 			if strings.Contains(line, "пароль привязан к другому устройству") {
@@ -243,6 +262,7 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 				cancelSession()
 				continue
 			}
+			fmt.Println("[CSQTT] CAPTCHA_REQUIRED: требуется капча.")
 			solvers.Add(1)
 			go func(redirect string) {
 				defer solvers.Done()
