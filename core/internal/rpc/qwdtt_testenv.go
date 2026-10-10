@@ -82,14 +82,22 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 		return nil, errors.New("qWDTT test config is too large")
 	}
 	var c struct {
-		SOCKS    string `json:"socks"`
-		Peer     string `json:"peer"`
-		Backend  string `json:"backend"`
-		DeviceID string `json:"device_id"`
+		SOCKS       string `json:"socks"`
+		Peer        string `json:"peer"`
+		Backend     string `json:"backend"`
+		DeviceID    string `json:"device_id"`
+		Interactive bool   `json:"interactive_captcha"`
 	}
 	if json.Unmarshal([]byte(config), &c) != nil {
 		return nil, errors.New("invalid qWDTT test config")
 	}
+	// Include queue waits in the startup budget; manual captcha gets time for user input.
+	budget := 3 * time.Minute
+	if c.Backend == "csqtt" && !c.Interactive {
+		budget = 30 * time.Second
+	}
+	ctx, cancelProbe := context.WithTimeout(ctx, budget)
+	defer cancelProbe()
 	host, port, err := net.SplitHostPort(c.SOCKS)
 	n, _ := strconv.Atoi(port)
 	if err != nil || host != "127.0.0.1" || n < 1 || n > 65535 {

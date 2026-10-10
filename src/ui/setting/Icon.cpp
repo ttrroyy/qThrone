@@ -60,6 +60,26 @@ QIcon Icon::GetTrayIcon(TrayIconStatus status) {
         if (sizes.isEmpty()) sizes = {QSize(16,16), QSize(32,32), QSize(64,64)};
         for (const auto &size : sizes) {
             auto pixmap = icon.pixmap(size);
+            if (status == TrayIconStatus::Vpn) {
+                auto image = pixmap.toImage().convertToFormat(QImage::Format_ARGB32);
+                int darkest = 255, lightest = 0;
+                for (int y = 0; y < image.height(); ++y)
+                    for (int x = 0; x < image.width(); ++x) {
+                        const auto pixel = image.pixel(x, y);
+                        if (qAlpha(pixel) < 128) continue;
+                        darkest = qMin(darkest, qGray(pixel));
+                        lightest = qMax(lightest, qGray(pixel));
+                    }
+                for (int y = 0; y < image.height(); ++y)
+                    for (int x = 0; x < image.width(); ++x) {
+                        const auto pixel = image.pixel(x, y);
+                        const int shade = lightest > darkest
+                            ? qBound(194, 194 + 61 * (qGray(pixel) - darkest) / (lightest - darkest), 255) : 255;
+                        image.setPixel(x, y, qRgba(shade, shade, shade, qAlpha(pixel)));
+                    }
+                tinted.addPixmap(QPixmap::fromImage(image));
+                continue;
+            }
             QPainter painter(&pixmap);
             painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
             painter.fillRect(pixmap.rect(), color);

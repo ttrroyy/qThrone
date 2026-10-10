@@ -7,6 +7,21 @@ import (
 	"testing"
 )
 
+func TestCSQTTFatalRejectionCancelsBeforeReady(t *testing.T) {
+	for _, marker := range []string{"FATAL_AUTH: пароль привязан к другому устройству", "FATAL_PROTOCOL: incompatible server"} {
+		ctx, cancel := context.WithCancel(context.Background())
+		configs := make(chan string, 1)
+		scanCSQTTOutput(ctx, &bridgeConfig{}, strings.NewReader(marker+"\n__CSQTT_EVENT__|CONFIG|{\"config\":\"unexpected\"}\n"), configs, func(string) {}, cancel)
+		if ctx.Err() == nil {
+			t.Fatal("fatal server rejection did not stop session")
+		}
+		if len(configs) != 0 {
+			t.Fatal("rejected session continued to readiness")
+		}
+		cancel()
+	}
+}
+
 func TestCSQTTBackgroundCaptchaDoesNotOpenBrowser(t *testing.T) {
 	previous := desktopCaptchaSolver
 	defer func() { desktopCaptchaSolver = previous }()

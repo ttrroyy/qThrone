@@ -211,6 +211,17 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 	scanner.Buffer(make([]byte, 4096), 65536)
 	for scanner.Scan() {
 		line := scanner.Text()
+		if strings.Contains(line, "FATAL_AUTH:") || strings.Contains(line, "FATAL_PROTOCOL:") {
+			message := "Сервер отказал в авторизации CSQTT. Проверьте пароль и его привязку в панели."
+			if strings.Contains(line, "пароль привязан к другому устройству") {
+				message = "Пароль CSQTT привязан к другому устройству. Создайте отдельный пароль для этого ПК."
+			} else if strings.Contains(line, "FATAL_PROTOCOL:") {
+				message = "Клиент и сервер CSQTT несовместимы по версии протокола или числу потоков."
+			}
+			fmt.Println("[CSQTT] " + message)
+			cancelSession()
+			return
+		}
 		if i := strings.Index(line, "__CSQTT_EVENT__|CONFIG|"); i >= 0 {
 			var event struct {
 				Config string `json:"config"`
