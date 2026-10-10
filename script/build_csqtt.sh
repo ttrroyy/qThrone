@@ -19,6 +19,12 @@ case "$RUNNER_OS:$ARCH" in
     *) echo 'Unsupported CSQTT build target' >&2; exit 1 ;;
 esac
 rustup target add --toolchain 1.97.1 "$target"
+if [ "$RUNNER_OS" = Windows ]; then
+    # Git Bash prepends its own link.exe; Rust must use the MSVC linker.
+    msvc_bin="$(cygpath -u "$VCToolsInstallDir")/bin/Host${VSCMD_ARG_HOST_ARCH}/${VSCMD_ARG_TGT_ARCH}"
+    test -f "$msvc_bin/link.exe"
+    export PATH="$msvc_bin:$PATH"
+fi
 if [ "$RUNNER_OS" = macOS ]; then export MACOSX_DEPLOYMENT_TARGET=10.15; fi
 cargo +1.97.1 build --release --locked --target "$target" --manifest-path csqtt-source/rust-client/Cargo.toml
 mkdir -p csqtt-artifact
