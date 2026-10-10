@@ -23,7 +23,7 @@ new = r'''let mut args: Vec<String> = std::env::args().map(normalize_cli_argumen
             ("obfs", "obfs"), ("captcha_mode", "captcha-mode"),
             ("vk_anon_path", "vk-auth-mode")] {
             if let Some(value) = config[key].as_str() {
-                args.extend([format!("--{flag}"), value.to_owned()]);
+                args.push(format!("--{flag}={value}"));
             }
         }
         if let Some(hashes) = config["hashes"].as_array() {

@@ -15,10 +15,27 @@ func TestCSQTTBackgroundCaptchaDoesNotOpenBrowser(t *testing.T) {
 		return "", nil
 	}
 	config := &bridgeConfig{ProbeOnly: true}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	var commands []string
-	scanCSQTTOutput(context.Background(), config, strings.NewReader("CAPTCHA_SOLVE|manual|https://vk.com/captcha|fake-session\n"), make(chan string, 1), func(command string) { commands = append(commands, command) })
+	scanCSQTTOutput(ctx, config, strings.NewReader("CAPTCHA_SOLVE|manual|https://vk.com/captcha|fake-session\n"), make(chan string, 1), func(command string) { commands = append(commands, command) }, cancel)
 	if len(commands) != 1 || commands[0] != "CAPTCHA_RESULT|error:cancelled" {
 		t.Fatal("background captcha not cancelled")
+	}
+	if ctx.Err() == nil {
+		t.Fatal("background probe kept reconnecting after captcha")
+	}
+}
+
+func TestCSQTTCaptchaWindowCloseCancelsSession(t *testing.T) {
+	previous := desktopCaptchaSolver
+	defer func() { desktopCaptchaSolver = previous }()
+	desktopCaptchaSolver = func(context.Context, string, bool) (string, error) { return "", errCaptchaWindowClosed }
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	scanCSQTTOutput(ctx, &bridgeConfig{InteractiveCaptcha: true}, strings.NewReader("CAPTCHA_SOLVE|manual|https://vk.com/captcha|fake-session\n"), make(chan string, 1), func(string) {}, cancel)
+	if ctx.Err() == nil {
+		t.Fatal("closed captcha window did not cancel transport")
 	}
 }
 

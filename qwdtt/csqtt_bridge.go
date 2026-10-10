@@ -122,7 +122,7 @@ func runCSQTTBridge(path string) error {
 	send := func(line string) { inputMu.Lock(); defer inputMu.Unlock(); _, _ = io.WriteString(input, line+"\n") }
 	configs := make(chan string, 1)
 	scanDone := make(chan struct{})
-	go func() { defer close(scanDone); scanCSQTTOutput(ctx, c, reader, configs, send) }()
+	go func() { defer close(scanDone); scanCSQTTOutput(ctx, c, reader, configs, send, cancel) }()
 	defer func() { cancel(); reader.Close(); <-scanDone }()
 	if err = command.Start(); err != nil {
 		return errors.New("cannot start bundled CSQTT transport")
@@ -199,7 +199,12 @@ func runCSQTTBridge(path string) error {
 	return err
 }
 
-func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, configs chan<- string, send func(string)) {
+func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, configs chan<- string, send func(string), abort ...context.CancelFunc) {
+	cancelSession := func() {
+		if len(abort) > 0 {
+			abort[0]()
+		}
+	}
 	var solvers sync.WaitGroup
 	defer solvers.Wait()
 	scanner := bufio.NewScanner(reader)
@@ -224,6 +229,7 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 			}
 			if c.ProbeOnly && !c.InteractiveCaptcha {
 				send("CAPTCHA_RESULT|error:cancelled")
+				cancelSession()
 				continue
 			}
 			solvers.Add(1)
@@ -232,6 +238,7 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 				token, err := desktopCaptchaSolver(ctx, redirect, true)
 				if err != nil {
 					token = "error:cancelled"
+					cancelSession()
 				}
 				send("CAPTCHA_RESULT|" + token)
 			}(parts[2])
