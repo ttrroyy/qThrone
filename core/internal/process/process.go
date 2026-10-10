@@ -17,6 +17,7 @@ type Process struct {
 	args            []string
 	noOut           bool
 	backgroundProbe bool
+	routedTransport bool
 	outputObserver  func([]byte)
 	cleanupPath     string
 	run             running
@@ -57,6 +58,9 @@ func (p *Process) EnableStdinShutdown(command string) {
 // Probe failures belong to the test RPC, not the active profile crash handler.
 func (p *Process) SetBackgroundProbe() { p.backgroundProbe = true }
 
+// Failure of a routing-only transport must not tear down the main VPN.
+func (p *Process) SetRoutedTransport() { p.routedTransport = true }
+
 func (p *Process) SetOutputObserver(observer func([]byte)) { p.outputObserver = observer }
 
 func (p *Process) Start() error {
@@ -92,6 +96,8 @@ func (p *Process) Start() error {
 		if !p.stopped.Load() {
 			if p.backgroundProbe {
 				fmt.Println("Background probe process exited")
+			} else if p.routedTransport {
+				fmt.Println("Routed transport exited unexpectedly; its outbound is unavailable, main VPN remains running")
 			} else {
 				fmt.Println("Extra process exited unexpectedly")
 			}

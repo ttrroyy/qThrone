@@ -124,6 +124,9 @@ func startExtraSessions(ctx context.Context, in *gen.LoadConfigReq) (err error) 
 			}
 		}
 		session.child = process.NewProcess(spec.GetPath(), args, spec.GetNoOut())
+		if session.transport && session.tag != "proxy" {
+			session.child.SetRoutedTransport()
+		}
 		session.child.SetCleanupPath(folder)
 		if session.transport {
 			session.child.EnableStdinShutdown("STOP")

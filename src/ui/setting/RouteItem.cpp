@@ -708,12 +708,19 @@ QWidget* RouteItem::makeAttributeEditorPage(const QString& attr) {
             auto* cb = new QComboBox(container);
             if (attr == QStringLiteral("outbound")) {
                 cb->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
-                cb->addItems(outbounds);
-                cb->setCurrentText(get_outbound_name(rule->outboundID));
-                connect(cb, &QComboBox::currentTextChanged, this, [this, cb] {
-                    if (currentIndex < 0) return;
+                cb->setObjectName(QStringLiteral("ruleOutbound"));
+                for (int index = 0; index < outbounds.size(); ++index)
+                    cb->addItem(outbounds[index], outboundMap.at(index));
+                int selected = cb->findData(rule->outboundID);
+                if (selected < 0) {
+                    cb->addItem(get_outbound_name(rule->outboundID), rule->outboundID);
+                    selected = cb->count() - 1;
+                }
+                cb->setCurrentIndex(selected);
+                connect(cb, &QComboBox::currentIndexChanged, this, [this, cb](int index) {
+                    if (currentIndex < 0 || index < 0) return;
                     chain->Rules[currentIndex]->set_field_value(QStringLiteral("outbound"),
-                        {QString::number(outboundMap[cb->currentIndex()])});
+                        {QString::number(cb->itemData(index).toInt())});
                     updateRulePreview();
                 });
             } else {

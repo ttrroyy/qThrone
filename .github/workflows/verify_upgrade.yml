@@ -108,5 +108,5 @@ jobs:
           args=()
           if [[ "$RELEASE_TAG" == *-beta.* ]]; then args+=(--prerelease); fi
           gh release create "$RELEASE_TAG" deployment/* \
-            --verify-tag --title "qThrone $RELEASE_TAG" "${args[@]}" \
+            --verify-tag --title "$RELEASE_TAG" "${args[@]}" \
             --notes-file "$RUNNER_TEMP/release-notes.md"

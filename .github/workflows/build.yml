@@ -582,7 +582,7 @@ jobs:
           python3 script/release_notes.py > "$RUNNER_TEMP/release-notes.md"
           args=()
           if [[ "$RELEASE_KIND" == p ]]; then args+=(--prerelease); fi
-          title="qThrone $RELEASE_TAG"
+          title="$RELEASE_TAG"
           gh release create "$RELEASE_TAG" deployment/* \
             --target "$RELEASE_SHA" --title "$title" \
             --notes-file "$RUNNER_TEMP/release-notes.md" "${args[@]}"

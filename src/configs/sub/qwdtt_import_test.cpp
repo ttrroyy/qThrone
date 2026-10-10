@@ -17,6 +17,9 @@
 #include "include/global/Version.hpp"
 #include "include/ui/profile/edit_qwdtt.h"
 #include "include/ui/profile/edit_csqtt.h"
+#include "include/ui/setting/RouteItem.h"
+#include <QDialogButtonBox>
+#include <QListWidget>
 
 int TestQwdttImport() {
     qInstallMessageHandler(nullptr);
@@ -108,6 +111,26 @@ int TestQwdttImport() {
             application->outboundID = testProfiles.first()->id;
             application->process_name = {"routing-test.exe"};
             route->Rules = {domain, application};
+            {
+                RouteItem editor(nullptr, route);
+                auto *rows = editor.findChild<QListWidget *>("route_items");
+                check(rows != nullptr, "routing editor exposes saved rules");
+                if (rows) rows->setCurrentRow(0);
+                auto *choice = editor.findChild<QComboBox *>("ruleOutbound");
+                check(choice && choice->currentData().toInt() == cs->id,
+                      "routing editor restores profile by id with group-prefixed labels");
+                if (choice) choice->setCurrentIndex(choice->findData(testProfiles.first()->id));
+                check(editor.chain->Rules.first()->outboundID == testProfiles.first()->id,
+                      "routing editor changes selected profile id");
+                auto *buttons = editor.findChild<QDialogButtonBox *>("buttonBox");
+                if (buttons) buttons->accepted();
+                RouteItem reopened(nullptr, editor.chain);
+                auto *reopenedRows = reopened.findChild<QListWidget *>("route_items");
+                if (reopenedRows) reopenedRows->setCurrentRow(0);
+                auto *restored = reopened.findChild<QComboBox *>("ruleOutbound");
+                check(restored && restored->currentData().toInt() == testProfiles.first()->id,
+                      "routing editor preserves selected profile after save and reopen");
+            }
             check(Configs::dataManager->routesRepo->AddRouteProfile(route), "save mixed transport routing fixture");
             auto *settings = Configs::dataManager->settingsRepo.get();
             const auto oldRoute = settings->current_route_id;

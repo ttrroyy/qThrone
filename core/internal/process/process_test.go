@@ -56,7 +56,7 @@ func TestFailedProbeDoesNotSignalActiveProfileCrash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, probe := range []bool{false, true} {
+	for _, mode := range []string{"main", "probe", "routing"} {
 		r, w, err := os.Pipe()
 		if err != nil {
 			t.Fatal(err)
@@ -64,8 +64,11 @@ func TestFailedProbeDoesNotSignalActiveProfileCrash(t *testing.T) {
 		previous := os.Stdout
 		os.Stdout = w
 		p := NewProcess(exe, []string{"-test.run=^TestFailedProbeHelper$", "qthrone-failed-probe-helper"}, true)
-		if probe {
+		if mode == "probe" {
 			p.SetBackgroundProbe()
+		}
+		if mode == "routing" {
+			p.SetRoutedTransport()
 		}
 		err = p.Start()
 		if err == nil {
@@ -84,11 +87,14 @@ func TestFailedProbeDoesNotSignalActiveProfileCrash(t *testing.T) {
 			t.Fatalf("child exit: %v %v", err, readErr)
 		}
 		crash := strings.Contains(string(output), "Extra process exited unexpectedly")
-		if crash == probe {
-			t.Fatalf("probe=%v emitted wrong crash signal: %s", probe, output)
+		if crash != (mode == "main") {
+			t.Fatalf("mode=%s emitted wrong crash signal: %s", mode, output)
 		}
-		if probe && !strings.Contains(string(output), "Background probe process exited") {
+		if mode == "probe" && !strings.Contains(string(output), "Background probe process exited") {
 			t.Fatalf("probe failure was not logged: %s", output)
+		}
+		if mode == "routing" && !strings.Contains(string(output), "Routed transport exited unexpectedly") {
+			t.Fatalf("routing failure was not logged: %s", output)
 		}
 	}
 }
