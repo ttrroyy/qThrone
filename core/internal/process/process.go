@@ -97,6 +97,12 @@ func (p *Process) Stop() {
 			}
 		}
 		_ = p.run.Kill()
+		if p.stopCommand != "" {
+			select {
+			case <-p.done:
+			case <-time.After(time.Second):
+			}
+		}
 	}
 	p.cleanup()
 }

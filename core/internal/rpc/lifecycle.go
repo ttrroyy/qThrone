@@ -210,6 +210,12 @@ func (s *server) Stop(ctx context.Context, in *gen.EmptyReq) (out *gen.ErrorResp
 	}
 	// Unpublished first, so a poll mid-teardown sees no instance rather than a dying one.
 	setBoxInstance(nil, nil)
+	if extraProcess != nil && strings.TrimSuffix(strings.ToLower(filepath.Base(extraProcess.ExecutablePath())), ".exe") == "qwdtt" {
+		// Send DISCONNECT_RAW while the original TUN routes still exist.
+		extraProcess.Stop()
+		extraProcess = nil
+		activeQWDTTProbeKeyValid = false
+	}
 	box.CloseWithTimeout(cancel, time.Second*2, log.Println, true)
 
 	if extraProcess != nil {

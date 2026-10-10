@@ -56,8 +56,20 @@ int TestQwdttImport() {
     auto tests = Configs::BuildTestConfig(testProfiles);
     check(tests->error.isEmpty() && tests->fullConfigs.size() == 1 && tests->qwdttConfigs.size() == 1, "qWDTT test config uses a session-owned bridge");
     if (!testProfiles.isEmpty()) {
+        const auto &settings = Configs::dataManager->settingsRepo;
+        const bool oldTun = settings->spmode_vpn;
+        const bool oldIPv6 = settings->vpn_ipv6;
+        settings->spmode_vpn = true;
+        settings->vpn_ipv6 = true;
         const auto live = Configs::BuildSingBoxConfig(testProfiles.first());
+        settings->spmode_vpn = oldTun;
+        settings->vpn_ipv6 = oldIPv6;
         check(live->error.isEmpty(), "qWDTT live configuration builds");
+        for (const auto &inbound : live->coreConfig["inbounds"].toArray()) {
+            const auto tun = inbound.toObject();
+            if (tun["type"] == "tun") check(tun["address"].toArray().size() == 1,
+                "qWDTT TUN remains IPv4-only without changing saved IPv6 preferences");
+        }
         const auto dnsRules = live->coreConfig["dns"].toObject()["rules"].toArray();
         const auto guard = dnsRules.isEmpty() ? QJsonObject{} : dnsRules.first().toObject();
         check(guard["query_type"].toArray() == QJsonArray{"AAAA"} && guard["action"] == "predefined",

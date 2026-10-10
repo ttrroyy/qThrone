@@ -1252,7 +1252,7 @@ namespace Configs {
                 const auto tunIPv6CIDR = settings.vpn_tun_ipv6_cidr;
                 ctx.result->tunIPv4CIDR = tunIPv4CIDR;
                 auto tunAddress = QJsonArray{tunIPv4CIDR};
-                if (settings.vpn_ipv6) tunAddress += tunIPv6CIDR;
+                if (settings.vpn_ipv6 && !ctx.qwdttIPv4Only) tunAddress += tunIPv6CIDR;
                 inboundObj["address"] = tunAddress;
 
                 QJsonArray routeExcludeAddrs;
@@ -1272,7 +1272,7 @@ namespace Configs {
                 // On macOS a bypass covering the Tun subnet black-holes the system DNS (#1738).
                 if (ctx.os == Darwin) {
                     excludedRanges = subtractPrefix(excludedRanges, tunIPv4CIDR);
-                    if (settings.vpn_ipv6) excludedRanges = subtractPrefix(excludedRanges, tunIPv6CIDR);
+                    if (settings.vpn_ipv6 && !ctx.qwdttIPv4Only) excludedRanges = subtractPrefix(excludedRanges, tunIPv6CIDR);
                 }
                 for (const auto &range : excludedRanges) routeExcludeAddrs << range;
                 inboundObj["route_exclude_address"] = routeExcludeAddrs;

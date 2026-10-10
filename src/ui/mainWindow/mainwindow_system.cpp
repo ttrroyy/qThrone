@@ -377,6 +377,11 @@ bool MainWindow::set_spmode_vpn(bool enable, const ModeChange &change) {
     refresh_status();
 
     if (!change.restart || settings->started_id < 0) return false;
+    if (!enable && running && running->type == "qwdtt") {
+        // Leaving TUN must not silently start a new qWDTT authorization cycle.
+        profile_stop(false, false, true, change.interactive);
+        return true;
+    }
     profile_start(StartRequest{settings->started_id, change.interactive, change.restartSerial});
     return true;
 }

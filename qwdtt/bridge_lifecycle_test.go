@@ -2,12 +2,53 @@ package main
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestTURNConnectHonorsCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	for _, tcp := range []bool{false, true} {
+		_, _, err := dialTURNConn(ctx, "not-resolved.invalid:3478", tcp)
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("TURN dial ignored cancellation: %v", err)
+		}
+	}
+}
+
+func TestTURNAllocationCanBeStopped(t *testing.T) {
+	ln, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, err := RunSession(ctx, &TurnParams{}, &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 56003}, nil, "9000", false, nil, 1,
+			&Credentials{TurnURLs: []string{ln.LocalAddr().String()}, User: "fake", Pass: "fake"}, "fake-device", "fake-password", &Stats{}, nil)
+		done <- err
+	}()
+	_ = ln.SetReadDeadline(time.Now().Add(time.Second))
+	if _, _, err := ln.ReadFrom(make([]byte, 1500)); err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("cancelled allocation succeeded")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("TURN allocation kept waiting after Stop")
+	}
+}
 
 func TestRAWDisconnectCompletesBeforeRelayCleanup(t *testing.T) {
 	client, server := net.Pipe()
@@ -23,6 +64,41 @@ func TestRAWDisconnectCompletesBeforeRelayCleanup(t *testing.T) {
 		t.Fatalf("disconnect before cleanup: %q %v", b, err)
 	}
 	finish()
+}
+
+func TestRAWConfigWaitCanBeStopped(t *testing.T) {
+	client, server := net.Pipe()
+	defer client.Close()
+	defer server.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	finish := stopSessionIO(ctx, ctx, client, true, "fake-device")
+	defer finish()
+	done := make(chan error, 1)
+	go func() {
+		_, _, _, err := RequestRawConfig(client, "fake-device", "fake-password")
+		done <- err
+	}()
+	_ = server.SetReadDeadline(time.Now().Add(time.Second))
+	request := "GETCONF_RAW:fake-device|fake-password"
+	buf := make([]byte, len(request))
+	if _, err := io.ReadFull(server, buf); err != nil || string(buf) != request {
+		t.Fatalf("configuration request: %q %v", buf, err)
+	}
+	cancel()
+	disconnect := "DISCONNECT_RAW:fake-device"
+	buf = make([]byte, len(disconnect))
+	if _, err := io.ReadFull(server, buf); err != nil || string(buf) != disconnect {
+		t.Fatalf("disconnect while waiting for config: %q %v", buf, err)
+	}
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("cancelled configuration request succeeded")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("configuration request kept waiting after Stop")
+	}
 }
 
 func TestDesktopCaptchaResponseAndURLValidation(t *testing.T) {

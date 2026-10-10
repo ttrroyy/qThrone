@@ -460,7 +460,10 @@ void MainWindow::profile_stop(bool crash, bool block, bool manual, bool interact
     const auto id = running->id;
 
     auto profile_stop_stage2 = [=,this](const QPointer<RestartPrompt> &restartPrompt) {
-        if (testRunner->isTestingCurrent()) {
+        if (running && running->type == "qwdtt" && testRunner->isRunning()) {
+            // Batch URL tests can own qWDTT sidecars even when testingCurrent is false.
+            testRunner->stop();
+        } else if (testRunner->isTestingCurrent()) {
             bool ok;
             defaultClient->StopTests(&ok);
             if (!ok) MW_show_log("Failed to stop profile tests!");

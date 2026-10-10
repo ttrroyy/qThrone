@@ -132,23 +132,23 @@ func (c *connectedUDPConn) WriteTo(p []byte, _ net.Addr) (int, error) { return c
 // TURN-relay душится/дропается, а TCP до того же relay проходит — сравни
 // github.com/anton48/vk-turn-proxy-ios, который к той же VK/OK TURN-инфре
 // (calls.okcdn.ru) по умолчанию ходит именно через TCP.
-func dialTURNConn(turnAddr string, tcp bool) (net.PacketConn, io.Closer, error) {
+func dialTURNConn(ctx context.Context, turnAddr string, tcp bool) (net.PacketConn, io.Closer, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
 	if !tcp {
-		resolved, err := net.ResolveUDPAddr("udp", turnAddr)
-		if err != nil {
-			return nil, nil, fmt.Errorf("резолв TURN: %w", err)
-		}
-		c, err := net.DialUDP("udp", nil, resolved)
+		conn, err := (&net.Dialer{}).DialContext(ctx, "udp", turnAddr)
 		if err != nil {
 			return nil, nil, fmt.Errorf("подключение TURN UDP: %w", err)
 		}
+		c := conn.(*net.UDPConn)
 		_ = c.SetReadBuffer(socketBufSize)
 		_ = c.SetWriteBuffer(socketBufSize)
 		return &connectedUDPConn{c}, c, nil
 	}
 
 	d := net.Dialer{Timeout: 10 * time.Second}
-	c, err := d.Dial("tcp", turnAddr)
+	c, err := d.DialContext(ctx, "tcp", turnAddr)
 	if err != nil {
 		return nil, nil, fmt.Errorf("подключение TURN TCP: %w", err)
 	}
@@ -192,7 +192,7 @@ func RunSession(
 	}
 	turnAddr := net.JoinHostPort(urlhost, urlport)
 
-	turnConn, turnConnCloser, err := dialTURNConn(turnAddr, tp.TCPTransport)
+	turnConn, turnConnCloser, err := dialTURNConn(ctx, turnAddr, tp.TCPTransport)
 	if err != nil {
 		return false, err
 	}
@@ -230,6 +230,8 @@ func RunSession(
 		return false, fmt.Errorf("TURN клиент: %w", err)
 	}
 	defer tc.Close()
+	stopAllocate := context.AfterFunc(ctx, func() { tc.Close(); _ = turnConnCloser.Close() })
+	defer stopAllocate()
 
 	if err = tc.Listen(); err != nil {
 		return false, fmt.Errorf("TURN Listen: %w", err)
@@ -263,6 +265,9 @@ func RunSession(
 		return false, fmt.Errorf("TURN Allocate: %w", err)
 	}
 	defer relay.Close()
+	if !stopAllocate() {
+		return false, ctx.Err()
+	}
 
 	// Reset error count on successful allocation
 	getStreamCache(creds.CacheStreamID).errorCount.Store(0)
@@ -456,6 +461,11 @@ func RunSession(
 		activeConn = dtlsConn
 	}
 	defer activeConn.Close()
+	// Install teardown before GETCONF: its response can take 45 seconds.
+	defer stopSessionIO(sessCtx, ctx, activeConn, tp.RawMode, deviceID)()
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
 
 	stats.ActiveConnections.Add(1)
 	defer stats.ActiveConnections.Add(-1)
@@ -523,8 +533,6 @@ func RunSession(
 	var proxyWg sync.WaitGroup
 	proxyWg.Add(3) // +1 for keepalive goroutine
 	sessionErrCh := make(chan error, 1)
-
-	defer stopSessionIO(sessCtx, ctx, activeConn, tp.RawMode, deviceID)()
 
 	// Keepalive: prevents TURN allocation timeout and idle disconnect.
 	// Пакет не пишется напрямую в activeConn (это была бы вторая горутина,
@@ -717,7 +725,7 @@ func RunPing(
 	}
 	turnAddr := net.JoinHostPort(urlhost, urlport)
 
-	turnConn, turnConnCloser, err := dialTURNConn(turnAddr, tp.TCPTransport)
+	turnConn, turnConnCloser, err := dialTURNConn(ctx, turnAddr, tp.TCPTransport)
 	if err != nil {
 		return 0, err
 	}
