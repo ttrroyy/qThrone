@@ -257,6 +257,7 @@ private slots:
     void on_menu_routing_settings_triggered();
 
     void on_menu_vpn_settings_triggered();
+    void on_menu_vk_relay_settings_triggered();
 
     void on_menu_preset_settings_triggered();
 

@@ -19,6 +19,8 @@
 #include <QScopeGuard>
 #include "include/global/Version.hpp"
 #include "include/ui/profile/edit_qwdtt.h"
+#include "include/ui/setting/dialog_vk_relay.h"
+#include <QStandardItemModel>
 #include "include/ui/profile/edit_csqtt.h"
 #include "include/ui/setting/RouteItem.h"
 #include <QDialogButtonBox>
@@ -116,6 +118,7 @@ int TestQwdttImport() {
             }
         }
     }
+    check(SaveVKRelayPreviews(qEnvironmentVariable("THRONE_SEASONAL_PREVIEW_DIR")), "VK relay screenshots saved");
     const QByteArray android = "qwdtt://config?name=Main+%28demo%29&peer=203.0.113.10%3A56000&hashes=hash1%2Chash2&workers=9&port=9000&pass=a%2Bb+%26%25";
     const auto parse = [](const QByteArray &body) {
         QList<std::shared_ptr<Configs::Profile>> profiles;
@@ -378,6 +381,33 @@ int TestQwdttImport() {
     }
     check(parse(android + "\n" + android).size() == 2, "text subscription");
     check(parse("qwdtt://config?peer=203.0.113.10%3Ainvalid&pass=test").isEmpty(), "invalid server port");
+    {
+        auto *settings = Configs::dataManager->settingsRepo.get();
+        settings->qwdtt_hash_source = "manual"; settings->vk_relay_linked = false;
+        EditQWDTT editor;
+        auto *source = editor.findChild<QComboBox *>("qwdttHashSource");
+        check(source && source->currentData() == "manual", "manual hash source by default");
+        check(source && !qobject_cast<QStandardItemModel *>(source->model())->item(1)->isEnabled(), "automatic hashes disabled without linked VK");
+        if (source) {
+            qobject_cast<QStandardItemModel *>(source->model())->item(1)->setEnabled(true);
+            source->setCurrentIndex(1);
+            for (int i = 1; i <= 4; ++i) check(editor.findChild<QLineEdit *>(QString("qwdttHash%1").arg(i))->isHidden(), "automatic source hides manual hashes");
+            source->setCurrentIndex(0);
+            for (int i = 1; i <= 4; ++i) check(!editor.findChild<QLineEdit *>(QString("qwdttHash%1").arg(i))->isHidden(), "manual source restores hash inputs");
+        }
+        Configs::qwdtt automatic;
+        check(automatic.ParseFromLink("qwdtt://config?peer=203.0.113.10:56000&pass=test&hash_source=auto&auto_hash_count=4&workers=108"), "automatic hash profile import");
+        check(automatic.hashSource == "auto" && automatic.autoHashCount == 4 && automatic.workers == 108, "automatic hash count controls workers");
+        Configs::qwdtt roundTrip;
+        check(roundTrip.ParseFromLink(automatic.ExportToLink()) && roundTrip.ExportIdentity() == automatic.ExportIdentity(), "automatic profile round trip");
+        settings->vk_relay_linked = true; settings->qwdtt_hash_source = "auto";
+        auto profile = Configs::ProfilesRepo::NewProfile("qwdtt");
+        check(dynamic_cast<Configs::qwdtt *>(profile->outbound.get())->hashSource == "auto", "new qWDTT inherits selected default");
+        Configs::dataManager->profilesRepo->AddProfile(profile, fixtureGroups.first());
+        check(ResetQWDTTHashSources(), "unlink saves reset hash sources");
+        check(dynamic_cast<Configs::qwdtt *>(profile->outbound.get())->hashSource == "manual", "unlink resets existing automatic profile");
+        check(settings->qwdtt_hash_source == "manual" && !settings->vk_relay_linked, "unlink resets global default");
+    }
     check(ReleaseVersion::IsNewer("1.0-beta.2", "1.0-beta.1"), "next beta update");
     check(ReleaseVersion::IsNewer("1.0", "1.0-beta.3"), "beta to stable update");
     check(!ReleaseVersion::IsNewer("1.0-beta.4", "1.0"), "stable cannot downgrade to beta");

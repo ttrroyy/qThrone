@@ -70,6 +70,7 @@ bool csqtt::ParseFromLink(const QString &link) {
         bool ok; int port = decode("peer").toInt(&ok); if (!ok) return false;
         object["server_port"] = port;
         object["password"] = decode("password");
+        if (values.contains("device_id")) object["device_id"] = decode("device_id");
         if (values.contains("hashes")) {
             QStringList list;
             const auto encodedHashes = values["hashes"].split('+').mid(0,6);

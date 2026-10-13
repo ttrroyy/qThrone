@@ -1,5 +1,7 @@
 #include "include/configs/outbounds/qwdtt.h"
 #include "include/configs/common/utils.h"
+#include "include/global/Configs.hpp"
+#include "include/ui/setting/dialog_vk_relay.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -31,6 +33,10 @@ QString normalizedMode(const QString &m) {
 }
 
 namespace Configs {
+qwdtt::qwdtt() {
+    server_port = 56000; socksPort = 0; deviceID = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    if (dataManager) { const auto *settings = dataManager->settingsRepo.get(); hashes = settings->qwdtt_default_hashes; hashSource = settings->vk_relay_linked ? settings->qwdtt_hash_source : "manual"; autoHashCount = qBound(1, settings->qwdtt_auto_hash_count, 4); }
+}
 QStringList qwdtt::NormalizeHashes(const QStringList &input) {
     QStringList out;
     for (const auto &item : input) {
@@ -47,6 +53,9 @@ QStringList qwdtt::NormalizeHashes(const QStringList &input) {
 }
 
 bool qwdtt::ParseFromJson(const QJsonObject &o) {
+    hashSource = o["hash_source"].toString("manual");
+    if (hashSource != "auto" && hashSource != "manual") return false;
+    autoHashCount = qBound(1, o["auto_hash_count"].toInt(1), 4);
     const auto type = o["type"].toString();
     if (!type.isEmpty() && type != "qwdtt" && type != "wdtt") return false;
     outbound::ParseFromJson(o);
@@ -67,7 +76,7 @@ bool qwdtt::ParseFromJson(const QJsonObject &o) {
     if (h.isArray()) { for (const auto &v : h.toArray()) values.append(v.toString()); }
     else values.append(h.toString());
     hashes = NormalizeHashes(values).mid(0, 4);
-    workers = NormalizeWorkers(workers, hashes.size());
+    workers = NormalizeWorkers(workers, hashSource == "auto" ? autoHashCount : hashes.size());
     // Empty hashes are editable after importing Android profiles using global hashes.
     return !server.isEmpty() && validPort(server_port) && validPort(rawPort) && hashes.size() <= 4 && (mode == "raw" || mode == "wg") && (vkAnonPath == "vkcalls" || vkAnonPath == "legacy") && (captchaMode == "auto" || captchaMode == "wv" || captchaMode == "rjs");
 }
@@ -80,10 +89,10 @@ bool qwdtt::ParseFromLink(const QString &link) {
         if (!u.isValid() || u.host().compare("config", Qt::CaseInsensitive) != 0) return false;
         const QUrlQuery q(u);
         QJsonObject o{{"type", "qwdtt"}};
-        for (const auto &key : {"peer", "name", "pass", "password", "hashes", "mode", "obfs", "go_dns", "device_id", "vk_anon_path", "captcha_mode"}) {
+        for (const auto &key : {"peer", "name", "pass", "password", "hashes", "mode", "obfs", "go_dns", "device_id", "vk_anon_path", "captcha_mode", "hash_source"}) {
             if (q.hasQueryItem(key)) o[key] = formDecodedQueryValue(q, key);
         }
-        for (const auto &key : {"raw_port", "workers"}) {
+        for (const auto &key : {"raw_port", "workers", "auto_hash_count"}) {
             if (q.hasQueryItem(key)) { bool ok; int n = q.queryItemValue(key).toInt(&ok); if (!ok) return false; o[key] = n; }
         }
         if (q.hasQueryItem("turn_tcp")) o["turn_tcp"] = q.queryItemValue("turn_tcp") == "1" || q.queryItemValue("turn_tcp") == "true";
@@ -119,7 +128,7 @@ QJsonObject qwdtt::ExportToJson() {
             {"password", password}, {"hashes", QJsonArray::fromStringList(hashes)}, {"mode", mode},
             {"raw_port", rawPort}, {"workers", workers}, {"turn_tcp", turnTCP},
             {"obfs", obfs}, {"go_dns", goDNS}, {"device_id", deviceID},
-            {"vk_anon_path", vkAnonPath}, {"captcha_mode", captchaMode}};
+            {"vk_anon_path", vkAnonPath}, {"captcha_mode", captchaMode}, {"hash_source", hashSource}, {"auto_hash_count", autoHashCount}};
 }
 QJsonObject qwdtt::ExportIdentity() { auto o = ExportToJson(); o.remove("tag"); o.remove("device_id"); return o; }
 QString qwdtt::ExportToLink() {
@@ -139,6 +148,8 @@ QString qwdtt::ExportToLink() {
     q.addQueryItem("obfs", obfs);
     q.addQueryItem("vk_anon_path", vkAnonPath);
     q.addQueryItem("captcha_mode", captchaMode);
+    q.addQueryItem("hash_source", hashSource);
+    q.addQueryItem("auto_hash_count", QString::number(autoHashCount));
     addText("go_dns", goDNS);
     addText("device_id", deviceID);
     if (!name.isEmpty()) addText("name", name);
@@ -147,11 +158,14 @@ QString qwdtt::ExportToLink() {
 }
 
 QString qwdtt::Prepare() {
+    QStringList effectiveHashes = hashes;
+    if (hashSource == "auto") { QString error; effectiveHashes = RelayAccountHashes(autoHashCount, &error); if (!error.isEmpty()) return error; }
+    effectiveHashes = NormalizeHashes(effectiveHashes).mid(0, 4);
     hashes = NormalizeHashes(hashes).mid(0, 4);
-    workers = NormalizeWorkers(workers, hashes.size());
+    workers = NormalizeWorkers(workers, effectiveHashes.size());
     if (server.isEmpty() || !validPort(server_port) || !validPort(rawPort)) return QObject::tr("qWDTT: invalid server address or port");
     if (password.isEmpty() || password.contains('|') || password.contains('\n') || password.contains('\r')) return QObject::tr("qWDTT: a valid connection password is required");
-    if (hashes.isEmpty() || hashes.size() > 4) return QObject::tr("qWDTT: enter one to four VK call hashes");
+    if (effectiveHashes.isEmpty() || effectiveHashes.size() > 4) return QObject::tr("qWDTT: enter one to four VK call hashes");
     if (workers < 1 || workers > 108) return QObject::tr("qWDTT: workers must be between 1 and 108");
     if (mode != "raw" && mode != "wg") return QObject::tr("qWDTT: invalid tunnel mode");
     if (obfs != "audio" && obfs != "video") return QObject::tr("qWDTT: invalid obfuscation mode");
@@ -172,7 +186,7 @@ QString qwdtt::Prepare() {
     socksPort = tcp.serverPort();
     const auto auth = QUuid::createUuid().toString(QUuid::WithoutBraces);
     QJsonObject conf{{"peer", peerString(server, mode == "raw" ? rawPort : server_port)},
-                     {"password", password}, {"hashes", QJsonArray::fromStringList(hashes)},
+                     {"password", password}, {"hashes", QJsonArray::fromStringList(effectiveHashes)},
                      {"mode", mode}, {"workers", workers}, {"device_id", deviceID},
                      {"turn_tcp", turnTCP}, {"obfs", obfs}, {"go_dns", goDNS},
                      {"vk_anon_path", vkAnonPath}, {"captcha_mode", captchaMode},

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -18,6 +19,7 @@ import (
 	"ThroneCore/internal/guard"
 	"ThroneCore/internal/ipc"
 	"ThroneCore/internal/parentcheck"
+	"ThroneCore/internal/relay"
 	"ThroneCore/internal/rpc"
 
 	C "github.com/sagernet/sing-box/constant"
@@ -135,6 +137,17 @@ func RunCore() {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--relay" {
+		parentcheck.CheckParentProcess()
+		if err := relay.DropPrivileges(); err != nil {
+			_ = json.NewEncoder(os.Stdout).Encode(relay.Event{Type: "error", Text: err.Error()})
+			os.Exit(1)
+		}
+		if err := relay.Run(os.Stdin, os.Stdout); err != nil {
+			os.Exit(1)
+		}
+		return
+	}
 	// Before anything prints: stdout is the guard's protocol channel.
 	if len(os.Args) > 1 && os.Args[1] == "--guard" {
 		parentcheck.CheckParentProcess()
