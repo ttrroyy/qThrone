@@ -405,7 +405,7 @@ int TestQwdttImport() {
         check(dynamic_cast<Configs::qwdtt *>(profile->outbound.get())->hashSource == "auto", "new qWDTT inherits selected default");
         Configs::qwdtt deployed;
         check(deployed.ParseFromLink("qwdtt://config?peer=203.0.113.10:56000&pass=test&device_id=deployment"), "deployment profile imports without manual hashes");
-        check(deployed.hashSource == "auto", "deployment profile inherits automatic default");
+        check(deployed.hashSource == "manual" && deployed.hashes.isEmpty(), "deployment profile preserves empty manual hashes");
         Configs::dataManager->profilesRepo->AddProfile(profile, fixtureGroups.first());
         check(ResetQWDTTHashSources(), "unlink saves reset hash sources");
         check(dynamic_cast<Configs::qwdtt *>(profile->outbound.get())->hashSource == "manual", "unlink resets existing automatic profile");

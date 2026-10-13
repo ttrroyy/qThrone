@@ -105,11 +105,6 @@ bool qwdtt::ParseFromLink(const QString &link) {
             if (!ok || !validPort(p)) return false;
             o["peer"] = peerString(server, p);
         }
-        if (!q.hasQueryItem("hashes") && !q.hasQueryItem("hash_source")) {
-            o["hashes"] = QJsonArray::fromStringList(hashes);
-            o["hash_source"] = hashSource;
-            o["auto_hash_count"] = autoHashCount;
-        }
         return ParseFromJson(o);
     }
     if (!value.startsWith("wdtt://", Qt::CaseInsensitive)) return false;
