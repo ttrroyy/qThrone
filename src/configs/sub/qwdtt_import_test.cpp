@@ -403,6 +403,9 @@ int TestQwdttImport() {
         settings->vk_relay_linked = true; settings->qwdtt_hash_source = "auto";
         auto profile = Configs::ProfilesRepo::NewProfile("qwdtt");
         check(dynamic_cast<Configs::qwdtt *>(profile->outbound.get())->hashSource == "auto", "new qWDTT inherits selected default");
+        Configs::qwdtt deployed;
+        check(deployed.ParseFromLink("qwdtt://config?peer=203.0.113.10:56000&pass=test&device_id=deployment"), "deployment profile imports without manual hashes");
+        check(deployed.hashSource == "auto", "deployment profile inherits automatic default");
         Configs::dataManager->profilesRepo->AddProfile(profile, fixtureGroups.first());
         check(ResetQWDTTHashSources(), "unlink saves reset hash sources");
         check(dynamic_cast<Configs::qwdtt *>(profile->outbound.get())->hashSource == "manual", "unlink resets existing automatic profile");
