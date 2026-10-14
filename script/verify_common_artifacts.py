@@ -47,9 +47,19 @@ def main():
     subprocess.run(["git", "fetch", "origin", sha, "--depth=1"], check=True)
     changed = git("diff", "--name-only", sha, "HEAD").splitlines()
     protected = ("core/", "qwdtt/", "updater/", "3rdparty/", "script/openflux/", "script/olcrtc/")
-    exact = {"script/build_go.sh", "script/build_openflux.sh", "script/build_olcrtc.sh", "script/fetch_pinned_source.py", "transport-sources.lock.json", "version.json", ".gitmodules", ".gitattributes", ".github/workflows/qwdtt-tests.yml"}
+    exact = {"script/build_go.sh", "script/build_openflux.sh", "script/build_olcrtc.sh", "script/fetch_pinned_source.py", "transport-sources.lock.json", ".gitmodules", ".gitattributes", ".github/workflows/qwdtt-tests.yml"}
     if any(path.startswith(protected) or path in exact for path in changed):
         raise RuntimeError("Go sources or build inputs changed; rebuild them first")
+    if "version.json" in changed:
+        # The application version is a Qt build input; Go binaries contain their dependency versions only.
+        previous = json.loads(git("show", sha + ":version.json"))
+        current = json.loads(Path("version.json").read_text(encoding="utf-8"))
+        for metadata in (previous, current):
+            version = metadata.pop("version", None)
+            if not isinstance(version, str) or not re.fullmatch(r"\d+\.\d+(?:\.\d+)?(?:-(?:alpha|beta|rc)\.\d+)?", version):
+                raise RuntimeError("Invalid application version")
+        if previous != current:
+            raise RuntimeError("Upstream version metadata changed; rebuild first")
     old = git("show", sha + ":.github/workflows/build.yml")
     new = Path(".github/workflows/build.yml").read_text(encoding="utf-8")
     for name in ("test-qwdtt", "build-go", "build-android"):
