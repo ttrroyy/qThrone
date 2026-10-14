@@ -230,7 +230,6 @@ class ServerEditor : public QDialog {
             for (auto it = edits.begin(); it != edits.end(); ++it)
                 server[it.key()] = it.value()->text();
             capture();
-            save(server);
         }
     }
     void run(bool uninstall) {
@@ -247,7 +246,6 @@ class ServerEditor : public QDialog {
             for (const auto &key : {"peerPort", "wgPort", "rawPort", "directPort", "adminPort", "webPort"})
                 server[key] = defaults[key];
         }
-        save(server);
         console->clear();
         progress->setValue(0);
         for (auto *widget : controls)
@@ -262,11 +260,9 @@ class ServerEditor : public QDialog {
                                                             text + "\n\nДоверять этому ключу?") == QMessageBox::Yes);
                 if (type == "host-key") {
                     server["hostKey"] = text;
-                    save(server);
                 }
                 if (type == "admin-pin") {
                     server["adminPin"] = text;
-                    save(server);
                 }
                 if (type == "log") {
                     console->moveCursor(QTextCursor::End);
@@ -280,7 +276,6 @@ class ServerEditor : public QDialog {
                 if (type == "config") {
                     server["config"] = event["value"];
                     configuration->setPlainText(event["value"].toString());
-                    save(server);
                 }
                 if (type == "error") {
                     step->setText(text);
@@ -304,8 +299,6 @@ class ServerEditor : public QDialog {
             }
             task->cancel();
         }
-        capture();
-        save(server);
         QDialog::closeEvent(event);
     }
 
@@ -438,6 +431,10 @@ class ServerEditor : public QDialog {
         console->setMaximumBlockCount(4000);
         console->setMinimumHeight(180);
         consoleLayout->addWidget(console);
+        auto *stop = new QPushButton("Остановить", consoleGroup);
+        stop->setObjectName("relayStop");
+        consoleLayout->addWidget(stop);
+        connect(stop, &QPushButton::clicked, task, &RelayTask::cancel);
         auto *configGroup = new QGroupBox(server["kind"].toString() + " конфиг", body);
         layout->addWidget(configGroup);
         auto *configLayout = new QVBoxLayout(configGroup);
@@ -449,17 +446,40 @@ class ServerEditor : public QDialog {
         configLayout->addWidget(copy);
         connect(copy, &QPushButton::clicked, this,
                 [this] { QApplication::clipboard()->setText(configuration->toPlainText()); });
-        auto *stop = new QPushButton("Остановить", this);
-        outer->addWidget(stop);
-        connect(stop, &QPushButton::clicked, task, &RelayTask::cancel);
-        auto *close = new QDialogButtonBox(QDialogButtonBox::Close, this);
-        outer->addWidget(close);
-        connect(close, &QDialogButtonBox::rejected, this, &QWidget::close);
+        auto *buttons = new QHBoxLayout;
+        buttons->addStretch();
+        auto *saveButton = new QPushButton("Сохранить", this);
+        saveButton->setObjectName("relaySave");
+        buttons->addWidget(saveButton);
+        outer->addLayout(buttons);
+        controls.append(saveButton);
+        connect(saveButton, &QPushButton::clicked, this, [this] {
+            capture();
+            save(server);
+        });
     }
 };
 } // namespace
 
 bool SaveVKRelayPreviews(const QString &directory) {
+    int saves = 0;
+    {
+        ServerEditor draft(freshServer("qwdtt"), [&](QJsonObject) { ++saves; }, nullptr);
+        draft.close();
+    }
+    if (saves != 0)
+        return false;
+    {
+        ServerEditor draft(freshServer("csqtt"), [&](QJsonObject) { ++saves; }, nullptr);
+        auto *saveButton = draft.findChild<QPushButton *>("relaySave");
+        auto *stop = draft.findChild<QPushButton *>("relayStop");
+        if (!saveButton || !stop || !qobject_cast<QGroupBox *>(stop->parentWidget()))
+            return false;
+        saveButton->click();
+        draft.close();
+    }
+    if (saves != 1)
+        return false;
     if (directory.isEmpty())
         return true;
     QDir().mkpath(directory);
@@ -476,6 +496,14 @@ bool SaveVKRelayPreviews(const QString &directory) {
         {
             DialogVKRelay dialog;
             snapshot(dialog, "account");
+            if (!dialog.findChildren<QLineEdit *>().isEmpty())
+                saved = false;
+            auto *tabs = dialog.findChild<QTabWidget *>();
+            for (int i = 1; i < 3; ++i) {
+                tabs->setCurrentIndex(i);
+                snapshot(dialog, i == 1 ? "qwdtt-list" : "csqtt-list");
+                saved = dialog.size() == QSize(860, 600) && saved;
+            }
         }
         for (const QString kind : {QStringLiteral("qwdtt"), QStringLiteral("csqtt")}) {
             ServerEditor editor(freshServer(kind), [](QJsonObject) {}, nullptr);
@@ -493,9 +521,11 @@ bool SaveVKRelayPreviews(const QString &directory) {
 
 DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
     setWindowTitle("Настройки VK-релея");
-    resize(860, 600);
+    resize(640, 360);
     auto *layout = new QVBoxLayout(this);
     auto *tabs = new QTabWidget(this);
+    connect(tabs, &QTabWidget::currentChanged, this,
+            [this](int index) { resize(index == 0 ? QSize(640, 360) : QSize(860, 600)); });
     layout->addWidget(tabs);
     auto *accountPage = new QWidget(tabs);
     tabs->addTab(accountPage, "Аккаунт и хеши");
@@ -556,6 +586,8 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
         }
         if (event["type"] == "progress" || event["type"] == "error")
             status->setText(event["text"].toString());
+        if (event["type"] == "cancelled")
+            status->clear();
         if (event["type"] == "finished")
             link->setEnabled(true);
     };
@@ -666,7 +698,6 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
         buttons->addWidget(remove);
         connect(add, &QPushButton::clicked, this, [=] {
             const auto server = freshServer(kind);
-            persist(server);
             open(server);
         });
         connect(remove, &QPushButton::clicked, this, [=, this] {

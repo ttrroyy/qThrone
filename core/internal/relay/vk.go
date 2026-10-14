@@ -249,7 +249,7 @@ func (p *protocol) login(r Request) error {
 		return e
 	}
 	state := hex.EncodeToString(stateBytes)
-	command := exec.CommandContext(ctx, path, "--user-data-dir="+dir, "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", "--no-first-run", "--no-default-browser-check", "--app=https://m.vk.ru/login")
+	command := exec.CommandContext(ctx, path, "--user-data-dir="+dir, "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", "--window-size=480,680", "--no-first-run", "--no-default-browser-check", "--app=https://m.vk.ru/login")
 	if e = command.Start(); e != nil {
 		return fmt.Errorf("Не удалось открыть окно входа VK")
 	}
@@ -312,7 +312,8 @@ func (p *protocol) login(r Request) error {
 		_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 		location, e := c.evaluate("location.href")
 		if e != nil {
-			return fmt.Errorf("Окно входа VK закрыто")
+			p.emit("cancelled", "", nil)
+			return nil
 		}
 		if a, ok := oauthToken(location, state); ok {
 			saved = a
