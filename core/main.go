@@ -19,6 +19,7 @@ import (
 	"ThroneCore/internal/guard"
 	"ThroneCore/internal/ipc"
 	"ThroneCore/internal/parentcheck"
+	"ThroneCore/internal/providergeo"
 	"ThroneCore/internal/relay"
 	"ThroneCore/internal/rpc"
 
@@ -137,6 +138,22 @@ func RunCore() {
 }
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "--convert-geo" {
+		parentcheck.CheckParentProcess()
+		if err := relay.DropPrivileges(); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		if len(os.Args) != 6 {
+			fmt.Fprintln(os.Stderr, "Invalid geo conversion arguments")
+			os.Exit(1)
+		}
+		if err := providergeo.Convert(os.Args[2], os.Args[3], os.Args[4], os.Args[5]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "--relay" {
 		parentcheck.CheckParentProcess()
 		if err := relay.DropPrivileges(); err != nil {

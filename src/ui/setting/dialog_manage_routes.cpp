@@ -1,4 +1,7 @@
 #include "include/ui/setting/dialog_manage_routes.h"
+#include "include/ui/group/dialog_provider_routing.h"
+#include "include/database/GroupsRepo.h"
+#include <QListWidget>
 
 #include <QClipboard>
 
@@ -289,6 +292,27 @@ void DialogManageRoutes::show_dns_object_editor() {
 
 DialogManageRoutes::DialogManageRoutes(QWidget *parent) : QDialog(parent), ui(new Ui::DialogManageRoutes) {
     ui->setupUi(this);
+    auto subscriptions = new QWidget;
+    auto subscriptionsLayout = new QVBoxLayout(subscriptions);
+    auto subscriptionNote = new QLabel(tr("Маршрутизация Happ / Incy хранится отдельно для каждой подписки. Выберите подписку для изменения её профилей, DNS и Geo."));
+    subscriptionNote->setWordWrap(true); subscriptionsLayout->addWidget(subscriptionNote);
+    auto subscriptionList = new QListWidget; subscriptionsLayout->addWidget(subscriptionList);
+    for (const int gid : Configs::dataManager->groupsRepo->GetGroupsTabOrder()) {
+        const auto group = Configs::dataManager->groupsRepo->GetGroup(gid);
+        if (!group || group->archive || (group->url.isEmpty() && group->sub_options.routing_provider.isEmpty())) continue;
+        auto item = new QListWidgetItem(group->name, subscriptionList); item->setData(Qt::UserRole, gid);
+    }
+    auto subscriptionEdit = new QPushButton(tr("Настроить маршрутизацию подписки")); subscriptionsLayout->addWidget(subscriptionEdit);
+    const auto editSubscription = [this, subscriptionList] {
+        if (!subscriptionList->currentItem()) return;
+        const auto gid = subscriptionList->currentItem()->data(Qt::UserRole).toInt();
+        const auto group = Configs::dataManager->groupsRepo->GetGroup(gid); if (!group) return;
+        auto options = providerDrafts.value(gid, group->sub_options);
+        if (EditProviderRouting(options, this)) providerDrafts[gid] = options;
+    };
+    connect(subscriptionEdit, &QPushButton::clicked, this, editSubscription);
+    connect(subscriptionList, &QListWidget::itemDoubleClicked, this, [editSubscription](QListWidgetItem *) { editSubscription(); });
+    ui->tabWidget->addTab(subscriptions, tr("Маршрутизация подписок"));
     auto profiles = Configs::dataManager->routesRepo->GetAllRouteProfiles();
     for (const auto &item: profiles) {
         chainList << item;
@@ -453,6 +477,15 @@ DialogManageRoutes::~DialogManageRoutes() {
 }
 
 void DialogManageRoutes::accept() {
+    for (auto it = providerDrafts.begin(); it != providerDrafts.end(); ++it) {
+        const auto group = Configs::dataManager->groupsRepo->GetGroup(it.key()); if (!group) continue;
+        group->sub_options.routing_provider = it.value().routing_provider;
+        group->sub_options.provider_routing = it.value().provider_routing;
+        group->sub_options.provider_routing_profiles = it.value().provider_routing_profiles;
+        group->sub_options.provider_routing_enabled = it.value().provider_routing_enabled;
+        group->sub_options.provider_ignore_import = it.value().provider_ignore_import;
+        Configs::dataManager->groupsRepo->Save(group);
+    }
     if (chainList.empty()) {
         MessageBoxInfo(tr("Invalid settings"), tr("Routing profile cannot be empty"));
         return;

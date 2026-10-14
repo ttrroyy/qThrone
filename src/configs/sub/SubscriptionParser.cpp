@@ -444,6 +444,19 @@ namespace Subscription {
                 return;
             }
             // Xray first: its configs share the "outbounds" wrapper with sing-box.
+            if (doc.isArray()) {
+                for (const auto &value : doc.array()) {
+                    if (!value.isObject()) continue;
+                    const QJsonDocument item(value.toObject());
+                    if (getXraySubType(item) == XraySubType::outboundInJson) {
+                        xray(QJsonDocument(QJsonArray{value}), XraySubType::configJsonArray);
+                    } else {
+                        const auto bytes = item.toJson(QJsonDocument::Compact);
+                        json(item, scan::view(bytes));
+                    }
+                }
+                return;
+            }
             const auto xrayType = getXraySubType(doc);
             if (xrayType == XraySubType::outboundObject) {
                 produce(makeProfileForXrayOutbound(doc.object()));
@@ -519,6 +532,16 @@ namespace Subscription {
 
             QJsonArray outbounds;
             if (type == XraySubType::outboundInJson) {
+                const auto cfg = doc.object();
+                if (cfg.contains("routing") || cfg.contains("dns") || cfg.contains("observatory") || cfg.contains("burstObservatory") || cfg.contains("policy") || cfg.contains("reverse") || cfg.contains("fakedns")) {
+                    auto stored = cfg; stored.remove("inbounds");
+                    auto ent = Configs::ProfilesRepo::NewProfile("custom");
+                    ent->Custom()->type = Configs::Custom::CustomXrayFullConfig;
+                    ent->Custom()->config = QJsonObject2QString(stored, false);
+                    ent->Custom()->name = cfg["remarks"].toString();
+                    produce(ent);
+                    return;
+                }
                 outbounds = doc.object()["outbounds"].toArray();
             } else if (type == XraySubType::outboundJsonArray) {
                 outbounds = doc.array();

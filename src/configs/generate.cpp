@@ -5,6 +5,7 @@
 #include "include/configs/outbounds/olcrtc.h"
 #include "include/api/RPC.h"
 #include "include/configs/AutoSelectorPlan.h"
+#include "include/configs/sub/ProviderRouting.h"
 #include "include/configs/common/utils.h"
 #include "include/global/Configs.hpp"
 
@@ -183,6 +184,8 @@ namespace Configs {
         };
 
         struct BuildContext {
+            std::shared_ptr<RouteProfile> route;
+            QJsonObject providerRouting;
             bool forTest = false;
             bool tunEnabled = false;
             bool l3Bridge = false;
@@ -679,7 +682,7 @@ namespace Configs {
 #endif
             auto &preReqs = ctx.prerequisites;
 
-            auto routeChain = dataManager->routesRepo->GetRouteProfile(settings.current_route_id);
+            auto routeChain = ctx.route ? ctx.route : dataManager->routesRepo->GetRouteProfile(settings.current_route_id);
             if (routeChain == nullptr) {
                 ctx.error = "Routing profile does not exist, try resetting the route profile in Routing Settings";
                 return;
@@ -830,7 +833,7 @@ namespace Configs {
                 if (!preReqs.routing.neededRuleSets.contains(item)) preReqs.routing.neededRuleSets << item;
             }
 
-            if (settings.enable_dns_routing) {
+            if (settings.enable_dns_routing || !ctx.providerRouting.isEmpty()) {
                 auto sets = routeChain->get_direct_sites();
                 parseSelectorList(sets, sinkFor(preReqs.dns.direct));
                 if (!sets.isEmpty()) preReqs.dns.needDirectDnsRules = true;
@@ -998,9 +1001,9 @@ namespace Configs {
                 }
             }
             if (addr.contains(":")) {
-                auto spl = addr.split(":");
-                addr = spl[0];
-                port = spl[1].toInt();
+                const auto endpoint = QUrl("tcp://" + (addr.count(':') > 1 && !addr.startsWith('[') ? '[' + addr + ']' : addr));
+                addr = endpoint.host();
+                port = endpoint.port(-1);
             }
             QJsonObject res = {
                 {"type", type},
@@ -1035,7 +1038,8 @@ namespace Configs {
 
         void buildDNSSection(BuildContext &ctx, bool useDnsObj = true) {
             const auto &settings = *dataManager->settingsRepo;
-            if (settings.use_dns_object && useDnsObj) {
+            const bool fakeDNS = ctx.providerRouting.isEmpty() ? settings.fake_dns : !ctx.ent->outbound->IsXrayFullConfig() && Subscription::ProviderRouting::Truth(ctx.providerRouting, "FakeDNS", false);
+            if (settings.use_dns_object && useDnsObj && ctx.providerRouting.isEmpty()) {
                 ctx.result->coreConfig["dns"] = QString2QJsonObject(settings.dns_object);
                 return;
             }
@@ -1048,7 +1052,7 @@ namespace Configs {
             // Merged in front of `rules` at the end; the tailscale block below prepends.
             QJsonArray headRules;
             if (!ctx.forTest) {
-                auto remoteDnsObj = buildDnsObj(ctx, settings.remote_dns);
+                auto remoteDnsObj = buildDnsObj(ctx, ctx.providerRouting.isEmpty() ? settings.remote_dns : Subscription::ProviderRouting::Dns(ctx.providerRouting, "Remote", "https://cloudflare-dns.com/dns-query"));
                 // overwrite remote dns to TCP based since Xray is shit
                 if (ctx.proxyUsesXray && ( remoteDnsObj.value("type").toString() == "udp" || remoteDnsObj.value("type").toString() == "quic" )) {
                     remoteDnsObj = buildDnsObj(ctx, upgradeUdpDnsToDoH(remoteDnsObj.value("server").toString()));
@@ -1095,14 +1099,14 @@ namespace Configs {
                 }
             }
 
-            auto directDnsObj = buildDnsObj(ctx, settings.direct_dns);
+            auto directDnsObj = buildDnsObj(ctx, ctx.providerRouting.isEmpty() || ctx.ent->outbound->IsXrayFullConfig() ? settings.direct_dns : Subscription::ProviderRouting::Dns(ctx.providerRouting, "Domestic", "8.8.8.8"));
             directDnsObj["tag"] = tags::dnsDirect;
             directDnsObj["domain_resolver"] = tags::dnsLocal;
             servers.append(directDnsObj);
 
-            if (!ctx.forTest && settings.dns_predefined_enable) {
+            if (!ctx.forTest && (settings.dns_predefined_enable || !ctx.providerRouting.isEmpty())) {
                 QList<PredefinedDNSEntry> predefined;
-                if (!ParsePredefinedDNS(settings.dns_predefined_rules, predefined)) predefined.clear();
+                if (!ParsePredefinedDNS(settings.dns_predefined_rules + Subscription::ProviderRouting::Hosts(ctx.providerRouting), predefined)) predefined.clear();
 
                 // "*." is rewritten to the queried name by the core; a literal owner would have to parse as a zone name.
                 auto emitFamily = [&](const QString &domain, const QStringList &addrs, const QString &type) {
@@ -1186,7 +1190,7 @@ namespace Configs {
                                tags::dnsDirect, settings.direct_dns_disable_ipv6);
             }
 
-            if (settings.fake_dns) {
+            if (fakeDNS) {
                 QJsonObject fakeServer{
                         {"tag", tags::dnsFake},
                         {"type", "fakeip"},
@@ -1212,7 +1216,7 @@ namespace Configs {
             }
 
             // A test box builds no dns-remote server at all, so its fall-through goes out direct.
-            const bool useDirectFinalDNS = ctx.forTest || settings.dns_final_out == tags::direct;
+            const bool useDirectFinalDNS = ctx.forTest || (ctx.providerRouting.isEmpty() ? settings.dns_final_out == tags::direct : !ctx.ent->outbound->IsXrayFullConfig() && !Subscription::ProviderRouting::Truth(ctx.providerRouting, "GlobalProxy", true));
 
             if (!ctx.forTest && dns.needProxyDnsRules && useDirectFinalDNS) {
                 appendDnsRoutingRules(rules, dns.proxy, remoteDnsTag, settings.remote_dns_disable_ipv6);
@@ -1253,7 +1257,7 @@ namespace Configs {
             if (ctx.qwdttIPv4Only) {
                 rules.prepend(QJsonObject{{"query_type", QJsonArray{"AAAA"}}, {"action", "predefined"}});
             } else if (!ctx.ipv4TransportTags.isEmpty()) {
-                const auto route = dataManager->routesRepo->GetRouteProfile(settings.current_route_id);
+                const auto route = ctx.route ? ctx.route : dataManager->routesRepo->GetRouteProfile(settings.current_route_id);
                 const auto routingRules = route->isRaw
                     ? RouteProfile::TranslateRawOutbounds(QString2QJsonObject(route->rawRoute), ctx.prerequisites.routing.outboundMap).value("rules").toArray()
                     : route->get_route_rules(false, ctx.prerequisites.routing.outboundMap);
@@ -1275,7 +1279,7 @@ namespace Configs {
                     else {
                         const bool direct = source.value("outbound").toString() == tags::direct;
                         if (direct ? settings.direct_dns_disable_ipv6 : settings.remote_dns_disable_ipv6) match["action"] = "predefined";
-                        else { match["action"] = "route"; match["server"] = direct ? tags::dnsDirect : (settings.fake_dns ? tags::dnsFake : remoteDnsTag); }
+                        else { match["action"] = "route"; match["server"] = direct ? tags::dnsDirect : (fakeDNS ? tags::dnsFake : remoteDnsTag); }
                     }
                     familyRules.append(match);
                 }
@@ -1670,6 +1674,11 @@ namespace Configs {
                     ctx.error = "Custom Xray full config is not valid JSON";
                     return ingressTag;
                 }
+                QJsonObject geoDocument;
+                if (const auto sourceGroup = dataManager->groupsRepo->GetGroup(ents.last()->gid); sourceGroup && !sourceGroup->sub_options.routing_provider.isEmpty())
+                    geoDocument = QString2QJsonObject(sourceGroup->sub_options.provider_routing);
+                ctx.error = Subscription::ProviderRouting::ResolveXrayGeo(geoDocument, userXrayConfig);
+                if (!ctx.error.isEmpty()) return ingressTag;
                 // A pre-probed 0 means the caller's probe failed; re-probe rather than bake in a dead port.
                 int port = req.xrayFullConfigPort;
                 if (port <= 0) port = MkManyPorts(1, custom->bridgeHost)[0];
@@ -2131,7 +2140,9 @@ namespace Configs {
         QJsonArray buildRuleSetArray(const BuildContext &ctx) {
             QJsonArray ruleSetArray;
             for (const auto &item: ctx.prerequisites.routing.neededRuleSets) {
-                if (auto url = QUrl(item); url.isValid() && url.fileName().contains(".srs")) {
+                if (auto url = QUrl(item); url.isLocalFile() && url.fileName().endsWith(".srs")) {
+                    ruleSetArray += QJsonObject{{"type", "local"}, {"tag", get_rule_set_name(item)}, {"format", "binary"}, {"path", url.toLocalFile()}};
+                } else if (url.isValid() && url.fileName().contains(".srs")) {
                     ruleSetArray += QJsonObject{
                                 {"type", "remote"},
                                 {"tag", get_rule_set_name(item)},
@@ -2171,7 +2182,8 @@ namespace Configs {
 
         void buildRouteSection(BuildContext &ctx) {
             const auto &settings = *dataManager->settingsRepo;
-            auto routeChain = dataManager->routesRepo->GetRouteProfile(settings.current_route_id);
+            const auto resolveStrategy = ctx.providerRouting.isEmpty() ? settings.resolve_domain_strategy : (ctx.providerRouting.value("DomainStrategy").toString() == "IPOnDemand" ? QStringLiteral("prefer_ipv4") : QString());
+            auto routeChain = ctx.route ? ctx.route : dataManager->routesRepo->GetRouteProfile(settings.current_route_id);
             if (routeChain == nullptr) {
                 ctx.error = "Routing profile does not exist, try resetting the route profile in Routing Settings";
                 return;
@@ -2214,11 +2226,11 @@ namespace Configs {
 
             if (!routeChain->isRaw) {
                 injected.sniff = QJsonObject{{"action", "sniff"}};
-                if (!settings.resolve_domain_strategy.isEmpty()) {
+                if (!resolveStrategy.isEmpty()) {
                     injected.resolve = QJsonObject{
                         {"inbound", QJsonArray{tags::mixedIn, tags::tunIn}},
                         {"action", "resolve"},
-                        {"strategy", settings.resolve_domain_strategy},
+                        {"strategy", resolveStrategy},
                     };
                 }
                 injected.dnsHijack = QJsonObject{
@@ -2306,7 +2318,7 @@ namespace Configs {
             if (!ctx.forTest && ctx.vpnGateTags.contains(finalTag)) {
                 // A hostname destination has no address for preferred_by to match until it is resolved.
                 QJsonObject gateResolve{{"action", "resolve"}};
-                if (!settings.resolve_domain_strategy.isEmpty()) gateResolve["strategy"] = settings.resolve_domain_strategy;
+                if (!resolveStrategy.isEmpty()) gateResolve["strategy"] = resolveStrategy;
                 vpnFallthroughRules.append(gateResolve);
                 vpnFallthroughRules.append(QJsonObject{
                     {"preferred_by", QJsonArray{finalTag}},
@@ -2649,6 +2661,18 @@ namespace Configs {
         const GenerateEndpointScope endpointScope;
         BuildContext ctx;
         ctx.ent = ent;
+        if (const auto group = dataManager->groupsRepo->GetGroup(ent->gid); group && group->sub_options.provider_routing_enabled && !group->sub_options.routing_provider.isEmpty()) {
+            const auto &options = group->sub_options;
+            if (options.provider_routing == "off") ctx.route = RouteProfile::GetDefaultChain();
+            else if (!options.provider_routing.isEmpty()) {
+                ctx.providerRouting = QString2QJsonObject(options.provider_routing);
+                ctx.route = Subscription::ProviderRouting::Profile(ctx.providerRouting, options.routing_provider);
+                if (ent->outbound->IsXrayFullConfig()) {
+                    ctx.route = RouteProfile::GetDefaultChain();
+                } else ctx.error = Subscription::ProviderRouting::ResolveGeo(*ctx.route, ctx.providerRouting);
+                if (!ctx.error.isEmpty()) { ctx.result->error = ctx.error; return ctx.result; }
+            }
+        }
         ctx.result->involvedProfiles = {ent->id};
         buildProfileSink = &ctx.result->involvedProfiles;
         const auto clearProfileSink = qScopeGuard([] { buildProfileSink = nullptr; });

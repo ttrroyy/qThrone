@@ -1,4 +1,6 @@
 #include "include/configs/sub/SubscriptionParser.hpp"
+#include "include/configs/sub/ProviderRouting.h"
+#include "include/ui/group/dialog_provider_routing.h"
 #include "include/configs/outbounds/qwdtt.h"
 #include "include/configs/outbounds/csqtt.h"
 #include "include/configs/outbounds/openflux.h"
@@ -16,6 +18,9 @@
 #include "include/database/IpScansRepo.h"
 #include <QDebug>
 #include <QTemporaryDir>
+#include <QCryptographicHash>
+#include <QFile>
+#include <QDir>
 #include <QScopeGuard>
 #include "include/global/Version.hpp"
 #include "include/ui/profile/edit_qwdtt.h"
@@ -119,6 +124,7 @@ int TestQwdttImport() {
         }
     }
     check(SaveVKRelayPreviews(qEnvironmentVariable("THRONE_SEASONAL_PREVIEW_DIR")), "VK relay screenshots saved");
+    check(SaveProviderRoutingPreviews(qEnvironmentVariable("THRONE_SEASONAL_PREVIEW_DIR")), "provider routing screenshots saved");
     const QByteArray android = "qwdtt://config?name=Main+%28demo%29&peer=203.0.113.10%3A56000&hashes=hash1%2Chash2&workers=9&port=9000&pass=a%2Bb+%26%25";
     const auto parse = [](const QByteArray &body) {
         QList<std::shared_ptr<Configs::Profile>> profiles;
@@ -127,6 +133,61 @@ int TestQwdttImport() {
         Subscription::ParseDocument(body, sink);
         return profiles;
     };
+    {
+        namespace PR = Subscription::ProviderRouting;
+        const QJsonObject document{{"Name", "Provider route"}, {"GlobalProxy", false}, {"LastUpdated", 10}, {"RouteOrder", "direct-proxy-block"}, {"DirectSites", QJsonArray{"full:example.org", "geosite:WHITELIST"}}, {"ProxyIp", QJsonArray{"192.0.2.1"}}, {"UnknownProviderField", "preserved"}};
+        const auto link = QStringLiteral("happ://routing/onadd/") + QString::fromLatin1(QJsonDocument(document).toJson(QJsonDocument::Compact).toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
+        PR::Command command; QString error;
+        check(PR::Parse(link, command, error) && command.activate, "Happ routing command parses");
+        const auto wrapped = "https://example.org/launch?url=" + QString::fromLatin1(QUrl::toPercentEncoding(link));
+        check(PR::IsLink(wrapped) && PR::Parse(wrapped, command, error), "wrapped Happ routing link decodes locally");
+        const QByteArray server = "vless://00000000-0000-0000-0000-000000000001@192.0.2.10:443?security=tls#Server";
+        const auto payload = PR::Extract((link.toUtf8() + '\n' + server).toBase64());
+        check(payload.commands.size() == 1 && payload.body == server && payload.warnings.isEmpty(), "base64 subscription keeps servers and extracts routing");
+        const auto broken = PR::Extract(server, "happ://routing/add/not-json");
+        check(broken.body == server && broken.commands.isEmpty() && !broken.warnings.isEmpty(), "broken routing does not drop servers");
+        Configs::SubscriptionOptions options;
+        PR::Apply(options, payload.commands);
+        check(options.provider_routing.contains("UnknownProviderField"), "provider unknown fields preserved");
+        const auto roundtrip = Configs::SubscriptionOptions::FromJson(options.ToJson());
+        check(roundtrip.provider_routing == options.provider_routing && roundtrip.provider_routing_enabled, "subscription routing persistence");
+        auto older = document; older["LastUpdated"] = 1; older["Name"] = "Provider route"; older["GlobalProxy"] = true;
+        PR::Apply(options, {PR::Command{"Happ", true, false, older}});
+        check(!QJsonDocument::fromJson(options.provider_routing.toUtf8()).object().value("GlobalProxy").toBool(), "older route cannot replace newer route");
+        const auto profile = PR::Profile(document, "Happ");
+        check(profile->defaultOutboundID == Configs::directID && profile->Rules.size() == 3 && profile->Rules[1]->rule_set.contains("geosite:WHITELIST") && profile->Rules[2]->ip_cidr.contains("192.0.2.1/32"), "provider rule order and IP normalization");
+        options.provider_ignore_import = true; const auto previous = options.provider_routing;
+        PR::Apply(options, {PR::Command{"Happ", false, true, {}}});
+        check(options.provider_routing == previous, "disabled route import preserves selection");
+        const QByteArray xray = R"({"remarks":"Reality server","outbounds":[{"protocol":"vless","tag":"proxy","settings":{"vnext":[{"address":"example.net","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000001"}]}]}}],"routing":{"rules":[{"type":"field","domain":["geosite:WHITELIST"],"outboundTag":"proxy"}]}})";
+        const auto profiles = parse(xray);
+        check(profiles.size() == 1 && profiles.first()->Custom() && profiles.first()->Custom()->IsXrayFullConfig(), "single full Xray object preserves routing");
+        if (!profiles.isEmpty() && profiles.first()->Custom()) {
+            check(profiles.first()->outbound->DisplayType() == "VLESS (Xray)" && profiles.first()->outbound->DisplayAddress() == "example.net:443", "full Xray profile displays actual protocol and address");
+            check(profiles.first()->Custom()->config.contains("WHITELIST"), "full Xray import keeps provider category");
+        }
+        const auto balanced = parse(R"([{"remarks":"Auto","outbounds":[{"protocol":"vless","tag":"server1","settings":{"vnext":[{"address":"example.net","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000001"}]}]},"streamSettings":{"sockopt":{"dialerProxy":"front"}}}],"routing":{"balancers":[{"tag":"auto","selector":["server"],"strategy":{"type":"leastPing"}}],"rules":[{"type":"field","balancerTag":"auto","network":"tcp,udp"}]},"observatory":{"subjectSelector":["server"]}}])");
+        check(balanced.size() == 1 && balanced.first()->Custom() && balanced.first()->outbound->DisplayType() == "Xray Balancer" && balanced.first()->Custom()->config.contains("dialerProxy") && balanced.first()->Custom()->config.contains("observatory"), "subscription preserves Xray balancers and chain settings");
+        auto group = Configs::GroupsRepo::NewGroup(); group->name = "Provider test";
+        auto isolated = document; isolated["DirectSites"] = QJsonArray{"full:example.org"}; isolated["FakeDNS"] = false;
+        PR::Apply(group->sub_options, {PR::Command{"Happ", true, false, isolated}});
+        check(Configs::dataManager->groupsRepo->AddGroup(group), "provider test group saved");
+        auto socks = Configs::ProfilesRepo::NewProfile("socks"); socks->outbound->ParseFromJson(QJsonObject{{"type","socks"},{"server","192.0.2.8"},{"server_port",1080}});
+        check(Configs::dataManager->profilesRepo->AddProfile(socks, group->id), "provider test profile saved");
+        const auto globalRoute = Configs::dataManager->settingsRepo->current_route_id;
+        const auto globalDNS = Configs::dataManager->settingsRepo->remote_dns;
+        const auto built = Configs::BuildSingBoxConfig(socks);
+        check(built->error.isEmpty() && built->coreConfig.value("route").toObject().value("final").toString() == "direct", "subscription route applies only to its group");
+        check(Configs::dataManager->settingsRepo->current_route_id == globalRoute && Configs::dataManager->settingsRepo->remote_dns == globalDNS, "provider routing does not mutate global routing or DNS");
+        const auto sourceURL = QStringLiteral("https://example.invalid/geo-fixture/") + fixture.path();
+        const auto cache = Configs::GetBasePath() + "/provider-geodata/" + QString::fromLatin1(QCryptographicHash::hash(sourceURL.toUtf8(), QCryptographicHash::Sha256).toHex()) + ".dat";
+        QDir().mkpath(QFileInfo(cache).absolutePath());
+        QFile cached(cache); check(cached.open(QIODevice::WriteOnly), "Geo fixture cache opens"); cached.write("cached-fixture"); cached.close();
+        const auto cleanCache = qScopeGuard([cache] { QFile::remove(cache); });
+        QJsonObject geoConfig{{"routing", QJsonObject{{"rules", QJsonArray{QJsonObject{{"domain", QJsonArray{"geosite:WHITELIST"}}}}}}}, {"dns", QJsonObject{{"hosts", QJsonObject{{"geosite:WHITELIST", "192.0.2.2"}}}}}};
+        const auto geoError = PR::ResolveXrayGeo(QJsonObject{{"Geositeurl", sourceURL}}, geoConfig);
+        check(geoError.isEmpty() && QJsonDocument(geoConfig).toJson().contains("ext:provider-geodata/") && !QJsonDocument(geoConfig).toJson().contains("geosite:WHITELIST"), "provider Geo rewrite covers routing values and DNS object keys");
+    }
     const QByteArray csqttLink = "csqtt://connect?v=2&host=203.0.113.7&peer=46000&password=p%40ss&hashes=abcdefghijklmno%2Bp+abcdefghijklmnop2";
     const auto csProfiles = parse(csqttLink);
     check(csProfiles.size() == 1, "CSQTT subscription link imports one profile");

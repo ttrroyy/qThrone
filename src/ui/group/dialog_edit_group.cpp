@@ -13,6 +13,8 @@
 #include "include/database/ProfilesRepo.h"
 #include "include/global/RunningProfiles.hpp"
 #include "include/ui/group/dialog_edit_group_advanced.h"
+#include "include/ui/group/dialog_provider_routing.h"
+#include <QHBoxLayout>
 
 
 #define ADJUST_SIZE runOnThread([=,this] { adjustSize(); adjustPosition(mainwindow); }, this);
@@ -45,6 +47,9 @@ DialogEditGroup::DialogEditGroup(const std::shared_ptr<Configs::Group> &ent, QWi
     ui->auto_clear_unavailable->setChecked(ent->auto_clear_unavailable);
     ui->skip_auto_update->setChecked(ent->skip_auto_update);
     subOptions = ent->sub_options;
+    auto providerButton = new QPushButton(tr("Маршрутизация подписки"), this);
+    ui->horizontalLayout->insertWidget(ui->horizontalLayout->indexOf(ui->advanced), providerButton);
+    connect(providerButton, &QPushButton::clicked, this, [this] { EditProviderRouting(subOptions, this); });
     endpoint = ent->endpoint;
     connect(ui->advanced, &QPushButton::clicked, this, [this] {
         auto dialog = new DialogEditGroupAdvanced(subOptions, this->ent->sub_info.server_interval, endpoint, ui->type->currentIndex() == 1, this);
