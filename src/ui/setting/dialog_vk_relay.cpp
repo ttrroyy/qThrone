@@ -197,6 +197,8 @@ class ServerEditor : public QDialog {
             if (it.key() != "key")
                 server[it.key()] = it.value()->text();
         server["auth"] = auth->currentData().toString();
+        if (server["auth"] == "password")
+            server["sudoPassword"] = "";
         server["manualPorts"] = manual->isChecked() ? "true" : "false";
         if (docker)
             server["docker"] = docker->isChecked() ? "true" : "false";
@@ -204,17 +206,19 @@ class ServerEditor : public QDialog {
     void secrets() {
         QDialog dialog(this);
         dialog.setWindowTitle(server["kind"] == "qwdtt" ? "Секреты (бот, пароли)" : "Авторизация");
+        dialog.resize(640, 240);
+        dialog.setMinimumSize(560, 210);
         auto *layout = new QVBoxLayout(&dialog);
         auto *form = new QFormLayout;
+        form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
         layout->addLayout(form);
         QMap<QString, QLineEdit *> edits;
         QList<QPair<QString, QString>> keys{{"password", "Пароль туннеля"}};
         if (server["kind"] == "qwdtt")
-            keys += {{"botToken", "Токен Telegram-бота"},
-                     {"adminId", "Telegram ID администратора"},
-                     {"adminToken", "Токен панели"}};
+            keys += {{"botToken", "Токен Telegram-бота (необязательно)"},
+                     {"adminId", "Telegram ID администратора (необязательно)"}};
         else
-            keys += {{"webUser", "Логин веб-панели"}, {"webPassword", "Пароль веб-панели"}, {"deviceId", "Device ID"}};
+            keys += {{"webUser", "Логин веб-панели"}, {"webPassword", "Пароль веб-панели"}};
         for (const auto &[key, label] : keys) {
             auto *edit = new QLineEdit(server[key].toString(), &dialog);
             if (key.contains("Token") || key.contains("assword"))
@@ -351,7 +355,7 @@ class ServerEditor : public QDialog {
         auth->setCurrentIndex(server["auth"] == "key" ? 1 : 0);
         form->addRow("Вход на сервер", auth);
         auto *password = add("sshPassword", "Пароль SSH", true);
-        add("sudoPassword", "Пароль sudo (если отличается)", true);
+        auto *sudoPassword = add("sudoPassword", "Пароль sudo (если требуется)", true);
         auto *key = add("key", "SSH-ключ");
         key->setReadOnly(true);
         key->setText(server["key"].toString().isEmpty() ? "Не загружен" : "SSH-ключ загружен");
@@ -370,9 +374,9 @@ class ServerEditor : public QDialog {
                 key->setText(QFileInfo(path).fileName());
             }
         });
-        const auto authVisibility = [this, password, key, keyPassword, loadKey, form] {
+        const auto authVisibility = [this, password, sudoPassword, key, keyPassword, loadKey, form] {
             const bool useKey = auth->currentData() == "key";
-            for (auto *edit : {key, keyPassword}) {
+            for (auto *edit : {key, keyPassword, sudoPassword}) {
                 edit->setVisible(useKey);
                 form->labelForField(edit)->setVisible(useKey);
             }
@@ -392,8 +396,8 @@ class ServerEditor : public QDialog {
         QStringList ports{"peerPort"};
         QStringList labels{"Порт DTLS"};
         if (server["kind"] == "qwdtt") {
-            ports += {"wgPort", "directPort", "rawPort", "adminPort"};
-            labels += {"Порт WireGuard", "Прямой порт", "Порт RAW", "Порт панели"};
+            ports += {"wgPort", "directPort", "rawPort"};
+            labels += {"Порт WireGuard", "Прямой порт", "Порт RAW"};
         } else {
             ports.append("webPort");
             labels.append("Порт веб-панели");
