@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"ThroneCore/internal/winipcfg"
+	"qThroneCore/internal/winipcfg"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing/common/control"

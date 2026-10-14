@@ -633,7 +633,7 @@ namespace Configs {
             QJsonObject obj;
             obj["action"] = "reject";
             QJsonArray jarray;
-            jarray.append("throne-adblocksingbox");
+            jarray.append("qthrone-adblocksingbox");
             obj["rule_set"] = jarray;
             return obj;
         };

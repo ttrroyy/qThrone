@@ -200,6 +200,11 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
     }
     if (type == QEvent::MouseButtonPress) {
         auto mouseEvent = dynamic_cast<QMouseEvent *>(event);
+        if (mouseEvent && mouseEvent->button() == Qt::LeftButton &&
+            (obj == ui->masterLogBrowser->viewport() || obj == ui->data_view->viewport() || obj == ui->centralwidget || obj->objectName() == "seasonalDecorationSpace")) {
+            ui->profilesTableView->clearSelection();
+            ui->profilesTableView->setCurrentIndex(QModelIndex());
+        }
         if (obj == ui->label_running && mouseEvent->button() == Qt::LeftButton && running != nullptr) {
             url_test_current();
             return true;

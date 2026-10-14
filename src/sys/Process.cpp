@@ -22,7 +22,7 @@ namespace {
         const auto adapter = QString::fromUtf8(log.mid(from, end < 0 ? -1 : end - from)).trimmed();
         PostPassiveWarning(QObject::tr("IPv4 forwarding breaks Tun mode"),
                            QObject::tr("IPv4 forwarding is on for the network adapter \"%1\", usually because Mobile Hotspot or Internet Connection Sharing is sharing it.\n\n"
-                                       "Windows then ignores the adapter binding that keeps Throne's own connections out of the Tun, so they loop back into it and fail.\n\n"
+                                       "Windows then ignores the adapter binding that keeps qThrone's own connections out of the Tun, so they loop back into it and fail.\n\n"
                                        "To fix this, share the hotspot from the qthrone-tun adapter instead of \"%1\" (Settings > Mobile hotspot > Share my internet connection from), or turn the hotspot off while using Tun mode.")
                                .arg(adapter));
     }
@@ -108,13 +108,16 @@ namespace Configs_sys {
 
         auto env = QProcessEnvironment::systemEnvironment();
         env.insert("THRONE_CORE_SOCKET", m_socketName);
+        env.insert("QTHRONE_CORE_SOCKET", m_socketName);
         // Turns an unrecovered Go panic into a real abort, so all goroutine stacks are dumped and WER captures the core too.
         env.insert("GOTRACEBACK", "crash");
         if (m_debugMode) env.insert("THRONE_CORE_DEBUG", "1");
+        if (m_debugMode) env.insert("QTHRONE_CORE_DEBUG", "1");
         // Points Xray's asset loader at our writable config dir, so a geoip.dat/geosite.dat downloaded later is found with no core restart.
         env.insert("XRAY_LOCATION_ASSET", Configs::GetBasePath());
         guard_identity = Configs::dataManager->settingsRepo->kill_switch;
         if (guard_identity) env.insert("THRONE_GUARD", "1");
+        if (guard_identity) env.insert("QTHRONE_GUARD", "1");
         setProcessEnvironment(env);
         start(program, {});
     }

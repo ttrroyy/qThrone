@@ -12,11 +12,17 @@ namespace Configs {
         initMaps();
         createTables();
         loadAllSettings();
+        bool initialized = false;
         // An empty secret disables authentication on the API service outright.
         if (core_box_api_secret.isEmpty()) {
             core_box_api_secret = QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-');
-            Save();
+            initialized = true;
         }
+        if (relay_device_id.isEmpty()) {
+            relay_device_id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+            initialized = true;
+        }
+        if (initialized) Save();
     }
 
     void SettingsRepo::initMaps() {
@@ -130,6 +136,7 @@ namespace Configs {
 
         stringMap = {
             {"qwdtt_hash_source", &qwdtt_hash_source},
+            {"relay_device_id", &relay_device_id},
             {"user_agent2",                &user_agent},
             {"test_url",                   &test_latency_url},
             {"direct_test_url",            &direct_test_url},

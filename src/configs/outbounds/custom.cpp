@@ -175,7 +175,27 @@ namespace Configs
 
     QJsonObject Custom::DisplayXrayOutbound() const {
         const auto object = QString2QJsonObject(config);
-        return type == CustomXrayFullConfig ? firstXrayEgress(object["outbounds"].toArray()) : object;
+        if (type != CustomXrayFullConfig) return object;
+        const auto outbounds = object["outbounds"].toArray();
+        const auto routing = object["routing"].toObject();
+        for (const auto &value : routing["rules"].toArray()) {
+            const auto rule = value.toObject();
+            const auto tag = rule["outboundTag"].toString();
+            for (const auto &outbound : outbounds) {
+                const auto candidate = outbound.toObject();
+                if (!tag.isEmpty() && candidate["tag"].toString() == tag && !isXrayInfra(candidate["protocol"].toString())) return candidate;
+            }
+            for (const auto &entry : routing["balancers"].toArray()) {
+                const auto balancer = entry.toObject();
+                if (rule["balancerTag"].toString().isEmpty() || rule["balancerTag"] != balancer["tag"]) continue;
+                for (const auto &selector : balancer["selector"].toArray())
+                    for (const auto &outbound : outbounds) {
+                        const auto candidate = outbound.toObject();
+                        if (candidate["tag"].toString().startsWith(selector.toString()) && !isXrayInfra(candidate["protocol"].toString())) return candidate;
+                    }
+            }
+        }
+        return firstXrayEgress(outbounds);
     }
 
     SecurityInfo Custom::GetSecurity()

@@ -85,6 +85,7 @@ public:
     void clearPendingRestart();
 
     bool hasPendingRestart() const;
+    bool hasPriorityNotice() const;
 
     void setScannerPanel(const QList<ScannerPanelItem> &items);
 

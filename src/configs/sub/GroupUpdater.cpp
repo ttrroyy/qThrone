@@ -419,6 +419,27 @@ namespace Subscription {
         return identity;
     }
 
+    QJsonObject PreserveRelaySettings(const QString &type, QJsonObject incoming, const QList<QJsonObject> &previous) {
+        if (type != "qwdtt" && type != "csqtt") return incoming;
+        QList<QJsonObject> named, matching;
+        QSet<QString> relatedIDs;
+        for (const auto &old : previous) {
+            if (old["_type"].toString() != type) continue;
+            if (!incoming.value("tag").toString().isEmpty() && old.value("tag") == incoming.value("tag")) named.append(old);
+            if (old.value("server") == incoming.value("server") && old.value("server_port") == incoming.value("server_port") && old.value("password") == incoming.value("password")) matching.append(old);
+            if (!incoming.value("password").toString().isEmpty() && old.value("password") == incoming.value("password") && !old.value("device_id").toString().isEmpty()) relatedIDs.insert(old.value("device_id").toString());
+        }
+        const auto candidates = named.size() == 1 ? named : matching;
+        if (candidates.size() == 1) {
+            if (type == "qwdtt") {
+                incoming["hash_source"] = candidates.first().value("hash_source");
+                incoming["auto_hash_count"] = candidates.first().value("auto_hash_count");
+            }
+            if (!candidates.first().value("device_id").toString().isEmpty()) incoming["device_id"] = candidates.first().value("device_id");
+        } else if (relatedIDs.size() == 1) incoming["device_id"] = *relatedIDs.begin();
+        return incoming;
+    }
+
     GroupUpdater *updater() {
         static auto *instance = new GroupUpdater;
         return instance;
@@ -787,7 +808,12 @@ namespace Subscription {
 
         QList<QJsonObject> previousHashes;
         forEachProfile(group->Profiles(), [&](const std::shared_ptr<Configs::Profile> &ent) {
-            if (ent->type == "qwdtt") previousHashes.append(ent->outbound->ExportToJson());
+            if (ent->type == "qwdtt" || ent->type == "csqtt") {
+                profilesRepo->RestoreTransportIdentity(ent.get());
+                auto previous = ent->outbound->ExportToJson();
+                previous["_type"] = ent->type;
+                previousHashes.append(previous);
+            }
         });
 
         const QString url = group->url.trimmed();
@@ -884,19 +910,8 @@ namespace Subscription {
         MW_show_log(">>>>>>>> " + QObject::tr("Processing subscription data..."));
         auto parseSink = sinkFor(sink);
         parseSink.profile = [&sink, previousHashes](std::shared_ptr<Configs::Profile> ent) {
-            if (ent->type == "qwdtt") {
-                auto incoming = ent->outbound->ExportToJson();
-                QList<QJsonObject> named, matching;
-                for (const auto &old : previousHashes) {
-                    if (!incoming.value("tag").toString().isEmpty() && old.value("tag") == incoming.value("tag")) named.append(old);
-                    if (old.value("server") == incoming.value("server") && old.value("server_port") == incoming.value("server_port") && old.value("password") == incoming.value("password")) matching.append(old);
-                }
-                const auto candidates = named.size() == 1 ? named : matching;
-                if (candidates.size() == 1) {
-                    incoming["hash_source"] = candidates.first().value("hash_source");
-                    incoming["auto_hash_count"] = candidates.first().value("auto_hash_count");
-                    ent->outbound->ParseFromJson(incoming);
-                }
+            if (ent->type == "qwdtt" || ent->type == "csqtt") {
+                ent->outbound->ParseFromJson(PreserveRelaySettings(ent->type, ent->outbound->ExportToJson(), previousHashes));
             }
             sink.add(std::move(ent));
         };

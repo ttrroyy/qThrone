@@ -680,27 +680,27 @@ if (DASHBOARD_FILES)
 endif ()
 
 # Qt exe
-qt_add_executable(Throne
+qt_add_executable(qThrone
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
 )
 
 # Target
 
-set_property(TARGET Throne PROPERTY AUTOUIC ON)
-set_property(TARGET Throne PROPERTY AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/include/ui")
-set_property(TARGET Throne PROPERTY AUTOMOC ON)
-set_property(TARGET Throne PROPERTY AUTORCC ON)
+set_property(TARGET qThrone PROPERTY AUTOUIC ON)
+set_property(TARGET qThrone PROPERTY AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/include/ui")
+set_property(TARGET qThrone PROPERTY AUTOMOC ON)
+set_property(TARGET qThrone PROPERTY AUTORCC ON)
 
 
 # Target Source macOS
 
 set(MACOSX_ICON ${CMAKE_SOURCE_DIR}/res/Throne.icns)
 if (APPLE)
-    target_sources(Throne PRIVATE ${MACOSX_ICON})
+    target_sources(qThrone PRIVATE ${MACOSX_ICON})
 endif ()
 
-set_target_properties(Throne PROPERTIES
+set_target_properties(qThrone PROPERTIES
         MACOSX_BUNDLE_ICON_FILE "Throne.icns"
         RESOURCE ${MACOSX_ICON}
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/res/MacOSXBundleInfo.plist
@@ -710,13 +710,13 @@ set_target_properties(Throne PROPERTIES
 )
 
 if (WIN32 AND MSVC)
-    set_target_properties(Throne PROPERTIES UNITY_BUILD ON)
+    set_target_properties(qThrone PROPERTIES UNITY_BUILD ON)
 endif ()
 set_property(SOURCE "3rdparty/SQLiteCpp/src/sqlite3.c" PROPERTY SKIP_UNITY_BUILD_INCLUSION ON)
 set_property(SOURCE "3rdparty/monocypher/monocypher.c" PROPERTY SKIP_UNITY_BUILD_INCLUSION ON)
 
 # Verified to link. OMIT_VIRTUALTABLE/VIEW/ANALYZE/CTE/WINDOWFUNC/DECLTYPE all break this build.
-target_compile_definitions(Throne PRIVATE
+target_compile_definitions(qThrone PRIVATE
         SQLITE_DQS=0
         SQLITE_DEFAULT_MEMSTATUS=0
         SQLITE_DEFAULT_WAL_SYNCHRONOUS=1
@@ -747,26 +747,26 @@ set(TS_FILES
 set(LUPDATE_OPTIONS
         -locations none -no-obsolete
 )
-qt_add_lupdate(Throne TS_FILES ${TS_FILES} OPTIONS ${LUPDATE_OPTIONS})
-qt_add_lrelease(Throne TS_FILES ${TS_FILES} QM_FILES_OUTPUT_VARIABLE QM_FILES)
+qt_add_lupdate(qThrone TS_FILES ${TS_FILES} OPTIONS ${LUPDATE_OPTIONS})
+qt_add_lrelease(qThrone TS_FILES ${TS_FILES} QM_FILES_OUTPUT_VARIABLE QM_FILES)
 
 configure_file(res/translations/translations.qrc ${CMAKE_BINARY_DIR} COPYONLY)
-target_sources(Throne PRIVATE ${CMAKE_BINARY_DIR}/translations.qrc)
+target_sources(qThrone PRIVATE ${CMAKE_BINARY_DIR}/translations.qrc)
 
 # Target Link
 if(TARGET Qt6::ZlibPrivate)
-    target_link_libraries(Throne PRIVATE Qt6::ZlibPrivate)
+    target_link_libraries(qThrone PRIVATE Qt6::ZlibPrivate)
 else()
     find_package(ZLIB REQUIRED)
-    target_link_libraries(Throne PRIVATE ZLIB::ZLIB)
+    target_link_libraries(qThrone PRIVATE ZLIB::ZLIB)
 endif()
 
-target_link_libraries(Throne PRIVATE
+target_link_libraries(qThrone PRIVATE
         Qt6::Widgets Qt6::Network ${QT_DBUS_LIBRARY}
         Threads::Threads
         ${NKR_EXTERNAL_TARGETS}
         ${PLATFORM_LIBRARIES}
 )
 
-set_target_properties(Throne PROPERTIES OUTPUT_NAME qThrone)
-qt_finalize_executable(Throne)
+set_target_properties(qThrone PROPERTIES OUTPUT_NAME qThrone)
+qt_finalize_executable(qThrone)

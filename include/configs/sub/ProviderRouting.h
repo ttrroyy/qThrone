@@ -27,4 +27,5 @@ QString ResolveXrayGeo(const QJsonObject &document, QJsonObject &config);
 QString Dns(const QJsonObject &document, const QString &prefix, const QString &fallback);
 QStringList Hosts(const QJsonObject &document);
 bool Truth(const QJsonObject &document, const QString &key, bool fallback);
+QJsonObject SourceDocument(const Configs::SubscriptionOptions &options);
 } // namespace Subscription::ProviderRouting

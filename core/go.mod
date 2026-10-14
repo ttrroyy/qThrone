@@ -1,4 +1,4 @@
-module ThroneCore
+module qThroneCore
 
 go 1.26.0
 

@@ -6,7 +6,7 @@
 namespace Configs {
 class csqtt : public extracore {
 public:
-    csqtt() { server_port = 46000; socksPort = 0; deviceID = QUuid::createUuid().toString(QUuid::WithoutBraces); }
+    csqtt();
     QString password;
     QStringList hashes;
     int workers = 18;

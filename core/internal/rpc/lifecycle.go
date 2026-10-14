@@ -8,10 +8,10 @@ import (
 	"runtime"
 	"time"
 
-	"ThroneCore/gen"
-	"ThroneCore/internal/boxmain"
-	"ThroneCore/internal/sysdns"
-	"ThroneCore/internal/xray"
+	"qThroneCore/gen"
+	"qThroneCore/internal/boxmain"
+	"qThroneCore/internal/sysdns"
+	"qThroneCore/internal/xray"
 )
 
 func (s *server) Start(ctx context.Context, in *gen.LoadConfigReq) (out *gen.ErrorResp, _ error) {

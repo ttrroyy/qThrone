@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"ThroneCore/gen"
+	"qThroneCore/gen"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/xtls/xray-core/core"

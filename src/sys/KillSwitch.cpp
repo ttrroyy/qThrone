@@ -42,7 +42,7 @@ namespace Sys {
 
         QString bridgeName() {
 #ifdef Q_OS_LINUX
-            if (Configs::dataManager->settingsRepo->vpn_l3_bridge) return QStringLiteral("throne-br");
+            if (Configs::dataManager->settingsRepo->vpn_l3_bridge) return QStringLiteral("qthrone-br");
 #endif
             return {};
         }
@@ -143,7 +143,7 @@ namespace Sys {
         QString text;
         if (failureCode_ == kPrivilege) {
 #ifdef Q_OS_WIN
-            text = tr("The kill switch needs Throne to run as administrator.");
+            text = tr("The kill switch needs qThrone to run as administrator.");
 #else
             text = tr("The kill switch needs the core to have root privileges.");
 #endif
@@ -360,7 +360,7 @@ namespace Sys {
         pending_ = nullptr;
         closeGuard(previous);
         LOG_INFO("kill switch: armed with " + QString::fromUtf8(guard->config));
-        MW_show_log(previous == nullptr ? tr("[Kill switch] On: only traffic through Throne can leave this device.")
+        MW_show_log(previous == nullptr ? tr("[Kill switch] On: only traffic through qThrone can leave this device.")
                                         : tr("[Kill switch] New settings applied."));
         setState(State::Armed);
         settle();

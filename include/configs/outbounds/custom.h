@@ -47,6 +47,7 @@ namespace Configs
             }
             if (type == CustomXrayOutbound || type == CustomXrayFullConfig) {
                 auto settings = DisplayXrayOutbound()["settings"].toObject();
+                if (settings.contains("address")) return settings["address"].toString();
                 if (settings.contains("vnext")) return settings["vnext"].toArray().first().toObject()["address"].toString();
                 if (settings.contains("servers")) return settings["servers"].toArray().first().toObject()["address"].toString();
             }
@@ -62,7 +63,8 @@ namespace Configs
             if (type == CustomXrayOutbound || type == CustomXrayFullConfig) {
                 auto settings = DisplayXrayOutbound()["settings"].toObject();
                 QJsonObject server;
-                if (settings.contains("vnext")) server = settings["vnext"].toArray().first().toObject();
+                if (settings.contains("address")) server = settings;
+                else if (settings.contains("vnext")) server = settings["vnext"].toArray().first().toObject();
                 else if (settings.contains("servers")) server = settings["servers"].toArray().first().toObject();
                 if (!server.isEmpty()) return ::DisplayAddress(server["address"].toString(), server["port"].toInt());
             }
@@ -82,9 +84,8 @@ namespace Configs
                 if (!protocol.isEmpty()) protocol[0] = protocol[0].toUpper();
                 return protocol.isEmpty() ? "Custom Xray Outbound" : "Custom Xray " + protocol + " Outbound";
             } else if (type == CustomXrayFullConfig) {
-                const auto object = QString2QJsonObject(config);
-                if (!object["routing"].toObject()["balancers"].toArray().isEmpty()) return "Xray Balancer";
                 auto protocol = DisplayXrayOutbound()["protocol"].toString();
+                if (protocol == "hysteria" || protocol == "hysteria2" || protocol == "hy2") protocol = "Hysteria2";
                 if (protocol == "vless" || protocol == "vmess") protocol = protocol.toUpper();
                 else if (!protocol.isEmpty()) protocol[0] = protocol[0].toUpper();
                 return protocol.isEmpty() ? "Custom Xray Config" : protocol + " (Xray)";

@@ -659,7 +659,7 @@ void DialogBasicSettings::on_backup_create_clicked() {
         this,
         tr("Create Backup"),
         QDir::homePath() + "/qThrone-backup.thrbackup",
-        tr("Throne Backup (*.thrbackup)")
+        tr("qThrone Backup (*.thrbackup)")
     );
     if (filePath.isEmpty()) return;
 
@@ -751,7 +751,7 @@ void DialogBasicSettings::on_backup_restore_clicked() {
         this,
         tr("Restore Backup"),
         QDir::homePath(),
-        tr("Throne Backup (*.thrbackup)")
+        tr("qThrone Backup (*.thrbackup)")
     );
     if (filePath.isEmpty()) return;
 
@@ -769,7 +769,7 @@ void DialogBasicSettings::on_backup_restore_clicked() {
     char magic[4];
     if (stream.readRawData(magic, 4) != 4 || strncmp(magic, "THRN", 4) != 0) {
         QMessageBox::critical(this, tr("Restore Failed"),
-            tr("Not a valid Throne backup file."));
+            tr("Not a valid qThrone backup file."));
         return;
     }
 
@@ -905,9 +905,9 @@ void DialogBasicSettings::on_backup_restore_clicked() {
     // The exit path's settingsRepo->Save() would write the stale in-memory values back over the restore.
     if (chosen.settings) Configs::dataManager->settingsRepo->noSave = true;
 
-    QString done = tr("Backup restored successfully. Throne will now restart for the changes to take effect.");
+    QString done = tr("Backup restored successfully. qThrone will now restart for the changes to take effect.");
     if (skippedRules > 0)
-        done += "\n\n" + tr("Skipped %n routing rule(s) that use conditions this version of Throne does not support.", nullptr, skippedRules);
+        done += "\n\n" + tr("Skipped %n routing rule(s) that use conditions this version of qThrone does not support.", nullptr, skippedRules);
     QMessageBox::information(this, tr("Restore Complete"), done);
     MW_dialog_message(MwMessage::RestartProgram, {});
     QDialog::reject();

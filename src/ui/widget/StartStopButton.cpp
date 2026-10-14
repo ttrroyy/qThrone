@@ -72,7 +72,7 @@ void StartStopButton::updateToolTip() {
         case Lock::Hidden: break;
         case Lock::Pending: tip += "\n" + tr("Kill switch: starting…"); break;
         case Lock::Blocking: tip += "\n" + tr("Kill switch: Tun is not running, so most traffic is blocked"); break;
-        case Lock::Passing: tip += "\n" + tr("Kill switch: on — traffic only flows through Throne's Tun"); break;
+        case Lock::Passing: tip += "\n" + tr("Kill switch: on — traffic only flows through qThrone's Tun"); break;
         case Lock::Fault: tip += "\n" + tr("Kill switch is not active"); break;
     }
     setToolTip(tip);

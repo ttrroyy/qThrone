@@ -15,17 +15,17 @@ import (
 
 	"github.com/xtls/xray-core/core"
 
-	"ThroneCore/internal/boxmain"
-	"ThroneCore/internal/guard"
-	"ThroneCore/internal/ipc"
-	"ThroneCore/internal/parentcheck"
-	"ThroneCore/internal/providergeo"
-	"ThroneCore/internal/relay"
-	"ThroneCore/internal/rpc"
+	"qThroneCore/internal/boxmain"
+	"qThroneCore/internal/guard"
+	"qThroneCore/internal/ipc"
+	"qThroneCore/internal/parentcheck"
+	"qThroneCore/internal/providergeo"
+	"qThroneCore/internal/relay"
+	"qThroneCore/internal/rpc"
 
 	C "github.com/sagernet/sing-box/constant"
 
-	_ "ThroneCore/internal/distro/all"
+	_ "qThroneCore/internal/distro/all"
 )
 
 const (
@@ -85,11 +85,14 @@ func writeHeapProfile() (string, error) {
 }
 
 func RunCore() {
-	socketName := os.Getenv("THRONE_CORE_SOCKET")
+	socketName := os.Getenv("QTHRONE_CORE_SOCKET")
 	if socketName == "" {
-		log.Fatal("THRONE_CORE_SOCKET not set")
+		socketName = os.Getenv("THRONE_CORE_SOCKET")
 	}
-	debug := os.Getenv("THRONE_CORE_DEBUG") == "1"
+	if socketName == "" {
+		log.Fatal("QTHRONE_CORE_SOCKET not set")
+	}
+	debug := os.Getenv("QTHRONE_CORE_DEBUG") == "1" || os.Getenv("THRONE_CORE_DEBUG") == "1"
 
 	parentcheck.CheckParentProcess()
 	if err := guard.ApplyIdentity(); err != nil {

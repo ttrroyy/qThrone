@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"ThroneCore/gen"
-	"ThroneCore/internal/process"
+	"qThroneCore/gen"
+	"qThroneCore/internal/process"
 	"github.com/google/shlex"
 )
 

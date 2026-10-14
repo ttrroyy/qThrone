@@ -189,7 +189,7 @@ void MainWindow::on_menu_exit_triggered() {
         elevating = false;
         if (!launched) {
             exit_reason = ExitReason::None;
-            MW_show_log(tr("Restart as administrator was cancelled, Throne keeps running"));
+            MW_show_log(tr("Restart as administrator was cancelled, qThrone keeps running"));
             return;
         }
         relaunched = true;
@@ -265,7 +265,7 @@ bool MainWindow::get_elevated_permissions(bool interactive) {
     }
 #endif
 #ifdef Q_OS_WIN
-    auto n = QMessageBox::warning(GetMessageBoxParent(), software_name, tr("Please run Throne as admin"), QMessageBox::Yes | QMessageBox::No);
+    auto n = QMessageBox::warning(GetMessageBoxParent(), software_name, tr("Please run qThrone as admin"), QMessageBox::Yes | QMessageBox::No);
     if (n == QMessageBox::Yes) {
         this->exit_reason = ExitReason::RestartWithTun;
         on_menu_exit_triggered();
@@ -499,7 +499,7 @@ void MainWindow::show_startstop_menu() {
 
 void MainWindow::confirm_disable_kill_switch() {
     auto *box = new QMessageBox(QMessageBox::Warning, tr("Disable kill switch"),
-                                tr("Turn off the kill switch? Traffic that does not go through Throne will no longer be blocked."),
+                                tr("Turn off the kill switch? Traffic that does not go through qThrone will no longer be blocked."),
                                 QMessageBox::NoButton, this);
     box->setAttribute(Qt::WA_DeleteOnClose);
     auto *disable = box->addButton(tr("Disable Kill Switch"), QMessageBox::DestructiveRole);

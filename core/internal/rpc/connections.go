@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"ThroneCore/gen"
+	"qThroneCore/gen"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/sagernet/sing-box/common/trafficcontrol"

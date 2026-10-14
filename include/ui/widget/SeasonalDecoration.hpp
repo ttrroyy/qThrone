@@ -68,10 +68,10 @@ protected:
     void showEvent(QShowEvent *event) override { QWidget::showEvent(event); if (enabled) timer.start(); }
     void hideEvent(QHideEvent *event) override { timer.stop(); QWidget::hideEvent(event); }
     void paintEvent(QPaintEvent *) override {
-        if (!enabled || width() < 90 || height() < 24) return;
+        if (!enabled || width() < 24 || height() < 24) return;
         QPainter p(this);
         p.setRenderHint(QPainter::Antialiasing, false);
-        const qreal scale = 64.0 / 46.0;
+        const qreal scale = qMin(height() / 46.0, width() / 136.0);
         p.translate(width() - 136 * scale, height() - 46 * scale);
         p.scale(scale, scale);
         p.setClipRect(0, 0, 136, 46);
@@ -234,15 +234,18 @@ private:
     void updateBounds() {
         if (!anchor || !bottom || !parentWidget()) return;
         // Give status text the available width before reserving room for artwork.
-        const int available = noticePriority || parentWidget()->width() < 1130 ? 0 : 230;
+        const int available = noticePriority ? 0 : 230;
+        anchor->setMinimumWidth(enabled && !noticePriority ? 90 : 0);
         if (anchor->maximumWidth() != available) anchor->setMaximumWidth(available);
         anchor->setVisible(enabled && !noticePriority);
         setVisible(enabled && !noticePriority);
 
         const QPoint top = anchor->mapTo(parentWidget(), QPoint(0, 0));
         const int baseline = bottom->mapTo(parentWidget(), QPoint(0, bottom->height())).y();
-        const bool fits = enabled && !noticePriority && available > 0 && anchor->width() - rightInset >= 190 && baseline - top.y() >= 64;
-        setGeometry(top.x() + qMax(0, anchor->width() - rightInset - 190), baseline - 64, 190, 64);
+        const int artWidth = qMin(190, qMax(0, anchor->width() - rightInset));
+        const int artHeight = qMin(64, baseline - top.y());
+        const bool fits = enabled && !noticePriority && available > 0 && artWidth >= 24 && artHeight >= 24;
+        setGeometry(top.x() + qMax(0, anchor->width() - rightInset - artWidth), baseline - artHeight, artWidth, artHeight);
         setVisible(fits);
         if (fits) timer.start(); else timer.stop();
         raise();
@@ -259,6 +262,7 @@ private:
 inline SeasonalDecoration *installSeasonalDecoration(QWidget *central, QHBoxLayout *topBar,
                                                      QTabBar *tabs, QToolButton *filter) {
     auto *space = new SeasonalDecorationSpace(central);
+    space->setObjectName("seasonalDecorationSpace");
     topBar->addWidget(space);
     auto *decoration = new SeasonalDecoration(central);
     decoration->setAnchors(space, tabs, filter->sizeHint().width());

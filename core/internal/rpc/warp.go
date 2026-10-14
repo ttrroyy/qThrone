@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"ThroneCore/gen"
-	"ThroneCore/internal/warp"
+	"qThroneCore/gen"
+	"qThroneCore/internal/warp"
 )
 
 const (

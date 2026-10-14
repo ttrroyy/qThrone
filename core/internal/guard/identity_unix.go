@@ -8,7 +8,7 @@ import (
 )
 
 func IdentityEnabled() bool {
-	return os.Getenv(EnvIdentity) == "1"
+	return os.Getenv(EnvIdentity) == "1" || os.Getenv("THRONE_GUARD") == "1"
 }
 
 // ApplyIdentity must run before the core opens any socket: the kernel stamps a socket with the creator's fsgid once.

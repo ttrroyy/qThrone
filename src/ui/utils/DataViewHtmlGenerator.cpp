@@ -109,6 +109,11 @@ bool DataViewHtmlGenerator::hasPendingRestart() const {
     QMutexLocker lk(&mu_);
     return pendingRestart_.visible;
 }
+bool DataViewHtmlGenerator::hasPriorityNotice() const {
+    QMutexLocker lk(&mu_);
+    return pendingRestart_.visible || download_.visible || speedtest_.visible || latencyTest_.visible ||
+           (vpnEndpoint_.visible && vpnEndpoint_.problem) || !scanner_.isEmpty();
+}
 
 void DataViewHtmlGenerator::setScannerPanel(const QList<ScannerPanelItem> &items) {
     QMutexLocker lk(&mu_);

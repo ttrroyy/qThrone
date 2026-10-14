@@ -15,7 +15,7 @@ import (
 	"time"
 	"unsafe"
 
-	"ThroneCore/internal/winipcfg"
+	"qThroneCore/internal/winipcfg"
 
 	"golang.org/x/sys/windows"
 )

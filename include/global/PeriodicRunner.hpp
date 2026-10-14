@@ -6,7 +6,7 @@
 
 class QTimer;
 
-namespace Throne {
+namespace qThrone {
 
 // The last-run time is persisted through setLastRun, so the schedule survives restarts and catches up on missed windows.
 struct PeriodicTask {
@@ -38,4 +38,4 @@ private:
     std::vector<PeriodicTask> m_tasks;
 };
 
-} // namespace Throne
+} // namespace qThrone

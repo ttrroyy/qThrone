@@ -12,7 +12,7 @@ import (
 	"strings"
 	"syscall"
 
-	"ThroneCore/internal/guard"
+	"qThroneCore/internal/guard"
 )
 
 func startChild(path string, args []string, noOut bool, input *os.File, observers ...func([]byte)) (running, error) {

@@ -64,7 +64,7 @@ void MainWindow::UpdateDataView(bool force)
     }
     auto html = dataViewHtmlGenerator_.buildHtml();
     runOnUiThread([=, this] {
-        if (seasonalDecoration) seasonalDecoration->setNoticePriority(dataViewHtmlGenerator_.hasPendingRestart());
+        if (seasonalDecoration) seasonalDecoration->setNoticePriority(dataViewHtmlGenerator_.hasPriorityNotice());
         ui->data_view->setHtml(html);
     }, true);
     lastUpdatedMs.store(QDateTime::currentMSecsSinceEpoch());
@@ -347,9 +347,11 @@ void MainWindow::refresh_proxy_list_column_size() {
                 hHeader->setSectionResizeMode(i, QHeaderView::Interactive);
                 hHeader->resizeSection(i, group->column_width.at(i));
             }
-            ui->profilesTableView->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+            ui->profilesTableView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         }
-        hHeader->adjustPositions();
+        // Stored sizes are proportions, not a fixed canvas wider than the
+        // viewport. Fill the table on growth and keep every column on shrink.
+        hHeader->fitToWidth(ui->profilesTableView->viewport()->width());
         vBar->blockSignals(vBarBlocked);
         m_adjustingColumns = false;
     });

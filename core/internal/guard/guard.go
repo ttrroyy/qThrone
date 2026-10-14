@@ -29,7 +29,7 @@ import (
 const GID = 0x7448524F
 
 // EnvIdentity makes a root core adopt GID before it opens any socket.
-const EnvIdentity = "THRONE_GUARD"
+const EnvIdentity = "QTHRONE_GUARD"
 
 const (
 	CodePrivilege   = "privilege"

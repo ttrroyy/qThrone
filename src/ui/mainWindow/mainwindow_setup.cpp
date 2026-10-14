@@ -499,6 +499,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
             group->column_width.push_back(ui->profilesTableView->horizontalHeader()->sectionSize(i));
         }
         Configs::dataManager->groupsRepo->Save(Configs::dataManager->groupsRepo->CurrentGroup());
+        refresh_proxy_list_column_size();
     });
     ui->profilesTableView->horizontalHeader()->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(ui->profilesTableView->horizontalHeader(), &QWidget::customContextMenuRequested, this, [this](const QPoint& pos) {
@@ -688,6 +689,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
         refresh_proxy_list_column_size();
     });
     ui->profilesTableView->viewport()->installEventFilter(this);
+    ui->masterLogBrowser->viewport()->installEventFilter(this);
+    ui->data_view->viewport()->installEventFilter(this);
+    ui->centralwidget->installEventFilter(this);
+    if (auto *space = ui->centralwidget->findChild<QWidget *>("seasonalDecorationSpace")) space->installEventFilter(this);
 
     auto *filterHeader = static_cast<ProfilesTableFilterHeader*>(ui->profilesTableView->horizontalHeader());
     filterHeader->setLastFilterColumn(Configs::dataManager->settingsRepo->last_filter_column);
@@ -1126,7 +1131,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     }, Qt::QueuedConnection);
 
     {
-        auto* runner = Throne::PeriodicRunner::instance();
+        auto* runner = qThrone::PeriodicRunner::instance();
         // Interval is sign-encoded in settings (negative = disabled); < 30 min counts as off.
         const auto minutesOf = [](int v) { return v >= 30 ? v : 0; };
         // Every poll while enabled: each group keeps its own schedule, persisted as its sub_last_update.

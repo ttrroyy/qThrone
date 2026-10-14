@@ -302,7 +302,7 @@ DialogManageRoutes::DialogManageRoutes(QWidget *parent) : QDialog(parent), ui(ne
         if (!group || group->archive || (group->url.isEmpty() && group->sub_options.routing_provider.isEmpty())) continue;
         auto item = new QListWidgetItem(group->name, subscriptionList); item->setData(Qt::UserRole, gid);
     }
-    auto subscriptionEdit = new QPushButton(tr("Настроить маршрутизацию подписки")); subscriptionsLayout->addWidget(subscriptionEdit);
+    auto subscriptionEdit = new QPushButton(tr("Редактировать")); subscriptionsLayout->addWidget(subscriptionEdit);
     const auto editSubscription = [this, subscriptionList] {
         if (!subscriptionList->currentItem()) return;
         const auto gid = subscriptionList->currentItem()->data(Qt::UserRole).toInt();
@@ -665,7 +665,7 @@ void DialogManageRoutes::on_import_route_clicked()
 
     auto layout = new QGridLayout(w);
     auto tEdit = new QTextEdit(w);
-    tEdit->setPlaceholderText(tr("Paste a Throne route link, a remoteRoute link, a base64 blob, or a JSON rule array"));
+    tEdit->setPlaceholderText(tr("Paste a qThrone route link, a remoteRoute link, a base64 blob, or a JSON rule array"));
     layout->addWidget(tEdit, 0, 0);
 
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, Qt::Horizontal, w);
