@@ -248,7 +248,11 @@ std::shared_ptr<Configs::RouteProfile> Profile(const QJsonObject &doc, const QSt
                 else
                     rule->domain_suffix << (text.startsWith("domain:") ? text.mid(7) : text);
             }
-            if (!rule->isEmpty())
+            // RouteRule::isEmpty serializes the action; an empty block becomes a
+            // catch-all reject and an empty route retains its outbound. Only
+            // append provider rules that actually contain matching conditions.
+            if (!rule->domain.isEmpty() || !rule->domain_suffix.isEmpty() || !rule->domain_keyword.isEmpty() ||
+                !rule->domain_regex.isEmpty() || !rule->rule_set.isEmpty() || !rule->ip_cidr.isEmpty())
                 profile->Rules.append(rule);
         }
     }

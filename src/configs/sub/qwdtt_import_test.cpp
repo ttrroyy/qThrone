@@ -1,5 +1,6 @@
 #include "include/configs/sub/SubscriptionParser.hpp"
 #include "include/configs/sub/ProviderRouting.h"
+#include "include/configs/sub/GroupUpdater.hpp"
 #include "include/ui/group/dialog_provider_routing.h"
 #include "include/configs/outbounds/qwdtt.h"
 #include "include/configs/outbounds/csqtt.h"
@@ -23,6 +24,7 @@
 #include <QDir>
 #include <QScopeGuard>
 #include "include/global/Version.hpp"
+#include "NkrVersion.h"
 #include "include/ui/profile/edit_qwdtt.h"
 #include "include/ui/setting/dialog_vk_relay.h"
 #include <QStandardItemModel>
@@ -53,6 +55,20 @@ int TestQwdttImport() {
         Configs::dataManager = previousManager;
     });
     int failures = 0;
+    {
+        auto *settings = Configs::dataManager->settingsRepo.get();
+        const auto savedAgent = settings->user_agent;
+        const auto restoreAgent = qScopeGuard([&] { settings->user_agent = savedAgent; });
+        settings->user_agent.clear();
+        if (settings->GetUserAgent() != QStringLiteral("qThrone/") + QStringLiteral(NKR_VERSION) ||
+            Subscription::ResolveIdentity(nullptr).userAgent != QStringLiteral("Happ/3.0 qThrone/") + QStringLiteral(NKR_VERSION)) {
+            qWarning("Client/subscription User-Agent does not match the build version"); ++failures;
+        }
+        settings->user_agent = "Custom/agent";
+        if (settings->GetUserAgent() != "Custom/agent" || Subscription::ResolveIdentity(nullptr).userAgent != "Custom/agent") {
+            qWarning("Custom User-Agent not preserved"); ++failures;
+        }
+    }
     const auto check = [&failures](bool ok, const char *name) {
         if (!ok) { qCritical() << "qWDTT import test failed:" << name; ++failures; }
     };
@@ -139,6 +155,9 @@ int TestQwdttImport() {
         const auto link = QStringLiteral("happ://routing/onadd/") + QString::fromLatin1(QJsonDocument(document).toJson(QJsonDocument::Compact).toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
         PR::Command command; QString error;
         check(PR::Parse(link, command, error) && command.activate, "Happ routing command parses");
+        auto incyLink = link; incyLink.replace("happ://", "incy://");
+        check(PR::Parse(incyLink, command, error) && command.activate && command.provider == "Incy", "Incy routing command preserves routing document");
+        check(PR::Parse(link, command, error), "Happ routing restores provider identity");
         const auto wrapped = "https://example.org/launch?url=" + QString::fromLatin1(QUrl::toPercentEncoding(link));
         check(PR::IsLink(wrapped) && PR::Parse(wrapped, command, error), "wrapped Happ routing link decodes locally");
         const QByteArray server = "vless://00000000-0000-0000-0000-000000000001@192.0.2.10:443?security=tls#Server";

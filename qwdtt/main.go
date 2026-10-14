@@ -59,10 +59,16 @@ func drainCaptchaResult() {
 func runHashChecks(ctx context.Context, hashes []string) {
 	log.Printf("[CHECK] Проверка VK-хешей: %d", len(hashes))
 	for i, hash := range hashes {
+		if ctx.Err() != nil {
+			return
+		}
 		fmt.Printf("HASH_CHECK_START|%d|%s\n", i+1, hash)
 		checkCtx, cancel := context.WithTimeout(ctx, 90*time.Second)
 		_, _, turnURLs, err := GetCreds(checkCtx, hash, 9000+i)
 		cancel()
+		if ctx.Err() != nil {
+			return
+		}
 
 		status, message := classifyHashCheckError(err)
 		if err == nil {
@@ -196,7 +202,17 @@ func main() {
 	tunFdSock := flag.String("tun-fd-sock", "", "unix-сокет для получения TUN fd от Android (только -mode rawtun)")
 
 	bridgeConfigPath := flag.String("config", "", "private qThrone bridge configuration")
+	hashCheckConfig := flag.String("hash-check-config", "", "private qThrone hash check configuration")
 	flag.Parse()
+	if *hashCheckConfig != "" {
+		if *bridgeConfigPath != "" {
+			log.Fatal("[CHECK] Cannot combine tunnel and hash-check configs")
+		}
+		if err := applyHashCheckConfig(*hashCheckConfig); err != nil {
+			log.Fatalf("[CHECK] Config: %v", err)
+		}
+		bridgeContext, bridgeCancel = ctx, cancel
+	}
 	if *bridgeConfigPath != "" {
 		if err := applyBridgeConfig(*bridgeConfigPath); err != nil {
 			log.Fatalf("[qWDTT] Config: %v", err)

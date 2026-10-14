@@ -6,6 +6,18 @@
 #include <QLabel>
 #include <QSignalBlocker>
 #include <QStandardItemModel>
+#include <QApplication>
+#include <QClipboard>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QHBoxLayout>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QProcess>
+#include <QPushButton>
+#include <QTemporaryDir>
+#include <QTimer>
 
 EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
     form = new QFormLayout(this);
@@ -31,8 +43,102 @@ EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
         hashes[i] = new QLineEdit(this);
         hashes[i]->setObjectName(QString("qwdttHash%1").arg(i + 1));
         hashes[i]->setPlaceholderText(tr("Call hash or VK call link"));
-        form->addRow(tr("VK hash %1").arg(i + 1), hashes[i]);
+        hashRows[i] = new QWidget(this);
+        auto *row = new QHBoxLayout(hashRows[i]);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->addWidget(hashes[i]);
+        auto *copy = new QPushButton(QStringLiteral("Копировать"), hashRows[i]);
+        copy->setObjectName(QString("qwdttHashCopy%1").arg(i + 1));
+        copy->setEnabled(false);
+        row->addWidget(copy);
+        hashStatus[i] = new QLabel(hashRows[i]);
+        row->addWidget(hashStatus[i]);
+        connect(copy, &QPushButton::clicked, this, [this, i] {
+            QApplication::clipboard()->setText(hashes[i]->text().trimmed());
+        });
+        connect(hashes[i], &QLineEdit::textChanged, this, [this, i, copy] {
+            copy->setEnabled(!hashes[i]->text().trimmed().isEmpty());
+            hashStatus[i]->clear();
+            stopHashCheck();
+        });
+        form->addRow(tr("VK hash %1").arg(i + 1), hashRows[i]);
     }
+    hashProcess = new QProcess(this);
+    checkHashes = new QPushButton(QStringLiteral("Проверить хеши"), this);
+    checkHashes->setObjectName("qwdttCheckHashes");
+    form->addRow(checkHashes);
+    auto *timeout = new QTimer(this);
+    timeout->setSingleShot(true);
+    connect(timeout, &QTimer::timeout, this, [this] { stopHashCheck(); });
+    connect(hashProcess, &QProcess::readyReadStandardOutput, this, [this] {
+        hashCheckOutput += hashProcess->readAllStandardOutput();
+        while (hashCheckOutput.contains('\n')) {
+            const auto end = hashCheckOutput.indexOf('\n');
+            const auto parts = QString::fromUtf8(hashCheckOutput.left(end)).trimmed().split('|');
+            hashCheckOutput.remove(0, end + 1);
+            if (hashCheckStopped || parts.size() < 3 ||
+                (parts[0] != "HASH_CHECK_START" && parts[0] != "HASH_CHECK")) continue;
+            const int order = parts[1].toInt() - 1;
+            if (order < 0 || order >= checkingSlots.size()) continue;
+            auto *label = hashStatus[checkingSlots[order]];
+            if (parts[0] == "HASH_CHECK_START") label->setText("Проверяется…");
+            else if (parts.size() >= 5) {
+                const QString status = parts[3] == "ok" ? "Работает" : parts[3] == "dead" ? "Закрыт" :
+                    parts[3] == "captcha" ? "Капча" : parts[3] == "limited" ? "Лимит VK" : "Ошибка";
+                label->setText(status);
+                label->setToolTip(parts.mid(4).join('|'));
+            }
+        }
+    });
+    // Diagnostic logs can contain URLs/captcha tokens; only structured results reach the UI.
+    connect(hashProcess, &QProcess::readyReadStandardError, this, [this] { hashProcess->readAllStandardError(); });
+    const auto finishedCheck = [this, timeout] {
+        timeout->stop();
+        checkHashes->setText("Проверить хеши");
+        checkHashes->setEnabled(true);
+        for (int i : checkingSlots)
+            if (hashStatus[i]->text().isEmpty() || hashStatus[i]->text() == "Проверяется…")
+                hashStatus[i]->setText(hashCheckStopped ? "Остановлено" : "Нет ответа");
+        hashCheckDirectory.reset();
+    };
+    connect(hashProcess, &QProcess::finished, this, finishedCheck);
+    connect(hashProcess, &QProcess::errorOccurred, this, [=](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart) finishedCheck();
+    });
+    connect(checkHashes, &QPushButton::clicked, this, [this, timeout] {
+        if (hashProcess->state() != QProcess::NotRunning) { stopHashCheck(); return; }
+        QJsonArray values;
+        checkingSlots.clear();
+        for (int i = 0; i < 4; ++i) {
+            const auto normalized = Configs::qwdtt::NormalizeHashes({hashes[i]->text()});
+            hashStatus[i]->clear();
+            if (!normalized.isEmpty()) { values.append(normalized.first()); checkingSlots.append(i); }
+        }
+        if (values.isEmpty()) { MessageBoxWarning("qWDTT", "Укажите хеши для проверки."); return; }
+        QString executable = "qwdtt";
+#ifdef Q_OS_WIN
+        executable += ".exe";
+#endif
+        executable = QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(executable);
+        if (!QFileInfo(executable).isExecutable()) { MessageBoxWarning("qWDTT", "Клиент проверки qWDTT не найден."); return; }
+        hashCheckDirectory = std::make_unique<QTemporaryDir>(QDir::tempPath() + "/qthrone-hash-check-XXXXXX");
+        QFile config(hashCheckDirectory->filePath("check.json"));
+        if (!hashCheckDirectory->isValid() || !config.open(QIODevice::WriteOnly)) {
+            MessageBoxWarning("qWDTT", "Не удалось создать файл проверки."); hashCheckDirectory.reset(); return;
+        }
+        config.setPermissions(QFile::ReadOwner | QFile::WriteOwner);
+        const auto data = QJsonDocument(QJsonObject{{"hashes", values}, {"captcha_mode", captcha->currentData().toString()},
+            {"vk_anon_path", authorization->currentData().toString()}, {"go_dns", dns->currentText()},
+            {"device_id", device->text()}}).toJson(QJsonDocument::Compact);
+        if (config.write(data) != data.size()) { config.close(); hashCheckDirectory.reset(); return; }
+        config.close();
+        hashCheckStopped = false;
+        hashCheckOutput.clear();
+        checkHashes->setText("СТОП");
+        hashProcess->setWorkingDirectory(hashCheckDirectory->path());
+        hashProcess->start(executable, {"-hash-check-config", config.fileName()});
+        timeout->start(qMax(90000, int(values.size()) * 100000));
+    });
     rawPort = new QSpinBox(this);
     rawPort->setRange(1, 65535);
     rawPort->setValue(56003);
@@ -42,10 +148,13 @@ EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
     workers->setObjectName("qwdttWorkers");
     const auto updateSource = [this] {
         const bool automatic = hashSource->currentData() == "auto";
-        for (auto *field : hashes) {
-            field->setVisible(!automatic);
-            form->labelForField(field)->setVisible(!automatic);
+        stopHashCheck();
+        for (int i = 0; i < 4; ++i) {
+            hashes[i]->setVisible(!automatic);
+            hashRows[i]->setVisible(!automatic);
+            form->labelForField(hashRows[i])->setVisible(!automatic);
         }
+        checkHashes->setVisible(!automatic);
         autoHashCount->setVisible(automatic);
         form->labelForField(autoHashCount)->setVisible(automatic);
         updateWorkers();
@@ -94,6 +203,28 @@ EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
     });
     connect(mode, &QComboBox::currentIndexChanged, this,
             [this](int) { rawPort->setEnabled(mode->currentData() == "raw"); });
+}
+
+void EditQWDTT::stopHashCheck() {
+    if (!hashProcess || hashProcess->state() == QProcess::NotRunning || hashCheckStopped) return;
+    hashCheckStopped = true;
+    hashProcess->write("STOP\n");
+    checkHashes->setText("Проверить хеши");
+    checkHashes->setEnabled(false);
+    for (int i : checkingSlots) {
+        if (hashStatus[i]->text().isEmpty() || hashStatus[i]->text() == "Проверяется…") hashStatus[i]->setText("Остановлено");
+    }
+    QTimer::singleShot(1000, hashProcess, [this] {
+        if (hashCheckStopped && hashProcess->state() != QProcess::NotRunning) hashProcess->kill();
+    });
+}
+
+EditQWDTT::~EditQWDTT() {
+    hashProcess->disconnect(this);
+    if (hashProcess->state() != QProcess::NotRunning) {
+        hashProcess->write("STOP\n");
+        if (!hashProcess->waitForFinished(1000)) { hashProcess->kill(); hashProcess->waitForFinished(1000); }
+    }
 }
 
 void EditQWDTT::onStart(std::shared_ptr<Configs::Profile> profile) {
