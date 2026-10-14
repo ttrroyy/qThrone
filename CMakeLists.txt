@@ -405,6 +405,8 @@ set(PROJECT_SOURCES
         include/ui/setting/dialog_manage_routes.ui
 
         src/ui/setting/dialog_vpn_settings.cpp
+        include/ui/setting/dialog_vk_relay.h
+        src/ui/setting/dialog_vk_relay.cpp
         include/ui/setting/dialog_vpn_settings.h
         include/ui/setting/dialog_vpn_settings.ui
 

@@ -34,6 +34,7 @@
 #include "include/ui/setting/dialog_otp_manager.h"
 #include "include/ui/setting/dialog_preset_settings.h"
 #include "include/ui/setting/dialog_vpn_settings.h"
+#include "include/ui/setting/dialog_vk_relay.h"
 
 #ifdef Q_OS_WIN
 #include "3rdparty/WinCommander.hpp"
@@ -78,6 +79,9 @@ void MainWindow::on_menu_routing_settings_triggered() {
 
 void MainWindow::on_menu_vpn_settings_triggered() {
     USE_DIALOG(DialogVPNSettings)
+}
+void MainWindow::on_menu_vk_relay_settings_triggered() {
+    USE_DIALOG(DialogVKRelay)
 }
 
 void MainWindow::on_menu_preset_settings_triggered() {

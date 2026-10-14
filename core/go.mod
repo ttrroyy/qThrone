@@ -33,6 +33,7 @@ replace github.com/sagernet/wireguard-go => github.com/throneproj/wireguard-go v
 replace github.com/sagernet/sing => github.com/throneproj/sing v0.9.4-0.20261002235655-c4c9e6e3b2c1
 
 require (
+	al.essio.dev/pkg/shellescape v1.5.1 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/RyuaNerin/go-krypto v1.3.0 // indirect
 	github.com/ajg/form v1.5.1 // indirect
@@ -52,6 +53,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.17.0 // indirect
 	github.com/creack/pty v1.1.24 // indirect
 	github.com/cretz/bine v0.2.0 // indirect
+	github.com/danieljoos/wincred v1.2.2 // indirect
 	github.com/database64128/netx-go v0.1.1 // indirect
 	github.com/database64128/tfo-go/v2 v2.4.0 // indirect
 	github.com/dblohm7/wingoes v0.0.0-20240119213807-a09d6be7affa // indirect
@@ -190,6 +192,7 @@ require (
 	github.com/xchacha20-poly1305/sing-trusttunnel v0.3.0-beta.7 // indirect
 	github.com/xtls/reality v0.0.0-20260908062103-8cdf7bf9c7f0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
+	github.com/zalando/go-keyring v0.2.6 // indirect
 	github.com/zeebo/blake3 v0.2.4 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.1 // indirect

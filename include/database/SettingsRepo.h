@@ -308,6 +308,9 @@ namespace Configs {
 
         // Extra Core Paths
         QStringList extraCorePaths = {};
+        QString qwdtt_hash_source = "manual";
+        int qwdtt_auto_hash_count = 1;
+        bool vk_relay_linked = false;
 
         // Last 5 custom entries per field.
         QStringList dial_bind_interface_history = {};

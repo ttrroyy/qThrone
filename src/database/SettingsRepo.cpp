@@ -21,6 +21,7 @@ namespace Configs {
 
     void SettingsRepo::initMaps() {
         boolMap = {
+            {"vk_relay_linked", &vk_relay_linked},
             {"disable_tray",                  &disable_tray},
             {"random_inbound_port",           &random_inbound_port},
             {"mux_padding",                   &mux_padding},
@@ -91,6 +92,7 @@ namespace Configs {
         };
 
         intMap = {
+            {"qwdtt_auto_hash_count", &qwdtt_auto_hash_count},
             {"current_group",          &current_group},
             {"last_filter_column",     &last_filter_column},
             {"inbound_socks_port",     &inbound_socks_port},
@@ -127,6 +129,7 @@ namespace Configs {
         };
 
         stringMap = {
+            {"qwdtt_hash_source", &qwdtt_hash_source},
             {"user_agent2",                &user_agent},
             {"test_url",                   &test_latency_url},
             {"direct_test_url",            &direct_test_url},

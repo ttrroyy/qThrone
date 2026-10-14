@@ -757,6 +757,7 @@ QToolButton::menu-indicator {
     <addaction name="menu_basic_settings"/>
     <addaction name="menu_routing_settings"/>
     <addaction name="menu_vpn_settings"/>
+    <addaction name="menu_vk_relay_settings"/>
     <addaction name="menu_preset_settings"/>
     <addaction name="menu_integration_settings"/>
     <addaction name="menu_open_config_folder"/>
@@ -1172,6 +1173,11 @@ QToolButton::menu-indicator {
   <action name="menu_preset_settings">
    <property name="text">
     <string>Preset Settings</string>
+   </property>
+  </action>
+  <action name="menu_vk_relay_settings">
+   <property name="text">
+    <string>Настройки VK-релея</string>
    </property>
   </action>
   <action name="menu_otp_manager">
