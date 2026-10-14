@@ -173,6 +173,29 @@ namespace Configs
         }
     } // namespace
 
+    QJsonObject Custom::DisplaySingBoxOutbound() const {
+        const auto object = QString2QJsonObject(config);
+        if (type != CustomFullConfig) return object;
+        return resolveSingBoxEgress(object["outbounds"].toArray(), object["route"].toObject()["final"].toString(), 16);
+    }
+
+    QString Custom::DisplaySingBoxType() const {
+        const auto object = DisplaySingBoxOutbound();
+        auto protocol = object["type"].toString();
+        if (protocol.isEmpty()) return type == CustomFullConfig ? "Custom Config" : "Custom Outbound";
+        if (protocol == "hysteria2") return "Hysteria2";
+        if (protocol != "custom") {
+            std::shared_ptr<outbound> parsed(NewOutboundByType(protocol));
+            if (parsed && !parsed->invalid) {
+                parsed->ParseFromJson(object);
+                const auto label = parsed->DisplayType();
+                if (!label.isEmpty()) return label;
+            }
+        }
+        protocol[0] = protocol[0].toUpper();
+        return protocol + " (sing-box)";
+    }
+
     QJsonObject Custom::DisplayXrayOutbound() const {
         const auto object = QString2QJsonObject(config);
         if (type != CustomXrayFullConfig) return object;

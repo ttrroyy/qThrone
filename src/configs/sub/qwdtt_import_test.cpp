@@ -250,6 +250,16 @@ int TestQwdttImport() {
         }
         const auto hy = parse(R"({"remarks":"HY2","outbounds":[{"protocol":"freedom","tag":"direct"},{"protocol":"hysteria","tag":"hy","settings":{"address":"hy.example","port":443}}],"routing":{"balancers":[{"tag":"auto","selector":["hy"]}],"rules":[{"balancerTag":"auto"}]}})");
         check(hy.size() == 1 && hy.first()->outbound->DisplayType() == "Hysteria2 (Xray)" && hy.first()->outbound->DisplayAddress() == "hy.example:443", "JSON Hysteria2 retains its protocol and address despite embedded balancers");
+        for (const auto &protocol : QStringList{"vless", "vmess", "trojan", "shadowsocks", "socks", "http", "wireguard"}) {
+            Configs::Custom custom;
+            custom.type = Configs::Custom::CustomXrayFullConfig;
+            custom.config = QString::fromUtf8(QJsonDocument(QJsonObject{{"outbounds", QJsonArray{QJsonObject{{"protocol", protocol}, {"tag", "proxy"}, {"settings", QJsonObject{{"address", "protocol.example"}, {"port", 443}}}}}}, {"routing", QJsonObject{{"balancers", QJsonArray{QJsonObject{{"tag", "auto"}, {"selector", QJsonArray{"proxy"}}}}}, {"rules", QJsonArray{QJsonObject{{"balancerTag", "auto"}}}}}}}).toJson());
+            check(custom.DisplayType().contains(protocol, Qt::CaseInsensitive) && custom.DisplayAddress() == "protocol.example:443", "Xray JSON protocol display is generic across protocols");
+        }
+        Configs::Custom singBox;
+        singBox.type = Configs::Custom::CustomFullConfig;
+        singBox.config = R"({"outbounds":[{"type":"direct","tag":"direct"},{"type":"selector","tag":"auto","outbounds":["hy"]},{"type":"hysteria2","tag":"hy","server":"native.example","server_port":443}],"route":{"final":"auto"}})";
+        check(singBox.DisplayType() == "Hysteria2" && singBox.DisplayAddress() == "native.example:443", "sing-box JSON resolves selected proxy protocol and address");
     }
     const QByteArray csqttLink = "csqtt://connect?v=2&host=203.0.113.7&peer=46000&password=p%40ss&hashes=abcdefghijklmno%2Bp+abcdefghijklmnop2";
     const auto csProfiles = parse(csqttLink);
