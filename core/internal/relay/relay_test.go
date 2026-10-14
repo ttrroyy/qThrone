@@ -23,6 +23,29 @@ import (
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
+func TestFingerprintEventsPreserveShortSecretCharacters(t *testing.T) {
+	var output bytes.Buffer
+	p := &protocol{output: json.NewEncoder(&output), secrets: []string{"1"}}
+	fingerprint := "SHA256:a1b1c1d1e1f1"
+	for _, kind := range []string{"trust", "host-key", "admin-pin"} {
+		p.emit(kind, fingerprint, nil)
+	}
+	p.emit("log", "password=1", nil)
+	decoder := json.NewDecoder(&output)
+	for i := 0; i < 4; i++ {
+		var event Event
+		if e := decoder.Decode(&event); e != nil {
+			t.Fatal(e)
+		}
+		if i < 3 && event.Text != fingerprint {
+			t.Fatal("Fingerprint was corrupted by log redaction")
+		}
+		if i == 3 && event.Text != "password=[скрыто]" {
+			t.Fatal("Console secret was not redacted")
+		}
+	}
+}
+
 func TestUploadReplacesLongerSecret(t *testing.T) {
 	local, remote := net.Pipe()
 	defer local.Close()

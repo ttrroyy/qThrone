@@ -33,9 +33,11 @@ type protocol struct {
 }
 
 func (p *protocol) emit(kind, text string, value any) {
-	for _, secret := range p.secrets {
-		if secret != "" {
-			text = strings.ReplaceAll(text, secret, "[скрыто]")
+	if kind != "trust" && kind != "host-key" && kind != "admin-pin" {
+		for _, secret := range p.secrets {
+			if secret != "" {
+				text = strings.ReplaceAll(text, secret, "[скрыто]")
+			}
 		}
 	}
 	p.mu.Lock()
