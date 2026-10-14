@@ -354,9 +354,12 @@ jobs:
         if: runner.os == 'Windows' && matrix.target == 'x86'
         shell: pwsh
         run: |
-          choco install nasm --yes --no-progress
-          if ($LASTEXITCODE -ne 0) { throw 'NASM installation failed' }
-          $nasmDirectory = Join-Path $env:ProgramFiles 'NASM'
+          $nasmArchive = Join-Path $env:RUNNER_TEMP 'nasm-3.02-win64.zip'
+          Invoke-WebRequest -Uri 'https://www.nasm.us/pub/nasm/releasebuilds/3.02/win64/nasm-3.02-win64.zip' -OutFile $nasmArchive -TimeoutSec 60
+          if ((Get-FileHash -LiteralPath $nasmArchive -Algorithm SHA256).Hash -ne '161d0bfaff53c2f9e9f3e69fd0672323ebabafd1268976a5cec11be92a19aee7') { throw 'NASM archive checksum mismatch' }
+          $nasmRoot = Join-Path $env:RUNNER_TEMP 'nasm-toolchain'
+          Expand-Archive -LiteralPath $nasmArchive -DestinationPath $nasmRoot -Force
+          $nasmDirectory = Join-Path $nasmRoot 'nasm-3.02'
           if (!(Test-Path (Join-Path $nasmDirectory 'nasm.exe'))) { throw 'NASM executable missing' }
           $nasmDirectory | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
       - name: Build original CSQTT transport
