@@ -26,6 +26,8 @@
 #include <QPlainTextEdit>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QRegularExpression>
+#include <QRegularExpressionValidator>
 #include <QScrollArea>
 #include <QSpinBox>
 #include <QStandardItemModel>
@@ -192,13 +194,31 @@ class ServerEditor : public QDialog {
     RelayTask *task;
     QList<QWidget *> controls;
     std::function<void(QJsonObject)> save;
+    std::function<void(QJsonObject)> checkpoint;
+    void rememberConsole(bool persist = true) {
+        server["console"] = console->toPlainText().right(200000);
+        server["status"] = step->text();
+        server["progress"] = QString::number(progress->value());
+        if (persist && checkpoint)
+            checkpoint(server);
+    }
     void capture() {
+        const auto oldHost = server["host"].toString();
+        const auto oldPort = server["sshPort"].toString();
         for (auto it = fields.begin(); it != fields.end(); ++it)
             if (it.key() != "key")
                 server[it.key()] = it.value()->text();
         server["auth"] = auth->currentData().toString();
         if (server["auth"] == "password")
             server["sudoPassword"] = "";
+        else
+            server["sshPassword"] = "";
+        for (const auto &key : {"host", "user", "sshPort"})
+            server[key] = server[key].toString().trimmed();
+        if (server["host"].toString() != oldHost || server["sshPort"].toString() != oldPort) {
+            server["hostKey"] = "";
+            server["adminPin"] = "";
+        }
         server["manualPorts"] = manual->isChecked() ? "true" : "false";
         if (docker)
             server["docker"] = docker->isChecked() ? "true" : "false";
@@ -221,8 +241,11 @@ class ServerEditor : public QDialog {
             keys += {{"webUser", "Логин веб-панели"}, {"webPassword", "Пароль веб-панели"}};
         for (const auto &[key, label] : keys) {
             auto *edit = new QLineEdit(server[key].toString(), &dialog);
+            edit->setObjectName("relaySecret_" + key);
             if (key.contains("Token") || key.contains("assword"))
                 edit->setEchoMode(QLineEdit::Password);
+            if (key == "adminId")
+                edit->setValidator(new QRegularExpressionValidator(QRegularExpression("[0-9]*"), edit));
             edits[key] = edit;
             form->addRow(label, edit);
         }
@@ -254,42 +277,47 @@ class ServerEditor : public QDialog {
         progress->setValue(0);
         for (auto *widget : controls)
             widget->setEnabled(false);
-        task->start(
-            {{"operation", uninstall ? "uninstall" : "deploy"}, {"server", server}}, [this](const QJsonObject &event) {
-                const auto type = event["type"].toString();
-                const auto text = event["text"].toString();
-                if (type == "trust")
-                    task->approve(QMessageBox::question(this, "SSH-ключ VPS",
-                                                        "Первое подключение к " + server["host"].toString() + ".\n\n" +
-                                                            text + "\n\nДоверять этому ключу?") == QMessageBox::Yes);
-                if (type == "host-key") {
-                    server["hostKey"] = text;
-                }
-                if (type == "admin-pin") {
-                    server["adminPin"] = text;
-                }
-                if (type == "log") {
-                    console->moveCursor(QTextCursor::End);
-                    console->insertPlainText(text);
-                }
-                if (type == "progress") {
-                    step->setText(text);
-                    if (event["value"].isDouble())
-                        progress->setValue(event["value"].toInt());
-                }
-                if (type == "config") {
-                    server["config"] = event["value"];
-                    configuration->setPlainText(event["value"].toString());
-                }
-                if (type == "error") {
-                    step->setText(text);
-                    console->appendPlainText("Ошибка: " + text);
-                }
-                if (type == "finished") {
-                    for (auto *widget : controls)
-                        widget->setEnabled(true);
-                }
-            });
+        auto requestServer = server;
+        for (const auto &key : {"console", "status", "progress"})
+            requestServer.remove(key);
+        task->start({{"operation", uninstall ? "uninstall" : "deploy"}, {"server", requestServer}},
+                    [this](const QJsonObject &event) {
+                        const auto type = event["type"].toString();
+                        const auto text = event["text"].toString();
+                        if (type == "trust")
+                            task->approve(QMessageBox::question(this, "SSH-ключ VPS",
+                                                                "Первое подключение к " + server["host"].toString() +
+                                                                    ".\n\n" + text + "\n\nДоверять этому ключу?") ==
+                                          QMessageBox::Yes);
+                        if (type == "host-key") {
+                            server["hostKey"] = text;
+                        }
+                        if (type == "admin-pin") {
+                            server["adminPin"] = text;
+                        }
+                        if (type == "log") {
+                            console->moveCursor(QTextCursor::End);
+                            console->insertPlainText(text);
+                        }
+                        if (type == "progress") {
+                            step->setText(text);
+                            if (event["value"].isDouble())
+                                progress->setValue(event["value"].toInt());
+                        }
+                        if (type == "config") {
+                            server["config"] = event["value"];
+                            configuration->setPlainText(event["value"].toString());
+                        }
+                        if (type == "error") {
+                            step->setText(text);
+                            console->appendPlainText("Ошибка: " + text);
+                        }
+                        if (type == "finished") {
+                            for (auto *widget : controls)
+                                widget->setEnabled(true);
+                            rememberConsole();
+                        }
+                    });
     }
 
   protected:
@@ -303,12 +331,14 @@ class ServerEditor : public QDialog {
             }
             task->cancel();
         }
+        rememberConsole();
         QDialog::closeEvent(event);
     }
 
   public:
-    ServerEditor(QJsonObject value, std::function<void(QJsonObject)> callback, QWidget *parent)
-        : QDialog(parent), server(std::move(value)), save(std::move(callback)) {
+    ServerEditor(QJsonObject value, std::function<void(QJsonObject)> callback, QWidget *parent,
+                 std::function<void(QJsonObject)> consoleCallback = {})
+        : QDialog(parent), server(std::move(value)), save(std::move(callback)), checkpoint(std::move(consoleCallback)) {
         setWindowTitle("Управление сервером — " + server["kind"].toString());
         resize(760, 760);
         task = new RelayTask(this);
@@ -321,6 +351,7 @@ class ServerEditor : public QDialog {
         auto *layout = new QVBoxLayout(body);
         auto *secretsButton =
             new QPushButton(server["kind"] == "qwdtt" ? "Секреты (бот, пароли)" : "Авторизация", body);
+        secretsButton->setObjectName("relaySecrets");
         layout->addWidget(secretsButton);
         controls.append(secretsButton);
         connect(secretsButton, &QPushButton::clicked, this, [this] { secrets(); });
@@ -339,6 +370,7 @@ class ServerEditor : public QDialog {
         auto *form = new QFormLayout(group);
         const auto add = [&](const QString &key, const QString &label, bool secret = false) {
             auto *edit = new QLineEdit(server[key].toString(), group);
+            edit->setObjectName("relayField_" + key);
             if (secret)
                 edit->setEchoMode(QLineEdit::Password);
             fields[key] = edit;
@@ -350,18 +382,20 @@ class ServerEditor : public QDialog {
         add("user", "Логин SSH");
         add("sshPort", "Порт SSH");
         auth = new QComboBox(group);
+        auth->setObjectName("relayAuth");
         auth->addItem("Пароль", "password");
         auth->addItem("SSH-ключ", "key");
         auth->setCurrentIndex(server["auth"] == "key" ? 1 : 0);
         form->addRow("Вход на сервер", auth);
         auto *password = add("sshPassword", "Пароль SSH", true);
-        auto *sudoPassword = add("sudoPassword", "Пароль sudo (если требуется)", true);
         auto *key = add("key", "SSH-ключ");
         key->setReadOnly(true);
-        key->setText(server["key"].toString().isEmpty() ? "Не загружен" : "SSH-ключ загружен");
+        key->setText(server["key"].toString().isEmpty() ? "Не привязан" : "Привязан");
+        key->setToolTip(server["keyName"].toString());
         auto *loadKey = new QPushButton("Загрузить SSH-ключ…", group);
         form->addRow("", loadKey);
         auto *keyPassword = add("keyPassword", "Пароль SSH-ключа", true);
+        auto *sudoPassword = add("sudoPassword", "Пароль sudo (если требуется)", true);
         connect(loadKey, &QPushButton::clicked, this, [this, key] {
             const auto path = QFileDialog::getOpenFileName(this, "SSH-ключ");
             if (!path.isEmpty()) {
@@ -371,7 +405,9 @@ class ServerEditor : public QDialog {
                     return;
                 }
                 server["key"] = bytes;
-                key->setText(QFileInfo(path).fileName());
+                server["keyName"] = QFileInfo(path).fileName();
+                key->setText("Привязан");
+                key->setToolTip(server["keyName"].toString());
             }
         });
         const auto authVisibility = [this, password, sudoPassword, key, keyPassword, loadKey, form] {
@@ -391,10 +427,11 @@ class ServerEditor : public QDialog {
             add("dns2", "DNS 2");
         }
         manual = new QCheckBox("Ручное управление портами", group);
+        manual->setObjectName("relayManualPorts");
         manual->setChecked(server["manualPorts"] == "true");
         form->addRow(manual);
         QStringList ports{"peerPort"};
-        QStringList labels{"Порт DTLS"};
+        QStringList labels{server["kind"] == "qwdtt" ? "Порт DTLS" : "Порт туннеля"};
         if (server["kind"] == "qwdtt") {
             ports += {"wgPort", "directPort", "rawPort"};
             labels += {"Порт WireGuard", "Прямой порт", "Порт RAW"};
@@ -404,8 +441,12 @@ class ServerEditor : public QDialog {
         }
         for (int i = 0; i < ports.size(); ++i) {
             auto *edit = add(ports[i], labels[i]);
-            edit->setEnabled(manual->isChecked());
-            connect(manual, &QCheckBox::toggled, edit, &QWidget::setEnabled);
+            const auto visible = [edit, form](bool checked) {
+                edit->setVisible(checked);
+                form->labelForField(edit)->setVisible(checked);
+            };
+            visible(manual->isChecked());
+            connect(manual, &QCheckBox::toggled, edit, visible);
         }
         if (server["kind"] == "csqtt") {
             docker = new QCheckBox("Установить в Docker", group);
@@ -425,15 +466,17 @@ class ServerEditor : public QDialog {
         auto *consoleGroup = new QGroupBox("Консоль", body);
         layout->addWidget(consoleGroup);
         auto *consoleLayout = new QVBoxLayout(consoleGroup);
-        step = new QLabel("Готово к подключению", consoleGroup);
+        step = new QLabel(server["status"].toString("Готово к подключению"), consoleGroup);
         consoleLayout->addWidget(step);
         progress = new QProgressBar(consoleGroup);
-        progress->setValue(0);
+        progress->setValue(qBound(0, server["progress"].toString().toInt(), 100));
         consoleLayout->addWidget(progress);
         console = new QPlainTextEdit(consoleGroup);
+        console->setObjectName("relayConsole");
         console->setReadOnly(true);
         console->setMaximumBlockCount(4000);
         console->setMinimumHeight(180);
+        console->setPlainText(server["console"].toString());
         consoleLayout->addWidget(console);
         auto *stop = new QPushButton("Остановить", consoleGroup);
         stop->setObjectName("relayStop");
@@ -459,6 +502,12 @@ class ServerEditor : public QDialog {
         controls.append(saveButton);
         connect(saveButton, &QPushButton::clicked, this, [this] {
             capture();
+            rememberConsole(false);
+            if (!QRegularExpression("^[A-Za-z0-9.:_-]+$").match(server["host"].toString()).hasMatch() ||
+                !QRegularExpression("^[A-Za-z0-9_.-]+$").match(server["user"].toString()).hasMatch()) {
+                QMessageBox::warning(this, "VPS", "Укажите IP или домен без схемы и порта, а также логин SSH");
+                return;
+            }
             save(server);
         });
     }
@@ -474,15 +523,59 @@ bool SaveVKRelayPreviews(const QString &directory) {
     if (saves != 0)
         return false;
     {
-        ServerEditor draft(freshServer("csqtt"), [&](QJsonObject) { ++saves; }, nullptr);
+        auto value = freshServer("csqtt");
+        value["host"] = "203.0.113.1";
+        value["hostKey"] = "old-fingerprint";
+        value["sshPassword"] = "password-login";
+        value["sudoPassword"] = "key-sudo";
+        value["console"] = "Результат предыдущего деплоя";
+        QJsonObject stored;
+        ServerEditor draft(
+            value,
+            [&](QJsonObject item) {
+                ++saves;
+                stored = item;
+            },
+            nullptr);
         auto *saveButton = draft.findChild<QPushButton *>("relaySave");
         auto *stop = draft.findChild<QPushButton *>("relayStop");
         if (!saveButton || !stop || !qobject_cast<QGroupBox *>(stop->parentWidget()))
             return false;
+        auto *auth = draft.findChild<QComboBox *>("relayAuth");
+        auto *sudoPassword = draft.findChild<QLineEdit *>("relayField_sudoPassword");
+        auto *sshPassword = draft.findChild<QLineEdit *>("relayField_sshPassword");
+        auto *ports = draft.findChild<QCheckBox *>("relayManualPorts");
+        auto *peerPort = draft.findChild<QLineEdit *>("relayField_peerPort");
+        auto *key = draft.findChild<QLineEdit *>("relayField_key");
+        auto *keyPassword = draft.findChild<QLineEdit *>("relayField_keyPassword");
+        auto *form = qobject_cast<QFormLayout *>(key->parentWidget()->layout());
+        if (!form || form->indexOf(auth) >= form->indexOf(key) || form->indexOf(key) >= form->indexOf(keyPassword) ||
+            form->indexOf(keyPassword) >= form->indexOf(sudoPassword))
+            return false;
+        auto *console = draft.findChild<QPlainTextEdit *>("relayConsole");
+        if (!console || console->toPlainText() != value["console"].toString())
+            return false;
+        console->setPlainText("Новый результат деплоя");
+        if (!sudoPassword->isHidden() || sshPassword->isHidden() || !peerPort->isHidden())
+            return false;
         saveButton->click();
+        if (!stored["sudoPassword"].toString().isEmpty())
+            return false;
+        auth->setCurrentIndex(1);
+        ports->setChecked(true);
+        if (sudoPassword->isHidden() || !sshPassword->isHidden() || peerPort->isHidden())
+            return false;
+        draft.findChild<QLineEdit *>("relayField_host")->setText("203.0.113.2");
+        saveButton->click();
+        if (!stored["sshPassword"].toString().isEmpty() || !stored["hostKey"].toString().isEmpty())
+            return false;
         draft.close();
+        ServerEditor reopened(stored, [&](QJsonObject) { ++saves; }, nullptr);
+        if (reopened.findChild<QPlainTextEdit *>("relayConsole")->toPlainText() != "Новый результат деплоя")
+            return false;
+        reopened.close();
     }
-    if (saves != 1)
+    if (saves != 2)
         return false;
     if (directory.isEmpty())
         return true;
@@ -513,6 +606,21 @@ bool SaveVKRelayPreviews(const QString &directory) {
         for (const QString kind : {QStringLiteral("qwdtt"), QStringLiteral("csqtt")}) {
             ServerEditor editor(freshServer(kind), [](QJsonObject) {}, nullptr);
             snapshot(editor, kind + "-deploy");
+            editor.findChild<QComboBox *>("relayAuth")->setCurrentIndex(1);
+            snapshot(editor, kind + "-ssh-key");
+            QTimer::singleShot(0, &editor, [&] {
+                auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!dialog) {
+                    saved = false;
+                    return;
+                }
+                snapshot(*dialog, kind + "-secrets");
+                if (dialog->findChild<QLineEdit *>("relaySecret_adminToken") ||
+                    dialog->findChild<QLineEdit *>("relaySecret_deviceId"))
+                    saved = false;
+                dialog->reject();
+            });
+            editor.findChild<QPushButton *>("relaySecrets")->click();
         }
         {
             EditQWDTT editor;
@@ -670,6 +778,17 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
                                  status->setText(event["text"].toString());
                          });
     };
+    const auto checkpoint = [=](const QJsonObject &state) {
+        for (const auto &entry : *servers) {
+            auto stored = entry.toObject();
+            if (stored["id"] != state["id"])
+                continue;
+            for (const auto &key : {"console", "status", "progress"})
+                stored[key] = state[key];
+            persist(stored);
+            return;
+        }
+    };
     for (const auto &kind : {QString("qwdtt"), QString("csqtt")}) {
         auto *page = new QWidget(tabs);
         page->setEnabled(false);
@@ -683,7 +802,7 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
         groupLayout->addWidget(list);
         (*lists)[kind] = list;
         const auto open = [=, this](QJsonObject server) {
-            auto *editor = new ServerEditor(server, persist, this);
+            auto *editor = new ServerEditor(server, persist, this, checkpoint);
             editor->setAttribute(Qt::WA_DeleteOnClose);
             editor->setWindowModality(Qt::WindowModal);
             editor->show();
