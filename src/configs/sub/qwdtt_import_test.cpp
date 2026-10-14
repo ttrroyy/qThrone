@@ -2,6 +2,8 @@
 #include "include/configs/sub/ProviderRouting.h"
 #include "include/configs/sub/GroupUpdater.hpp"
 #include "include/ui/group/dialog_provider_routing.h"
+#include "include/ui/utils/ProfilesTableFilterHeader.h"
+#include "include/ui/utils/DataViewHtmlGenerator.h"
 #include "include/configs/outbounds/qwdtt.h"
 #include "include/configs/outbounds/csqtt.h"
 #include "include/configs/outbounds/openflux.h"
@@ -113,12 +115,12 @@ int TestQwdttImport() {
                     window.show();
                     for (int i = 0; i < 4; ++i) QApplication::processEvents();
                     if (mode == "newyear") check(decoration->size() == previousGeometry, "both decorations share the same dimensions");
-                    if (mode != "none") check(decoration->size() == QSize(190, 64), "artwork keeps fixed size while resizing");
+                    if (mode != "none") check(decoration->width() > 0 && decoration->width() <= 190 && decoration->height() <= 64, "artwork scales within the available toolbar space");
                     check(ui.splitter->count() == panes, "seasonal overlay never becomes a splitter pane");
                     check(ui.splitter->width() >= ui.centralwidget->width() - 24, "seasonal overlay preserves full-width panels");
                     check(ui.tabWidget->width() >= ui.splitter->width() - 24, "profile table preserves panel width");
                     check(decoration->parentWidget() == ui.centralwidget, "decoration belongs to central overlay container");
-                    check(decoration->isVisible() == (mode != "none" && size.width() >= 1130), "decoration hides instead of shrinking when space is insufficient");
+                    check(decoration->isVisible() == (mode != "none"), "decoration remains visible in narrow windows");
                 }
                 decoration->setDecoration("newyear");
                 for (int i = 0; i < 6; ++i) QApplication::processEvents();
@@ -186,7 +188,7 @@ int TestQwdttImport() {
             check(profiles.first()->Custom()->config.contains("WHITELIST"), "full Xray import keeps provider category");
         }
         const auto balanced = parse(R"([{"remarks":"Auto","outbounds":[{"protocol":"vless","tag":"server1","settings":{"vnext":[{"address":"example.net","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000001"}]}]},"streamSettings":{"sockopt":{"dialerProxy":"front"}}}],"routing":{"balancers":[{"tag":"auto","selector":["server"],"strategy":{"type":"leastPing"}}],"rules":[{"type":"field","balancerTag":"auto","network":"tcp,udp"}]},"observatory":{"subjectSelector":["server"]}}])");
-        check(balanced.size() == 1 && balanced.first()->Custom() && balanced.first()->outbound->DisplayType() == "Xray Balancer" && balanced.first()->Custom()->config.contains("dialerProxy") && balanced.first()->Custom()->config.contains("observatory"), "subscription preserves Xray balancers and chain settings");
+        check(balanced.size() == 1 && balanced.first()->Custom() && balanced.first()->outbound->DisplayType() == "VLESS (Xray)" && balanced.first()->Custom()->config.contains("dialerProxy") && balanced.first()->Custom()->config.contains("observatory"), "subscription displays actual protocol and preserves Xray balancers and chain settings");
         auto group = Configs::GroupsRepo::NewGroup(); group->name = "Provider test";
         auto isolated = document; isolated["DirectSites"] = QJsonArray{"full:example.org"}; isolated["FakeDNS"] = false;
         PR::Apply(group->sub_options, {PR::Command{"Happ", true, false, isolated}});
@@ -201,11 +203,63 @@ int TestQwdttImport() {
         const auto sourceURL = QStringLiteral("https://example.invalid/geo-fixture/") + fixture.path();
         const auto cache = Configs::GetBasePath() + "/provider-geodata/" + QString::fromLatin1(QCryptographicHash::hash(sourceURL.toUtf8(), QCryptographicHash::Sha256).toHex()) + ".dat";
         QDir().mkpath(QFileInfo(cache).absolutePath());
-        QFile cached(cache); check(cached.open(QIODevice::WriteOnly), "Geo fixture cache opens"); cached.write("cached-fixture"); cached.close();
+        QFile cached(cache); check(cached.open(QIODevice::WriteOnly), "Geo fixture cache opens"); cached.write(QByteArray::fromHex("0a0b0a0957484954454c495354")); cached.close();
         const auto cleanCache = qScopeGuard([cache] { QFile::remove(cache); });
         QJsonObject geoConfig{{"routing", QJsonObject{{"rules", QJsonArray{QJsonObject{{"domain", QJsonArray{"geosite:WHITELIST"}}}}}}}, {"dns", QJsonObject{{"hosts", QJsonObject{{"geosite:WHITELIST", "192.0.2.2"}}}}}};
-        const auto geoError = PR::ResolveXrayGeo(QJsonObject{{"Geositeurl", sourceURL}}, geoConfig);
+        Configs::SubscriptionOptions geoOptions;
+        PR::Apply(geoOptions, {PR::Command{"Happ", true, false, QJsonObject{{"Name", "Provider"}, {"Geositeurl", sourceURL}}}});
+        geoOptions.provider_routing_enabled = false;
+        geoOptions.provider_routing = "off";
+        check(PR::SourceDocument(geoOptions)["Geositeurl"] == sourceURL, "disabled and legacy off settings retain provider Geo sources");
+        const auto geoError = PR::ResolveXrayGeo(PR::SourceDocument(geoOptions), geoConfig);
         check(geoError.isEmpty() && QJsonDocument(geoConfig).toJson().contains("ext:provider-geodata/") && !QJsonDocument(geoConfig).toJson().contains("geosite:WHITELIST"), "provider Geo rewrite covers routing values and DNS object keys");
+        QJsonObject missing{{"routing", QJsonObject{{"rules", QJsonArray{QJsonObject{{"domain", QJsonArray{"geosite:MISSING"}}}}}}}};
+        const auto beforeMissing = missing;
+        check(PR::ResolveXrayGeo(PR::SourceDocument(geoOptions), missing).contains("MISSING") && missing == beforeMissing, "missing category reports a useful error without corrupting the config");
+    }
+    {
+        QTableView table;
+        QStandardItemModel model(2, ProfilesTableModel::ColumnCount);
+        auto *header = new ProfilesTableFilterHeader(&table);
+        table.setHorizontalHeader(header);
+        table.setModel(&model);
+        header->setSectionResizeMode(QHeaderView::Interactive);
+        for (int i = 0; i < header->count(); ++i) header->resizeSection(i, 150 + i * 100);
+        for (int width : {800, 1600, 1040, 800}) {
+            table.resize(width, 300); table.show(); QApplication::processEvents();
+            header->fitToWidth(table.viewport()->width()); QApplication::processEvents();
+            check(header->length() == table.viewport()->width(), "profile columns fill the viewport on both growth and shrink");
+            check(table.horizontalScrollBar()->maximum() == 0, "profile columns stay inside the viewport");
+        }
+        DataViewHtmlGenerator panels;
+        panels.setDownloadReport({}, true);
+        check(panels.hasPriorityNotice(), "update progress takes priority over decoration");
+        panels.setDownloadReport({}, false);
+        check(!panels.hasPriorityNotice(), "decoration returns after update progress clears");
+        Configs::qwdtt q1, q2;
+        Configs::csqtt c1, c2;
+        check(!q1.deviceID.isEmpty() && q1.deviceID == q2.deviceID && q1.deviceID == c1.deviceID && c1.deviceID == c2.deviceID, "new relay profiles share a persistent client device identity");
+        for (const auto &type : {QString("qwdtt"), QString("csqtt")}) {
+            const QJsonObject old{{"_type", type}, {"tag", "Node"}, {"server", "old.example"}, {"server_port", 443}, {"password", "secret"}, {"device_id", "existing-device"}, {"hash_source", "auto"}, {"auto_hash_count", 3}};
+            auto incoming = old; incoming.remove("_type"); incoming["server"] = "new.example"; incoming["device_id"] = "new-random-device";
+            auto preserved = Subscription::PreserveRelaySettings(type, incoming, {old});
+            check(preserved["device_id"] == "existing-device", "subscription server changes preserve relay device ID");
+            incoming["tag"] = "Renamed node";
+            preserved = Subscription::PreserveRelaySettings(type, incoming, {old});
+            check(preserved["device_id"] == "existing-device", "complete relay replacement preserves the unique existing device ID");
+        }
+        const auto hy = parse(R"({"remarks":"HY2","outbounds":[{"protocol":"freedom","tag":"direct"},{"protocol":"hysteria","tag":"hy","settings":{"address":"hy.example","port":443}}],"routing":{"balancers":[{"tag":"auto","selector":["hy"]}],"rules":[{"balancerTag":"auto"}]}})");
+        check(hy.size() == 1 && hy.first()->outbound->DisplayType() == "Hysteria2 (Xray)" && hy.first()->outbound->DisplayAddress() == "hy.example:443", "JSON Hysteria2 retains its protocol and address despite embedded balancers");
+        for (const auto &protocol : QStringList{"vless", "vmess", "trojan", "shadowsocks", "socks", "http", "wireguard"}) {
+            Configs::Custom custom;
+            custom.type = Configs::Custom::CustomXrayFullConfig;
+            custom.config = QString::fromUtf8(QJsonDocument(QJsonObject{{"outbounds", QJsonArray{QJsonObject{{"protocol", protocol}, {"tag", "proxy"}, {"settings", QJsonObject{{"address", "protocol.example"}, {"port", 443}}}}}}, {"routing", QJsonObject{{"balancers", QJsonArray{QJsonObject{{"tag", "auto"}, {"selector", QJsonArray{"proxy"}}}}}, {"rules", QJsonArray{QJsonObject{{"balancerTag", "auto"}}}}}}}).toJson());
+            check(custom.DisplayType().contains(protocol, Qt::CaseInsensitive) && custom.DisplayAddress() == "protocol.example:443", "Xray JSON protocol display is generic across protocols");
+        }
+        Configs::Custom singBox;
+        singBox.type = Configs::Custom::CustomFullConfig;
+        singBox.config = R"({"outbounds":[{"type":"direct","tag":"direct"},{"type":"selector","tag":"auto","outbounds":["hy"]},{"type":"hysteria2","tag":"hy","server":"native.example","server_port":443}],"route":{"final":"auto"}})";
+        check(singBox.DisplayType() == "Hysteria2" && singBox.DisplayAddress() == "native.example:443", "sing-box JSON resolves selected proxy protocol and address");
     }
     const QByteArray csqttLink = "csqtt://connect?v=2&host=203.0.113.7&peer=46000&password=p%40ss&hashes=abcdefghijklmno%2Bp+abcdefghijklmnop2";
     const auto csProfiles = parse(csqttLink);
@@ -268,6 +322,16 @@ int TestQwdttImport() {
         Configs::dataManager->profilesRepo->RestoreTransportIdentity(refreshed.get());
         check(dynamic_cast<Configs::csqtt*>(refreshed->outbound.get())->deviceID == originalDevice,
               "CSQTT identity survives name and call-hash changes in a subscription");
+        auto qwdttOriginal = testProfiles.first();
+        const auto qwdttDevice = dynamic_cast<Configs::qwdtt *>(qwdttOriginal->outbound.get())->deviceID;
+        auto qwdttChanged = qwdttOriginal->outbound->ExportToJson();
+        qwdttChanged.remove("device_id"); qwdttChanged["tag"] = "Renamed qWDTT subscription";
+        qwdttChanged["hashes"] = QJsonArray{"abcdefghijklmnop-new-call"};
+        auto qwdttRefreshed = Configs::ProfilesRepo::NewProfile("qwdtt");
+        check(qwdttRefreshed->outbound->ParseFromJson(qwdttChanged), "updated qWDTT subscription parses");
+        dynamic_cast<Configs::qwdtt *>(qwdttRefreshed->outbound.get())->deviceID = "new-random-device";
+        Configs::dataManager->profilesRepo->RestoreTransportIdentity(qwdttRefreshed.get());
+        check(dynamic_cast<Configs::qwdtt *>(qwdttRefreshed->outbound.get())->deviceID == qwdttDevice, "qWDTT database binding survives profile reconstruction");
         auto mains = parse("vless://00000000-0000-4000-8000-000000000001@203.0.113.12:443?type=tcp&security=none#Routing-main");
         check(mains.size() == 1, "parse main VLESS fixture");
         if (mains.size() == 1) {

@@ -11,9 +11,9 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"ThroneCore/gen"
-	"ThroneCore/internal/netmon"
-	"ThroneCore/internal/scan"
+	"qThroneCore/gen"
+	"qThroneCore/internal/netmon"
+	"qThroneCore/internal/scan"
 
 	"github.com/sagernet/sing-box/option"
 	tun "github.com/sagernet/sing-tun"

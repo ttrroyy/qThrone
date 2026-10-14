@@ -63,7 +63,7 @@ void EditCustom::onStart(std::shared_ptr<Configs::Profile> _ent) {
     } else if (preset_core == Configs::Custom::CustomXrayOutbound) {
         ui->core_l->setText(tr("Xray outbound JSON, please read the Xray documentation."));
     } else if (preset_core == Configs::Custom::CustomXrayFullConfig) {
-        ui->core_l->setText(tr("Xray full config (Throne adds a socks inbound and uses sing-box for tun/routing)."));
+        ui->core_l->setText(tr("Xray full config (qThrone adds a socks inbound and uses sing-box for tun/routing)."));
     } else {
         ui->core_l->setText(tr("Please fill the complete config."));
     }

@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"ThroneCore/internal/process"
+	"qThroneCore/internal/process"
 )
 
 // Probe sidecars are session-owned; never replace the active extraProcess.

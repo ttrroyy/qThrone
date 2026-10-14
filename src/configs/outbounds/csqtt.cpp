@@ -1,4 +1,5 @@
 #include "include/configs/outbounds/csqtt.h"
+#include "include/global/Configs.hpp"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -11,6 +12,7 @@
 #include <QUrlQuery>
 
 namespace Configs {
+csqtt::csqtt() { server_port = 46000; socksPort = 0; deviceID = RelayDeviceID(); }
 QStringList csqtt::NormalizeHashes(const QStringList &input) {
     QStringList result;
     for (auto hash : input) {
@@ -117,7 +119,7 @@ QString csqtt::Prepare() {
         if (hash.size() < 16 || hash.contains(QRegularExpression("[,|\\s]")) || seen.contains(hash)) return QObject::tr("CSQTT: invalid or duplicate VK hash");
         seen.insert(hash);
     }
-    if (deviceID.isEmpty()) deviceID = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    if (deviceID.isEmpty()) deviceID = RelayDeviceID();
     QString helper = "qwdtt", transport = "csqtt-transport";
 #ifdef Q_OS_WIN
     helper += ".exe"; transport += ".exe";

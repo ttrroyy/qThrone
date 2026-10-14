@@ -34,7 +34,7 @@ QString normalizedMode(const QString &m) {
 
 namespace Configs {
 qwdtt::qwdtt() {
-    server_port = 56000; socksPort = 0; deviceID = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    server_port = 56000; socksPort = 0; deviceID = RelayDeviceID();
     if (dataManager) { const auto *settings = dataManager->settingsRepo.get(); hashSource = settings->vk_relay_linked ? settings->qwdtt_hash_source : "manual"; autoHashCount = qBound(1, settings->qwdtt_auto_hash_count, 4); }
 }
 QStringList qwdtt::NormalizeHashes(const QStringList &input) {
@@ -171,7 +171,7 @@ QString qwdtt::Prepare() {
     if (obfs != "audio" && obfs != "video") return QObject::tr("qWDTT: invalid obfuscation mode");
     if (vkAnonPath != "vkcalls" && vkAnonPath != "legacy") return QObject::tr("qWDTT: invalid VK authorization mode");
     if (captchaMode != "auto" && captchaMode != "wv" && captchaMode != "rjs") return QObject::tr("qWDTT: invalid captcha mode");
-    if (deviceID.isEmpty()) deviceID = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    if (deviceID.isEmpty()) deviceID = RelayDeviceID();
     if (deviceID.contains('|') || deviceID.contains('\n') || deviceID.contains('\r')) return QObject::tr("qWDTT: invalid device ID");
     QString executable = "qwdtt";
 #ifdef Q_OS_WIN

@@ -1,7 +1,7 @@
 package mobile
 
 import (
-	"ThroneCore/internal/rulesets"
+	"qThroneCore/internal/rulesets"
 )
 
 type RuleSetUpdateResult struct {

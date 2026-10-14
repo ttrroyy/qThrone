@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"ThroneCore/internal/probe"
+	"qThroneCore/internal/probe"
 
 	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"

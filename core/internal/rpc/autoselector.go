@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"ThroneCore/gen"
+	"qThroneCore/gen"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/protocol/group"

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"ThroneCore/gen"
+	"qThroneCore/gen"
 
 	E "github.com/sagernet/sing/common/exceptions"
 )

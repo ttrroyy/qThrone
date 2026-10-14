@@ -10,6 +10,7 @@
 #include "include/configs/sub/GroupUpdater.hpp"
 #include "include/database/GroupsRepo.h"
 #include "include/ui/group/dialog_edit_group.h"
+#include "include/ui/group/dialog_provider_routing.h"
 #include "include/ui/mainWindow/MainWindowInternal.h"
 #include "include/ui/mainWindow/TestRunner.h"
 #include "include/ui/stats/dialog_endpoint_details.h"
@@ -231,6 +232,15 @@ void MainWindow::show_group_tab_menu(const QPoint &p) {
         });
     }
     if (clickedGroup != nullptr && !clickedGroup->url.isEmpty()) {
+        connect(menu.addAction(tr("Маршрутизация подписки")), &QAction::triggered, this, [this, clickedGroup] {
+            auto options = clickedGroup->sub_options;
+            const auto before = options.ToJson();
+            if (!EditProviderRouting(options, this) || options.ToJson() == before) return;
+            clickedGroup->sub_options = options;
+            Configs::dataManager->groupsRepo->Save(clickedGroup);
+            const bool affectsRunning = running && running->gid == clickedGroup->id;
+            MW_dialog_message(MwMessage::GroupsChanged, affectsRunning ? QStringList{MwArg::RestartProxy} : QStringList{});
+        });
         connect(menu.addAction(tr("Update subscription")), &QAction::triggered, this, [=,this]{
             const auto id = Configs::dataManager->groupsRepo->GetGroupsTabOrder()[clickedIndex];
             auto group = Configs::dataManager->groupsRepo->GetGroup(id);

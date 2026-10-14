@@ -18,6 +18,7 @@ namespace Configs {
     bool isSetuidSet(const std::string& path);
 
     QString GetBasePath();
+    QString RelayDeviceID();
 } // namespace Configs
 
 #define ROUTES_PREFIX_NAME QString("route_profiles")

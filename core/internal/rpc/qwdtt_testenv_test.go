@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"ThroneCore/gen"
+	"qThroneCore/gen"
 )
 
 func TestQWDTTStartupFailureIsNotServerUnavailable(t *testing.T) {

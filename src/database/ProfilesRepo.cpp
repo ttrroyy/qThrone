@@ -5,9 +5,11 @@
 #include <map>
 #include <QCryptographicHash>
 #include "include/configs/outbounds/csqtt.h"
+#include "include/configs/outbounds/qwdtt.h"
 #include "include/configs/outbounds/olcrtc.h"
 
 #include "include/database/GroupsRepo.h"
+#include "include/global/Configs.hpp"
 #include "include/configs/common/OutboundFactory.h"
 #include "include/ui/mainwindow.h"
 
@@ -50,6 +52,10 @@ namespace Configs {
     }
 
     namespace {
+        std::string qwdttIdentity(const QJsonObject &o) {
+            const QJsonArray identity{"qwdtt", o["server"].toString().toLower(), o["server_port"].toInt(), o["password"].toString()};
+            return QCryptographicHash::hash(QJsonDocument(identity).toJson(QJsonDocument::Compact), QCryptographicHash::Sha256).toHex().toStdString();
+        }
         std::string olcrtcIdentity(const QJsonObject &o) {
             const QJsonArray identity{"olcrtc", o["provider"].toString().toLower(), o["room"].toString().trimmed(), o["key"].toString().toLower()};
             return QCryptographicHash::hash(QJsonDocument(identity).toJson(QJsonDocument::Compact), QCryptographicHash::Sha256).toHex().toStdString();
@@ -69,6 +75,21 @@ namespace Configs {
             db.exec("INSERT OR IGNORE INTO transport_devices(identity, device_id) VALUES (?, ?)", key, rtc->deviceID.toStdString());
             auto canonical = db.query("SELECT device_id FROM transport_devices WHERE identity = ?", key);
             if (canonical && canonical->executeStep()) rtc->deviceID = QString::fromStdString(canonical->getColumn(0).getString());
+            return;
+        }
+        if (auto *transport = dynamic_cast<qwdtt*>(profile->outbound.get()); transport && !transport->password.isEmpty()) {
+            const auto key = qwdttIdentity(transport->ExportToJson());
+            auto binding = db.query("SELECT device_id FROM transport_devices WHERE identity = ?", key);
+            if (binding && binding->executeStep()) { transport->deviceID = QString::fromStdString(binding->getColumn(0).getString()); return; }
+            auto existing = db.query("SELECT outbound_json FROM profiles WHERE type = 'qwdtt' ORDER BY id");
+            while (existing && existing->executeStep()) {
+                const auto o = QJsonDocument::fromJson(QByteArray::fromStdString(existing->getColumn(0).getString())).object();
+                if (qwdttIdentity(o) == key && !o["device_id"].toString().isEmpty()) { transport->deviceID = o["device_id"].toString(); break; }
+            }
+            if (transport->deviceID.isEmpty()) transport->deviceID = RelayDeviceID();
+            db.exec("INSERT OR IGNORE INTO transport_devices(identity, device_id) VALUES (?, ?)", key, transport->deviceID.toStdString());
+            auto canonical = db.query("SELECT device_id FROM transport_devices WHERE identity = ?", key);
+            if (canonical && canonical->executeStep()) transport->deviceID = QString::fromStdString(canonical->getColumn(0).getString());
             return;
         }
         auto *transport = dynamic_cast<csqtt*>(profile->outbound.get());
@@ -103,6 +124,11 @@ namespace Configs {
         if (const auto *rtc = dynamic_cast<const olcrtc*>(profile->outbound.get()); rtc && !rtc->key.isEmpty() && !rtc->deviceID.isEmpty()) {
             const QJsonObject o{{"provider",rtc->provider},{"room",rtc->room},{"key",rtc->key}};
             db.exec("INSERT INTO transport_devices(identity, device_id) VALUES (?, ?) ON CONFLICT(identity) DO UPDATE SET device_id = excluded.device_id", olcrtcIdentity(o), rtc->deviceID.toStdString());
+            return;
+        }
+        if (const auto *transport = dynamic_cast<const qwdtt*>(profile->outbound.get()); transport && !transport->password.isEmpty() && !transport->deviceID.isEmpty()) {
+            const QJsonObject identity{{"server", transport->server}, {"server_port", transport->server_port}, {"password", transport->password}};
+            db.exec("INSERT INTO transport_devices(identity, device_id) VALUES (?, ?) ON CONFLICT(identity) DO UPDATE SET device_id = excluded.device_id", qwdttIdentity(identity), transport->deviceID.toStdString());
             return;
         }
         const auto *transport = dynamic_cast<const csqtt*>(profile->outbound.get());

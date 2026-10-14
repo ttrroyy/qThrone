@@ -338,7 +338,7 @@ void MainWindow::dialog_message_impl(MwMessage cmd, const QStringList &args) {
             refresh_proxy_list({}, true);
         }
         auto suggestRestartProxy = settings->Save();
-        Throne::PeriodicRunner::instance()->CheckNow();
+        qThrone::PeriodicRunner::instance()->CheckNow();
         if (changed(MwArg::KillSwitch) || changed(MwArg::Vpn)) Sys::KillSwitch::instance()->apply();
         if (changed(MwArg::RemoteApi)) RemoteApi::Server::instance()->apply(RemoteApi::ConfigFromSettings());
         if (changed(MwArg::Route)) {

@@ -5,7 +5,7 @@ import (
 	"os"
 	"runtime"
 
-	"ThroneCore/gen"
+	"qThroneCore/gen"
 )
 
 func (s *server) IsPrivileged(ctx context.Context, _ *gen.EmptyReq) (*gen.IsPrivilegedResponse, error) {

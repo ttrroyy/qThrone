@@ -7,6 +7,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
+#include <QFile>
 #include <QHostAddress>
 #include <QJsonDocument>
 #include <QMutexLocker>
@@ -49,6 +50,47 @@ QJsonObject decode(const QString &text) {
     return {};
 }
 QString geoFile(const QString &url) { return Configs::GetBasePath() + "/provider-geodata/" + digest(url) + ".dat"; }
+bool geoCategories(const QByteArray &data, QSet<QString> &categories) {
+    const auto number = [&](qsizetype &pos, qsizetype end, quint64 &value) {
+        value = 0;
+        for (int shift = 0; shift < 64 && pos < end; shift += 7) {
+            const auto byte = static_cast<unsigned char>(data[pos++]);
+            value |= quint64(byte & 127) << shift;
+            if (!(byte & 128)) return true;
+        }
+        return false;
+    };
+    qsizetype pos = 0;
+    while (pos < data.size()) {
+        quint64 tag, size;
+        if (!number(pos, data.size(), tag) || tag != 10 || !number(pos, data.size(), size) || size > quint64(data.size() - pos)) return false;
+        const auto end = pos + qsizetype(size);
+        QString code;
+        while (pos < end) {
+            if (!number(pos, end, tag) || !(tag >> 3)) return false;
+            switch (tag & 7) {
+            case 0: if (!number(pos, end, size)) return false; break;
+            case 1: if (end - pos < 8) return false; pos += 8; break;
+            case 5: if (end - pos < 4) return false; pos += 4; break;
+            case 2:
+                if (!number(pos, end, size) || size > quint64(end - pos)) return false;
+                if ((tag >> 3) == 1) code = QString::fromUtf8(data.constData() + pos, qsizetype(size)).toUpper();
+                pos += qsizetype(size);
+                break;
+            default: return false;
+            }
+        }
+        if (code.isEmpty()) return false;
+        categories.insert(code);
+    }
+    return !categories.isEmpty();
+}
+bool validGeoFile(const QString &path) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly) || file.size() > 64 * 1024 * 1024) return false;
+    QSet<QString> categories;
+    return geoCategories(file.readAll(), categories);
+}
 QString download(const QJsonObject &doc, const QString &kind, QString &path, bool force) {
     const auto address = GeoUrl(doc, kind);
     const QUrl url(address);
@@ -56,7 +98,7 @@ QString download(const QJsonObject &doc, const QString &kind, QString &path, boo
         return QObject::tr("Invalid Geo URL: %1").arg(address);
     path = geoFile(address);
     const QFileInfo cached(path);
-    if (!force && cached.size() > 0 && cached.lastModified().secsTo(QDateTime::currentDateTime()) < 7 * 86400)
+    if (!force && cached.size() > 0 && cached.lastModified().secsTo(QDateTime::currentDateTime()) < 7 * 86400 && validGeoFile(path))
         return {};
     QDir().mkpath(cached.absolutePath());
     HttpGetOptions options;
@@ -68,6 +110,9 @@ QString download(const QJsonObject &doc, const QString &kind, QString &path, boo
         return QObject::tr("Could not download %1 from %2: %3").arg(kind, address, response.error);
     if (response.data.isEmpty())
         return QObject::tr("Empty Geo file: %1").arg(address);
+    QSet<QString> categories;
+    if (!geoCategories(response.data, categories))
+        return QObject::tr("Invalid or incomplete Geo database from %1. The previous cache was preserved.").arg(address);
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly) || file.write(response.data) != response.data.size() || !file.commit())
         return QObject::tr("Could not save Geo file: %1").arg(path);
@@ -179,7 +224,7 @@ void Apply(Configs::SubscriptionOptions &options, const QList<Command> &commands
     for (const auto &command : commands) {
         options.routing_provider = command.provider;
         if (command.off) {
-            options.provider_routing = "off";
+            options.provider_routing_enabled = false;
             continue;
         }
         const auto doc = command.document;
@@ -200,8 +245,10 @@ void Apply(Configs::SubscriptionOptions &options, const QList<Command> &commands
                 options.provider_routing = QJsonDocument(doc).toJson(QJsonDocument::Compact);
         } else
             profiles.append(doc);
-        if (options.provider_routing.isEmpty() || command.activate)
+        if (options.provider_routing.isEmpty() || options.provider_routing == "off" || command.activate) {
             options.provider_routing = QJsonDocument(doc).toJson(QJsonDocument::Compact);
+            options.provider_routing_enabled = true;
+        }
     }
     options.provider_routing_profiles = QJsonDocument(profiles).toJson(QJsonDocument::Compact);
 }
@@ -212,6 +259,14 @@ bool Truth(const QJsonObject &doc, const QString &key, bool fallback) {
     if (value.isString())
         return value.toString().compare("true", Qt::CaseInsensitive) == 0 || value.toString() == "1";
     return fallback;
+}
+QJsonObject SourceDocument(const Configs::SubscriptionOptions &options) {
+    auto document = decode(options.provider_routing);
+    if (document.isEmpty()) {
+        const auto documents = QJsonDocument::fromJson(options.provider_routing_profiles.toUtf8()).array();
+        if (!documents.isEmpty()) document = documents.first().toObject();
+    }
+    return document;
 }
 std::shared_ptr<Configs::RouteProfile> Profile(const QJsonObject &doc, const QString &provider) {
     auto profile = Configs::RouteProfile::GetDefaultChain();
@@ -319,14 +374,19 @@ QString ResolveXrayGeo(const QJsonObject &document, QJsonObject &config) {
     }
     const auto text = QJsonDocument(config).toJson(QJsonDocument::Compact);
     QMap<QString, QString> files;
+    QMap<QString, QSet<QString>> availableCategories;
     for (const auto &kind : {QStringLiteral("geosite"), QStringLiteral("geoip")}) {
         if (!text.contains((kind + ':').toUtf8()))
             continue;
         QString source;
         if (const auto error = PrepareGeo(doc, kind, source); !error.isEmpty())
             return error;
+        QFile database(source);
+        if (!database.open(QIODevice::ReadOnly) || !geoCategories(database.readAll(), availableCategories[kind]))
+            return QObject::tr("Invalid Geo database: %1").arg(GeoUrl(doc, kind));
         files[kind] = QDir(Configs::GetBasePath()).relativeFilePath(source);
     }
+    QString missingCategory;
     std::function<QJsonValue(const QJsonValue &)> replace = [&](const QJsonValue &value) -> QJsonValue {
         if (value.isString()) {
             auto rule = value.toString();
@@ -334,9 +394,13 @@ QString ResolveXrayGeo(const QJsonObject &document, QJsonObject &config) {
             if (inverse)
                 rule.remove(0, 1);
             for (auto it = files.begin(); it != files.end(); ++it) {
-                if (rule.startsWith(it.key() + ':'))
+                if (rule.startsWith(it.key() + ':')) {
+                    const auto category = rule.mid(it.key().size() + 1).section('@', 0, 0).remove('!').toUpper();
+                    if (!availableCategories[it.key()].contains(category))
+                        missingCategory = QObject::tr("Geo category %1 is missing from %2 (%3). Update this subscription's Geo source.").arg(category, it.key(), GeoUrl(doc, it.key()));
                     return (inverse ? "!" : "") + QString(it.key() == "geoip" ? "ext-ip:" : "ext:") + it.value() + ':' +
                            rule.mid(it.key().size() + 1);
+                }
             }
         } else if (value.isArray()) {
             QJsonArray result;
@@ -352,7 +416,9 @@ QString ResolveXrayGeo(const QJsonObject &document, QJsonObject &config) {
         }
         return value;
     };
-    config = replace(config).toObject();
+    const auto resolved = replace(config).toObject();
+    if (!missingCategory.isEmpty()) return missingCategory;
+    config = resolved;
     return {};
 }
 QString Dns(const QJsonObject &doc, const QString &prefix, const QString &fallback) {

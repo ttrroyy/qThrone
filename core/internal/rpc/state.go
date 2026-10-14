@@ -5,8 +5,8 @@ import (
 	"errors"
 	"sync"
 
-	"ThroneCore/internal/boxbox"
-	"ThroneCore/internal/xray"
+	"qThroneCore/internal/boxbox"
+	"qThroneCore/internal/xray"
 
 	"github.com/xtls/xray-core/core"
 )

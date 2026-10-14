@@ -5,10 +5,10 @@ import (
 	"errors"
 	"time"
 
-	"ThroneCore/gen"
-	"ThroneCore/internal/probe"
-	"ThroneCore/internal/rulesets"
-	"ThroneCore/internal/scan"
+	"qThroneCore/gen"
+	"qThroneCore/internal/probe"
+	"qThroneCore/internal/rulesets"
+	"qThroneCore/internal/scan"
 )
 
 func milliseconds(ms int32) time.Duration {

@@ -21,6 +21,8 @@ namespace Configs
         QString bridgeHost = "127.0.0.1";
 
         QJsonObject DisplayXrayOutbound() const;
+        QJsonObject DisplaySingBoxOutbound() const;
+        QString DisplaySingBoxType() const;
 
         bool ParseFromJson(const QJsonObject &object) override {
             if (object.isEmpty()) return false;
@@ -41,12 +43,13 @@ namespace Configs
 
         QString GetAddress() override
         {
-            if (type == CustomOutbound) {
-                auto obj = QString2QJsonObject(config);
+            if (type == CustomOutbound || type == CustomFullConfig) {
+                auto obj = DisplaySingBoxOutbound();
                 return obj["server"].toString();
             }
             if (type == CustomXrayOutbound || type == CustomXrayFullConfig) {
                 auto settings = DisplayXrayOutbound()["settings"].toObject();
+                if (settings.contains("address")) return settings["address"].toString();
                 if (settings.contains("vnext")) return settings["vnext"].toArray().first().toObject()["address"].toString();
                 if (settings.contains("servers")) return settings["servers"].toArray().first().toObject()["address"].toString();
             }
@@ -55,14 +58,15 @@ namespace Configs
 
         QString DisplayAddress() override
         {
-            if (type == CustomOutbound) {
-                auto obj = QString2QJsonObject(config);
+            if (type == CustomOutbound || type == CustomFullConfig) {
+                auto obj = DisplaySingBoxOutbound();
                 return ::DisplayAddress(obj["server"].toString(), obj["server_port"].toInt());
             }
             if (type == CustomXrayOutbound || type == CustomXrayFullConfig) {
                 auto settings = DisplayXrayOutbound()["settings"].toObject();
                 QJsonObject server;
-                if (settings.contains("vnext")) server = settings["vnext"].toArray().first().toObject();
+                if (settings.contains("address")) server = settings;
+                else if (settings.contains("vnext")) server = settings["vnext"].toArray().first().toObject();
                 else if (settings.contains("servers")) server = settings["servers"].toArray().first().toObject();
                 if (!server.isEmpty()) return ::DisplayAddress(server["address"].toString(), server["port"].toInt());
             }
@@ -71,20 +75,11 @@ namespace Configs
 
         QString DisplayType() override
         {
-            if (type == CustomOutbound) {
-                auto outboundType = QString2QJsonObject(config)["type"].toString();
-                if (!outboundType.isEmpty()) outboundType[0] = outboundType[0].toUpper();
-                return outboundType.isEmpty() ? "Custom Outbound" : "Custom " + outboundType + " Outbound";
-            } else if (type == CustomFullConfig) {
-                return "Custom Config";
-            } else if (type == CustomXrayOutbound) {
-                auto protocol = QString2QJsonObject(config)["protocol"].toString();
-                if (!protocol.isEmpty()) protocol[0] = protocol[0].toUpper();
-                return protocol.isEmpty() ? "Custom Xray Outbound" : "Custom Xray " + protocol + " Outbound";
-            } else if (type == CustomXrayFullConfig) {
-                const auto object = QString2QJsonObject(config);
-                if (!object["routing"].toObject()["balancers"].toArray().isEmpty()) return "Xray Balancer";
+            if (type == CustomOutbound || type == CustomFullConfig) {
+                return DisplaySingBoxType();
+            } else if (type == CustomXrayOutbound || type == CustomXrayFullConfig) {
                 auto protocol = DisplayXrayOutbound()["protocol"].toString();
+                if (protocol == "hysteria" || protocol == "hysteria2" || protocol == "hy2") protocol = "Hysteria2";
                 if (protocol == "vless" || protocol == "vmess") protocol = protocol.toUpper();
                 else if (!protocol.isEmpty()) protocol[0] = protocol[0].toUpper();
                 return protocol.isEmpty() ? "Custom Xray Config" : protocol + " (Xray)";

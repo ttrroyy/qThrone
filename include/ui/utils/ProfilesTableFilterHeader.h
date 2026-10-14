@@ -22,6 +22,25 @@ namespace Configs {
 class ProfilesTableFilterHeader : public QHeaderView {
     Q_OBJECT
 public:
+    void fitToWidth(int available) {
+        int total = 0, lastVisible = -1;
+        QVector<int> weights;
+        for (int i = 0; i < count(); ++i) {
+            const int weight = isSectionHidden(i) ? 0 : qMax(1, sectionSize(i));
+            weights.append(weight);
+            total += weight;
+            if (weight) lastVisible = i;
+        }
+        setMinimumSectionSize(1);
+        int assigned = 0;
+        if (total > 0 && available > 0) for (int i = 0; i < count(); ++i) {
+            if (!weights[i]) continue;
+            const int width = i == lastVisible ? available - assigned : qMax(1, int(qint64(available) * weights[i] / total));
+            resizeSection(i, width);
+            assigned += width;
+        }
+        adjustPositions();
+    }
     // The band is the header's own child (setOffset() scrolls viewport children), built before setSortIndicatorShown() reaches adjustPositions().
     explicit ProfilesTableFilterHeader(QWidget *parent = nullptr)
         : QHeaderView(Qt::Horizontal, parent), m_subCard(new SubscriptionInfoCard(this)) {

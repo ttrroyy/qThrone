@@ -173,9 +173,52 @@ namespace Configs
         }
     } // namespace
 
+    QJsonObject Custom::DisplaySingBoxOutbound() const {
+        const auto object = QString2QJsonObject(config);
+        if (type != CustomFullConfig) return object;
+        return resolveSingBoxEgress(object["outbounds"].toArray(), object["route"].toObject()["final"].toString(), 16);
+    }
+
+    QString Custom::DisplaySingBoxType() const {
+        const auto object = DisplaySingBoxOutbound();
+        auto protocol = object["type"].toString();
+        if (protocol.isEmpty()) return type == CustomFullConfig ? "Custom Config" : "Custom Outbound";
+        if (protocol == "hysteria2") return "Hysteria2";
+        if (protocol != "custom") {
+            std::shared_ptr<outbound> parsed(NewOutboundByType(protocol));
+            if (parsed && !parsed->invalid) {
+                parsed->ParseFromJson(object);
+                const auto label = parsed->DisplayType();
+                if (!label.isEmpty()) return label;
+            }
+        }
+        protocol[0] = protocol[0].toUpper();
+        return protocol + " (sing-box)";
+    }
+
     QJsonObject Custom::DisplayXrayOutbound() const {
         const auto object = QString2QJsonObject(config);
-        return type == CustomXrayFullConfig ? firstXrayEgress(object["outbounds"].toArray()) : object;
+        if (type != CustomXrayFullConfig) return object;
+        const auto outbounds = object["outbounds"].toArray();
+        const auto routing = object["routing"].toObject();
+        for (const auto &value : routing["rules"].toArray()) {
+            const auto rule = value.toObject();
+            const auto tag = rule["outboundTag"].toString();
+            for (const auto &outbound : outbounds) {
+                const auto candidate = outbound.toObject();
+                if (!tag.isEmpty() && candidate["tag"].toString() == tag && !isXrayInfra(candidate["protocol"].toString())) return candidate;
+            }
+            for (const auto &entry : routing["balancers"].toArray()) {
+                const auto balancer = entry.toObject();
+                if (rule["balancerTag"].toString().isEmpty() || rule["balancerTag"] != balancer["tag"]) continue;
+                for (const auto &selector : balancer["selector"].toArray())
+                    for (const auto &outbound : outbounds) {
+                        const auto candidate = outbound.toObject();
+                        if (candidate["tag"].toString().startsWith(selector.toString()) && !isXrayInfra(candidate["protocol"].toString())) return candidate;
+                    }
+            }
+        }
+        return firstXrayEgress(outbounds);
     }
 
     SecurityInfo Custom::GetSecurity()

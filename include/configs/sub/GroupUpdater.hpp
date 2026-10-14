@@ -24,6 +24,7 @@ namespace Subscription {
 
     // The global subscription settings under the group's overrides; nullptr resolves the globals alone.
     RequestIdentity ResolveIdentity(const Configs::Group *group);
+    QJsonObject PreserveRelaySettings(const QString &type, QJsonObject incoming, const QList<QJsonObject> &previous);
 
     // Jobs run one at a time on a background worker, in FIFO order.
     class GroupUpdater : public QObject {

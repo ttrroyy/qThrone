@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"ThroneCore/internal/warp"
+	"qThroneCore/internal/warp"
 
 	E "github.com/sagernet/sing/common/exceptions"
 )

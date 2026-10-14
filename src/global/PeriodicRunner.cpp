@@ -6,7 +6,7 @@
 
 #include "include/global/Utils.hpp"
 
-namespace Throne {
+namespace qThrone {
 
 static constexpr int kPollSeconds = 60;
 // Lets an overdue job fire shortly after launch instead of a full interval later.
@@ -48,4 +48,4 @@ void PeriodicRunner::tick() {
     }
 }
 
-} // namespace Throne
+} // namespace qThrone

@@ -96,7 +96,8 @@ namespace Configs
         options.routing_provider = json["routing_provider"].toString();
         options.provider_routing = json["provider_routing"].toString();
         options.provider_routing_profiles = json["provider_routing_profiles"].toString();
-        options.provider_routing_enabled = json["provider_routing_enabled"].toBool(true);
+        options.provider_routing_enabled = json["provider_routing_enabled"].toBool(!options.provider_routing.isEmpty() && options.provider_routing != "off");
+        if (options.provider_routing.isEmpty() || options.provider_routing == "off") options.provider_routing_enabled = false;
         options.provider_ignore_import = json["provider_ignore_import"].toBool();
         options.user_agent = json["user_agent"].toString();
         if (const int tls = json["tls_version"].toInt(-1); tls >= 0 && tls <= static_cast<int>(subTlsVersion::tls13)) {

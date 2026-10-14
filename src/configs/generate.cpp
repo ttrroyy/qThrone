@@ -66,10 +66,10 @@ namespace Configs {
             constexpr auto dnsIn = "dns-in";
             constexpr auto mixedIn = "mixed-in";
             constexpr auto tunIn = "tun-in";
-            constexpr auto xrayFullConfigIn = "throne-bridge";
+            constexpr auto xrayFullConfigIn = "qthrone-bridge";
 
-            constexpr auto adblockRuleSet = "throne-adblocksingbox";
-            constexpr auto privateRangesRuleSet = "throne-private-ranges";
+            constexpr auto adblockRuleSet = "qthrone-adblocksingbox";
+            constexpr auto privateRangesRuleSet = "qthrone-private-ranges";
 
             constexpr auto mainChainPrefix = "config";
             constexpr auto routeChainPrefix = "route";
@@ -1675,8 +1675,12 @@ namespace Configs {
                     return ingressTag;
                 }
                 QJsonObject geoDocument;
-                if (const auto sourceGroup = dataManager->groupsRepo->GetGroup(ents.last()->gid); sourceGroup && !sourceGroup->sub_options.routing_provider.isEmpty())
-                    geoDocument = QString2QJsonObject(sourceGroup->sub_options.provider_routing);
+                if (const auto sourceGroup = dataManager->groupsRepo->GetGroup(ents.last()->gid); sourceGroup && !sourceGroup->sub_options.routing_provider.isEmpty()) {
+                    geoDocument = Subscription::ProviderRouting::SourceDocument(sourceGroup->sub_options);
+                    // Provider routing may be disabled, but full Xray JSON still
+                    // needs the provider's original Geo categories. Recover the
+                    // saved source for older settings with the synthetic off item.
+                }
                 ctx.error = Subscription::ProviderRouting::ResolveXrayGeo(geoDocument, userXrayConfig);
                 if (!ctx.error.isEmpty()) return ingressTag;
                 // A pre-probed 0 means the caller's probe failed; re-probe rather than bake in a dead port.
@@ -1700,6 +1704,29 @@ namespace Configs {
                                                                      : userXrayConfig["inbounds"].toArray();
                 inbounds.prepend(bridgeInbound);
                 userXrayConfig["inbounds"] = inbounds;
+
+                // Preserve rules saved with the bridge tag used by earlier desktop versions.
+                auto routing = userXrayConfig["routing"].toObject();
+                auto rules = routing["rules"].toArray();
+                for (qsizetype i = 0; i < rules.size(); ++i) {
+                    auto rule = rules[i].toObject();
+                    auto inboundTags = rule["inboundTag"].toArray();
+                    bool migrated = false;
+                    for (qsizetype j = 0; j < inboundTags.size(); ++j) {
+                        if (inboundTags[j].toString() == "throne-bridge") {
+                            inboundTags[j] = tags::xrayFullConfigIn;
+                            migrated = true;
+                        }
+                    }
+                    if (migrated) {
+                        rule["inboundTag"] = inboundTags;
+                        rules[i] = rule;
+                    }
+                }
+                if (routing.contains("rules")) {
+                    routing["rules"] = rules;
+                    userXrayConfig["routing"] = routing;
+                }
 
                 ctx.result->xrayConfig = userXrayConfig;
                 ctx.result->isXrayNeeded = true;
@@ -2127,7 +2154,7 @@ namespace Configs {
                 ctx.outbounds.append(QJsonObject{
                 {"type", "bridge"},
                 {"tag", tags::l3Direct},
-                {"bridge_name", "throne-br"}
+                {"bridge_name", "qthrone-br"}
                 });
             }
 

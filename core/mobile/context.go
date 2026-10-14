@@ -5,7 +5,7 @@ import (
 	"net/netip"
 	"os"
 
-	"ThroneCore/internal/xray"
+	"qThroneCore/internal/xray"
 
 	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"

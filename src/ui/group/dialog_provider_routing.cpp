@@ -175,7 +175,7 @@ bool EditProviderRouting(Configs::SubscriptionOptions &options, QWidget *parent)
     dialog.resize(700, 470);
     auto layout = new QVBoxLayout(&dialog);
     auto enable = new QCheckBox(QObject::tr("Использовать маршрутизацию этой подписки"));
-    enable->setChecked(changed.provider_routing_enabled);
+    enable->setChecked(changed.provider_routing_enabled && !changed.provider_routing.isEmpty() && changed.provider_routing != "off");
     layout->addWidget(enable);
     auto ignore = new QCheckBox(QObject::tr("Не импортировать маршрутизацию при обновлении подписки"));
     ignore->setChecked(changed.provider_ignore_import);
@@ -189,7 +189,6 @@ bool EditProviderRouting(Configs::SubscriptionOptions &options, QWidget *parent)
     auto profiles = QJsonDocument::fromJson(changed.provider_routing_profiles.toUtf8()).array();
     const auto reload = [&] {
         list->clear();
-        list->addItem(QObject::tr("Без маршрутизации подписки (весь трафик через прокси)"));
         const auto selected =
             QJsonDocument::fromJson(changed.provider_routing.toUtf8()).object().value("Name").toString();
         for (const auto &value : profiles) {
@@ -198,8 +197,10 @@ bool EditProviderRouting(Configs::SubscriptionOptions &options, QWidget *parent)
             if (name == selected)
                 list->setCurrentRow(list->count() - 1);
         }
-        if (changed.provider_routing == "off" || list->currentRow() < 0)
+        if (list->currentRow() < 0 && list->count() > 0)
             list->setCurrentRow(0);
+        enable->setEnabled(!profiles.isEmpty());
+        if (profiles.isEmpty()) enable->setChecked(false);
     };
     reload();
     auto actions = new QHBoxLayout;
@@ -222,9 +223,10 @@ bool EditProviderRouting(Configs::SubscriptionOptions &options, QWidget *parent)
         changed.provider_ignore_import = ignore->isChecked();
         profiles = QJsonDocument::fromJson(changed.provider_routing_profiles.toUtf8()).array();
         reload();
+        enable->setChecked(changed.provider_routing_enabled && !profiles.isEmpty());
     });
     const auto editSelected = [&] {
-        const auto index = list->currentRow() - 1;
+        const auto index = list->currentRow();
         if (index < 0 || index >= profiles.size())
             return;
         auto doc = profiles[index].toObject();
@@ -237,7 +239,7 @@ bool EditProviderRouting(Configs::SubscriptionOptions &options, QWidget *parent)
     QObject::connect(edit, &QPushButton::clicked, &dialog, editSelected);
     QObject::connect(list, &QListWidget::itemDoubleClicked, &dialog, [&](QListWidgetItem *) { editSelected(); });
     QObject::connect(copy, &QPushButton::clicked, &dialog, [&] {
-        const auto index = list->currentRow() - 1;
+        const auto index = list->currentRow();
         if (index < 0 || index >= profiles.size())
             return;
         QApplication::clipboard()->setText(
@@ -247,11 +249,11 @@ bool EditProviderRouting(Configs::SubscriptionOptions &options, QWidget *parent)
                                     .toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)));
     });
     QObject::connect(remove, &QPushButton::clicked, &dialog, [&] {
-        const auto index = list->currentRow() - 1;
+        const auto index = list->currentRow();
         if (index < 0 || index >= profiles.size())
             return;
         profiles.removeAt(index);
-        changed.provider_routing = "off";
+        changed.provider_routing.clear();
         reload();
     });
     auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
@@ -260,13 +262,13 @@ bool EditProviderRouting(Configs::SubscriptionOptions &options, QWidget *parent)
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     if (dialog.exec() != QDialog::Accepted)
         return false;
-    changed.provider_routing_enabled = enable->isChecked();
+    changed.provider_routing_enabled = enable->isChecked() && !profiles.isEmpty();
     changed.provider_ignore_import = ignore->isChecked();
-    const auto index = list->currentRow() - 1;
+    const auto index = list->currentRow();
     changed.provider_routing =
         index >= 0 && index < profiles.size()
             ? QString::fromUtf8(QJsonDocument(profiles[index].toObject()).toJson(QJsonDocument::Compact))
-            : "off";
+            : QString();
     changed.provider_routing_profiles = QJsonDocument(profiles).toJson(QJsonDocument::Compact);
     if (changed.routing_provider.isEmpty() && !profiles.isEmpty())
         changed.routing_provider = "Happ";

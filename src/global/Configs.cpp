@@ -11,6 +11,8 @@
 #include <QNetworkAccessManager>
 #include <QStandardPaths>
 #include <utility>
+#include <QUuid>
+#include <QMutexLocker>
 #include <include/api/RPC.h>
 
 #include "include/database/GroupsRepo.h"
@@ -114,5 +116,17 @@ namespace Configs {
         if (Configs::dataManager->settingsRepo->flag_use_appdata) return QStandardPaths::writableLocation(
               QStandardPaths::AppConfigLocation);
         return qApp->applicationDirPath();
+    }
+    QString RelayDeviceID() {
+        static QMutex mutex;
+        QMutexLocker lock(&mutex);
+        static const auto fallback = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        if (!dataManager || !dataManager->settingsRepo) return fallback;
+        auto *settings = dataManager->settingsRepo.get();
+        if (settings->relay_device_id.isEmpty()) {
+            settings->relay_device_id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+            settings->Save();
+        }
+        return settings->relay_device_id;
     }
 } // namespace Configs
