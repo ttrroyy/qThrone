@@ -613,6 +613,8 @@ jobs:
           name: Pack-${{ github.sha }}-windows
           path: upgrade-package
       - name: Upgrade the previous release and verify the new bundled updater
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: ./script/test_windows_upgrade.ps1 -Archive "upgrade-package/qThrone-${{ github.event.inputs.tag }}-windows64.zip" -Version "${{ github.event.inputs.tag }}"
   publish:

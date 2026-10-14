@@ -2,7 +2,9 @@ param([Parameter(Mandatory=$true)][string]$Archive, [Parameter(Mandatory=$true)]
 $ErrorActionPreference = 'Stop'
 $workspace = Join-Path $env:RUNNER_TEMP 'qthrone-upgrade-test'
 New-Item -ItemType Directory -Path $workspace -Force | Out-Null
-$releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases?per_page=100" -Headers @{Accept='application/vnd.github+json'}
+$apiHeaders = @{Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'; 'User-Agent'="qThrone-upgrade-test/$Version"}
+if ($env:GH_TOKEN) { $apiHeaders.Authorization = "Bearer $env:GH_TOKEN" }
+$releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases?per_page=100" -Headers $apiHeaders
 $release = $releases | Where-Object { !$_.draft -and ($_.tag_name -replace '^v', '') -ne $Version -and ($_.assets.name -contains "qThrone-$($_.tag_name -replace '^v', '')-windows64.zip") } | Sort-Object published_at -Descending | Select-Object -First 1
 if (!$release) { throw 'A previous published portable release is required' }
 $baseline = $release.tag_name -replace '^v', ''
