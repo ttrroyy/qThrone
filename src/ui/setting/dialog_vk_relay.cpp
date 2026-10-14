@@ -496,8 +496,9 @@ bool SaveVKRelayPreviews(const QString &directory) {
         {
             DialogVKRelay dialog;
             snapshot(dialog, "account");
-            if (!dialog.findChildren<QLineEdit *>().isEmpty())
-                saved = false;
+            for (auto *edit : dialog.findChildren<QLineEdit *>())
+                if (!qobject_cast<QSpinBox *>(edit->parentWidget()))
+                    saved = false;
             auto *tabs = dialog.findChild<QTabWidget *>();
             for (int i = 1; i < 3; ++i) {
                 tabs->setCurrentIndex(i);
