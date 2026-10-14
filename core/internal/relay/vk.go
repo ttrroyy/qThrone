@@ -11,7 +11,6 @@ import (
 	"github.com/zalando/go-keyring"
 	"io"
 	"net/http"
-	"net/http/cookiejar"
 	"net/url"
 	"os"
 	"os/exec"
@@ -73,25 +72,16 @@ var locationPattern = regexp.MustCompile(`location\.href\s*=\s*["']([^"']+)["']`
 var grantPattern = regexp.MustCompile(`https://login\.vk\.com/\?act=grant_access[^"'\s<]+`)
 
 func refreshToken(ctx context.Context, a *account) error {
-	jar, _ := cookiejar.New(nil)
-	for _, c := range a.Cookies {
-		domain := strings.TrimPrefix(c.Domain, ".")
-		if !trustedVK("https://" + domain + "/") {
-			continue
-		}
-		u, _ := url.Parse("https://" + domain + "/")
-		cookie := &http.Cookie{Name: c.Name, Value: c.Value, Path: c.Path, Domain: c.Domain, Secure: c.Secure, HttpOnly: c.HTTPOnly}
-		if c.Expires > 0 {
-			cookie.Expires = time.Unix(int64(c.Expires), 0)
-		}
-		jar.SetCookies(u, []*http.Cookie{cookie})
+	cookies := vkCookieHeader(a.Cookies)
+	if cookies == "" {
+		return fmt.Errorf("Сначала войдите в аккаунт VK")
 	}
 	bytes := make([]byte, 24)
 	if _, e := rand.Read(bytes); e != nil {
 		return e
 	}
 	state := hex.EncodeToString(bytes)
-	client := &http.Client{Timeout: 30 * time.Second, Jar: jar, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	client := &http.Client{Timeout: 20 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	current := oauthURL(state)
 	for hop := 0; hop < 12; hop++ {
 		if !trustedVK(current) {
@@ -102,12 +92,17 @@ func refreshToken(ctx context.Context, a *account) error {
 			return e
 		}
 		request.Header.Set("User-Agent", a.UserAgent)
+		request.Header.Set("Cookie", cookies)
+		request.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
 		response, e := client.Do(request)
 		if e != nil {
 			return fmt.Errorf("Подтвердите вход VK повторно")
 		}
 		body, e := io.ReadAll(io.LimitReader(response.Body, 2*1024*1024))
 		response.Body.Close()
+		if response.StatusCode == http.StatusTooManyRequests {
+			return vkError{Code: 6}
+		}
 		if e != nil {
 			return e
 		}
@@ -126,9 +121,15 @@ func refreshToken(ctx context.Context, a *account) error {
 			break
 		}
 		if updated, ok := oauthToken(target.String(), state); ok {
+			if updated.User != "" {
+				if a.User != "" && a.User != updated.User {
+					a.Hashes = nil
+				}
+				a.User = updated.User
+			}
 			a.Token = updated.Token
 			a.Expires = updated.Expires
-			return saveAccount(*a)
+			return nil
 		}
 		current = target.String()
 	}
@@ -142,8 +143,66 @@ func accountInfo() (map[string]any, error) {
 		}
 		return nil, e
 	}
-	return map[string]any{"linked": a.Token != "", "name": a.Name, "user": a.User, "hashes": a.Hashes}, nil
+	return map[string]any{"linked": hasVKSession(a.Cookies), "name": a.Name, "user": a.User, "hashes": a.Hashes}, nil
 }
+func vkCookieHeader(cookies []browserCookie) string {
+	seen := make(map[string]bool)
+	var values []string
+	for _, cookie := range cookies {
+		if !trustedVK("https://"+strings.TrimPrefix(cookie.Domain, ".")+"/") || (cookie.Expires > 0 && cookie.Expires <= float64(time.Now().Unix())) {
+			continue
+		}
+		value := cookie.Name + "=" + cookie.Value
+		if !seen[value] {
+			values = append(values, value)
+			seen[value] = true
+		}
+	}
+	return strings.Join(values, "; ")
+}
+func hasVKSession(cookies []browserCookie) bool {
+	for _, cookie := range cookies {
+		if cookie.Name == "remixsid" && cookie.Value != "" && trustedVK("https://"+strings.TrimPrefix(cookie.Domain, ".")+"/") && (cookie.Expires <= 0 || cookie.Expires > float64(time.Now().Unix())) {
+			return true
+		}
+	}
+	return false
+}
+func vkLoginComplete(location string, cookies []browserCookie) bool {
+	if !trustedVK(location) {
+		return false
+	}
+	address, _ := url.Parse(location)
+	text := strings.ToLower(location)
+	if (address.Hostname() == "id.vk.com" || address.Hostname() == "id.vk.ru") && (strings.Contains(text, "authorize") || strings.Contains(text, "login") || strings.Contains(text, "auth")) {
+		return false
+	}
+	for _, cookie := range cookies {
+		if cookie.Name == "remixsid" && len(cookie.Value) >= 8 && hasVKSession([]browserCookie{cookie}) {
+			return true
+		}
+	}
+	return false
+}
+func sameVKAccount(a, b account) bool {
+	if a.User != "" && b.User != "" {
+		return a.User == b.User
+	}
+	for _, first := range a.Cookies {
+		if first.Name != "remixsid" || first.Value == "" {
+			continue
+		}
+		for _, second := range b.Cookies {
+			if second.Name == "remixsid" && first.Value == second.Value {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+var vkCookieURLs = []string{"https://vk.com", "https://vk.ru", "https://m.vk.com", "https://m.vk.ru", "https://login.vk.com", "https://oauth.vk.com", "https://id.vk.com", "https://id.vk.ru"}
+
 func oauthURL(state string) string {
 	return "https://oauth.vk.com/authorize?" + url.Values{"client_id": {"6287487"}, "display": {"mobile"}, "redirect_uri": {"https://oauth.vk.com/blank.html"}, "response_type": {"token"}, "scope": {"messages"}, "v": {"5.199"}, "state": {state}}.Encode()
 }
@@ -166,6 +225,22 @@ func oauthToken(raw, state string) (account, bool) {
 type devTools struct {
 	conn *websocket.Conn
 	id   int
+}
+type browserTab struct {
+	Type      string `json:"type"`
+	URL       string `json:"url"`
+	WebSocket string `json:"webSocketDebuggerUrl"`
+}
+
+func browserTabs(client *http.Client, endpoint string) ([]browserTab, error) {
+	response, err := client.Get(endpoint + "/json/list")
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+	var tabs []browserTab
+	err = json.NewDecoder(io.LimitReader(response.Body, 1024*1024)).Decode(&tabs)
+	return tabs, err
 }
 
 func (c *devTools) call(method string, params any) (json.RawMessage, error) {
@@ -232,6 +307,8 @@ func browserPath() string {
 	return ""
 }
 func (p *protocol) login(r Request) error {
+	tokenMode := r.Operation == "vk-token"
+	previous, _ := readAccount()
 	path := browserPath()
 	if path == "" {
 		return fmt.Errorf("Для привязки VK установите Chrome, Chromium или Edge")
@@ -249,7 +326,7 @@ func (p *protocol) login(r Request) error {
 		return e
 	}
 	state := hex.EncodeToString(stateBytes)
-	command := exec.CommandContext(ctx, path, "--user-data-dir="+dir, "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", "--window-size=480,680", "--no-first-run", "--no-default-browser-check", "--app=https://m.vk.ru/login")
+	command := exec.CommandContext(ctx, path, "--user-data-dir="+dir, "--remote-debugging-address=127.0.0.1", "--remote-debugging-port=0", "--window-size=480,680", "--no-first-run", "--no-default-browser-check", "--disable-popup-blocking", "--app=about:blank")
 	if e = command.Start(); e != nil {
 		return fmt.Errorf("Не удалось открыть окно входа VK")
 	}
@@ -270,23 +347,13 @@ func (p *protocol) login(r Request) error {
 		return fmt.Errorf("Не удалось подключиться к окну VK")
 	}
 	httpClient := &http.Client{Timeout: 5 * time.Second}
-	var tabs []struct {
-		Type      string `json:"type"`
-		URL       string `json:"url"`
-		WebSocket string `json:"webSocketDebuggerUrl"`
-	}
-	response, e := httpClient.Get(endpoint + "/json/list")
-	if e != nil {
-		return e
-	}
-	e = json.NewDecoder(response.Body).Decode(&tabs)
-	response.Body.Close()
+	tabs, e := browserTabs(httpClient, endpoint)
 	if e != nil {
 		return e
 	}
 	var ws string
 	for _, t := range tabs {
-		if t.Type == "page" && strings.HasPrefix(t.URL, "https://m.vk.ru/") {
+		if t.Type == "page" {
 			ws = t.WebSocket
 			break
 		}
@@ -300,27 +367,88 @@ func (p *protocol) login(r Request) error {
 	}
 	defer conn.Close()
 	c := devTools{conn: conn}
+	defer func() { _ = c.conn.Close() }()
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_, _ = c.call("Network.enable", map[string]any{})
+	_, _ = c.call("Network.setExtraHTTPHeaders", map[string]any{"headers": map[string]string{"Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"}})
+	var restored []map[string]any
+	for _, cookie := range previous.Cookies {
+		if !trustedVK("https://"+strings.TrimPrefix(cookie.Domain, ".")+"/") || (cookie.Expires > 0 && cookie.Expires <= float64(time.Now().Unix())) {
+			continue
+		}
+		value := map[string]any{"name": cookie.Name, "value": cookie.Value, "domain": cookie.Domain, "path": cookie.Path, "secure": cookie.Secure, "httpOnly": cookie.HTTPOnly}
+		if cookie.Expires > 0 {
+			value["expires"] = cookie.Expires
+		}
+		restored = append(restored, value)
+	}
+	if len(restored) > 0 {
+		if _, e = c.call("Network.setCookies", map[string]any{"cookies": restored}); e != nil {
+			return fmt.Errorf("Не удалось восстановить сессию VK")
+		}
+	}
+	startURL := "https://m.vk.ru/login"
+	if tokenMode {
+		startURL = oauthURL(state)
+	}
+	if _, e = c.call("Page.navigate", map[string]any{"url": startURL}); e != nil {
+		return e
+	}
 	defer func() {
-		_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+		_ = c.conn.SetReadDeadline(time.Now().Add(time.Second))
 		_, _ = c.call("Browser.close", map[string]any{})
 	}()
 	var saved account
 	linked := false
-	authorizationStarted := false
 	loginRoute := 0
 	for ctx.Err() == nil {
-		_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		if tokenMode {
+			pages, err := browserTabs(httpClient, endpoint)
+			if err == nil {
+				for _, page := range pages {
+					if a, ok := oauthToken(page.URL, state); ok {
+						saved = a
+						linked = true
+						break
+					}
+				}
+			}
+			if linked {
+				break
+			}
+		}
+		_ = c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 		location, e := c.evaluate("location.href")
 		if e != nil {
+			pages, _ := browserTabs(httpClient, endpoint)
+			for _, page := range pages {
+				if page.Type != "page" || page.WebSocket == ws || !trustedVK(page.URL) {
+					continue
+				}
+				next, _, err := websocket.DefaultDialer.DialContext(ctx, page.WebSocket, nil)
+				if err == nil {
+					_ = c.conn.Close()
+					c.conn = next
+					ws = page.WebSocket
+					break
+				}
+			}
+			if c.conn != conn {
+				conn = c.conn
+				continue
+			}
 			p.emit("cancelled", "", nil)
+			if tokenMode {
+				return context.Canceled
+			}
 			return nil
 		}
-		if a, ok := oauthToken(location, state); ok {
+		if a, ok := oauthToken(location, state); ok && tokenMode {
 			saved = a
 			linked = true
 			break
 		}
-		if !authorizationStarted {
+		if !tokenMode {
 			body, _ := c.evaluate("document.body ? document.body.innerText : ''")
 			if strings.Contains(strings.ToLower(body), "unknown method") && loginRoute < 2 {
 				loginRoute++
@@ -329,9 +457,10 @@ func (p *protocol) login(r Request) error {
 					next = "https://vk.ru/login"
 					_, _ = c.call("Network.setUserAgentOverride", map[string]any{"userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"})
 				}
+				_, _ = c.call("Network.clearBrowserCookies", map[string]any{})
 				_, _ = c.call("Page.navigate", map[string]any{"url": next})
 			}
-			result, e := c.call("Network.getCookies", map[string]any{"urls": []string{"https://vk.ru/", "https://vk.com/", "https://m.vk.ru/"}})
+			result, e := c.call("Network.getCookies", map[string]any{"urls": vkCookieURLs})
 			if e != nil {
 				return e
 			}
@@ -339,16 +468,11 @@ func (p *protocol) login(r Request) error {
 				Cookies []browserCookie `json:"cookies"`
 			}
 			_ = json.Unmarshal(result, &cookies)
-			for _, cookie := range cookies.Cookies {
-				if cookie.Name == "remixsid" && cookie.Value != "" {
-					authorizationStarted = true
-					_, e = c.call("Page.navigate", map[string]any{"url": oauthURL(state)})
-					if e != nil {
-						return e
-					}
-					p.emit("progress", "Подтвердите доступ VK для создания хешей", nil)
-					break
-				}
+			ready, _ := c.evaluate("document.readyState")
+			if ready == "complete" && vkLoginComplete(location, cookies.Cookies) {
+				saved.Cookies = cookies.Cookies
+				linked = true
+				break
 			}
 		}
 		select {
@@ -359,7 +483,7 @@ func (p *protocol) login(r Request) error {
 	if !linked {
 		return fmt.Errorf("Истекло время входа VK")
 	}
-	result, e := c.call("Network.getCookies", map[string]any{"urls": []string{"https://vk.ru/", "https://vk.com/", "https://m.vk.ru/", "https://m.vk.com/", "https://oauth.vk.com/", "https://login.vk.com/"}})
+	result, e := c.call("Network.getCookies", map[string]any{"urls": vkCookieURLs})
 	if e != nil {
 		return e
 	}
@@ -371,31 +495,41 @@ func (p *protocol) login(r Request) error {
 	}
 	saved.Cookies = cookies.Cookies
 	saved.UserAgent, _ = c.evaluate("navigator.userAgent")
-	identity, e := vkAPI(p.ctx, saved.Token, "users.get")
-	if e == nil {
-		var users []struct {
-			First string `json:"first_name"`
-			Last  string `json:"last_name"`
-		}
-		if json.Unmarshal(identity, &users) == nil && len(users) > 0 {
-			saved.Name = strings.TrimSpace(users[0].First + " " + users[0].Last)
+	if saved.User == "" {
+		for _, cookie := range saved.Cookies {
+			if cookie.Name == "remixmid" && cookie.Value != "0" {
+				saved.User = cookie.Value
+				break
+			}
 		}
 	}
 	if saved.Name == "" {
-		saved.Name = "VK ID: " + saved.User
+		saved.Name = "Аккаунт VK привязан"
+		if saved.User != "" {
+			saved.Name = "VK ID: " + saved.User
+		}
 	}
-	unlock, e := vaultLock(p.ctx, "account")
-	if e != nil {
-		return e
+	if !tokenMode {
+		unlock, e := vaultLock(p.ctx, "account")
+		if e != nil {
+			return e
+		}
+		defer unlock()
 	}
-	defer unlock()
-	if old, e := readAccount(); e == nil && old.User == saved.User {
+	if old, e := readAccount(); e == nil && sameVKAccount(old, saved) {
 		saved.Hashes = old.Hashes
+		if !tokenMode {
+			saved.Token = old.Token
+			saved.Expires = old.Expires
+		}
+		saved.RetryAfter = old.RetryAfter
 	}
 	if e = saveAccount(saved); e != nil {
 		return fmt.Errorf("Не удалось сохранить аккаунт в системном хранилище: %w", e)
 	}
-	p.emit("result", "", map[string]any{"linked": true, "name": saved.Name, "user": saved.User})
+	if !tokenMode {
+		p.emit("result", "", map[string]any{"linked": true, "name": saved.Name, "user": saved.User})
+	}
 	return nil
 }
 
@@ -403,17 +537,20 @@ type vkError struct{ Code int }
 
 func (e vkError) Error() string { return fmt.Sprintf("VK: код %d", e.Code) }
 func vkAPI(ctx context.Context, token, method string) (json.RawMessage, error) {
-	client := &http.Client{Timeout: 30 * time.Second}
-	request, e := http.NewRequestWithContext(ctx, http.MethodPost, "https://api.vk.ru/method/"+method, strings.NewReader(url.Values{"access_token": {token}, "v": {"5.199"}}.Encode()))
+	client := &http.Client{Timeout: 20 * time.Second}
+	request, e := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.vk.ru/method/"+method+"?"+url.Values{"access_token": {token}, "v": {"5.199"}}.Encode(), nil)
 	if e != nil {
 		return nil, e
 	}
-	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	request.Header.Set("User-Agent", "okhttp/4.12.0")
 	response, e := client.Do(request)
 	if e != nil {
 		return nil, fmt.Errorf("VK недоступен")
 	}
 	defer response.Body.Close()
+	if response.StatusCode == http.StatusTooManyRequests {
+		return nil, vkError{Code: 6}
+	}
 	if response.StatusCode != 200 {
 		return nil, fmt.Errorf("VK: HTTP %d", response.StatusCode)
 	}
@@ -434,6 +571,21 @@ func vkAPI(ctx context.Context, token, method string) (json.RawMessage, error) {
 	}
 	return data.Response, nil
 }
+func (p *protocol) confirmVKBrowser() error {
+	p.emit("vk-confirm", "VK не выдал токен через HTTP. Открыть окно VK для подтверждения доступа?", nil)
+	select {
+	case answer, ok := <-p.commands:
+		if ok && answer == "approve" {
+			return nil
+		}
+		return fmt.Errorf("Подтверждение доступа VK отменено")
+	case <-p.ctx.Done():
+		return p.ctx.Err()
+	case <-time.After(2 * time.Minute):
+		return fmt.Errorf("Подтверждение доступа VK не получено")
+	}
+}
+
 func (p *protocol) hashes(r Request) error {
 	if r.Count < 1 || r.Count > 4 {
 		return fmt.Errorf("Количество хешей: от 1 до 4")
@@ -450,16 +602,39 @@ func (p *protocol) hashes(r Request) error {
 		}
 		return e
 	}
-	if a.Expires <= time.Now().Unix()+60 {
-		if e = refreshToken(p.ctx, &a); e != nil {
-			return e
-		}
+	if len(a.Hashes) >= r.Count {
+		p.emit("result", "", map[string]any{"hashes": a.Hashes[:r.Count]})
+		return nil
+	}
+	if !hasVKSession(a.Cookies) {
+		return fmt.Errorf("Сначала войдите в аккаунт VK")
 	}
 	if a.RetryAfter > time.Now().Unix() {
 		return fmt.Errorf("VK ограничил запросы. Повторите позже или используйте ручные хеши")
 	}
+	if e = refreshToken(p.ctx, &a); e != nil {
+		var limit vkError
+		if errors.As(e, &limit) && limit.Code == 6 {
+			a.RetryAfter = time.Now().Add(time.Hour).Unix()
+			_ = saveAccount(a)
+			return e
+		}
+		if e = p.confirmVKBrowser(); e != nil {
+			return e
+		}
+		if e = p.login(Request{Operation: "vk-token"}); e != nil {
+			return e
+		}
+		if a, e = readAccount(); e != nil {
+			return e
+		}
+		if a.Token == "" {
+			return fmt.Errorf("Не удалось получить доступ VK. Подтвердите вход повторно")
+		}
+	}
+	created := 0
 	for len(a.Hashes) < r.Count {
-		if len(a.Hashes) > 0 {
+		if created > 0 {
 			select {
 			case <-p.ctx.Done():
 				return p.ctx.Err()
@@ -495,6 +670,7 @@ func (p *protocol) hashes(r Request) error {
 			return fmt.Errorf("Некорректный хеш VK")
 		}
 		a.Hashes = append(a.Hashes, hash)
+		created++
 		if e = saveAccount(a); e != nil {
 			return e
 		}

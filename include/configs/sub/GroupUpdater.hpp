@@ -75,7 +75,7 @@ namespace Subscription {
         void requestUrlTest(int gid, const QList<int> &profileIDs);
         void afterUrlTest(int gid);
         void importDocuments(int gid, QList<QByteArray> documents);
-        bool fetch(const QString &url, const QString &name, const RequestIdentity &identity, QByteArray &body, Configs::SubUserInfo &subInfo);
+        bool fetch(const QString &url, const QString &name, const RequestIdentity &identity, QByteArray &body, Configs::SubUserInfo &subInfo, QString *routing = nullptr);
         [[nodiscard]] qint64 autoUpdateDue(const Configs::Group &group, qint64 interval) const;
 
         // UI thread only: in-memory, so a restart retries a failing group once.

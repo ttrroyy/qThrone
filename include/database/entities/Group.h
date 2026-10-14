@@ -89,6 +89,11 @@ namespace Configs
 
     // Empty values inherit the global subscription settings.
     struct SubscriptionOptions {
+        QString routing_provider;
+        QString provider_routing;
+        QString provider_routing_profiles;
+        bool provider_routing_enabled = true;
+        bool provider_ignore_import = false;
         QString user_agent;
         std::optional<subTlsVersion> tls_version;
         std::optional<subHttpVersion> http_version;

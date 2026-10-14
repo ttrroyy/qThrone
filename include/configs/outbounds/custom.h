@@ -20,6 +20,8 @@ namespace Configs
         QString bridgeAuth;
         QString bridgeHost = "127.0.0.1";
 
+        QJsonObject DisplayXrayOutbound() const;
+
         bool ParseFromJson(const QJsonObject &object) override {
             if (object.isEmpty()) return false;
             if (object.contains("name")) name = object["name"].toString();
@@ -43,8 +45,8 @@ namespace Configs
                 auto obj = QString2QJsonObject(config);
                 return obj["server"].toString();
             }
-            if (type == CustomXrayOutbound) {
-                auto settings = QString2QJsonObject(config)["settings"].toObject();
+            if (type == CustomXrayOutbound || type == CustomXrayFullConfig) {
+                auto settings = DisplayXrayOutbound()["settings"].toObject();
                 if (settings.contains("vnext")) return settings["vnext"].toArray().first().toObject()["address"].toString();
                 if (settings.contains("servers")) return settings["servers"].toArray().first().toObject()["address"].toString();
             }
@@ -57,8 +59,8 @@ namespace Configs
                 auto obj = QString2QJsonObject(config);
                 return ::DisplayAddress(obj["server"].toString(), obj["server_port"].toInt());
             }
-            if (type == CustomXrayOutbound) {
-                auto settings = QString2QJsonObject(config)["settings"].toObject();
+            if (type == CustomXrayOutbound || type == CustomXrayFullConfig) {
+                auto settings = DisplayXrayOutbound()["settings"].toObject();
                 QJsonObject server;
                 if (settings.contains("vnext")) server = settings["vnext"].toArray().first().toObject();
                 else if (settings.contains("servers")) server = settings["servers"].toArray().first().toObject();
@@ -80,7 +82,12 @@ namespace Configs
                 if (!protocol.isEmpty()) protocol[0] = protocol[0].toUpper();
                 return protocol.isEmpty() ? "Custom Xray Outbound" : "Custom Xray " + protocol + " Outbound";
             } else if (type == CustomXrayFullConfig) {
-                return "Custom Xray Config";
+                const auto object = QString2QJsonObject(config);
+                if (!object["routing"].toObject()["balancers"].toArray().isEmpty()) return "Xray Balancer";
+                auto protocol = DisplayXrayOutbound()["protocol"].toString();
+                if (protocol == "vless" || protocol == "vmess") protocol = protocol.toUpper();
+                else if (!protocol.isEmpty()) protocol[0] = protocol[0].toUpper();
+                return protocol.isEmpty() ? "Custom Xray Config" : protocol + " (Xray)";
             }
             return type;
         };

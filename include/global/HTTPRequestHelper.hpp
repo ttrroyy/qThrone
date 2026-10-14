@@ -20,6 +20,8 @@ namespace Configs_network {
 
     struct HttpGetOptions {
         bool useProxy = false;
+        bool directWhenDisconnected = false;
+        int transferTimeoutMs = 10000;
         // > 0 aborts the transfer once the body exceeds it and reports an error.
         qint64 maxBytes = 0;
         // Empty sends the global User-Agent.

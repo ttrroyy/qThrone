@@ -11,6 +11,7 @@
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QDesktopServices>
+#include <QElapsedTimer>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
@@ -32,6 +33,7 @@
 #include <QSpinBox>
 #include <QStandardItemModel>
 #include <QTabWidget>
+#include <QThread>
 #include <QTimer>
 #include <QUuid>
 #include <QVBoxLayout>
@@ -45,6 +47,12 @@ RelayTask::RelayTask(QObject *parent) : QObject(parent) {
             const auto line = pending.left(end);
             pending.remove(0, end + 1);
             const auto event = QJsonDocument::fromJson(line).object();
+            if (event["type"] == "vk-confirm") {
+                approve(QMessageBox::question(qobject_cast<QWidget *>(this->parent()), "Подтверждение VK",
+                                               event["text"].toString(), QMessageBox::Yes | QMessageBox::No,
+                                               QMessageBox::No) == QMessageBox::Yes);
+                continue;
+            }
             if (event["type"] == "error")
                 failed = true;
             if (!event.isEmpty() && handler)
@@ -120,21 +128,50 @@ QStringList RelayAccountHashes(int count, QString *error) {
     }
     process.write(
         QJsonDocument(QJsonObject{{"operation", "vk-hashes"}, {"count", count}}).toJson(QJsonDocument::Compact) + '\n');
-    process.closeWriteChannel();
-    if (!process.waitForFinished(120000)) {
-        process.kill();
-        process.waitForFinished(5000);
-        *error = QStringLiteral("VK: превышено время ожидания");
-        return {};
-    }
     QStringList result;
-    for (const auto &line : process.readAllStandardOutput().split('\n')) {
-        const auto event = QJsonDocument::fromJson(line).object();
-        if (event["type"] == "result")
-            for (const auto &value : event["value"].toArray())
-                result.append(value.toString());
-        if (event["type"] == "error")
-            *error = event["text"].toString();
+    QByteArray pending;
+    QElapsedTimer elapsed;
+    elapsed.start();
+    while (true) {
+        process.waitForReadyRead(100);
+        pending += process.readAllStandardOutput();
+        while (pending.contains('\n')) {
+            const auto end = pending.indexOf('\n');
+            const auto event = QJsonDocument::fromJson(pending.left(end)).object();
+            pending.remove(0, end + 1);
+            if (event["type"] == "vk-confirm") {
+                bool accepted = false;
+                const auto confirm = [&] {
+                    accepted = QMessageBox::question(GetMessageBoxParent(), "Подтверждение VK",
+                                                      event["text"].toString(), QMessageBox::Yes | QMessageBox::No,
+                                                      QMessageBox::No) == QMessageBox::Yes;
+                };
+                auto *app = QCoreApplication::instance();
+                if (app && app->thread() == QThread::currentThread())
+                    confirm();
+                else if (app)
+                    QMetaObject::invokeMethod(app, confirm, Qt::BlockingQueuedConnection);
+                process.write(accepted ? "approve\n" : "reject\n");
+                // The browser OAuth flow has its own five-minute timeout.
+                elapsed.restart();
+            }
+            if (event["type"] == "result") {
+                const auto value = event["value"];
+                const auto hashes = value.isObject() ? value.toObject()["hashes"].toArray() : value.toArray();
+                for (const auto &hash : hashes)
+                    result.append(hash.toString());
+            }
+            if (event["type"] == "error")
+                *error = event["text"].toString();
+        }
+        if (process.state() == QProcess::NotRunning)
+            break;
+        if (elapsed.elapsed() > 360000) {
+            process.kill();
+            process.waitForFinished(5000);
+            *error = QStringLiteral("VK: превышено время ожидания");
+            return {};
+        }
     }
     if (result.isEmpty() && error->isEmpty())
         *error = QStringLiteral("VK не вернул хеши");
@@ -182,7 +219,9 @@ QJsonObject freshServer(const QString &kind) {
                                QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-')}};
 }
 class ServerEditor : public QDialog {
+    friend bool ::SaveVKRelayPreviews(const QString &directory);
     QJsonObject server;
+    QJsonObject savedState;
     QMap<QString, QLineEdit *> fields;
     QComboBox *auth;
     QCheckBox *manual;
@@ -192,6 +231,32 @@ class ServerEditor : public QDialog {
     QProgressBar *progress;
     QLabel *step;
     RelayTask *task;
+    QPushButton *stopButton;
+    QPushButton *saveButton;
+    QPushButton *copyButton;
+    bool busy = false;
+    void setBusy(bool active) {
+        busy = active;
+        for (auto *widget : controls)
+            widget->setEnabled(!active);
+        stopButton->setEnabled(active);
+        updateDirty();
+    }
+    QJsonObject editableState() const {
+        auto state = server;
+        for (const auto &key : {"console", "status", "progress", "config", "hostKey", "adminPin"})
+            state.remove(key);
+        return state;
+    }
+    void updateDirty() {
+        capture();
+        saveButton->setEnabled(!busy && editableState() != savedState);
+    }
+    void applyConfiguration(const QJsonValue &value) {
+        server["config"] = value;
+        configuration->setPlainText(value.toString());
+        rememberConsole();
+    }
     QList<QWidget *> controls;
     std::function<void(QJsonObject)> save;
     std::function<void(QJsonObject)> checkpoint;
@@ -257,6 +322,7 @@ class ServerEditor : public QDialog {
             for (auto it = edits.begin(); it != edits.end(); ++it)
                 server[it.key()] = it.value()->text();
             capture();
+            updateDirty();
         }
     }
     void run(bool uninstall) {
@@ -275,8 +341,7 @@ class ServerEditor : public QDialog {
         }
         console->clear();
         progress->setValue(0);
-        for (auto *widget : controls)
-            widget->setEnabled(false);
+        setBusy(true);
         auto requestServer = server;
         for (const auto &key : {"console", "status", "progress"})
             requestServer.remove(key);
@@ -305,17 +370,16 @@ class ServerEditor : public QDialog {
                                 progress->setValue(event["value"].toInt());
                         }
                         if (type == "config") {
-                            server["config"] = event["value"];
-                            configuration->setPlainText(event["value"].toString());
+                            applyConfiguration(event["value"]);
                         }
                         if (type == "error") {
                             step->setText(text);
                             console->appendPlainText("Ошибка: " + text);
                         }
                         if (type == "finished") {
-                            for (auto *widget : controls)
-                                widget->setEnabled(true);
+                            setBusy(false);
                             rememberConsole();
+                            updateDirty();
                         }
                     });
     }
@@ -478,10 +542,11 @@ class ServerEditor : public QDialog {
         console->setMinimumHeight(180);
         console->setPlainText(server["console"].toString());
         consoleLayout->addWidget(console);
-        auto *stop = new QPushButton("Остановить", consoleGroup);
-        stop->setObjectName("relayStop");
-        consoleLayout->addWidget(stop);
-        connect(stop, &QPushButton::clicked, task, &RelayTask::cancel);
+        stopButton = new QPushButton("Остановить", consoleGroup);
+        stopButton->setObjectName("relayStop");
+        stopButton->setEnabled(false);
+        consoleLayout->addWidget(stopButton);
+        connect(stopButton, &QPushButton::clicked, task, &RelayTask::cancel);
         auto *configGroup = new QGroupBox(server["kind"].toString() + " конфиг", body);
         layout->addWidget(configGroup);
         auto *configLayout = new QVBoxLayout(configGroup);
@@ -489,13 +554,16 @@ class ServerEditor : public QDialog {
         configuration->setReadOnly(true);
         configuration->setPlaceholderText("Конфиг появится после успешной установки");
         configLayout->addWidget(configuration);
-        auto *copy = new QPushButton("Копировать конфиг", configGroup);
-        configLayout->addWidget(copy);
-        connect(copy, &QPushButton::clicked, this,
+        copyButton = new QPushButton("Копировать конфиг", configGroup);
+        copyButton->setEnabled(!configuration->toPlainText().isEmpty());
+        configLayout->addWidget(copyButton);
+        connect(configuration, &QPlainTextEdit::textChanged, this,
+                [this] { copyButton->setEnabled(!configuration->toPlainText().isEmpty()); });
+        connect(copyButton, &QPushButton::clicked, this,
                 [this] { QApplication::clipboard()->setText(configuration->toPlainText()); });
         auto *buttons = new QHBoxLayout;
         buttons->addStretch();
-        auto *saveButton = new QPushButton("Сохранить", this);
+        saveButton = new QPushButton("Сохранить", this);
         saveButton->setObjectName("relaySave");
         buttons->addWidget(saveButton);
         outer->addLayout(buttons);
@@ -509,7 +577,18 @@ class ServerEditor : public QDialog {
                 return;
             }
             save(server);
+            savedState = editableState();
+            updateDirty();
         });
+        capture();
+        savedState = editableState();
+        saveButton->setEnabled(false);
+        for (auto *edit : fields)
+            connect(edit, &QLineEdit::textChanged, this, [this] { updateDirty(); });
+        connect(auth, &QComboBox::currentIndexChanged, this, [this] { updateDirty(); });
+        connect(manual, &QCheckBox::toggled, this, [this] { updateDirty(); });
+        if (docker)
+            connect(docker, &QCheckBox::toggled, this, [this] { updateDirty(); });
     }
 };
 } // namespace
@@ -539,7 +618,8 @@ bool SaveVKRelayPreviews(const QString &directory) {
             nullptr);
         auto *saveButton = draft.findChild<QPushButton *>("relaySave");
         auto *stop = draft.findChild<QPushButton *>("relayStop");
-        if (!saveButton || !stop || !qobject_cast<QGroupBox *>(stop->parentWidget()))
+        if (!saveButton || !stop || saveButton->isEnabled() || stop->isEnabled() ||
+            !qobject_cast<QGroupBox *>(stop->parentWidget()))
             return false;
         auto *auth = draft.findChild<QComboBox *>("relayAuth");
         auto *sudoPassword = draft.findChild<QLineEdit *>("relayField_sudoPassword");
@@ -556,9 +636,20 @@ bool SaveVKRelayPreviews(const QString &directory) {
         if (!console || console->toPlainText() != value["console"].toString())
             return false;
         console->setPlainText("Новый результат деплоя");
+        draft.findChild<QLineEdit *>("relayField_name")->setText("Изменённый сервер");
+        if (!saveButton->isEnabled())
+            return false;
+        draft.setBusy(true);
+        if (!stop->isEnabled() || saveButton->isEnabled())
+            return false;
+        draft.setBusy(false);
+        if (stop->isEnabled() || !saveButton->isEnabled())
+            return false;
         if (!sudoPassword->isHidden() || sshPassword->isHidden() || !peerPort->isHidden())
             return false;
         saveButton->click();
+        if (saveButton->isEnabled())
+            return false;
         if (!stored["sudoPassword"].toString().isEmpty())
             return false;
         auth->setCurrentIndex(1);
@@ -577,6 +668,24 @@ bool SaveVKRelayPreviews(const QString &directory) {
     }
     if (saves != 2)
         return false;
+    {
+        auto stored = freshServer("qwdtt");
+        stored["host"] = "203.0.113.10";
+        stored["config"] = "qwdtt://old-deployment";
+        int explicitSaves = 0;
+        ServerEditor editor(
+            stored, [&](QJsonObject) { ++explicitSaves; }, nullptr,
+            [&](QJsonObject state) {
+                for (const auto &key : {"console", "status", "progress", "config"})
+                    stored[key] = state[key];
+            });
+        editor.applyConfiguration(QString());
+        editor.close();
+        ServerEditor reopened(stored, [](QJsonObject) {}, nullptr);
+        if (explicitSaves != 0 || reopened.copyButton->isEnabled() || !stored["config"].toString().isEmpty() ||
+            !reopened.configuration->toPlainText().isEmpty())
+            return false;
+    }
     if (directory.isEmpty())
         return true;
     QDir().mkpath(directory);
@@ -593,6 +702,7 @@ bool SaveVKRelayPreviews(const QString &directory) {
         {
             DialogVKRelay dialog;
             snapshot(dialog, "account");
+            saved = dialog.size() == QSize(860, 600) && dialog.findChildren<QDialogButtonBox *>().isEmpty() && saved;
             for (auto *edit : dialog.findChildren<QLineEdit *>())
                 if (!qobject_cast<QSpinBox *>(edit->parentWidget()))
                     saved = false;
@@ -634,11 +744,9 @@ bool SaveVKRelayPreviews(const QString &directory) {
 
 DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
     setWindowTitle("Настройки VK-релея");
-    resize(640, 360);
+    resize(860, 600);
     auto *layout = new QVBoxLayout(this);
     auto *tabs = new QTabWidget(this);
-    connect(tabs, &QTabWidget::currentChanged, this,
-            [this](int index) { resize(index == 0 ? QSize(640, 360) : QSize(860, 600)); });
     layout->addWidget(tabs);
     auto *accountPage = new QWidget(tabs);
     tabs->addTab(accountPage, "Аккаунт и хеши");
@@ -680,6 +788,13 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
     };
     connect(source, &QComboBox::currentIndexChanged, this, sourceVisibility);
     sourceVisibility();
+    const auto saveDefaults = [settings, source, count] {
+        settings->qwdtt_hash_source = source->currentData().toString();
+        settings->qwdtt_auto_hash_count = count->value();
+        settings->Save();
+    };
+    connect(source, &QComboBox::currentIndexChanged, this, saveDefaults);
+    connect(count, &QSpinBox::valueChanged, this, saveDefaults);
     auto *status = new QLabel(this);
     status->setWordWrap(true);
     accountLayout->addStretch();
@@ -785,6 +900,12 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
                 continue;
             for (const auto &key : {"console", "status", "progress"})
                 stored[key] = state[key];
+            const bool sameEndpoint = stored["host"] == state["host"] && stored["sshPort"] == state["sshPort"];
+            if (sameEndpoint || state["config"].toString().isEmpty())
+                stored["config"] = state["config"];
+            if (sameEndpoint)
+                for (const auto &key : {"hostKey", "adminPin"})
+                    stored[key] = state[key];
             persist(stored);
             return;
         }
@@ -865,14 +986,5 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
             status->setText(event["text"].toString());
     });
     layout->addWidget(status);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    layout->addWidget(buttons);
-    connect(buttons, &QDialogButtonBox::accepted, this, [=, this] {
-        settings->qwdtt_hash_source = source->currentData().toString();
-        settings->qwdtt_auto_hash_count = count->value();
-        settings->Save();
-        accept();
-    });
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(this, &QDialog::finished, accountTask, &RelayTask::cancel);
 }

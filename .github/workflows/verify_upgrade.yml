@@ -39,7 +39,9 @@ jobs:
           from pathlib import Path
           run = json.loads((Path(os.environ['RUNNER_TEMP']) / 'build-run.json').read_text())
           jobs = json.loads((Path(os.environ['RUNNER_TEMP']) / 'build-jobs.json').read_text())['jobs']
-          assert run['path'] == '.github/workflows/build.yml' and run['status'] == 'completed' and run['conclusion'] == 'success'
+          assert run['path'] == '.github/workflows/build.yml' and run['status'] == 'completed'
+          failed = [j['name'] for j in jobs if j['conclusion'] == 'failure']
+          assert run['conclusion'] == 'success' or (run['conclusion'] == 'failure' and failed == ['Verify portable Windows upgrade']), 'Only the upgrade check may be retried against existing packages'
           common_verified = [j for j in jobs if j['name'] == 'verify-common' and j['conclusion'] == 'success']
           assert len(common_verified) <= 1
           for prefixes, count in ((('qWDTT and CSQTT tests (', 'test-qwdtt ('), 3), (('build-go (',), 9), (('build-cpp (',), 11), (('Pack ',), 6), (('build-android',), 1)):
@@ -54,6 +56,11 @@ jobs:
           subprocess.run(['git', 'fetch', 'origin', run['head_sha'], '--depth=1'], check=True)
           previous_test = subprocess.check_output(['git', 'show', run['head_sha'] + ':script/test_windows_upgrade.ps1'], text=True)
           current_test = Path('script/test_windows_upgrade.ps1').read_text()
+          previous_workflow = subprocess.check_output(['git', 'show', run['head_sha'] + ':.github/workflows/build.yml'], text=True)
+          current_workflow = Path('.github/workflows/build.yml').read_text()
+          token_step = '      - name: Upgrade the previous release and verify the new bundled updater\n'
+          authenticated_step = token_step + '        env:\n          GH_TOKEN: $' + '{{ github.token }}\n'
+          assert current_workflow == previous_workflow or current_workflow.replace(authenticated_step, token_step) == previous_workflow, 'Build inputs changed; a full rebuild is required'
           upgrade_verified = previous_test == current_test and any(j['name'] == 'Verify portable Windows upgrade' and j['conclusion'] == 'success' for j in jobs)
           assert json.loads(Path('version.json').read_text())['version'] == os.environ['RELEASE_TAG']
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
@@ -65,7 +72,7 @@ jobs:
           git diff --name-only "$build_sha" "$GITHUB_SHA" > "$RUNNER_TEMP/build-changes.txt"
           while IFS= read -r path; do
             case "$path" in
-              script/test_windows_upgrade.ps1|.github/workflows/verify_upgrade.yml) ;;
+              script/test_windows_upgrade.ps1|.github/workflows/verify_upgrade.yml|.github/workflows/build.yml) ;;
               *) echo "Application sources changed; a full rebuild is required: $path"; exit 1 ;;
             esac
           done < "$RUNNER_TEMP/build-changes.txt"
@@ -86,6 +93,8 @@ jobs:
           name: Pack-${{ needs.verify-build.outputs.build_sha }}-windows
           path: upgrade-package
       - name: Upgrade the previous release and verify the new bundled updater
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: ./script/test_windows_upgrade.ps1 -Archive "upgrade-package/qThrone-${{ inputs.tag }}-windows64.zip" -Version "${{ inputs.tag }}"
   publish:

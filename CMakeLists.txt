@@ -157,6 +157,8 @@ set(PROJECT_SOURCES
         include/configs/sub/SubscriptionScan.hpp
         include/configs/sub/SubscriptionParser.hpp
         src/configs/sub/SubscriptionParser.cpp
+        include/configs/sub/ProviderRouting.h
+        src/configs/sub/ProviderRouting.cpp
         include/configs/sub/SubscriptionReconcile.hpp
         src/configs/sub/SubscriptionReconcile.cpp
         include/configs/sub/RouteUpdater.hpp
@@ -265,6 +267,8 @@ set(PROJECT_SOURCES
         include/ui/profile/dialog_edit_profile.ui
         include/ui/group/dialog_edit_group.h
         src/ui/group/dialog_edit_group.cpp
+        include/ui/group/dialog_provider_routing.h
+        src/ui/group/dialog_provider_routing.cpp
         include/ui/group/dialog_edit_group.ui
         include/ui/group/dialog_edit_group_advanced.h
         src/ui/group/dialog_edit_group_advanced.cpp

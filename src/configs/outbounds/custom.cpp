@@ -173,6 +173,11 @@ namespace Configs
         }
     } // namespace
 
+    QJsonObject Custom::DisplayXrayOutbound() const {
+        const auto object = QString2QJsonObject(config);
+        return type == CustomXrayFullConfig ? firstXrayEgress(object["outbounds"].toArray()) : object;
+    }
+
     SecurityInfo Custom::GetSecurity()
     {
         if (type == CustomOutbound) {

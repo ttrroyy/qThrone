@@ -345,18 +345,9 @@ namespace Configs {
         Save();
     }
 
-    static QStringView SubStrBefore(QStringView str, QStringView sub) {
-        const qsizetype pos = str.indexOf(sub);
-        return pos == -1 ? str : str.left(pos);
-    }
-
     QString SettingsRepo::GetUserAgent(bool isDefault) const {
         if (user_agent.isEmpty() || isDefault) {
-            const QStringView version = SubStrBefore(QStringLiteral(NKR_VERSION), u"-");
-            if (version.contains(u'.')) {
-                return QStringLiteral("Throne/") + version.toString();
-            }
-            return QStringLiteral("Throne/1.0.0");
+            return QStringLiteral("qThrone/") + QStringLiteral(NKR_VERSION);
         }
         return user_agent;
     }

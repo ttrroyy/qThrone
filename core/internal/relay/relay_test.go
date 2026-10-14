@@ -89,9 +89,18 @@ func TestVKHashesCacheAndRateLimit(t *testing.T) {
 	original := http.DefaultTransport
 	defer func() { http.DefaultTransport = original }()
 	calls := 0
+	authorizations := 0
 	limited := false
 	http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		if r.URL.Host != "api.vk.ru" || r.Method != "POST" || r.ParseForm() != nil || r.Form.Get("access_token") != "test-token" {
+		if r.URL.Host == "oauth.vk.com" {
+			authorizations++
+			if r.Method != "GET" || r.URL.Query().Get("client_id") != "6287487" || r.URL.Query().Get("scope") != "messages" || r.Header.Get("User-Agent") != "browser-UA" || r.Header.Get("Accept") != "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" || !strings.Contains(r.Header.Get("Cookie"), "remixsid=session") || !strings.Contains(r.Header.Get("Cookie"), "id_session=id-cookie") {
+				t.Fatal("OAuth differs from original qWDTT cookie flow")
+			}
+			redirect := "https://oauth.vk.com/blank.html#" + url.Values{"access_token": {"test-token"}, "user_id": {"42"}, "state": {r.URL.Query().Get("state")}}.Encode()
+			return &http.Response{StatusCode: 302, Body: io.NopCloser(strings.NewReader("")), Header: http.Header{"Location": {redirect}}}, nil
+		}
+		if r.URL.Host != "api.vk.ru" || r.Method != "GET" || r.URL.Path != "/method/calls.start" || r.URL.Query().Get("access_token") != "test-token" || r.URL.Query().Get("v") != "5.199" || r.Header.Get("User-Agent") != "okhttp/4.12.0" {
 			t.Fatal("Incorrect VK API request")
 		}
 		calls++
@@ -101,7 +110,8 @@ func TestVKHashesCacheAndRateLimit(t *testing.T) {
 		}
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
 	})
-	if e := saveAccount(account{Token: "test-token", Expires: time.Now().Add(time.Hour).Unix()}); e != nil {
+	session := account{User: "42", UserAgent: "browser-UA", Cookies: []browserCookie{{Name: "remixsid", Value: "session", Domain: ".vk.ru", Path: "/"}, {Name: "id_session", Value: "id-cookie", Domain: "id.vk.com", Path: "/"}}}
+	if e := saveAccount(session); e != nil {
 		t.Fatal(e)
 	}
 	request, _ := json.Marshal(Request{Operation: "vk-hashes", Count: 1})
@@ -113,12 +123,22 @@ func TestVKHashesCacheAndRateLimit(t *testing.T) {
 		if !strings.Contains(output.String(), "abcdefghijklmnop") || strings.Contains(output.String(), "test-token") {
 			t.Fatal(output.String())
 		}
+		if i == 0 {
+			a, e := readAccount()
+			if e != nil {
+				t.Fatal(e)
+			}
+			a.Expires = 0
+			if e = saveAccount(a); e != nil {
+				t.Fatal(e)
+			}
+		}
 	}
-	if calls != 1 {
+	if calls != 1 || authorizations != 1 {
 		t.Fatalf("Cached hashes generated again: %d", calls)
 	}
 	limited = true
-	if e := saveAccount(account{Token: "test-token", Expires: time.Now().Add(time.Hour).Unix()}); e != nil {
+	if e := saveAccount(session); e != nil {
 		t.Fatal(e)
 	}
 	for i := 0; i < 2; i++ {
@@ -127,7 +147,7 @@ func TestVKHashesCacheAndRateLimit(t *testing.T) {
 			t.Fatal("VK limit ignored")
 		}
 	}
-	if calls != 2 {
+	if calls != 2 || authorizations != 2 {
 		t.Fatal("Repeated request during VK cooldown")
 	}
 	unlink, _ := json.Marshal(Request{Operation: "secret-delete", ID: "account"})
@@ -216,6 +236,72 @@ func TestOAuthRedirect(t *testing.T) {
 		if trustedVK(raw) {
 			t.Fatal(raw)
 		}
+	}
+}
+
+func TestVKTokenFallbackRequiresConfirmation(t *testing.T) {
+	keyring.MockInit()
+	dir := t.TempDir()
+	t.Setenv("APPDATA", dir)
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("HOME", dir)
+	original := http.DefaultTransport
+	defer func() { http.DefaultTransport = original }()
+	requests := 0
+	http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		requests++
+		if r.URL.Host != "oauth.vk.com" {
+			t.Fatal("API called without an access token")
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("login required")), Header: make(http.Header)}, nil
+	})
+	if err := saveAccount(account{Cookies: []browserCookie{{Name: "remixsid", Value: "valid-session", Domain: ".vk.ru"}}}); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	err := Run(strings.NewReader("{\"operation\":\"vk-hashes\",\"count\":1}\nreject\n"), &output)
+	if err == nil || !strings.Contains(err.Error(), "отменено") || !strings.Contains(output.String(), "vk-confirm") || requests != 1 {
+		t.Fatalf("Browser fallback ignored confirmation: %v, requests=%d, output=%s", err, requests, output.String())
+	}
+	// A headless caller with no UI response must fail instead of launching a browser.
+	output.Reset()
+	if err = Run(strings.NewReader("{\"operation\":\"vk-hashes\",\"count\":1}\n"), &output); err == nil || !strings.Contains(err.Error(), "отменено") {
+		t.Fatalf("Unattended fallback: %v", err)
+	}
+	commands := make(chan string, 1)
+	commands <- "approve"
+	p := protocol{ctx: context.Background(), commands: commands, output: json.NewEncoder(io.Discard)}
+	if err = p.confirmVKBrowser(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestVKLoginMatchesOriginalCompletion(t *testing.T) {
+	cookies := []browserCookie{{Name: "remixsid", Value: "valid-session-cookie", Domain: ".vk.ru"}}
+	if !vkLoginComplete("https://m.vk.ru/feed", cookies) {
+		t.Fatal("completed session rejected")
+	}
+	for _, location := range []string{"https://id.vk.ru/auth", "https://id.vk.com/authorize", "about:blank", "https://vk.ru.evil.example/feed"} {
+		if vkLoginComplete(location, cookies) {
+			t.Fatalf("login ended too early on %s", location)
+		}
+	}
+	cookies[0].Value = "short"
+	if vkLoginComplete("https://vk.ru/feed", cookies) {
+		t.Fatal("short session accepted")
+	}
+}
+
+func TestVKHTTPRateLimit(t *testing.T) {
+	previous := http.DefaultTransport
+	defer func() { http.DefaultTransport = previous }()
+	http.DefaultTransport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusTooManyRequests, Body: io.NopCloser(strings.NewReader("")), Header: make(http.Header)}, nil
+	})
+	_, err := vkAPI(context.Background(), "test-token", "calls.start")
+	limit, ok := err.(vkError)
+	if !ok || limit.Code != 6 {
+		t.Fatal("HTTP rate limit did not engage VK cooldown")
 	}
 }
 func validServer() map[string]string {

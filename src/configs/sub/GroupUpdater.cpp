@@ -1,7 +1,9 @@
 #include "include/configs/sub/GroupUpdater.hpp"
+#include "NkrVersion.h"
 
 #include "include/configs/generate.h"
 #include "include/configs/sub/SubscriptionParser.hpp"
+#include "include/configs/sub/ProviderRouting.h"
 #include "include/configs/sub/SubscriptionReconcile.hpp"
 #include "include/configs/sub/SubscriptionScan.hpp"
 #include "include/database/GroupsRepo.h"
@@ -392,7 +394,7 @@ namespace Subscription {
     RequestIdentity ResolveIdentity(const Configs::Group *group) {
         const auto &settings = Configs::dataManager->settingsRepo;
         RequestIdentity identity;
-        identity.userAgent = settings->GetUserAgent();
+        identity.userAgent = settings->user_agent.isEmpty() ? QStringLiteral("Happ/3.0 qThrone/") + QStringLiteral(NKR_VERSION) : settings->GetUserAgent();
         identity.sendHwid = settings->sub_send_hwid;
         identity.device = GetDeviceDetails();
         applyCustomHwidParams(identity.device, settings->sub_custom_hwid_params);
@@ -600,7 +602,7 @@ namespace Subscription {
         }
     }
 
-    bool GroupUpdater::fetch(const QString &url, const QString &name, const RequestIdentity &identity, QByteArray &body, Configs::SubUserInfo &subInfo) {
+    bool GroupUpdater::fetch(const QString &url, const QString &name, const RequestIdentity &identity, QByteArray &body, Configs::SubUserInfo &subInfo, QString *routing) {
         MW_show_log(">>>>>>>> " + QObject::tr("Requesting subscription: %1").arg(name));
         HttpGetOptions options;
         options.maxBytes = kMaxSubscriptionBytes;
@@ -614,6 +616,7 @@ namespace Subscription {
             return false;
         }
         body = std::move(resp.data);
+        if (routing) *routing = NetworkRequestHelper::GetHeader(resp.header, "routing");
 
         const QString userInfoHeader = NetworkRequestHelper::GetHeader(resp.header, "Subscription-UserInfo");
         if (!userInfoHeader.isEmpty()) subInfo = Configs::ParseSubUserInfo(userInfoHeader);
@@ -757,7 +760,14 @@ namespace Subscription {
         ImportSink sink(gid, nullptr);
 
         MW_show_log(">>>>>>>> " + QObject::tr("Processing subscription data..."));
-        for (auto &document : documents) ParseDocument(std::move(document), sinkFor(sink));
+        auto group = gid >= 0 ? Configs::dataManager->groupsRepo->GetGroup(gid) : Configs::dataManager->groupsRepo->CurrentGroup();
+        for (auto &document : documents) {
+            const auto payload = ProviderRouting::Extract(document, {}, group && group->sub_options.provider_ignore_import);
+            for (const auto &warning : payload.warnings) MW_show_log(warning);
+            ParseDocument(payload.body, sinkFor(sink));
+            if (group) ProviderRouting::Apply(group->sub_options, payload.commands);
+        }
+        if (group) Configs::dataManager->groupsRepo->Save(group);
         sink.flush();
         MW_show_log(">>>>>>>> " + QObject::tr("Process complete, applying..."));
 
@@ -775,10 +785,19 @@ namespace Subscription {
         if (group == nullptr || group->archive) return;
         const auto options = group->sub_options;
 
+        QList<QJsonObject> previousHashes;
+        forEachProfile(group->Profiles(), [&](const std::shared_ptr<Configs::Profile> &ent) {
+            if (ent->type == "qwdtt") previousHashes.append(ent->outbound->ExportToJson());
+        });
+
         const QString url = group->url.trimmed();
         QByteArray body;
         Configs::SubUserInfo subInfo;
-        if (!fetch(url, group->name, ResolveIdentity(group.get()), body, subInfo)) return;
+        QString routingHeader;
+        if (!fetch(url, group->name, ResolveIdentity(group.get()), body, subInfo, &routingHeader)) return;
+        const auto payload = ProviderRouting::Extract(body, routingHeader, options.provider_ignore_import);
+        body = payload.body;
+        for (const auto &warning : payload.warnings) MW_show_log(QObject::tr("Subscription routing was skipped; saved routing is unchanged: %1").arg(warning));
         if (group->url.trimmed() != url) {
             MW_show_log(QObject::tr("The URL of %1 changed during the update, so the result was discarded.").arg(group->name));
             return;
@@ -803,6 +822,7 @@ namespace Subscription {
         }
 
         group->sub_info = subInfo;
+        ProviderRouting::Apply(group->sub_options, payload.commands);
         group->info.clear();
         groupsRepo->Save(group);
 
@@ -862,7 +882,25 @@ namespace Subscription {
         ImportSink sink(gid, cleared ? nullptr : &index);
 
         MW_show_log(">>>>>>>> " + QObject::tr("Processing subscription data..."));
-        ParseDocument(std::move(body), sinkFor(sink));
+        auto parseSink = sinkFor(sink);
+        parseSink.profile = [&sink, previousHashes](std::shared_ptr<Configs::Profile> ent) {
+            if (ent->type == "qwdtt") {
+                auto incoming = ent->outbound->ExportToJson();
+                QList<QJsonObject> named, matching;
+                for (const auto &old : previousHashes) {
+                    if (!incoming.value("tag").toString().isEmpty() && old.value("tag") == incoming.value("tag")) named.append(old);
+                    if (old.value("server") == incoming.value("server") && old.value("server_port") == incoming.value("server_port") && old.value("password") == incoming.value("password")) matching.append(old);
+                }
+                const auto candidates = named.size() == 1 ? named : matching;
+                if (candidates.size() == 1) {
+                    incoming["hash_source"] = candidates.first().value("hash_source");
+                    incoming["auto_hash_count"] = candidates.first().value("auto_hash_count");
+                    ent->outbound->ParseFromJson(incoming);
+                }
+            }
+            sink.add(std::move(ent));
+        };
+        ParseDocument(std::move(body), parseSink);
         sink.flush();
         MW_show_log(">>>>>>>> " + QObject::tr("Process complete, applying..."));
 

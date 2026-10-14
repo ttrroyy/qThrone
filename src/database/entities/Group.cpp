@@ -66,6 +66,11 @@ namespace Configs
 
     QJsonObject SubscriptionOptions::ToJson() const {
         QJsonObject json;
+        json["routing_provider"] = routing_provider;
+        json["provider_routing"] = provider_routing;
+        json["provider_routing_profiles"] = provider_routing_profiles;
+        json["provider_routing_enabled"] = provider_routing_enabled;
+        json["provider_ignore_import"] = provider_ignore_import;
         if (!user_agent.isEmpty()) json["user_agent"] = user_agent;
         if (tls_version) json["tls_version"] = static_cast<int>(*tls_version);
         if (http_version) json["http_version"] = static_cast<int>(*http_version);
@@ -88,6 +93,11 @@ namespace Configs
 
     SubscriptionOptions SubscriptionOptions::FromJson(const QJsonObject &json) {
         SubscriptionOptions options;
+        options.routing_provider = json["routing_provider"].toString();
+        options.provider_routing = json["provider_routing"].toString();
+        options.provider_routing_profiles = json["provider_routing_profiles"].toString();
+        options.provider_routing_enabled = json["provider_routing_enabled"].toBool(true);
+        options.provider_ignore_import = json["provider_ignore_import"].toBool();
         options.user_agent = json["user_agent"].toString();
         if (const int tls = json["tls_version"].toInt(-1); tls >= 0 && tls <= static_cast<int>(subTlsVersion::tls13)) {
             options.tls_version = static_cast<subTlsVersion>(tls);
