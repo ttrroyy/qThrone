@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/sftp"
 	"github.com/zalando/go-keyring"
 	"golang.org/x/crypto/ssh"
 	"io"
@@ -21,6 +22,39 @@ import (
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func TestUploadReplacesLongerSecret(t *testing.T) {
+	local, remote := net.Pipe()
+	defer local.Close()
+	defer remote.Close()
+	_ = local.SetDeadline(time.Now().Add(10 * time.Second))
+	_ = remote.SetDeadline(time.Now().Add(10 * time.Second))
+	server, e := sftp.NewServer(remote, sftp.WithServerWorkingDirectory(t.TempDir()))
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer server.Close()
+	go func() { _ = server.Serve() }()
+	client, e := sftp.NewClientPipe(local, local)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer client.Close()
+	for _, value := range []string{"previous-long-password-that-must-not-remain", "new"} {
+		if e = uploadFile(client, "secret.txt", []byte(value)); e != nil {
+			t.Fatal(e)
+		}
+	}
+	file, e := client.Open("secret.txt")
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer file.Close()
+	data, e := io.ReadAll(file)
+	if e != nil || string(data) != "new" {
+		t.Fatalf("Secret was not replaced completely: %q, %v", data, e)
+	}
+}
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 func TestVKHashesCacheAndRateLimit(t *testing.T) {

@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -26,6 +27,23 @@ var addressPattern = regexp.MustCompile(`^[A-Za-z0-9.:_-]+$`)
 var userPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 var panelPattern = regexp.MustCompile(`^[A-Za-z0-9]+$`)
 var adminPinPattern = regexp.MustCompile(`WDTT_ADMIN_PIN\|(sha256/[A-Za-z0-9+/=]+)`)
+
+func uploadFile(files *sftp.Client, path string, data []byte) error {
+	f, e := files.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
+	if e != nil {
+		return e
+	}
+	if e = f.Chmod(0600); e != nil {
+		f.Close()
+		return e
+	}
+	_, e = f.Write(data)
+	closeErr := f.Close()
+	if e != nil {
+		return e
+	}
+	return closeErr
+}
 
 func port(s map[string]string, key string) (string, error) {
 	n, e := strconv.Atoi(s[key])
@@ -269,20 +287,7 @@ func (p *protocol) deploy(r Request) error {
 	}
 	defer files.Close()
 	upload := func(path string, data []byte) error {
-		f, e := files.OpenFile(path, 0x1|0x40|0x200)
-		if e != nil {
-			return e
-		}
-		if e = f.Chmod(0600); e != nil {
-			f.Close()
-			return e
-		}
-		_, e = f.Write(data)
-		closeErr := f.Close()
-		if e != nil {
-			return e
-		}
-		return closeErr
+		return uploadFile(files, path, data)
 	}
 	script, e := zipEntry(apk, "assets/deploy.sh")
 	if e != nil {
