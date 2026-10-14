@@ -108,6 +108,7 @@ namespace Configs_network {
         QNetworkRequest request;
         QNetworkAccessManager accessManager;
         request.setUrl(url);
+        request.setHeader(QNetworkRequest::UserAgentHeader, Configs::dataManager->settingsRepo->GetUserAgent());
         if (Configs::dataManager->settingsRepo->net_use_proxy || Configs::dataManager->settingsRepo->spmode_system_proxy || useProxy) {
             if (Configs::dataManager->settingsRepo->started_id < 0) {
                 return QObject::tr("Request with proxy but no profile started.");

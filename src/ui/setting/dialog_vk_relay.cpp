@@ -11,6 +11,7 @@
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QDesktopServices>
+#include <QElapsedTimer>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
@@ -32,6 +33,7 @@
 #include <QSpinBox>
 #include <QStandardItemModel>
 #include <QTabWidget>
+#include <QThread>
 #include <QTimer>
 #include <QUuid>
 #include <QVBoxLayout>
@@ -45,6 +47,12 @@ RelayTask::RelayTask(QObject *parent) : QObject(parent) {
             const auto line = pending.left(end);
             pending.remove(0, end + 1);
             const auto event = QJsonDocument::fromJson(line).object();
+            if (event["type"] == "vk-confirm") {
+                approve(QMessageBox::question(qobject_cast<QWidget *>(this->parent()), "Подтверждение VK",
+                                               event["text"].toString(), QMessageBox::Yes | QMessageBox::No,
+                                               QMessageBox::No) == QMessageBox::Yes);
+                continue;
+            }
             if (event["type"] == "error")
                 failed = true;
             if (!event.isEmpty() && handler)
@@ -120,21 +128,50 @@ QStringList RelayAccountHashes(int count, QString *error) {
     }
     process.write(
         QJsonDocument(QJsonObject{{"operation", "vk-hashes"}, {"count", count}}).toJson(QJsonDocument::Compact) + '\n');
-    process.closeWriteChannel();
-    if (!process.waitForFinished(120000)) {
-        process.kill();
-        process.waitForFinished(5000);
-        *error = QStringLiteral("VK: превышено время ожидания");
-        return {};
-    }
     QStringList result;
-    for (const auto &line : process.readAllStandardOutput().split('\n')) {
-        const auto event = QJsonDocument::fromJson(line).object();
-        if (event["type"] == "result")
-            for (const auto &value : event["value"].toArray())
-                result.append(value.toString());
-        if (event["type"] == "error")
-            *error = event["text"].toString();
+    QByteArray pending;
+    QElapsedTimer elapsed;
+    elapsed.start();
+    while (true) {
+        process.waitForReadyRead(100);
+        pending += process.readAllStandardOutput();
+        while (pending.contains('\n')) {
+            const auto end = pending.indexOf('\n');
+            const auto event = QJsonDocument::fromJson(pending.left(end)).object();
+            pending.remove(0, end + 1);
+            if (event["type"] == "vk-confirm") {
+                bool accepted = false;
+                const auto confirm = [&] {
+                    accepted = QMessageBox::question(GetMessageBoxParent(), "Подтверждение VK",
+                                                      event["text"].toString(), QMessageBox::Yes | QMessageBox::No,
+                                                      QMessageBox::No) == QMessageBox::Yes;
+                };
+                auto *app = QCoreApplication::instance();
+                if (app && app->thread() == QThread::currentThread())
+                    confirm();
+                else if (app)
+                    QMetaObject::invokeMethod(app, confirm, Qt::BlockingQueuedConnection);
+                process.write(accepted ? "approve\n" : "reject\n");
+                // The browser OAuth flow has its own five-minute timeout.
+                elapsed.restart();
+            }
+            if (event["type"] == "result") {
+                const auto value = event["value"];
+                const auto hashes = value.isObject() ? value.toObject()["hashes"].toArray() : value.toArray();
+                for (const auto &hash : hashes)
+                    result.append(hash.toString());
+            }
+            if (event["type"] == "error")
+                *error = event["text"].toString();
+        }
+        if (process.state() == QProcess::NotRunning)
+            break;
+        if (elapsed.elapsed() > 360000) {
+            process.kill();
+            process.waitForFinished(5000);
+            *error = QStringLiteral("VK: превышено время ожидания");
+            return {};
+        }
     }
     if (result.isEmpty() && error->isEmpty())
         *error = QStringLiteral("VK не вернул хеши");

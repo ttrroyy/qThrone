@@ -571,6 +571,21 @@ func vkAPI(ctx context.Context, token, method string) (json.RawMessage, error) {
 	}
 	return data.Response, nil
 }
+func (p *protocol) confirmVKBrowser() error {
+	p.emit("vk-confirm", "VK не выдал токен через HTTP. Открыть окно VK для подтверждения доступа?", nil)
+	select {
+	case answer, ok := <-p.commands:
+		if ok && answer == "approve" {
+			return nil
+		}
+		return fmt.Errorf("Подтверждение доступа VK отменено")
+	case <-p.ctx.Done():
+		return p.ctx.Err()
+	case <-time.After(2 * time.Minute):
+		return fmt.Errorf("Подтверждение доступа VK не получено")
+	}
+}
+
 func (p *protocol) hashes(r Request) error {
 	if r.Count < 1 || r.Count > 4 {
 		return fmt.Errorf("Количество хешей: от 1 до 4")
@@ -602,6 +617,9 @@ func (p *protocol) hashes(r Request) error {
 		if errors.As(e, &limit) && limit.Code == 6 {
 			a.RetryAfter = time.Now().Add(time.Hour).Unix()
 			_ = saveAccount(a)
+			return e
+		}
+		if e = p.confirmVKBrowser(); e != nil {
 			return e
 		}
 		if e = p.login(Request{Operation: "vk-token"}); e != nil {

@@ -239,6 +239,43 @@ func TestOAuthRedirect(t *testing.T) {
 	}
 }
 
+func TestVKTokenFallbackRequiresConfirmation(t *testing.T) {
+	keyring.MockInit()
+	dir := t.TempDir()
+	t.Setenv("APPDATA", dir)
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("HOME", dir)
+	original := http.DefaultTransport
+	defer func() { http.DefaultTransport = original }()
+	requests := 0
+	http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		requests++
+		if r.URL.Host != "oauth.vk.com" {
+			t.Fatal("API called without an access token")
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("login required")), Header: make(http.Header)}, nil
+	})
+	if err := saveAccount(account{Cookies: []browserCookie{{Name: "remixsid", Value: "valid-session", Domain: ".vk.ru"}}}); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	err := Run(strings.NewReader("{\"operation\":\"vk-hashes\",\"count\":1}\nreject\n"), &output)
+	if err == nil || !strings.Contains(err.Error(), "отменено") || !strings.Contains(output.String(), "vk-confirm") || requests != 1 {
+		t.Fatalf("Browser fallback ignored confirmation: %v, requests=%d, output=%s", err, requests, output.String())
+	}
+	// A headless caller with no UI response must fail instead of launching a browser.
+	output.Reset()
+	if err = Run(strings.NewReader("{\"operation\":\"vk-hashes\",\"count\":1}\n"), &output); err == nil || !strings.Contains(err.Error(), "отменено") {
+		t.Fatalf("Unattended fallback: %v", err)
+	}
+	commands := make(chan string, 1)
+	commands <- "approve"
+	p := protocol{ctx: context.Background(), commands: commands, output: json.NewEncoder(io.Discard)}
+	if err = p.confirmVKBrowser(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestVKLoginMatchesOriginalCompletion(t *testing.T) {
 	cookies := []browserCookie{{Name: "remixsid", Value: "valid-session-cookie", Domain: ".vk.ru"}}
 	if !vkLoginComplete("https://m.vk.ru/feed", cookies) {

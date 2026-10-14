@@ -64,6 +64,7 @@ func Run(input io.Reader, output io.Writer) (err error) {
 	defer cancel()
 	p.commands = make(chan string, 1)
 	go func() {
+		defer close(p.commands)
 		for p.input.Scan() {
 			line := p.input.Text()
 			if line == "cancel" {
