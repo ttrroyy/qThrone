@@ -309,7 +309,6 @@ namespace Configs {
         // Extra Core Paths
         QStringList extraCorePaths = {};
         QString qwdtt_hash_source = "manual";
-        QStringList qwdtt_default_hashes;
         int qwdtt_auto_hash_count = 1;
         bool vk_relay_linked = false;
 

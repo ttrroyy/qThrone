@@ -204,7 +204,6 @@ namespace Configs {
         };
 
         stringListMap = {
-            {"qwdtt_default_hashes", &qwdtt_default_hashes},
             {"dns_predefined_rules",     &dns_predefined_rules},
             {"extra_core_paths",         &extraCorePaths},
             {"log_include_keyword",      &log_include_keyword},

@@ -522,14 +522,6 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
     hashForm->addRow("Источник хешей", source);
     auto *settings = Configs::dataManager->settingsRepo.get();
     source->setCurrentIndex(settings->qwdtt_hash_source == "auto" ? 1 : 0);
-    QList<QLineEdit *> hashes;
-    for (int i = 0; i < 4; ++i) {
-        auto *edit = new QLineEdit(
-            i < settings->qwdtt_default_hashes.size() ? settings->qwdtt_default_hashes[i] : QString(), hashGroup);
-        edit->setPlaceholderText("Хеш или ссылка на звонок VK");
-        hashForm->addRow(QString("Хеш %1").arg(i + 1), edit);
-        hashes.append(edit);
-    }
     auto *count = new QSpinBox(hashGroup);
     count->setRange(1, 4);
     count->setValue(settings->qwdtt_auto_hash_count);
@@ -537,12 +529,9 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
     auto *generate = new QPushButton("Создать хеши VK", hashGroup);
     hashForm->addRow(generate);
     generate->setEnabled(false);
-    const auto sourceVisibility = [source, hashes, count, hashForm] {
+    const auto sourceVisibility = [source, generate, count, hashForm] {
         const bool automatic = source->currentData() == "auto";
-        for (auto *edit : hashes) {
-            edit->setVisible(!automatic);
-            hashForm->labelForField(edit)->setVisible(!automatic);
-        }
+        generate->setVisible(automatic);
         count->setVisible(automatic);
         hashForm->labelForField(count)->setVisible(automatic);
     };
@@ -600,9 +589,6 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
         generate->setEnabled(false);
         accountTask->start({{"operation", "vk-hashes"}, {"count", count->value()}}, [=](const QJsonObject &event) {
             if (event["type"] == "result") {
-                const auto values = event["value"].toArray();
-                for (int i = 0; i < hashes.size(); ++i)
-                    hashes[i]->setText(i < values.size() ? values[i].toString() : QString());
                 status->setText("Хеши готовы");
             }
             if (event["type"] == "error" || event["type"] == "progress")
@@ -729,10 +715,6 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
     connect(buttons, &QDialogButtonBox::accepted, this, [=, this] {
         settings->qwdtt_hash_source = source->currentData().toString();
         settings->qwdtt_auto_hash_count = count->value();
-        QStringList values;
-        for (auto *field : hashes)
-            values.append(field->text());
-        settings->qwdtt_default_hashes = Configs::qwdtt::NormalizeHashes(values).mid(0, 4);
         settings->Save();
         accept();
     });

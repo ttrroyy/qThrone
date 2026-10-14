@@ -35,7 +35,7 @@ QString normalizedMode(const QString &m) {
 namespace Configs {
 qwdtt::qwdtt() {
     server_port = 56000; socksPort = 0; deviceID = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    if (dataManager) { const auto *settings = dataManager->settingsRepo.get(); hashes = settings->qwdtt_default_hashes; hashSource = settings->vk_relay_linked ? settings->qwdtt_hash_source : "manual"; autoHashCount = qBound(1, settings->qwdtt_auto_hash_count, 4); }
+    if (dataManager) { const auto *settings = dataManager->settingsRepo.get(); hashSource = settings->vk_relay_linked ? settings->qwdtt_hash_source : "manual"; autoHashCount = qBound(1, settings->qwdtt_auto_hash_count, 4); }
 }
 QStringList qwdtt::NormalizeHashes(const QStringList &input) {
     QStringList out;
