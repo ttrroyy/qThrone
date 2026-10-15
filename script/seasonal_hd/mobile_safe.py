@@ -21,6 +21,7 @@ class OffsetDraw:
         return call
 class SafeCanvas(render.Canvas):
     def __init__(self,mode,size,color=None,raw=None):
+        self.drawing_scale=render.SCALE
         self.size=tuple(map(int,size));self.width,self.height=self.size
         self.raw=raw if raw is not None else Image.new(mode,((self.width+2*PAD)*render.SCALE,(self.height+2*PAD)*render.SCALE),color)
 class SafeImages:

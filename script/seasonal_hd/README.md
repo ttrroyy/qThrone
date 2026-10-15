@@ -5,7 +5,8 @@ safety inset. Their original APNG hashes are in `mobile-master-sha256.json`.
 Compact and narrow scenes use the same guarded mobile drawing pipeline in
 `mobile_safe.py`, which measures the union of all animation frames before
 fitting a scene into its destination. Compact autumn has two pumpkins; its
-small face is drawn directly rather than cropped from a padded canvas.
+small pumpkin is copied from the wide scene's isolated layer at its original
+logical size, accounting for the guarded canvas offset.
 
 Only halloween (Autumn), newyear (Winter), easter (Spring), and kupala (Summer)
 are bundled. Each has wide, compact, and narrow compositions at 20 fps.

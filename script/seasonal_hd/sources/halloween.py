@@ -113,7 +113,18 @@ def frame(kind,t):
         web(im,91,t,True);ghost(im,46,t)
         leaf(im,0,43,.7,-25,'#955132');leaf(im,9,45,.7,15,'#cd8240');leaf(im,77,44,.7,-20,'#b76736')
         pumpkin(im,9,25,.92,t,0,True)
-        pumpkin(im,35,32,.58,t,2,clear_face=True)
+        # Copy the wide composition's exact small pumpkin before translating it.
+        small=Image.new('RGBA',(136,46))
+        pumpkin(small,66,32,.58,t,2)
+        if hasattr(small,'raw'):
+            scale=getattr(small,'drawing_scale',small.raw.width/small.width)
+            guard_x=(small.raw.width-small.width*scale)/2
+            guard_y=(small.raw.height-small.height*scale)/2
+            box=(int(guard_x+65*scale),int(guard_y),int(guard_x+85*scale),int(guard_y+46*scale))
+            sprite=small.raw.crop(box)
+            im.raw.alpha_composite(sprite,(int(guard_x+34*scale),int(guard_y)))
+        else:
+            im.alpha_composite(small.crop((65,0,85,46)),(34,0))
         candle(im,65,t);leaf(im,54,45,.55,20,'#cd8240')
     else:
         # One full-height character; remove scenery instead of shrinking everything.
