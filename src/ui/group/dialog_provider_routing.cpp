@@ -23,6 +23,7 @@
 #include <QTabWidget>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QSet>
 
 namespace PR = Subscription::ProviderRouting;
 namespace {
@@ -189,13 +190,33 @@ bool EditProviderRouting(Configs::SubscriptionOptions &options, QWidget *parent)
     auto profiles = QJsonDocument::fromJson(changed.provider_routing_profiles.toUtf8()).array();
     const auto reload = [&] {
         list->clear();
-        const auto selected =
-            QJsonDocument::fromJson(changed.provider_routing.toUtf8()).object().value("Name").toString();
-        for (const auto &value : profiles) {
-            const auto name = value.toObject().value("Name").toString(QObject::tr("Без названия"));
-            list->addItem(name);
-            if (name == selected)
-                list->setCurrentRow(list->count() - 1);
+        const auto selected = QJsonDocument::fromJson(changed.provider_routing.toUtf8()).object();
+        QSet<int> grouped;
+        for (int i = 0; i < profiles.size(); ++i) {
+            if (grouped.contains(i)) continue;
+            const auto doc = profiles[i].toObject();
+            QStringList sources;
+            int representative = i;
+            bool active = false;
+            for (int j = i; j < profiles.size(); ++j) {
+                const auto other = profiles[j].toObject();
+                if (!PR::SameSettings(doc, other)) continue;
+                grouped.insert(j);
+                const auto source = PR::Source(other, changed.routing_provider);
+                if (!sources.contains(source)) sources.append(source);
+                if (PR::Identity(other, changed.routing_provider) == PR::Identity(selected, changed.routing_provider)) {
+                    active = true; representative = j;
+                }
+            }
+            auto *item = new QListWidgetItem(list);
+            item->setData(Qt::UserRole, representative);
+            auto *row = new QWidget(list);
+            auto *lines = new QVBoxLayout(row); lines->setContentsMargins(8, 4, 8, 4); lines->setSpacing(2);
+            lines->addWidget(new QLabel(doc.value("Name").toString(QObject::tr("Без названия")), row));
+            auto *sourceLabel = new QLabel(QObject::tr("Источник: %1").arg(sources.join(" / ")), row);
+            sourceLabel->setForegroundRole(QPalette::PlaceholderText); lines->addWidget(sourceLabel);
+            item->setSizeHint(row->sizeHint()); list->setItemWidget(item, row);
+            if (active) list->setCurrentItem(item);
         }
         if (list->currentRow() < 0 && list->count() > 0)
             list->setCurrentRow(0);
@@ -226,11 +247,11 @@ bool EditProviderRouting(Configs::SubscriptionOptions &options, QWidget *parent)
         enable->setChecked(changed.provider_routing_enabled && !profiles.isEmpty());
     });
     const auto editSelected = [&] {
-        const auto index = list->currentRow();
+        const auto index = list->currentItem() ? list->currentItem()->data(Qt::UserRole).toInt() : -1;
         if (index < 0 || index >= profiles.size())
             return;
         auto doc = profiles[index].toObject();
-        if (editDocument(doc, changed.routing_provider.isEmpty() ? "Happ" : changed.routing_provider, &dialog)) {
+        if (editDocument(doc, PR::Source(doc, changed.routing_provider), &dialog)) {
             profiles[index] = doc;
             changed.provider_routing = QJsonDocument(doc).toJson(QJsonDocument::Compact);
             reload();
@@ -239,20 +260,25 @@ bool EditProviderRouting(Configs::SubscriptionOptions &options, QWidget *parent)
     QObject::connect(edit, &QPushButton::clicked, &dialog, editSelected);
     QObject::connect(list, &QListWidget::itemDoubleClicked, &dialog, [&](QListWidgetItem *) { editSelected(); });
     QObject::connect(copy, &QPushButton::clicked, &dialog, [&] {
-        const auto index = list->currentRow();
+        const auto index = list->currentItem() ? list->currentItem()->data(Qt::UserRole).toInt() : -1;
         if (index < 0 || index >= profiles.size())
             return;
+        auto document = profiles[index].toObject();
+        const auto provider = PR::Source(document, changed.routing_provider).toLower();
+        document.remove("_qthrone_source");
         QApplication::clipboard()->setText(
-            (changed.routing_provider.isEmpty() ? "happ" : changed.routing_provider.toLower()) + "://routing/add/" +
-            QString::fromLatin1(QJsonDocument(profiles[index].toObject())
+            provider + "://routing/add/" +
+            QString::fromLatin1(QJsonDocument(document)
                                     .toJson(QJsonDocument::Compact)
                                     .toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)));
     });
     QObject::connect(remove, &QPushButton::clicked, &dialog, [&] {
-        const auto index = list->currentRow();
+        const auto index = list->currentItem() ? list->currentItem()->data(Qt::UserRole).toInt() : -1;
         if (index < 0 || index >= profiles.size())
             return;
-        profiles.removeAt(index);
+        const auto removed = profiles[index].toObject();
+        for (int i = profiles.size()-1; i >= 0; --i)
+            if (PR::SameSettings(removed, profiles[i].toObject())) profiles.removeAt(i);
         changed.provider_routing.clear();
         reload();
     });
@@ -264,12 +290,17 @@ bool EditProviderRouting(Configs::SubscriptionOptions &options, QWidget *parent)
         return false;
     changed.provider_routing_enabled = enable->isChecked() && !profiles.isEmpty();
     changed.provider_ignore_import = ignore->isChecked();
-    const auto index = list->currentRow();
+    const auto index = list->currentItem() ? list->currentItem()->data(Qt::UserRole).toInt() : -1;
     changed.provider_routing =
         index >= 0 && index < profiles.size()
             ? QString::fromUtf8(QJsonDocument(profiles[index].toObject()).toJson(QJsonDocument::Compact))
             : QString();
     changed.provider_routing_profiles = QJsonDocument(profiles).toJson(QJsonDocument::Compact);
+    changed.provider_routing_manual = options.provider_routing_manual ||
+        changed.provider_routing_enabled != options.provider_routing_enabled ||
+        PR::Identity(QJsonDocument::fromJson(changed.provider_routing.toUtf8()).object(), changed.routing_provider) !=
+        PR::Identity(QJsonDocument::fromJson(options.provider_routing.toUtf8()).object(), options.routing_provider);
+    if (index >= 0 && index < profiles.size()) changed.routing_provider = PR::Source(profiles[index].toObject(), changed.routing_provider);
     if (changed.routing_provider.isEmpty() && !profiles.isEmpty())
         changed.routing_provider = "Happ";
     options = changed;

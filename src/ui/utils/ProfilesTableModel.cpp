@@ -13,6 +13,14 @@
 ProfilesTableModel::ProfilesTableModel(QObject *parent)
     : QAbstractTableModel(parent) {}
 
+void ProfilesTableModel::setTestState(const QList<int> &ids, int state, const QString &country, const QString &text) {
+    for (int id : ids) {
+        if (state) { testStates[id] = {state, country}; testProgressText[id] = text; }
+        else { testStates.remove(id); testProgressText.remove(id); }
+        refreshProfileId(id);
+    }
+}
+
 int ProfilesTableModel::rowCount(const QModelIndex &parent) const {
     if (parent.isValid()) return 0;
     return m_profileIds.size();
@@ -95,6 +103,9 @@ QVariant ProfilesTableModel::data(const QModelIndex &index, int role) const {
     if (it == m_cache.constEnd()) return {};
     const std::shared_ptr<Configs::Profile> &profile = it.value();
     if (!profile) return {};
+    const auto progress = testStates.value(profileId);
+    if (role == TestStateRole) return progress.first;
+    if (role == TestCountryRole) return progress.second;
 
     const int startedId = Configs::dataManager->settingsRepo->started_id;
     const bool isRunning = (profile->id == startedId);
@@ -117,7 +128,11 @@ QVariant ProfilesTableModel::data(const QModelIndex &index, int role) const {
             return address.value();
         }
         case ColName: return profile->outbound ? profile->outbound->name : QString();
-        case ColTestResult: return profile->DisplayTestResult();
+        case ColTestResult:
+            if (progress.first == 1) return QString();
+            if (progress.first == 2 && progress.second.isEmpty()) return profile->latency > 0 ? QString("%1 ms").arg(profile->latency) : QString();
+            if (progress.first == 2) return testProgressText.value(profileId);
+            return profile->DisplayTestResult();
         case ColTraffic: return profile->DisplayTraffic();
         default: return {};
         }

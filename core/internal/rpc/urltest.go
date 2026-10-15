@@ -12,7 +12,7 @@ import (
 
 func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, error) {
 	if nativeQWDTTPing(in.GetQwdttConfig()) {
-		delay, err := runQWDTTPing(ctx, in.GetQwdttConfig())
+		delay, err := runQWDTTPing(ctx, in.GetQwdttConfig(), time.Duration(in.GetTestTimeoutMs())*time.Millisecond)
 		message := ""
 		if err != nil {
 			message = "qWDTT ping failed: " + err.Error()

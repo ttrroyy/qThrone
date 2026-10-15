@@ -25,7 +25,7 @@ func nativeQWDTTPing(config string) bool {
 	return strings.HasPrefix(strings.TrimSpace(config), "{") && json.Unmarshal([]byte(config), &c) == nil && c.Backend == ""
 }
 
-func runQWDTTPing(parent context.Context, config string) (int32, error) {
+func runQWDTTPing(parent context.Context, config string, budget ...time.Duration) (int32, error) {
 	if len(config) > 65536 {
 		return 0, errors.New("test config is too large")
 	}
@@ -33,7 +33,11 @@ func runQWDTTPing(parent context.Context, config string) (int32, error) {
 	if !valid {
 		return 0, errors.New("invalid test session identity")
 	}
-	ctx, cancel := context.WithTimeout(parent, 3*time.Minute)
+	timeout := 3 * time.Second
+	if len(budget) > 0 && budget[0] > 0 {
+		timeout = budget[0]
+	}
+	ctx, cancel := context.WithTimeout(parent, timeout)
 	defer cancel()
 	stop := context.AfterFunc(probe.TestContext(), cancel)
 	defer stop()
@@ -56,7 +60,18 @@ func runQWDTTPing(parent context.Context, config string) (int32, error) {
 		}
 		defer browserRelease()
 	}
-	config, err = noninteractiveQWDTTConfig(config)
+	var pingConfig map[string]any
+	if err = json.Unmarshal([]byte(config), &pingConfig); err != nil {
+		return 0, err
+	}
+	pingConfig["mode"] = "wg"
+	pingConfig["probe_only"] = true
+	pingConfig["interactive_captcha"] = false
+	encoded, err := json.Marshal(pingConfig)
+	if err != nil {
+		return 0, err
+	}
+	config, err = noninteractiveQWDTTConfig(string(encoded))
 	if err != nil {
 		return 0, err
 	}
@@ -94,6 +109,9 @@ func (p *qwdttPingOutput) write(b []byte) {
 			if strings.HasPrefix(line, "PING_RESULT|") {
 				value, err := strconv.ParseInt(strings.TrimPrefix(line, "PING_RESULT|"), 10, 32)
 				if err == nil && value >= 0 {
+					if value == 0 {
+						value = 1
+					}
 					p.delay, p.found = int32(value), true
 				} else {
 					p.failed = true

@@ -94,6 +94,7 @@ namespace Configs
         QString provider_routing_profiles;
         bool provider_routing_enabled = false;
         bool provider_ignore_import = false;
+        bool provider_routing_manual = false;
         QString user_agent;
         std::optional<subTlsVersion> tls_version;
         std::optional<subHttpVersion> http_version;

@@ -2,11 +2,31 @@ package rpc
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 )
+
+func TestQWDTTPingHonorsConfiguredBudgetWhileQueued(t *testing.T) {
+	config := `{"peer":"example.invalid:56000","device_id":"ping-budget-test"}`
+	key, valid := qwdttSessionKey(config)
+	if !valid {
+		t.Fatal("invalid fixture")
+	}
+	pingKey := sha256.Sum256(append([]byte("qwdtt native ping\x00"), key[:]...))
+	release, err := acquireQWDTTProbe(context.Background(), pingKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	start := time.Now()
+	_, err = runQWDTTPing(context.Background(), config, 50*time.Millisecond)
+	if err == nil || time.Since(start) > time.Second {
+		t.Fatalf("configured ping timeout ignored: %v", err)
+	}
+}
 
 func TestQWDTTPingBackendSelection(t *testing.T) {
 	for _, c := range []string{`{"peer":"server:1"}`, `{"backend":""}`} {

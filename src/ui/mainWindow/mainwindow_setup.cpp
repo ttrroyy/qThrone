@@ -1,6 +1,7 @@
 #include <QAbstractTextDocumentLayout>
 #include <QTextDocument>
 #include <QtMath>
+#include "include/ui/utils/TestResultDelegate.hpp"
 #include "include/ui/mainwindow.h"
 #include "NkrVersion.h"
 
@@ -439,6 +440,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     profilesFilterModel = new ProfilesFilterProxyModel(this);
     profilesFilterModel->setSourceModel(profilesTableModel);
     ui->profilesTableView->setModel(profilesFilterModel);
+    ui->profilesTableView->setItemDelegateForColumn(ProfilesTableModel::ColTestResult, new TestResultDelegate(ui->profilesTableView));
     connect(ui->profilesTableView->selectionModel(), &QItemSelectionModel::selectionChanged, this,
             [this] { refresh_startstop_button(); });
     ui->profilesTableView->rowsSwapped = [this](int row1, int row2)

@@ -111,7 +111,7 @@ bool DataViewHtmlGenerator::hasPendingRestart() const {
 }
 bool DataViewHtmlGenerator::hasPriorityNotice() const {
     QMutexLocker lk(&mu_);
-    return pendingRestart_.visible || download_.visible || speedtest_.visible ||
+    return pendingRestart_.visible || download_.visible ||
            (vpnEndpoint_.visible && vpnEndpoint_.problem) || !scanner_.isEmpty();
 }
 
@@ -151,7 +151,7 @@ QString DataViewHtmlGenerator::buildHtml() {
 bool DataViewHtmlGenerator::itemVisible(DataViewItem item) const {
     switch (item) {
         case DataViewItem::Download:       return download_.visible;
-        case DataViewItem::SpeedTest:      return speedtest_.visible;
+        case DataViewItem::SpeedTest:      return false;
         case DataViewItem::LatencyTest:    return false;
         case DataViewItem::AutoSelector:   return autoSelector_.visible;
         case DataViewItem::VpnEndpoint:    return vpnEndpoint_.visible;

@@ -452,6 +452,14 @@ namespace Subscription {
                 incoming["hash_source"] = candidates.first().value("hash_source");
                 incoming["auto_hash_count"] = candidates.first().value("auto_hash_count");
             }
+            const int count = type == "qwdtt" && incoming.value("hash_source").toString() == "auto"
+                ? incoming.value("auto_hash_count").toInt(1) : incoming.value("hashes").toArray().size();
+            const int maximum = qMin(type == "csqtt" ? 126 : 108, qBound(1, count, type == "csqtt" ? 6 : 4) * 27);
+            const int oldCount = type == "qwdtt" && old.value("hash_source").toString() == "auto"
+                ? old.value("auto_hash_count").toInt(1) : old.value("hashes").toArray().size();
+            const int oldMaximum = qMin(type == "csqtt" ? 126 : 108, qBound(1, oldCount, type == "csqtt" ? 6 : 4) * 27);
+            const int requested = old.value("workers").toInt(type == "csqtt" ? 18 : 9);
+            incoming["workers"] = requested >= oldMaximum ? maximum : qBound(9, requested, maximum) / 9 * 9;
             if (!candidates.first().value("device_id").toString().isEmpty()) incoming["device_id"] = candidates.first().value("device_id");
         } else if (relatedIDs.size() == 1) incoming["device_id"] = *relatedIDs.begin();
         return incoming;
