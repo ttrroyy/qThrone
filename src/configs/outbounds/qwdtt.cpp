@@ -130,7 +130,7 @@ QJsonObject qwdtt::ExportToJson() {
             {"obfs", obfs}, {"go_dns", goDNS}, {"device_id", deviceID},
             {"vk_anon_path", vkAnonPath}, {"captcha_mode", captchaMode}, {"hash_source", hashSource}, {"auto_hash_count", autoHashCount}};
 }
-QJsonObject qwdtt::ExportIdentity() { auto o = ExportToJson(); o.remove("tag"); o.remove("device_id"); return o; }
+QJsonObject qwdtt::ExportIdentity() { auto o = ExportToJson(); o.remove("tag"); o.remove("device_id"); o.remove("hashes"); o.remove("workers"); return o; }
 QString qwdtt::ExportToLink() {
     QUrl u("qwdtt://config");
     QUrlQuery q;

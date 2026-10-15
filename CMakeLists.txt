@@ -691,6 +691,8 @@ qt_add_executable(qThrone
 set_property(TARGET qThrone PROPERTY AUTOUIC ON)
 set_property(TARGET qThrone PROPERTY AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/include/ui")
 set_property(TARGET qThrone PROPERTY AUTOMOC ON)
+file(GLOB SEASONAL_ART_RESOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/res/Seasonal_*.qrc")
+target_sources(qThrone PRIVATE ${SEASONAL_ART_RESOURCES})
 set_property(TARGET qThrone PROPERTY AUTORCC ON)
 
 

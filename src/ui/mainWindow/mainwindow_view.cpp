@@ -309,7 +309,7 @@ void MainWindow::refresh_proxy_list_column_size() {
     auto *hHeader = dynamic_cast<ProfilesTableFilterHeader*>(ui->profilesTableView->horizontalHeader());
     QTimer::singleShot(0, ui->profilesTableView, [=, this]() {
         // The resizeSection / scrollbar-policy changes below re-enter here via valueChanged.
-        if (m_adjustingColumns) return;
+        if (m_adjustingColumns || hHeader->resizingByMouse() || group != Configs::dataManager->groupsRepo->CurrentGroup()) return;
         m_adjustingColumns = true;
         QScrollBar *vBar = ui->profilesTableView->verticalScrollBar();
         const bool vBarBlocked = vBar->blockSignals(true);
@@ -318,7 +318,7 @@ void MainWindow::refresh_proxy_list_column_size() {
         if (!group->column_width.isEmpty() && group->column_width.size() != columnCount) {
             group->column_width.clear();
         }
-        if (group->column_width.isEmpty()) {
+        if (group->column_width.isEmpty() && group->calculated_column_width.size() != columnCount) {
             hHeader->setSectionResizeMode(ProfilesTableModel::ColType, QHeaderView::ResizeToContents);
             hHeader->setSectionResizeMode(ProfilesTableModel::ColAddress, QHeaderView::Stretch);
             hHeader->setSectionResizeMode(ProfilesTableModel::ColName, QHeaderView::Stretch);
@@ -342,10 +342,10 @@ void MainWindow::refresh_proxy_list_column_size() {
                 group->calculated_column_width << size;
             }
         } else {
-            group->clearCalculatedColumnWidth();
+            const auto sizes = group->column_width.isEmpty() ? group->calculated_column_width : group->column_width;
             for (int i = 0; i < columnCount; i++) {
                 hHeader->setSectionResizeMode(i, QHeaderView::Interactive);
-                hHeader->resizeSection(i, group->column_width.at(i));
+                hHeader->resizeSection(i, sizes.at(i));
             }
             ui->profilesTableView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         }

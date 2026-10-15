@@ -111,7 +111,7 @@ bool DataViewHtmlGenerator::hasPendingRestart() const {
 }
 bool DataViewHtmlGenerator::hasPriorityNotice() const {
     QMutexLocker lk(&mu_);
-    return pendingRestart_.visible || download_.visible || speedtest_.visible || latencyTest_.visible ||
+    return pendingRestart_.visible || download_.visible || speedtest_.visible ||
            (vpnEndpoint_.visible && vpnEndpoint_.problem) || !scanner_.isEmpty();
 }
 
@@ -152,7 +152,7 @@ bool DataViewHtmlGenerator::itemVisible(DataViewItem item) const {
     switch (item) {
         case DataViewItem::Download:       return download_.visible;
         case DataViewItem::SpeedTest:      return speedtest_.visible;
-        case DataViewItem::LatencyTest:    return latencyTest_.visible;
+        case DataViewItem::LatencyTest:    return false;
         case DataViewItem::AutoSelector:   return autoSelector_.visible;
         case DataViewItem::VpnEndpoint:    return vpnEndpoint_.visible;
         case DataViewItem::PendingRestart: return pendingRestart_.visible;
@@ -210,7 +210,7 @@ QString DataViewHtmlGenerator::pendingRestartSectionHtml(bool compact) {
     }
     res += QString("<p style='text-align:center;margin:0;'>"
                    "<a style='color:%1;' href='%2'>%3</a>"
-                   "&nbsp;&nbsp;&#183;&nbsp;&nbsp;"
+                   " &#183; "
                    "<a style='color:%4;' href='%5'>%6</a>"
                    "</p>")
                .arg(tokens.accent.name(), QString(RestartActionUrl), QObject::tr("Restart").toHtmlEscaped(),

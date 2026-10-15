@@ -193,6 +193,13 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
             ui->toolButton_startstop->setFixedSize(h, h);
         }
     }
+    if (type == QEvent::Resize && obj == ui->checkBox_SystemProxy) {
+        const QString label = tr("System Proxy");
+        QString displayed = label;
+        const int split = displayed.lastIndexOf(' ');
+        if (split > 0 && ui->checkBox_SystemProxy->fontMetrics().horizontalAdvance(label) + 28 > ui->checkBox_SystemProxy->width()) displayed[split] = '\n';
+        if (ui->checkBox_SystemProxy->text() != displayed) ui->checkBox_SystemProxy->setText(displayed);
+    }
     // The viewport, not the window: splitter moves and scrollbar toggles change its width too.
     if (type == QEvent::Resize && obj == ui->profilesTableView->viewport()) {
         const auto *resize = static_cast<QResizeEvent *>(event);

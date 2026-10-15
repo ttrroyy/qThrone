@@ -13,7 +13,7 @@ import (
 
 func TestQWDTTStartupFailureIsNotServerUnavailable(t *testing.T) {
 	s := &server{}
-	result, err := s.Test(context.Background(), &gen.TestReq{QwdttConfig: To(`{"socks":"0.0.0.0:9000"}`)})
+	result, err := s.Test(context.Background(), &gen.TestReq{QwdttConfig: To(`{"backend":"csqtt","socks":"0.0.0.0:9000"}`)})
 	if err != nil || len(result.Results) != 1 || !strings.HasPrefix(result.Results[0].GetError(), "qWDTT test not started:") {
 		t.Fatalf("URL startup failure classification: %v %v", result, err)
 	}
