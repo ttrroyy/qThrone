@@ -27,7 +27,15 @@ def main():
     DEST.mkdir(parents=True,exist_ok=True)
     with ProcessPoolExecutor(max_workers=2) as pool:manifest=dict(pool.map(bake,THEMES))
     (DEST/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
-    names=['manifest.json']+[v['file'] for t in manifest.values() for v in t.values()]
-    entries='\n'.join('    <file>seasonal/'+name+'</file>' for name in sorted(names))
-    (ROOT/'res/Seasonal.qrc').write_text('<RCC><qresource prefix="/">\n'+entries+'\n</qresource></RCC>\n',encoding='utf-8')
+    write_resource_indexes(manifest)
+
+def write_resource_indexes(manifest):
+    # Bound generated C++ units for the 32-bit Windows compiler's address space.
+    def write(path,names):
+        entries='\n'.join('    <file>seasonal/'+name+'</file>' for name in names)
+        path.write_text('<RCC><qresource prefix="/">\n'+entries+'\n</qresource></RCC>\n',encoding='utf-8')
+    write(ROOT/'res/Seasonal.qrc',['manifest.json'])
+    for theme,variants in manifest.items():
+        for variant,meta in variants.items():
+            write(ROOT/f'res/Seasonal_{theme}_{variant}.qrc',[meta['file']])
 if __name__=='__main__':main()
