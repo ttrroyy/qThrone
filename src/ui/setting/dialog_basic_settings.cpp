@@ -220,10 +220,17 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     });
     bool ok;
     ui->seasonal_decoration->addItem(tr("Disabled"), "none");
-    ui->seasonal_decoration->addItem(tr("Halloween"), "halloween");
-    ui->seasonal_decoration->addItem(tr("New Year"), "newyear");
+    ui->seasonal_decoration->addItem(tr("Сезонное украшение: Авто"), "auto");
+    ui->seasonal_decoration->addItem(tr("Хэллоуин"), "halloween");
+    ui->seasonal_decoration->addItem(tr("Новый год"), "newyear");
+    ui->seasonal_decoration->addItem(tr("Иван Купала"), "kupala");
+    ui->seasonal_decoration->addItem(tr("День святого Патрика"), "patrick");
+    ui->seasonal_decoration->addItem(tr("Рождество"), "christmas");
+    ui->seasonal_decoration->addItem(tr("Пасха"), "easter");
+    ui->seasonal_decoration->addItem(tr("День святого Валентина"), "valentine");
+    ui->seasonal_decoration->addItem(tr("Масленица"), "maslenitsa");
     const int decorationIndex = ui->seasonal_decoration->findData(Configs::dataManager->settingsRepo->seasonal_decoration);
-    ui->seasonal_decoration->setCurrentIndex(qMax(0, decorationIndex));
+    ui->seasonal_decoration->setCurrentIndex(decorationIndex >= 0 ? decorationIndex : ui->seasonal_decoration->findData("auto"));
     auto themeId = Configs::dataManager->settingsRepo->theme.toInt(&ok);
     if (ok) {
         ui->theme->setCurrentIndex(themeId);

@@ -183,7 +183,6 @@ namespace Configs
         const auto object = DisplaySingBoxOutbound();
         auto protocol = object["type"].toString();
         if (protocol.isEmpty()) return type == CustomFullConfig ? "Custom Config" : "Custom Outbound";
-        if (protocol == "hysteria2") return "Hysteria2";
         if (protocol != "custom") {
             std::shared_ptr<outbound> parsed(NewOutboundByType(protocol));
             if (parsed && !parsed->invalid) {
@@ -193,7 +192,23 @@ namespace Configs
             }
         }
         protocol[0] = protocol[0].toUpper();
-        return protocol + " (sing-box)";
+        return protocol;
+    }
+
+    QString Custom::DisplayXrayType() const {
+        auto protocol = DisplayXrayOutbound()["protocol"].toString();
+        if (protocol.isEmpty()) return "Custom Xray Config";
+        if (protocol == "vless") return "VLESS (Xray)";
+        if (protocol == "hysteria2" || protocol == "hy2") protocol = "hysteria";
+        if (protocol != "custom") {
+            std::shared_ptr<outbound> native(NewOutboundByType(protocol));
+            if (native && !native->invalid) {
+                const auto label = native->DisplayType();
+                if (!label.isEmpty()) return label;
+            }
+        }
+        protocol[0] = protocol[0].toUpper();
+        return protocol;
     }
 
     QJsonObject Custom::DisplayXrayOutbound() const {

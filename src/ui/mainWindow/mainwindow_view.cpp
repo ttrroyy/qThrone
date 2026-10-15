@@ -64,8 +64,8 @@ void MainWindow::UpdateDataView(bool force)
     }
     auto html = dataViewHtmlGenerator_.buildHtml();
     runOnUiThread([=, this] {
-        if (seasonalDecoration) seasonalDecoration->setNoticePriority(dataViewHtmlGenerator_.hasPriorityNotice());
         ui->data_view->setHtml(html);
+        if (seasonalDecoration) seasonalDecoration->setNoticePriority(dataViewHtmlGenerator_.hasPriorityNotice());
     }, true);
     lastUpdatedMs.store(QDateTime::currentMSecsSinceEpoch());
 }

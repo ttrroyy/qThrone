@@ -503,6 +503,7 @@ set(PROJECT_SOURCES
         include/ui/setting/RawRouteItem.h
 
         res/Throne.qrc
+        res/Seasonal.qrc
         ${QV2RAY_RC}
         res/darkstyle.qrc
         res/theme/feiyangqingyun/qss.qrc

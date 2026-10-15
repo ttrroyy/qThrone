@@ -75,13 +75,41 @@ int TestQwdttImport() {
         if (!ok) { qCritical() << "qWDTT import test failed:" << name; ++failures; }
     };
     {
+        const auto theme = SeasonalDecoration::themeForDate;
+        for (int year : {2026, 2027, 2028}) {
+            const QList<QPair<QDate, QString>> cases = {
+                {QDate(year, 10, 29), "halloween"}, {QDate(year, 10, 30), "remembrance"}, {QDate(year, 10, 31), "halloween"},
+                {QDate(year, 12, 23), "newyear"}, {QDate(year, 12, 24), "christmas"}, {QDate(year, 12, 31), "christmas"},
+                {QDate(year, 1, 1), "christmas"}, {QDate(year, 1, 7), "christmas"}, {QDate(year, 1, 8), "newyear"},
+                {QDate(year, 2, 13), "newyear"}, {QDate(year, 2, 14), "valentine"}, {QDate(year, 2, 15), "newyear"},
+                {QDate(year, 3, 7), "easter"}, {QDate(year, 3, 8), "maslenitsa"}, {QDate(year, 3, 14), "maslenitsa"},
+                {QDate(year, 3, 15), "easter"}, {QDate(year, 3, 17), "patrick"}, {QDate(year, 3, 18), "easter"},
+                {QDate(year, 5, 7), "easter"}, {QDate(year, 5, 8), "may_remembrance"}, {QDate(year, 5, 9), "may_remembrance"},
+                {QDate(year, 5, 10), "easter"}, {QDate(year, 5, 31), "easter"}, {QDate(year, 6, 1), "kupala"},
+                {QDate(year, 8, 31), "kupala"}, {QDate(year, 9, 1), "halloween"}, {QDate(year, 11, 30), "halloween"}, {QDate(year, 12, 1), "newyear"}
+            };
+            for (const auto &entry : cases) check(theme(entry.first) == entry.second, "Auto exact-date priority and seasonal boundary");
+        }
+        QFile resource(":/seasonal/manifest.json");
+        check(resource.open(QIODevice::ReadOnly), "seasonal manifest bundled");
+        const auto manifest = QJsonDocument::fromJson(resource.readAll()).object();
+        check(manifest.size() == 10, "all ten approved themes bundled");
+        for (auto themeIt = manifest.begin(); themeIt != manifest.end(); ++themeIt) {
+            for (const auto &variant : {QStringLiteral("wide"), QStringLiteral("compact"), QStringLiteral("narrow")}) {
+                const auto metadata = themeIt.value().toObject()[variant].toObject();
+                const QImage image(":/seasonal/" + metadata["file"].toString());
+                check(!image.isNull() && image.hasAlphaChannel() && metadata["frames"].toInt() > 1, "approved transparent animated composition bundled");
+            }
+        }
+    }
+    {
         const auto previousCallback = MW_dialog_message;
         QStringList flags;
         MW_dialog_message = [&flags](MwMessage, QStringList changes) { flags = changes; };
         const auto restoreCallback = qScopeGuard([previousCallback] { MW_dialog_message = previousCallback; });
         DialogBasicSettings dialog;
         auto *selector = dialog.findChild<QComboBox *>("seasonal_decoration");
-        check(selector && selector->count() == 3, "exactly Disabled, Halloween and New Year options");
+        check(selector && selector->count() == 10 && selector->findData("auto") >= 0 && selector->findData("remembrance") < 0 && selector->findData("may_remembrance") < 0, "only eight manual themes, Auto and Disabled; memorial themes hidden");
         if (selector) {
             selector->setCurrentIndex(selector->findData("newyear"));
             const auto inboundBefore = Configs::dataManager->settingsRepo->inbound_socks_port;
@@ -109,12 +137,14 @@ int TestQwdttImport() {
             window.setPalette(palette);
             for (const QSize size : {QSize(800, 600), QSize(1152, 720), QSize(1600, 1000)}) {
                 window.resize(size);
-                for (const QString mode : {QStringLiteral("halloween"), QStringLiteral("newyear"), QStringLiteral("none"), QStringLiteral("halloween")}) {
+                for (const QString &mode : SeasonalDecoration::manualThemes() + QStringList{"none", "halloween"}) {
                     const QSize previousGeometry = decoration->size();
                     decoration->setDecoration(mode);
                     window.show();
                     for (int i = 0; i < 4; ++i) QApplication::processEvents();
                     if (mode == "newyear") check(decoration->size() == previousGeometry, "both decorations share the same dimensions");
+                    if (mode != "none") check(decoration->hasArtwork(), "approved artwork resource loads");
+                    if (!screenshots.isEmpty() && size.width() == 1152 && dark && mode != "none") check(window.grab().save(screenshots + "/theme-" + mode + ".png"), "theme preview saved");
                     if (mode != "none") check(decoration->width() > 0 && decoration->width() <= 190 && decoration->height() <= 64, "artwork scales within the available toolbar space");
                     check(ui.splitter->count() == panes, "seasonal overlay never becomes a splitter pane");
                     check(ui.splitter->width() >= ui.centralwidget->width() - 24, "seasonal overlay preserves full-width panels");
@@ -126,10 +156,17 @@ int TestQwdttImport() {
                 for (int i = 0; i < 6; ++i) QApplication::processEvents();
                 if (!screenshots.isEmpty()) check(window.grab().save(screenshots + QString("/newyear-%1-%2.png").arg(dark ? "dark" : "light").arg(size.width())), "newyear screenshot saved");
                 decoration->setNoticePriority(true);
-                ui.data_view->setHtml("<p>Settings changed, restart to apply</p><a href='restart'>Restart</a> · <a href='dismiss'>Dismiss</a>");
+                ui.data_view->setHtml("<p>Settings changed, restart to apply</p><a href='restart'>Restart</a> В· <a href='dismiss'>Dismiss</a>");
                 window.move(window.pos() + QPoint(17, 11));
                 for (int i = 0; i < 6; ++i) QApplication::processEvents();
-                check(!decoration->isVisible(), "restart notice takes priority over artwork");
+                if (size.width() == 1600) check(decoration->isVisible(), "short notice and artwork coexist when there is room");
+                ui.data_view->setHtml("<p style='white-space:pre'>" + QString(1000, 'W') + "</p>");
+                decoration->setNoticePriority(true);
+                for (int i = 0; i < 6; ++i) QApplication::processEvents();
+                check(!decoration->isVisible(), "notice hides artwork only when it cannot fit alongside");
+                ui.data_view->setHtml("<p>Settings changed, restart to apply</p><a href='restart'>Restart</a> · <a href='dismiss'>Dismiss</a>");
+                decoration->setNoticePriority(true);
+                for (int i = 0; i < 6; ++i) QApplication::processEvents();
                 check(ui.data_view->width() > 100, "notice retains available width after move");
                 check(ui.splitter->count() == panes, "moving window preserves splitter panes");
                 if (!screenshots.isEmpty()) check(window.grab().save(screenshots + QString("/notice-%1-%2.png").arg(dark ? "dark" : "light").arg(size.width())), "notice screenshot saved");
@@ -249,7 +286,7 @@ int TestQwdttImport() {
             check(preserved["device_id"] == "existing-device", "complete relay replacement preserves the unique existing device ID");
         }
         const auto hy = parse(R"({"remarks":"HY2","outbounds":[{"protocol":"freedom","tag":"direct"},{"protocol":"hysteria","tag":"hy","settings":{"address":"hy.example","port":443}}],"routing":{"balancers":[{"tag":"auto","selector":["hy"]}],"rules":[{"balancerTag":"auto"}]}})");
-        check(hy.size() == 1 && hy.first()->outbound->DisplayType() == "Hysteria2 (Xray)" && hy.first()->outbound->DisplayAddress() == "hy.example:443", "JSON Hysteria2 retains its protocol and address despite embedded balancers");
+        check(hy.size() == 1 && hy.first()->outbound->DisplayType() == "Hysteria" && hy.first()->outbound->DisplayAddress() == "hy.example:443", "JSON Hysteria2 retains its protocol and address despite embedded balancers");
         for (const auto &protocol : QStringList{"vless", "vmess", "trojan", "shadowsocks", "socks", "http", "wireguard"}) {
             Configs::Custom custom;
             custom.type = Configs::Custom::CustomXrayFullConfig;
@@ -259,7 +296,45 @@ int TestQwdttImport() {
         Configs::Custom singBox;
         singBox.type = Configs::Custom::CustomFullConfig;
         singBox.config = R"({"outbounds":[{"type":"direct","tag":"direct"},{"type":"selector","tag":"auto","outbounds":["hy"]},{"type":"hysteria2","tag":"hy","server":"native.example","server_port":443}],"route":{"final":"auto"}})";
-        check(singBox.DisplayType() == "Hysteria2" && singBox.DisplayAddress() == "native.example:443", "sing-box JSON resolves selected proxy protocol and address");
+        check(singBox.DisplayType() == "Hysteria" && singBox.DisplayAddress() == "native.example:443", "sing-box JSON resolves selected proxy protocol and address");
+    }
+    {
+        for (const auto &protocol : QStringList{"vless", "vmess", "trojan", "shadowsocks", "socks", "http", "wireguard", "hysteria", "hysteria2"}) {
+            const QJsonObject node{{"protocol", protocol}, {"tag", "Node"}, {"settings", QJsonObject{{"address", "json.example"}, {"port", 443}, {"id", "00000000-0000-4000-8000-000000000001"}}}};
+            const auto bytes = QJsonDocument(node).toJson(QJsonDocument::Compact);
+            const auto plain = parse(bytes);
+            for (const auto &prefix : {QByteArray("json://#"), QByteArray("throne://add/")}) {
+                const auto encoded = parse(prefix + bytes.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
+                check(plain.size() == 1 && encoded.size() == 1 && plain.first()->outbound->ExportToJson() == encoded.first()->outbound->ExportToJson(), "every Xray protocol uses identical plain and encoded JSON import");
+            }
+            if (!plain.isEmpty()) {
+                const auto label = plain.first()->outbound->DisplayType();
+                check(protocol == "vless" ? label == "VLESS (Xray)" : !label.contains("Xray"), "only the native VLESS engine label is appended");
+                if (protocol.startsWith("hysteria")) check(label == "Hysteria", "original Hysteria label restored");
+            }
+        }
+        for (const auto &type : QStringList{"socks", "http", "shadowsocks", "vmess", "vless", "xrayvless", "trojan", "hysteria", "tuic", "anytls", "wireguard", "masque", "tailscale", "ssh", "naive", "mieru", "snell", "shadowtls", "juicity", "trusttunnel", "openvpn", "openconnect", "chain", "autoselector", "extracore", "custom"}) {
+            const auto original = Configs::ProfilesRepo::NewProfile(type);
+            if (type == "extracore") original->outbound->ParseFromJson(QJsonObject{{"socks_port", 1080}});
+            const auto bytes = QJsonDocument(original->outbound->ExportToJson()).toJson(QJsonDocument::Compact);
+            const auto plain = parse(bytes);
+            const auto encoded = parse(original->outbound->ExportJsonLink().toUtf8());
+            check(plain.size() == encoded.size() && !plain.isEmpty(), "registered native exports import from JSON links");
+            if (!plain.isEmpty() && !encoded.isEmpty()) check(plain.first()->outbound->ExportToJson() == encoded.first()->outbound->ExportToJson(), "native export settings retained identically");
+        }
+        const QJsonObject relay{{"type", "qwdtt"}, {"peer", "203.0.113.8:56000"}, {"password", "secret"}, {"device_id", "persisted"}};
+        const QJsonObject cs{{"type", "csqtt"}, {"server", "203.0.113.9"}, {"server_port", 46000}, {"password", "secret"}, {"device_id", "cs-persisted"}};
+        const QJsonObject hy{{"type", "hysteria2"}, {"server", "hy.example"}, {"server_port", 443}, {"password", "secret"}};
+        const QJsonObject full{{"remarks", "Full"}, {"outbounds", QJsonArray{QJsonObject{{"protocol", "hysteria"}, {"tag", "hy"}, {"settings", QJsonObject{{"address", "full.example"}, {"port", 443}}}}}}, {"routing", QJsonObject{{"rules", QJsonArray{QJsonObject{{"outboundTag", "hy"}}}}}}};
+        const QJsonArray nodes{relay, hy, cs, full};
+        for (const auto &document : {QJsonDocument(nodes), QJsonDocument(QJsonObject{{"profiles", nodes}}), QJsonDocument(QJsonObject{{"servers", nodes}})}) {
+            const auto bytes = document.toJson(QJsonDocument::Compact);
+            for (const auto &body : {bytes, QByteArray("throne://add/") + bytes.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)}) {
+                const auto imported = parse(body);
+                check(imported.size() == 4, "mixed qWDTT CSQTT HY2 and full Xray documents preserve every entry");
+                if (imported.size() == 4) check(imported[0]->type == "qwdtt" && imported[1]->outbound->DisplayType() == "Hysteria" && imported[2]->type == "csqtt" && imported[3]->Custom() && imported[3]->Custom()->IsXrayFullConfig(), "mixed array order and full routing retained");
+            }
+        }
     }
     const QByteArray csqttLink = "csqtt://connect?v=2&host=203.0.113.7&peer=46000&password=p%40ss&hashes=abcdefghijklmno%2Bp+abcdefghijklmnop2";
     const auto csProfiles = parse(csqttLink);
@@ -272,7 +347,7 @@ int TestQwdttImport() {
             cs->turnTCP = true;
             check(cs->DisplayType() == "CSQTT (TCP)", "CSQTT TCP transport label");
             Configs::csqtt roundtrip;
-            cs->name = QString::fromUtf8("Тест + # CSQTT");
+            cs->name = QString::fromUtf8("РўРµСЃС‚ + # CSQTT");
             check(roundtrip.ParseFromLink(cs->ExportToLink()) && roundtrip.hashes == cs->hashes && roundtrip.password == cs->password, "CSQTT original link round trip");
             check(roundtrip.name == cs->name, "CSQTT profile name survives link round trip");
             Configs::csqtt named;
