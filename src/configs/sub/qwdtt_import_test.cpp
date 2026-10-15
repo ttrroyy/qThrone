@@ -100,23 +100,27 @@ int TestQwdttImport() {
     {
         const auto theme = SeasonalDecoration::themeForDate;
         for (int year : {2026, 2027, 2028}) {
+            for (QDate date(year, 1, 1); date.year() == year; date = date.addDays(1)) {
+                check(!theme(date).isEmpty(), "Auto covers every local calendar day, including leap day");
+            }
             const QList<QPair<QDate, QString>> cases = {
-                {QDate(year, 10, 29), "halloween"}, {QDate(year, 10, 30), "remembrance"}, {QDate(year, 10, 31), "halloween"},
-                {QDate(year, 12, 23), "newyear"}, {QDate(year, 12, 24), "christmas"}, {QDate(year, 12, 31), "christmas"},
+                {QDate(year, 10, 29), "autumn"}, {QDate(year, 10, 30), "remembrance"}, {QDate(year, 10, 31), "halloween"},
+                {QDate(year, 12, 23), "newyear"}, {QDate(year, 12, 24), "newyear"}, {QDate(year, 12, 25), "christmas"}, {QDate(year, 12, 31), "christmas"},
                 {QDate(year, 1, 1), "christmas"}, {QDate(year, 1, 7), "christmas"}, {QDate(year, 1, 8), "newyear"},
                 {QDate(year, 2, 13), "newyear"}, {QDate(year, 2, 14), "valentine"}, {QDate(year, 2, 15), "newyear"},
-                {QDate(year, 3, 7), "easter"}, {QDate(year, 3, 8), "maslenitsa"}, {QDate(year, 3, 14), "maslenitsa"},
-                {QDate(year, 3, 15), "easter"}, {QDate(year, 3, 17), "patrick"}, {QDate(year, 3, 18), "easter"},
-                {QDate(year, 5, 7), "easter"}, {QDate(year, 5, 8), "may_remembrance"}, {QDate(year, 5, 9), "may_remembrance"},
-                {QDate(year, 5, 10), "easter"}, {QDate(year, 5, 31), "easter"}, {QDate(year, 6, 1), "kupala"},
-                {QDate(year, 8, 31), "kupala"}, {QDate(year, 9, 1), "halloween"}, {QDate(year, 11, 30), "halloween"}, {QDate(year, 12, 1), "newyear"}
+                {QDate(year, 3, 7), "spring"}, {QDate(year, 3, 8), "maslenitsa"}, {QDate(year, 3, 14), "maslenitsa"},
+                {QDate(year, 3, 15), "patrick"}, {QDate(year, 3, 17), "patrick"}, {QDate(year, 3, 18), "patrick"},
+                {QDate(year, 3, 22), "patrick"}, {QDate(year, 3, 23), "spring"},
+                {QDate(year, 4, 21), "spring"}, {QDate(year, 4, 22), "easter"}, {QDate(year, 5, 7), "easter"}, {QDate(year, 5, 8), "may_remembrance"}, {QDate(year, 5, 9), "may_remembrance"},
+                {QDate(year, 5, 10), "spring"}, {QDate(year, 5, 31), "spring"}, {QDate(year, 6, 1), "kupala"},
+                {QDate(year, 8, 31), "kupala"}, {QDate(year, 9, 1), "autumn"}, {QDate(year, 11, 30), "halloween"}, {QDate(year, 12, 1), "newyear"}
             };
             for (const auto &entry : cases) check(theme(entry.first) == entry.second, "Auto exact-date priority and seasonal boundary");
         }
         QFile resource(":/seasonal/manifest.json");
         check(resource.open(QIODevice::ReadOnly), "seasonal manifest bundled");
         const auto manifest = QJsonDocument::fromJson(resource.readAll()).object();
-        check(manifest.size() == 10, "all ten approved themes bundled");
+        check(manifest.size() == 12, "all twelve approved themes bundled");
         for (auto themeIt = manifest.begin(); themeIt != manifest.end(); ++themeIt) {
             check(themeIt.value().toObject().size() == 2, "only wide and compact compositions remain");
             for (const auto &variant : {QStringLiteral("wide"), QStringLiteral("compact")}) {
@@ -133,7 +137,7 @@ int TestQwdttImport() {
         const auto restoreCallback = qScopeGuard([previousCallback] { MW_dialog_message = previousCallback; });
         DialogBasicSettings dialog;
         auto *selector = dialog.findChild<QComboBox *>("seasonal_decoration");
-        check(selector && selector->count() == 10 && selector->findData("auto") >= 0 && selector->findData("remembrance") < 0 && selector->findData("may_remembrance") < 0, "only eight manual themes, Auto and Disabled; memorial themes hidden");
+        check(selector && selector->count() == 12 && selector->findData("auto") >= 0 && selector->findData("remembrance") < 0 && selector->findData("may_remembrance") < 0, "only ten manual themes, Auto and Disabled; memorial themes hidden");
         if (selector) {
             selector->setCurrentIndex(selector->findData("newyear"));
             const auto inboundBefore = Configs::dataManager->settingsRepo->inbound_socks_port;
@@ -311,6 +315,10 @@ int TestQwdttImport() {
         DataViewHtmlGenerator panels;
         panels.seedLatencyTest(DataViewHtmlGenerator::LatencyTestPanelState::Kind::Url, 10);
         check(panels.buildHtml().isEmpty() && !panels.hasPriorityNotice(), "latency test has no top-bar indicator or decoration priority");
+        panels.seedSpeedTest(3);
+        panels.addTestProgress(1);
+        check(panels.buildHtml().contains("Running") && panels.hasPriorityNotice(), "speed test retains its top-bar progress and decoration priority");
+        panels.clearTestSections();
         panels.setDownloadReport({}, true);
         check(panels.hasPriorityNotice(), "update progress takes priority over decoration");
         panels.setDownloadReport({}, false);

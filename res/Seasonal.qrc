@@ -1,4 +1,6 @@
 <RCC><qresource prefix="/">
+    <file>seasonal/autumn-compact.png</file>
+    <file>seasonal/autumn-wide.png</file>
     <file>seasonal/christmas-compact.png</file>
     <file>seasonal/christmas-wide.png</file>
     <file>seasonal/easter-compact.png</file>
@@ -18,6 +20,8 @@
     <file>seasonal/patrick-wide.png</file>
     <file>seasonal/remembrance-compact.png</file>
     <file>seasonal/remembrance-wide.png</file>
+    <file>seasonal/spring-compact.png</file>
+    <file>seasonal/spring-wide.png</file>
     <file>seasonal/valentine-compact.png</file>
     <file>seasonal/valentine-wide.png</file>
 </qresource></RCC>

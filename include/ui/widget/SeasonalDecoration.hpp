@@ -44,21 +44,23 @@ public:
         calendarTimer.start();
     }
     static QStringList manualThemes() {
-        return {"halloween", "newyear", "kupala", "patrick", "christmas", "easter", "valentine", "maslenitsa"};
+        return {"halloween", "newyear", "kupala", "patrick", "christmas", "easter", "valentine", "maslenitsa", "spring", "autumn"};
     }
     static QString themeForDate(const QDate &date) {
         if (!date.isValid()) return {};
         const int month = date.month(), day = date.day();
-        // Exact dates override seasonal defaults, including the cross-year Christmas interval.
+        // Inclusive fixed display periods, evaluated in the user's local calendar.
         if (month == 10 && day == 30) return "remembrance";
         if (month == 5 && (day == 8 || day == 9)) return "may_remembrance";
-        if ((month == 12 && day >= 24) || (month == 1 && day <= 7)) return "christmas";
+        if ((month == 12 && day >= 25) || (month == 1 && day <= 7)) return "christmas";
         if (month == 2 && day == 14) return "valentine";
-        if (month == 3 && day == 17) return "patrick";
         if (month == 3 && day >= 8 && day <= 14) return "maslenitsa";
-        if (month >= 9 && month <= 11) return "halloween";
+        if (month == 3 && day >= 15 && day <= 22) return "patrick";
+        if ((month == 4 && day >= 22) || (month == 5 && day <= 7)) return "easter";
+        if (month == 9 || (month == 10 && day <= 29)) return "autumn";
+        if (month == 10 || month == 11) return "halloween";
         if (month == 12 || month <= 2) return "newyear";
-        if (month >= 3 && month <= 5) return "easter";
+        if (month >= 3 && month <= 5) return "spring";
         return "kupala";
     }
     QString currentTheme() const { return theme; }
@@ -96,7 +98,7 @@ protected:
         const int frame = int(clock.elapsed() / interval) % frameCount;
         const QRect source((frame % columns) * frameWidth, (frame / columns) * frameHeight, frameWidth, frameHeight);
         QPainter painter(this);
-        painter.setRenderHint(QPainter::SmoothPixmapTransform, false);
+        painter.setRenderHint(QPainter::SmoothPixmapTransform, true);
         painter.drawImage(rect(), atlas, source);
     }
 private:

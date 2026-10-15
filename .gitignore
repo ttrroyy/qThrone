@@ -91,3 +91,5 @@ srslist.h
 
 # Generated only while rebuilding the approved seasonal artwork.
 script/seasonal_sources/__pycache__/
+script/seasonal_hd/__pycache__/
+script/seasonal_hd/sources/__pycache__/
