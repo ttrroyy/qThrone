@@ -75,6 +75,29 @@ int TestQwdttImport() {
         if (!ok) { qCritical() << "qWDTT import test failed:" << name; ++failures; }
     };
     {
+        auto *settings = Configs::dataManager->settingsRepo.get();
+        const auto savedTheme = settings->seasonal_decoration;
+        const auto savedMigration = settings->seasonal_auto_13_migrated;
+        const auto restoreSettings = qScopeGuard([&] {
+            settings->seasonal_decoration = savedTheme;
+            settings->seasonal_auto_13_migrated = savedMigration;
+            settings->Save();
+        });
+        settings->seasonal_decoration = "halloween";
+        settings->seasonal_auto_13_migrated = false;
+        settings->Save();
+        Configs::SettingsRepo upgraded(Configs::dataManager->getDatabase());
+        check(upgraded.seasonal_decoration == "auto" && upgraded.seasonal_auto_13_migrated,
+              "1.3 upgrade selects Auto once");
+        for (const auto &choice : {QStringLiteral("christmas"), QStringLiteral("none")}) {
+            upgraded.seasonal_decoration = choice;
+            upgraded.Save();
+            Configs::SettingsRepo reopened(Configs::dataManager->getDatabase());
+            check(reopened.seasonal_decoration == choice && reopened.seasonal_auto_13_migrated,
+                  "subsequent launches and upgrades preserve manual or disabled selection");
+        }
+    }
+    {
         const auto theme = SeasonalDecoration::themeForDate;
         for (int year : {2026, 2027, 2028}) {
             const QList<QPair<QDate, QString>> cases = {

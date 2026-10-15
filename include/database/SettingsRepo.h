@@ -100,6 +100,7 @@ namespace Configs {
         bool quic_disable_path_mtu_discovery = false;
         QString theme = "0";
         QString seasonal_decoration = "auto";
+        bool seasonal_auto_13_migrated = false;
         int language = 0;
         QString font = "";
         int font_size = 0;
