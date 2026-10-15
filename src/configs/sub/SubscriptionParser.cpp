@@ -413,39 +413,24 @@ namespace Subscription {
         }
 
         void Parser::json(const QJsonDocument &doc, std::string_view text) {
-            // qWDTT Android subscriptions are profile arrays or {profiles/servers:[...]}.
-            QJsonArray qProfiles;
-            if (doc.isArray()) qProfiles = doc.array();
+            // Arrays and subscription wrappers share one dispatcher, regardless
+            // of whether relay, sing-box and Xray entries are mixed together.
+            QJsonArray entries;
+            bool list = doc.isArray();
+            if (list) entries = doc.array();
             else if (doc.isObject()) {
-                const auto o = doc.object();
-                if (o.contains("peer") || o["type"].toString() == "qwdtt" || o["type"].toString() == "wdtt") qProfiles.append(o);
-                else if (o["profiles"].isArray()) qProfiles = o["profiles"].toArray();
-                else if (o["servers"].isArray()) qProfiles = o["servers"].toArray();
+                const auto object = doc.object();
+                const bool wrapper = !object.contains("type") && !object.contains("protocol") && !object.contains("outbounds");
+                if (wrapper && object["profiles"].isArray()) { entries = object["profiles"].toArray(); list = true; }
+                else if (wrapper && object["servers"].isArray() && !object.contains("version")) { entries = object["servers"].toArray(); list = true; }
             }
-            const auto isQwdtt = [](const QJsonObject &o) {
-                const auto type = o["type"].toString();
-                return type == "qwdtt" || type == "wdtt" || (type.isEmpty() && o.contains("peer"));
-            };
-            if (std::any_of(qProfiles.cbegin(), qProfiles.cend(), [&](const QJsonValue &v) { return isQwdtt(v.toObject()); })) {
-                // Preserve every protocol and the original document order.
-                for (const auto &value : qProfiles) {
-                    if (!value.isObject()) continue;
-                    const auto o = value.toObject();
-                    if (isQwdtt(o)) {
-                        auto ent = Configs::ProfilesRepo::NewProfile("qwdtt");
-                        if (ent->outbound->ParseFromJson(o)) produce(ent);
-                        else log("Invalid qWDTT profile");
-                    } else {
-                        const QJsonDocument item(o);
-                        const auto bytes = item.toJson(QJsonDocument::Compact);
-                        json(item, scan::view(bytes));
+            if (list) {
+                for (const auto &value : entries) {
+                    if (value.isString()) {
+                        const auto bytes = value.toString().toUtf8();
+                        document(scan::view(bytes), true, true, 1);
+                        continue;
                     }
-                }
-                return;
-            }
-            // Xray first: its configs share the "outbounds" wrapper with sing-box.
-            if (doc.isArray()) {
-                for (const auto &value : doc.array()) {
                     if (!value.isObject()) continue;
                     const QJsonDocument item(value.toObject());
                     if (getXraySubType(item) == XraySubType::outboundInJson) {
@@ -457,6 +442,21 @@ namespace Subscription {
                 }
                 return;
             }
+            const auto object = doc.object();
+            auto nativeType = object["type"].toString();
+            if (nativeType.isEmpty() && object.contains("peer")) nativeType = "qwdtt";
+            if (nativeType == "wdtt") nativeType = "qwdtt";
+            if (nativeType == "hysteria2") nativeType = "hysteria";
+            if (!nativeType.isEmpty() && !object.contains("protocol") &&
+                !object.contains("outbounds") && !object.contains("endpoints")) {
+                auto ent = Configs::ProfilesRepo::NewProfile(nativeType);
+                if (!ent->outbound->invalid) {
+                    if (ent->outbound->ParseFromJson(object)) produce(ent);
+                    else log("Invalid " + nativeType + " JSON profile");
+                    return;
+                }
+            }
+            // Xray first: its configs share the "outbounds" wrapper with sing-box.
             const auto xrayType = getXraySubType(doc);
             if (xrayType == XraySubType::outboundObject) {
                 produce(makeProfileForXrayOutbound(doc.object()));
@@ -694,18 +694,11 @@ namespace Subscription {
             // ExportJsonLink emits the url-safe alphabet, which the standard decoder rejects whenever '-' or '_' occurs.
             if (dataBytes.isEmpty() && throneAdd) dataBytes = DecodeB64IfValid(link.path().mid(1), QByteArray::Base64UrlEncoding);
             if (dataBytes.isEmpty()) return;
-            const auto data = QJsonDocument::fromJson(dataBytes).object();
-            if (data.isEmpty()) return;
-            ProfilePtr ent;
-            if (data.contains("protocol")) {
-                ent = Configs::ProfilesRepo::NewProfile("xray" + data["protocol"].toString());
-            } else {
-                ent = data["type"].toString() == "hysteria2" ? Configs::ProfilesRepo::NewProfile("hysteria")
-                                                              : Configs::ProfilesRepo::NewProfile(data["type"].toString());
-            }
-            if (ent->outbound->invalid) return;
-            ent->outbound->ParseFromJson(data);
-            produce(ent);
+            const auto document = QJsonDocument::fromJson(dataBytes);
+            if (document.isNull()) return;
+            // Exactly the same import path as a plain JSON subscription, including
+            // full configs, native exports, arrays and mixed profile wrappers.
+            json(document, scan::view(dataBytes));
         }
 
         void Parser::vpnLink(const QString &str, int depth) {

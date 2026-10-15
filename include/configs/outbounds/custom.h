@@ -23,6 +23,7 @@ namespace Configs
         QJsonObject DisplayXrayOutbound() const;
         QJsonObject DisplaySingBoxOutbound() const;
         QString DisplaySingBoxType() const;
+        QString DisplayXrayType() const;
 
         bool ParseFromJson(const QJsonObject &object) override {
             if (object.isEmpty()) return false;
@@ -78,11 +79,7 @@ namespace Configs
             if (type == CustomOutbound || type == CustomFullConfig) {
                 return DisplaySingBoxType();
             } else if (type == CustomXrayOutbound || type == CustomXrayFullConfig) {
-                auto protocol = DisplayXrayOutbound()["protocol"].toString();
-                if (protocol == "hysteria" || protocol == "hysteria2" || protocol == "hy2") protocol = "Hysteria2";
-                if (protocol == "vless" || protocol == "vmess") protocol = protocol.toUpper();
-                else if (!protocol.isEmpty()) protocol[0] = protocol[0].toUpper();
-                return protocol.isEmpty() ? "Custom Xray Config" : protocol + " (Xray)";
+                return DisplayXrayType();
             }
             return type;
         };

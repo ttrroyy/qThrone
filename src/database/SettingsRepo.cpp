@@ -13,6 +13,12 @@ namespace Configs {
         createTables();
         loadAllSettings();
         bool initialized = false;
+        // Apply the 1.3 default once, then preserve every later user choice.
+        if (!seasonal_auto_13_migrated) {
+            seasonal_decoration = "auto";
+            seasonal_auto_13_migrated = true;
+            initialized = true;
+        }
         // An empty secret disables authentication on the API service outright.
         if (core_box_api_secret.isEmpty()) {
             core_box_api_secret = QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-');
@@ -27,6 +33,7 @@ namespace Configs {
 
     void SettingsRepo::initMaps() {
         boolMap = {
+            {"seasonal_auto_13_migrated", &seasonal_auto_13_migrated},
             {"vk_relay_linked", &vk_relay_linked},
             {"disable_tray",                  &disable_tray},
             {"random_inbound_port",           &random_inbound_port},

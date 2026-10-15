@@ -88,3 +88,6 @@ out
 /libs
 srslist.h
 .claude
+
+# Generated only while rebuilding the approved seasonal artwork.
+script/seasonal_sources/__pycache__/

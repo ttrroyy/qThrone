@@ -1,0 +1,262 @@
+{
+  "halloween": {
+    "wide": {
+      "file": "halloween-wide.png",
+      "width": 136,
+      "height": 46,
+      "columns": 16,
+      "frames": 180,
+      "interval": 100
+    },
+    "compact": {
+      "file": "halloween-compact.png",
+      "width": 92,
+      "height": 46,
+      "columns": 16,
+      "frames": 180,
+      "interval": 100
+    },
+    "narrow": {
+      "file": "halloween-narrow.png",
+      "width": 48,
+      "height": 46,
+      "columns": 16,
+      "frames": 180,
+      "interval": 100
+    }
+  },
+  "newyear": {
+    "wide": {
+      "file": "newyear-wide.png",
+      "width": 136,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "compact": {
+      "file": "newyear-compact.png",
+      "width": 92,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "narrow": {
+      "file": "newyear-narrow.png",
+      "width": 48,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    }
+  },
+  "remembrance": {
+    "wide": {
+      "file": "remembrance-wide.png",
+      "width": 136,
+      "height": 46,
+      "columns": 16,
+      "frames": 300,
+      "interval": 100
+    },
+    "compact": {
+      "file": "remembrance-compact.png",
+      "width": 92,
+      "height": 46,
+      "columns": 16,
+      "frames": 300,
+      "interval": 100
+    },
+    "narrow": {
+      "file": "remembrance-narrow.png",
+      "width": 48,
+      "height": 46,
+      "columns": 16,
+      "frames": 300,
+      "interval": 100
+    }
+  },
+  "may_remembrance": {
+    "wide": {
+      "file": "may_remembrance-wide.png",
+      "width": 544,
+      "height": 184,
+      "columns": 8,
+      "frames": 120,
+      "interval": 200
+    },
+    "compact": {
+      "file": "may_remembrance-compact.png",
+      "width": 368,
+      "height": 184,
+      "columns": 8,
+      "frames": 120,
+      "interval": 200
+    },
+    "narrow": {
+      "file": "may_remembrance-narrow.png",
+      "width": 192,
+      "height": 184,
+      "columns": 8,
+      "frames": 120,
+      "interval": 200
+    }
+  },
+  "kupala": {
+    "wide": {
+      "file": "kupala-wide.png",
+      "width": 136,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "compact": {
+      "file": "kupala-compact.png",
+      "width": 92,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "narrow": {
+      "file": "kupala-narrow.png",
+      "width": 48,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    }
+  },
+  "patrick": {
+    "wide": {
+      "file": "patrick-wide.png",
+      "width": 136,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "compact": {
+      "file": "patrick-compact.png",
+      "width": 92,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "narrow": {
+      "file": "patrick-narrow.png",
+      "width": 48,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    }
+  },
+  "valentine": {
+    "wide": {
+      "file": "valentine-wide.png",
+      "width": 136,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "compact": {
+      "file": "valentine-compact.png",
+      "width": 92,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "narrow": {
+      "file": "valentine-narrow.png",
+      "width": 48,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    }
+  },
+  "maslenitsa": {
+    "wide": {
+      "file": "maslenitsa-wide.png",
+      "width": 136,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "compact": {
+      "file": "maslenitsa-compact.png",
+      "width": 92,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "narrow": {
+      "file": "maslenitsa-narrow.png",
+      "width": 48,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    }
+  },
+  "christmas": {
+    "wide": {
+      "file": "christmas-wide.png",
+      "width": 136,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "compact": {
+      "file": "christmas-compact.png",
+      "width": 92,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "narrow": {
+      "file": "christmas-narrow.png",
+      "width": 48,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    }
+  },
+  "easter": {
+    "wide": {
+      "file": "easter-wide.png",
+      "width": 136,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "compact": {
+      "file": "easter-compact.png",
+      "width": 92,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    },
+    "narrow": {
+      "file": "easter-narrow.png",
+      "width": 48,
+      "height": 46,
+      "columns": 16,
+      "frames": 240,
+      "interval": 100
+    }
+  }
+}
