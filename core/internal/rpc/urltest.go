@@ -11,6 +11,14 @@ import (
 )
 
 func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, error) {
+	if nativeQWDTTPing(in.GetQwdttConfig()) {
+		delay, err := runQWDTTPing(ctx, in.GetQwdttConfig())
+		message := ""
+		if err != nil {
+			message = "qWDTT ping failed: " + err.Error()
+		}
+		return &gen.TestResp{Results: []*gen.URLTestResp{{OutboundTag: To("proxy"), LatencyMs: To(delay), Error: To(message)}}}, nil
+	}
 	env, err := prepareTestEnv(in.GetTestCurrent(), in.GetNeedXray(), in.GetXrayConfig(),
 		in.XrayFullConfigs, in.GetConfig(), in.OutboundTags, in.GetUseDefaultOutbound(),
 		in.GetXrayOutboundDnsStrategy(), in.GetQwdttConfig())

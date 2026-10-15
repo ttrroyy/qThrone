@@ -11,6 +11,7 @@
 #include <QVector>
 #include <QScrollBar>
 #include <QToolButton>
+#include <QMouseEvent>
 
 #include "include/ui/utils/ProfilesTableModel.h"
 #include "include/ui/widget/SubscriptionInfoCard.hpp"
@@ -22,7 +23,11 @@ namespace Configs {
 class ProfilesTableFilterHeader : public QHeaderView {
     Q_OBJECT
 public:
+    bool adjustingWidths() const { return m_fitting; }
+    bool resizingByMouse() const { return m_mouseSizing; }
     void fitToWidth(int available) {
+        if (m_mouseSizing || m_fitting) return;
+        m_fitting = true;
         int total = 0, lastVisible = -1;
         QVector<int> weights;
         for (int i = 0; i < count(); ++i) {
@@ -31,15 +36,25 @@ public:
             total += weight;
             if (weight) lastVisible = i;
         }
-        setMinimumSectionSize(1);
+        setMinimumSectionSize(qMin(32, qMax(1, available / qMax(1, count()))));
+        const int minimum = minimumSectionSize();
+        int visibleCount = 0;
+        int flexibleTotal = 0;
+        for (int weight : weights) if (weight) {
+            ++visibleCount;
+            flexibleTotal += qMax(0, weight - minimum);
+        }
+        const int flexibleSpace = qMax(0, available - visibleCount * minimum);
         int assigned = 0;
         if (total > 0 && available > 0) for (int i = 0; i < count(); ++i) {
             if (!weights[i]) continue;
-            const int width = i == lastVisible ? available - assigned : qMax(1, int(qint64(available) * weights[i] / total));
+            const int width = i == lastVisible ? available - assigned : minimum +
+                (flexibleTotal ? int(qint64(flexibleSpace) * qMax(0, weights[i] - minimum) / flexibleTotal) : flexibleSpace / visibleCount);
             resizeSection(i, width);
             assigned += width;
         }
         adjustPositions();
+        m_fitting = false;
     }
     // The band is the header's own child (setOffset() scrolls viewport children), built before setSortIndicatorShown() reaches adjustPositions().
     explicit ProfilesTableFilterHeader(QWidget *parent = nullptr)
@@ -47,6 +62,23 @@ public:
         setSectionsClickable(true);
         setSortIndicatorShown(true);
         setDefaultAlignment(Qt::AlignHCenter | Qt::AlignTop);
+        connect(this, &QHeaderView::sectionResized, this, [this](int section, int oldSize, int newSize) {
+            if (!m_mouseSizing || m_fitting || oldSize == newSize) return;
+            int neighbor = -1;
+            for (int v = visualIndex(section) + 1; v < count(); ++v) {
+                if (!isSectionHidden(logicalIndex(v))) { neighbor = logicalIndex(v); break; }
+            }
+            m_fitting = true;
+            if (neighbor < 0) {
+                resizeSection(section, oldSize);
+            } else {
+                const int delta = qBound(minimumSectionSize() - oldSize, newSize - oldSize,
+                                         sectionSize(neighbor) - minimumSectionSize());
+                resizeSection(section, oldSize + delta);
+                resizeSection(neighbor, sectionSize(neighbor) - delta);
+            }
+            m_fitting = false;
+        });
 
         // Clicks on the band must not reach QHeaderView, which would sort by the section under them.
         m_subCard->setAttribute(Qt::WA_NoMousePropagation, true);
@@ -121,6 +153,14 @@ public:
     }
 
 protected:
+    void mousePressEvent(QMouseEvent *event) override {
+        m_mouseSizing = event->button() == Qt::LeftButton;
+        QHeaderView::mousePressEvent(event);
+    }
+    void mouseReleaseEvent(QMouseEvent *event) override {
+        QHeaderView::mouseReleaseEvent(event);
+        m_mouseSizing = false;
+    }
     void paintSection(QPainter *painter, const QRect &rect, int logicalIndex) const override {
         const int bandHeight = m_subCard->isHidden() ? 0 : m_subCard->height();
         QHeaderView::paintSection(painter, rect.adjusted(0, bandHeight, 0, 0), logicalIndex);
@@ -221,6 +261,7 @@ signals:
     void closeRequested();
 
 private:
+    bool m_fitting = false, m_mouseSizing = false;
     std::array<QLineEdit*, 4> filterEdits() const {
         return {type_filter, address_filter, name_filter, test_filter};
     }

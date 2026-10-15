@@ -118,6 +118,9 @@ private:
         if (width < 48) return false;
         QTextDocument document;
         document.setDefaultFont(notice->font());
+        auto options = document.defaultTextOption();
+        options.setWrapMode(QTextOption::WordWrap);
+        document.setDefaultTextOption(options);
         document.setDocumentMargin(notice->document()->documentMargin());
         document.setHtml(notice->toHtml());
         document.setTextWidth(qMax(1, width - 8));
@@ -138,7 +141,7 @@ private:
         QString chosen;
         int artWidth = 0;
         if (enabled && height >= 24) {
-            for (const auto &candidate : {QStringLiteral("wide"), QStringLiteral("compact"), QStringLiteral("narrow")}) {
+            for (const auto &candidate : {QStringLiteral("wide"), QStringLiteral("compact")}) {
                 const auto meta = manifest()[resolved].toObject()[candidate].toObject();
                 const int sourceHeight = meta["height"].toInt(1);
                 const int width = qRound(double(meta["width"].toInt()) * height / sourceHeight);

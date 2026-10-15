@@ -118,7 +118,8 @@ int TestQwdttImport() {
         const auto manifest = QJsonDocument::fromJson(resource.readAll()).object();
         check(manifest.size() == 10, "all ten approved themes bundled");
         for (auto themeIt = manifest.begin(); themeIt != manifest.end(); ++themeIt) {
-            for (const auto &variant : {QStringLiteral("wide"), QStringLiteral("compact"), QStringLiteral("narrow")}) {
+            check(themeIt.value().toObject().size() == 2, "only wide and compact compositions remain");
+            for (const auto &variant : {QStringLiteral("wide"), QStringLiteral("compact")}) {
                 const auto metadata = themeIt.value().toObject()[variant].toObject();
                 const QImage image(":/seasonal/" + metadata["file"].toString());
                 check(!image.isNull() && image.hasAlphaChannel() && metadata["frames"].toInt() > 1, "approved transparent animated composition bundled");
@@ -291,7 +292,25 @@ int TestQwdttImport() {
             check(header->length() == table.viewport()->width(), "profile columns fill the viewport on both growth and shrink");
             check(table.horizontalScrollBar()->maximum() == 0, "profile columns stay inside the viewport");
         }
+        QVector<int> beforeDrag;
+        for (int i = 0; i < header->count(); ++i) beforeDrag.append(header->sectionSize(i));
+        const QPoint boundary(header->sectionViewportPosition(1) - 1, header->viewport()->height() - 5);
+        QMouseEvent hover(QEvent::MouseMove, QPointF(boundary), QPointF(header->viewport()->mapToGlobal(boundary)), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(header->viewport(), &hover);
+        QMouseEvent press(QEvent::MouseButtonPress, QPointF(boundary), QPointF(header->viewport()->mapToGlobal(boundary)), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(header->viewport(), &press);
+        const auto moved = boundary + QPoint(20, 0);
+        QMouseEvent drag(QEvent::MouseMove, QPointF(moved), QPointF(header->viewport()->mapToGlobal(moved)), Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(header->viewport(), &drag);
+        QMouseEvent release(QEvent::MouseButtonRelease, QPointF(moved), QPointF(header->viewport()->mapToGlobal(moved)), Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(header->viewport(), &release);
+        check(header->sectionSize(0) > beforeDrag[0], "dragged profile column follows its boundary");
+        check(header->sectionSize(0) + header->sectionSize(1) == beforeDrag[0] + beforeDrag[1], "drag only redistributes the adjacent column pair");
+        for (int i = 2; i < header->count(); ++i) check(header->sectionSize(i) == beforeDrag[i], "drag preserves unrelated columns");
+        check(header->length() == table.viewport()->width(), "drag keeps all columns inside the viewport");
         DataViewHtmlGenerator panels;
+        panels.seedLatencyTest(DataViewHtmlGenerator::LatencyTestPanelState::Kind::Url, 10);
+        check(panels.buildHtml().isEmpty() && !panels.hasPriorityNotice(), "latency test has no top-bar indicator or decoration priority");
         panels.setDownloadReport({}, true);
         check(panels.hasPriorityNotice(), "update progress takes priority over decoration");
         panels.setDownloadReport({}, false);
@@ -307,6 +326,26 @@ int TestQwdttImport() {
             incoming["tag"] = "Renamed node";
             preserved = Subscription::PreserveRelaySettings(type, incoming, {old});
             check(preserved["device_id"] == "existing-device", "complete relay replacement preserves the unique existing device ID");
+        }
+        for (const auto &type : {QString("qwdtt"), QString("csqtt")}) {
+            const int limit = type == "csqtt" ? 6 : 4;
+            QJsonArray previousSlots;
+            for (int i = 1; i <= limit; ++i) previousSlots.append(QString("local-%1").arg(i));
+            QJsonObject old{{"_type", type}, {"tag", "Hash slots"}, {"server", "example.net"}, {"server_port", 443}, {"password", "secret"}, {"device_id", "persisted"}, {"hash_source", "manual"}, {"hashes", previousSlots}};
+            for (int count : {0, 1, 3, 4, limit}) {
+                auto incoming = old;
+                QJsonArray prefix;
+                for (int i = 1; i <= count; ++i) prefix.append(QString("subscription-%1").arg(i));
+                incoming["hashes"] = prefix;
+                const auto merged = Subscription::PreserveRelaySettings(type, incoming, {old});
+                auto expected = prefix;
+                for (int i = count; i < previousSlots.size(); ++i) expected.append(previousSlots.at(i));
+                check(merged["hashes"].toArray() == expected, "subscription owns leading hash slots and preserves trailing manual slots");
+                old = merged; previousSlots = expected;
+            }
+            auto other = old; other["device_id"] = "another-device";
+            auto incoming = old; incoming["hashes"] = QJsonArray{"new"};
+            check(Subscription::PreserveRelaySettings(type, incoming, {old, other})["hashes"] == incoming["hashes"], "ambiguous relay profiles never copy manual hashes");
         }
         const auto hy = parse(R"({"remarks":"HY2","outbounds":[{"protocol":"freedom","tag":"direct"},{"protocol":"hysteria","tag":"hy","settings":{"address":"hy.example","port":443}}],"routing":{"balancers":[{"tag":"auto","selector":["hy"]}],"rules":[{"balancerTag":"auto"}]}})");
         check(hy.size() == 1 && hy.first()->outbound->DisplayType() == "Hysteria" && hy.first()->outbound->DisplayAddress() == "hy.example:443", "JSON Hysteria2 retains its protocol and address despite embedded balancers");

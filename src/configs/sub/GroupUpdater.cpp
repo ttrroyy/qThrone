@@ -431,6 +431,23 @@ namespace Subscription {
         }
         const auto candidates = named.size() == 1 ? named : matching;
         if (candidates.size() == 1) {
+            const auto &old = candidates.first();
+            if (type == "csqtt" || old.value("hash_source").toString("manual") == "manual") {
+                const int limit = type == "csqtt" ? 6 : 4;
+                const auto prefix = incoming.value("hashes").toArray();
+                const auto previousSlots = old.value("hashes").toArray();
+                QJsonArray merged;
+                QSet<QString> seen;
+                const auto append = [&](const QJsonValue &value) {
+                    const auto hash = value.toString();
+                    if (!hash.isEmpty() && !seen.contains(hash) && merged.size() < limit) {
+                        merged.append(hash); seen.insert(hash);
+                    }
+                };
+                for (const auto &hash : prefix) append(hash);
+                for (qsizetype slot = qMin(prefix.size(), qsizetype(limit)); slot < previousSlots.size(); ++slot) append(previousSlots.at(slot));
+                incoming["hashes"] = merged;
+            }
             if (type == "qwdtt") {
                 incoming["hash_source"] = candidates.first().value("hash_source");
                 incoming["auto_hash_count"] = candidates.first().value("auto_hash_count");

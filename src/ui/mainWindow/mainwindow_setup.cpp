@@ -493,13 +493,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     });
     connect(ui->profilesTableView->horizontalHeader(), &QHeaderView::sectionResized, this, [=, this](int, int, int) {
         auto group = Configs::dataManager->groupsRepo->CurrentGroup();
-        if (m_adjustingColumns || Configs::dataManager->settingsRepo->refreshing_group || group == nullptr) return;
+        auto *profileHeader = static_cast<ProfilesTableFilterHeader *>(ui->profilesTableView->horizontalHeader());
+        if (m_adjustingColumns || profileHeader->adjustingWidths() || Configs::dataManager->settingsRepo->refreshing_group || group == nullptr) return;
         group->column_width.clear();
         for (int i = 0; i < ui->profilesTableView->horizontalHeader()->count(); i++) {
             group->column_width.push_back(ui->profilesTableView->horizontalHeader()->sectionSize(i));
         }
         Configs::dataManager->groupsRepo->Save(Configs::dataManager->groupsRepo->CurrentGroup());
-        refresh_proxy_list_column_size();
     });
     ui->profilesTableView->horizontalHeader()->setContextMenuPolicy(Qt::CustomContextMenu);
     connect(ui->profilesTableView->horizontalHeader(), &QWidget::customContextMenuRequested, this, [this](const QPoint& pos) {
@@ -820,6 +820,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     });
     connect(ui->checkBox_VPN, &QCheckBox::clicked, this, [=,this](bool checked) { set_spmode_vpn(checked); });
     connect(ui->checkBox_SystemProxy, &QCheckBox::clicked, this, [=,this](bool checked) { set_spmode_system_proxy(checked); });
+    ui->checkBox_SystemProxy->installEventFilter(this);
+    ui->checkBox_SystemProxy->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
+    const QString proxyLabel = tr("System Proxy");
+    int longestProxyWord = 0;
+    for (const auto &word : proxyLabel.split(' ')) longestProxyWord = qMax(longestProxyWord, ui->checkBox_SystemProxy->fontMetrics().horizontalAdvance(word));
+    ui->checkBox_SystemProxy->setMinimumWidth(longestProxyWord + 28);
     connect(ui->menu_spmode, &QMenu::aboutToShow, this, [=,this]() {
         ui->menu_spmode_disabled->setChecked(!(Configs::dataManager->settingsRepo->spmode_system_proxy || Configs::dataManager->settingsRepo->spmode_vpn));
         ui->menu_spmode_system_proxy->setChecked(Configs::dataManager->settingsRepo->spmode_system_proxy);
@@ -1169,6 +1175,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     QTimer::singleShot(0, this, [this] { kill_switch_state_changed(); });
 
     ui->data_view->setStyleSheet("background: transparent; border: none;");
+    ui->data_view->setWordWrapMode(QTextOption::WordWrap);
 
     // Wrapped notices must retain access to Restart/Dismiss even in a narrow window.
     ui->data_view->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);

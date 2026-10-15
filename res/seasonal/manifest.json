@@ -15,14 +15,6 @@
       "columns": 16,
       "frames": 180,
       "interval": 100
-    },
-    "narrow": {
-      "file": "halloween-narrow.png",
-      "width": 48,
-      "height": 46,
-      "columns": 16,
-      "frames": 180,
-      "interval": 100
     }
   },
   "newyear": {
@@ -37,14 +29,6 @@
     "compact": {
       "file": "newyear-compact.png",
       "width": 92,
-      "height": 46,
-      "columns": 16,
-      "frames": 240,
-      "interval": 100
-    },
-    "narrow": {
-      "file": "newyear-narrow.png",
-      "width": 48,
       "height": 46,
       "columns": 16,
       "frames": 240,
@@ -67,14 +51,6 @@
       "columns": 16,
       "frames": 300,
       "interval": 100
-    },
-    "narrow": {
-      "file": "remembrance-narrow.png",
-      "width": 48,
-      "height": 46,
-      "columns": 16,
-      "frames": 300,
-      "interval": 100
     }
   },
   "may_remembrance": {
@@ -89,14 +65,6 @@
     "compact": {
       "file": "may_remembrance-compact.png",
       "width": 368,
-      "height": 184,
-      "columns": 8,
-      "frames": 120,
-      "interval": 200
-    },
-    "narrow": {
-      "file": "may_remembrance-narrow.png",
-      "width": 192,
       "height": 184,
       "columns": 8,
       "frames": 120,
@@ -119,14 +87,6 @@
       "columns": 16,
       "frames": 240,
       "interval": 100
-    },
-    "narrow": {
-      "file": "kupala-narrow.png",
-      "width": 48,
-      "height": 46,
-      "columns": 16,
-      "frames": 240,
-      "interval": 100
     }
   },
   "patrick": {
@@ -141,14 +101,6 @@
     "compact": {
       "file": "patrick-compact.png",
       "width": 92,
-      "height": 46,
-      "columns": 16,
-      "frames": 240,
-      "interval": 100
-    },
-    "narrow": {
-      "file": "patrick-narrow.png",
-      "width": 48,
       "height": 46,
       "columns": 16,
       "frames": 240,
@@ -171,14 +123,6 @@
       "columns": 16,
       "frames": 240,
       "interval": 100
-    },
-    "narrow": {
-      "file": "valentine-narrow.png",
-      "width": 48,
-      "height": 46,
-      "columns": 16,
-      "frames": 240,
-      "interval": 100
     }
   },
   "maslenitsa": {
@@ -193,14 +137,6 @@
     "compact": {
       "file": "maslenitsa-compact.png",
       "width": 92,
-      "height": 46,
-      "columns": 16,
-      "frames": 240,
-      "interval": 100
-    },
-    "narrow": {
-      "file": "maslenitsa-narrow.png",
-      "width": 48,
       "height": 46,
       "columns": 16,
       "frames": 240,
@@ -223,14 +159,6 @@
       "columns": 16,
       "frames": 240,
       "interval": 100
-    },
-    "narrow": {
-      "file": "christmas-narrow.png",
-      "width": 48,
-      "height": 46,
-      "columns": 16,
-      "frames": 240,
-      "interval": 100
     }
   },
   "easter": {
@@ -245,14 +173,6 @@
     "compact": {
       "file": "easter-compact.png",
       "width": 92,
-      "height": 46,
-      "columns": 16,
-      "frames": 240,
-      "interval": 100
-    },
-    "narrow": {
-      "file": "easter-narrow.png",
-      "width": 48,
       "height": 46,
       "columns": 16,
       "frames": 240,

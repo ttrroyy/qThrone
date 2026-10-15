@@ -23,7 +23,7 @@ def main():
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
         manifest[theme] = {}
-        for variant in ('wide', 'compact', 'narrow'):
+        for variant in ('wide', 'compact'):
             render = getattr(module, method)
             def frame(t):
                 return render(theme, variant, t) if source == 'christmas_easter' else render(variant, t)

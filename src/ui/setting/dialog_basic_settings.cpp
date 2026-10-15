@@ -220,7 +220,7 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     });
     bool ok;
     ui->seasonal_decoration->addItem(tr("Disabled"), "none");
-    ui->seasonal_decoration->addItem(tr("Сезонное украшение: Авто"), "auto");
+    ui->seasonal_decoration->addItem(tr("Авто"), "auto");
     ui->seasonal_decoration->addItem(tr("Хэллоуин"), "halloween");
     ui->seasonal_decoration->addItem(tr("Новый год"), "newyear");
     ui->seasonal_decoration->addItem(tr("Иван Купала"), "kupala");

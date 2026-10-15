@@ -1,0 +1,139 @@
+package rpc
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
+
+	"qThroneCore/internal/probe"
+	"qThroneCore/internal/process"
+)
+
+// Only qWDTT has the native TURN/DTLS handshake probe. Other backends retain URL tests.
+func nativeQWDTTPing(config string) bool {
+	var c struct {
+		Backend string `json:"backend"`
+	}
+	return strings.HasPrefix(strings.TrimSpace(config), "{") && json.Unmarshal([]byte(config), &c) == nil && c.Backend == ""
+}
+
+func runQWDTTPing(parent context.Context, config string) (int32, error) {
+	if len(config) > 65536 {
+		return 0, errors.New("test config is too large")
+	}
+	key, valid := qwdttSessionKey(config)
+	if !valid {
+		return 0, errors.New("invalid test session identity")
+	}
+	ctx, cancel := context.WithTimeout(parent, 3*time.Minute)
+	defer cancel()
+	stop := context.AfterFunc(probe.TestContext(), cancel)
+	defer stop()
+	// A handshake probe never authenticates a second netstack as the same device.
+	// Use a separate gate so testing the active profile cannot wait on its own VPN.
+	pingKey := sha256.Sum256(append([]byte("qwdtt native ping\x00"), key[:]...))
+	release, err := acquireQWDTTProbe(ctx, pingKey)
+	if err != nil {
+		return 0, err
+	}
+	defer release()
+	var c struct {
+		Interactive bool `json:"interactive_captcha"`
+	}
+	_ = json.Unmarshal([]byte(config), &c)
+	if c.Interactive {
+		browserRelease, err := acquireQWDTTProbe(ctx, sha256.Sum256([]byte("qThrone interactive captcha browser")))
+		if err != nil {
+			return 0, err
+		}
+		defer browserRelease()
+	}
+	config, err = noninteractiveQWDTTConfig(config)
+	if err != nil {
+		return 0, err
+	}
+	path, folder, err := process.CreateExtraConfig(config)
+	if err != nil {
+		return 0, err
+	}
+	defer os.RemoveAll(folder)
+	executable, err := os.Executable()
+	if err != nil {
+		return 0, err
+	}
+	name := "qwdtt"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	return executeQWDTTPing(ctx, filepath.Join(filepath.Dir(executable), name), []string{"--config", path, "--ping-only"})
+}
+
+// Parse stdout incrementally: writes may split a result or combine it with logs.
+type qwdttPingOutput struct {
+	mu      sync.Mutex
+	pending string
+	delay   int32
+	found   bool
+	failed  bool
+}
+
+func (p *qwdttPingOutput) write(b []byte) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for _, ch := range b {
+		if ch == '\n' {
+			line := strings.TrimSpace(p.pending)
+			if strings.HasPrefix(line, "PING_RESULT|") {
+				value, err := strconv.ParseInt(strings.TrimPrefix(line, "PING_RESULT|"), 10, 32)
+				if err == nil && value >= 0 {
+					p.delay, p.found = int32(value), true
+				} else {
+					p.failed = true
+				}
+			} else if strings.HasPrefix(line, "PING_ERROR|") {
+				// Do not return arbitrary authentication logs or credentials to the UI.
+				p.failed = true
+			}
+			p.pending = ""
+		} else if len(p.pending) < 1024 {
+			p.pending += string(ch)
+		}
+	}
+}
+
+func executeQWDTTPing(ctx context.Context, executable string, args []string) (int32, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	var output qwdttPingOutput
+	child := process.NewProcess(executable, args, true)
+	child.SetBackgroundProbe()
+	child.EnableStdinShutdown("STOP")
+	child.SetOutputObserver(output.write)
+	if err := child.Start(); err != nil {
+		return 0, err
+	}
+	defer child.Stop()
+	select {
+	case <-ctx.Done():
+		return 0, ctx.Err()
+	case <-child.Done():
+		if err := ctx.Err(); err != nil {
+			return 0, err
+		}
+		output.mu.Lock()
+		defer output.mu.Unlock()
+		if output.found && !output.failed {
+			return output.delay, nil
+		}
+		return 0, errors.New("TURN/DTLS handshake did not return a valid ping result")
+	}
+}

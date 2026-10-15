@@ -100,7 +100,7 @@ QJsonObject csqtt::ExportToJson() {
         {"password",password},{"hashes",QJsonArray::fromStringList(hashes)},{"workers",workers},
         {"turn_tcp",turnTCP},{"obfs",obfs},{"vk_anon_path",vkAnonPath},{"captcha_mode",captchaMode},{"device_id",deviceID}};
 }
-QJsonObject csqtt::ExportIdentity() { auto object = ExportToJson(); object.remove("tag"); object.remove("device_id"); return object; }
+QJsonObject csqtt::ExportIdentity() { auto object = ExportToJson(); object.remove("tag"); object.remove("device_id"); object.remove("hashes"); object.remove("workers"); return object; }
 QString csqtt::ExportToLink() {
     const auto encode = [](const QString &value) { return QString::fromLatin1(QUrl::toPercentEncoding(value)); };
     QString result = "csqtt://connect?v=2&host="+encode(server)+"&peer="+QString::number(server_port)+"&password="+encode(password);
