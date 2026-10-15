@@ -19,16 +19,11 @@ func runPingProbe(ctx context.Context, hashes []string, authTimeout, probeTimeou
 	authCtx, cancelAuth := context.WithTimeout(ctx, authTimeout)
 	defer cancelAuth()
 	active := authCtx
-	var cancelProbe context.CancelFunc
-	defer func() {
-		if cancelProbe != nil {
-			cancelProbe()
-		}
-	}()
+	probeStarted := false
 	var last error
 	for i, hash := range hashes {
 		if err := active.Err(); err != nil {
-			if cancelProbe == nil {
+			if !probeStarted {
 				return 0, fmt.Errorf("VK authorization: %w", err)
 			}
 			return 0, fmt.Errorf("TURN/DTLS: %w", err)
@@ -39,8 +34,11 @@ func runPingProbe(ctx context.Context, hashes []string, authTimeout, probeTimeou
 			last = fmt.Errorf("VK authorization: %w", err)
 			continue
 		}
-		if cancelProbe == nil {
-			active, cancelProbe = context.WithTimeout(ctx, probeTimeout)
+		if !probeStarted {
+			probeCtx, cancelProbe := context.WithTimeout(ctx, probeTimeout)
+			defer cancelProbe()
+			active = probeCtx
+			probeStarted = true
 		}
 		delay, err := probe(active, &Credentials{User: user, Pass: password, TurnURLs: urls, CacheStreamID: stream})
 		if err == nil {
