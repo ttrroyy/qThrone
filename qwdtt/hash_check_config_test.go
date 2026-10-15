@@ -28,6 +28,37 @@ func TestHashCheckConfigIsIndependent(t *testing.T) {
 	if *peer != "active-server" || flag.Lookup("vk-auth").Value.String() != "anonymous" || flag.Lookup("check-hashes").Value.String() != "true" || !desktopBridgeMode {
 		t.Fatal("hash check changed tunnel settings or did not use original anonymous check path")
 	}
+	originalDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(originalDir)
+	cacheDir := t.TempDir()
+	t.Setenv("XDG_CACHE_HOME", cacheDir)
+	t.Setenv("LOCALAPPDATA", cacheDir)
+	if err := enterDesktopState("hash-device"); err != nil {
+		t.Fatal(err)
+	}
+	expectedDir, _ := os.Getwd()
+	if err := os.WriteFile("shared-device-marker", []byte("same device"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(originalDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(`{"hashes":["abcdefghijklmnop"],"device_id":"hash-device"}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := applyHashCheckConfig(path); err != nil {
+		t.Fatal(err)
+	}
+	actualDir, _ := os.Getwd()
+	if actualDir != expectedDir {
+		t.Fatal("hash checks discarded the connection device profile")
+	}
+	if _, err := os.ReadFile("shared-device-marker"); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(path, []byte(`{"hashes":["bad|hash"]}`), 0600); err != nil {
 		t.Fatal(err)
 	}

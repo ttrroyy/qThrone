@@ -717,7 +717,7 @@ func requestWebViewCaptcha(streamID int, captchaErr *VkCaptchaError, mode string
 			return "", fmt.Errorf("VK captcha data is missing")
 		}
 		visible := mode != "auto"
-		if desktopProbeOnly && !desktopInteractiveProbe {
+		if visible && desktopProbeOnly && !desktopInteractiveProbe {
 			if bridgeCancel != nil {
 				bridgeCancel()
 			}

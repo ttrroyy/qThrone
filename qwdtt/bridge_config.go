@@ -11,10 +11,12 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Secrets travel in Throne's private, temporary extra-core config, never argv.
 type bridgeConfig struct {
+	PingTimeoutMS      int      `json:"ping_timeout_ms"`
 	ProbeOnly          bool     `json:"probe_only"`
 	InteractiveCaptcha bool     `json:"interactive_captcha"`
 	VKAnonPath         string   `json:"vk_anon_path"`
@@ -127,6 +129,7 @@ func applyBridgeConfig(filename string) error {
 	}
 	desktopBridgeMode = true
 	desktopProbeOnly = c.ProbeOnly
+	desktopPingTimeout = time.Duration(c.PingTimeoutMS) * time.Millisecond
 	desktopInteractiveProbe = c.ProbeOnly && c.InteractiveCaptcha
 	mode := "socks"
 	if c.Mode == "raw" {
@@ -145,13 +148,17 @@ func applyBridgeConfig(filename string) error {
 			return err
 		}
 	}
+	return enterDesktopState(c.DeviceID)
+}
+
+func enterDesktopState(deviceID string) error {
 	// The privileged core owns the config directory on Unix. Keep qWDTT's
 	// browser fingerprint files in an unprivileged, private per-device cache.
 	cache, err := os.UserCacheDir()
 	if err != nil {
 		return err
 	}
-	key := sha256.Sum256([]byte(c.DeviceID))
+	key := sha256.Sum256([]byte(deviceID))
 	state := filepath.Join(cache, "qThrone", "qwdtt", fmt.Sprintf("%x", key[:16]))
 	if err = os.MkdirAll(state, 0700); err != nil {
 		return err

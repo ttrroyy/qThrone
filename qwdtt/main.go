@@ -314,25 +314,13 @@ func main() {
 	}
 
 	if *pingOnly {
-		var lastErr error
-		for i, hash := range hashes {
-			user, pass, turnURLs, err := GetCreds(ctx, hash, 999)
-			if err != nil {
-				lastErr = fmt.Errorf("GetCreds hash %d: %v", i, err)
-				continue
-			}
-			creds := &Credentials{User: user, Pass: pass, TurnURLs: turnURLs, CacheStreamID: 999}
-			rtt, err := RunPing(ctx, tp, peer, creds)
-			if err != nil {
-				lastErr = fmt.Errorf("RunPing hash %d: %v", i, err)
-				continue
-			}
-			fmt.Printf("PING_RESULT|%d\n", rtt)
-			os.Exit(0)
+		rtt, err := measureNativePing(ctx, tp, peer, hashes)
+		if err != nil {
+			fmt.Printf("PING_ERROR|%v\n", err)
+			os.Exit(1)
 		}
-		// Если все хеши провалились
-		fmt.Printf("PING_ERROR|All hashes failed. Last error: %v\n", lastErr)
-		os.Exit(1)
+		fmt.Printf("PING_RESULT|%d\n", rtt)
+		os.Exit(0)
 	}
 
 	// Слушаем локально (SO_REUSEADDR — быстрый перезапуск без «address already in use»)

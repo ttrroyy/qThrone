@@ -33,6 +33,7 @@ class EditQWDTT : public QWidget, public ProfileEditor {
     QProcess *hashProcess = nullptr;
     std::unique_ptr<QTemporaryDir> hashCheckDirectory;
     QByteArray hashCheckOutput;
+    QString hashCheckFailure;
     QList<int> checkingSlots;
     bool hashCheckStopped = false;
     void stopHashCheck();

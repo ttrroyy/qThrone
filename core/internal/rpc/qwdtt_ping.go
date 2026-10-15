@@ -37,14 +37,16 @@ func runQWDTTPing(parent context.Context, config string, budget ...time.Duration
 	if len(budget) > 0 && budget[0] > 0 {
 		timeout = budget[0]
 	}
-	ctx, cancel := context.WithTimeout(parent, timeout)
+	ctx, cancel := context.WithTimeout(parent, timeout+92*time.Second)
 	defer cancel()
 	stop := context.AfterFunc(probe.TestContext(), cancel)
 	defer stop()
 	// A handshake probe never authenticates a second netstack as the same device.
 	// Use a separate gate so testing the active profile cannot wait on its own VPN.
 	pingKey := sha256.Sum256(append([]byte("qwdtt native ping\x00"), key[:]...))
-	release, err := acquireQWDTTProbe(ctx, pingKey)
+	gateCtx, cancelGate := context.WithTimeout(ctx, timeout)
+	defer cancelGate()
+	release, err := acquireQWDTTProbe(gateCtx, pingKey)
 	if err != nil {
 		return 0, err
 	}
@@ -66,6 +68,7 @@ func runQWDTTPing(parent context.Context, config string, budget ...time.Duration
 	}
 	pingConfig["mode"] = "wg"
 	pingConfig["probe_only"] = true
+	pingConfig["ping_timeout_ms"] = timeout.Milliseconds()
 	pingConfig["interactive_captcha"] = false
 	encoded, err := json.Marshal(pingConfig)
 	if err != nil {
@@ -93,11 +96,12 @@ func runQWDTTPing(parent context.Context, config string, budget ...time.Duration
 
 // Parse stdout incrementally: writes may split a result or combine it with logs.
 type qwdttPingOutput struct {
-	mu      sync.Mutex
-	pending string
-	delay   int32
-	found   bool
-	failed  bool
+	mu            sync.Mutex
+	pending       string
+	delay         int32
+	found         bool
+	failed        bool
+	failureReason string
 }
 
 func (p *qwdttPingOutput) write(b []byte) {
@@ -119,6 +123,12 @@ func (p *qwdttPingOutput) write(b []byte) {
 			} else if strings.HasPrefix(line, "PING_ERROR|") {
 				// Do not return arbitrary authentication logs or credentials to the UI.
 				p.failed = true
+				if strings.HasPrefix(line, "PING_ERROR|VK authorization:") {
+					p.failureReason = "VK authorization failed"
+				}
+				if strings.HasPrefix(line, "PING_ERROR|TURN/DTLS:") {
+					p.failureReason = "TURN/DTLS server probe failed"
+				}
 			}
 			p.pending = ""
 		} else if len(p.pending) < 1024 {
@@ -151,6 +161,9 @@ func executeQWDTTPing(ctx context.Context, executable string, args []string) (in
 		defer output.mu.Unlock()
 		if output.found && !output.failed {
 			return output.delay, nil
+		}
+		if output.failureReason != "" {
+			return 0, errors.New(output.failureReason)
 		}
 		return 0, errors.New("TURN/DTLS handshake did not return a valid ping result")
 	}

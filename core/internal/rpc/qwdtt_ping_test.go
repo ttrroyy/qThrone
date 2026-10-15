@@ -42,6 +42,13 @@ func TestQWDTTPingBackendSelection(t *testing.T) {
 }
 
 func TestQWDTTPingOutput(t *testing.T) {
+	for input, want := range map[string]string{"PING_ERROR|VK authorization: private-token\n": "VK authorization failed", "PING_ERROR|TURN/DTLS: private-endpoint\n": "TURN/DTLS server probe failed"} {
+		var failure qwdttPingOutput
+		failure.write([]byte(input))
+		if !failure.failed || failure.failureReason != want {
+			t.Fatal("ping failure stage not sanitized")
+		}
+	}
 	var p qwdttPingOutput
 	for _, chunk := range []string{"startup\nPING_RES", "ULT|12", "3\r\nshutdown\n"} {
 		p.write([]byte(chunk))

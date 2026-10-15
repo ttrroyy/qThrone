@@ -212,7 +212,9 @@ void TestRunner::runUrlProbe(const Target& target) {
             runOnUiThread([=, this] { mw_->refresh_proxy_list(updated); });
         }, kLatencyPollIntervalMs);
 
-        result = defaultClient->Test(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 2));
+        const auto transport = QJsonDocument::fromJson(target.qwdttConfig.toUtf8()).object();
+        const bool nativePing = !target.qwdttConfig.isEmpty() && transport.value("backend").toString().isEmpty();
+        result = defaultClient->Test(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 2) + (nativePing ? 90000 : 0));
     }
 
     if (!rpcOK || result.results.empty()) {
