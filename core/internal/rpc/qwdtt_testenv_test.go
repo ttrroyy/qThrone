@@ -13,7 +13,7 @@ import (
 
 func TestQWDTTStartupFailureIsNotServerUnavailable(t *testing.T) {
 	s := &server{}
-	result, err := s.Test(context.Background(), &gen.TestReq{QwdttConfig: To(`{"backend":"csqtt","socks":"0.0.0.0:9000"}`)})
+	result, err := s.Test(context.Background(), &gen.TestReq{QwdttConfig: To(`{"mode":"raw","socks":"0.0.0.0:9000"}`)})
 	if err != nil || len(result.Results) != 1 || !strings.HasPrefix(result.Results[0].GetError(), "qWDTT test not started:") {
 		t.Fatalf("URL startup failure classification: %v %v", result, err)
 	}
@@ -160,4 +160,35 @@ func TestQWDTTSessionIdentity(t *testing.T) {
 			t.Fatal("missing session identity was accepted")
 		}
 	}
+}
+
+func TestTransportProbeConcurrencyIsBoundedAndCancellable(t *testing.T) {
+	var releases []func()
+	defer func() {
+		for _, release := range releases {
+			release()
+		}
+	}()
+	for i := 0; i < 3; i++ {
+		release, err := acquireTransportProbeSlot(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		releases = append(releases, release)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
+	defer cancel()
+	if release, err := acquireTransportProbeSlot(ctx); err != context.DeadlineExceeded {
+		if release != nil {
+			release()
+		}
+		t.Fatal("more than three fresh transport probes allowed")
+	}
+	releases[0]()
+	release, err := acquireTransportProbeSlot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	release()
+	release()
 }

@@ -44,6 +44,15 @@ func WorkerGroup(
 		}
 	}
 
+	// A failed group must not leave every subsequent group waiting forever.
+	var signalOnce sync.Once
+	signalNext := func() {
+		if signalReady != nil {
+			signalOnce.Do(func() { close(signalReady) })
+		}
+	}
+	defer signalNext()
+
 	var configSent int32
 	if !getConfig {
 		configSent = 1
@@ -65,12 +74,16 @@ func WorkerGroup(
 	log.Printf("[ГРУППА #%d] Запрос кредов (хеш: %s...)", groupID, shortHash)
 
 	credStreamID := groupID * 100
-	user, pass, turnURLs, err := GetCreds(ctx, hash, credStreamID)
+	user, pass, turnURLs, selectedHash, err := fetchGroupCredentials(ctx, tp.Hashes, hashIndex, credStreamID, getConfig, GetCreds)
+	hash = selectedHash
 	var creds *Credentials
 	if err == nil {
 		creds = &Credentials{User: user, Pass: pass, TurnURLs: turnURLs, CacheStreamID: credStreamID}
 	} else {
 		log.Printf("[ГРУППА #%d] Ошибка кредов: %v", groupID, err)
+		if getConfig && desktopBridgeMode && bridgeCancel != nil {
+			bridgeCancel()
+		}
 		return
 	}
 
@@ -115,8 +128,12 @@ func WorkerGroup(
 	if signalReady != nil {
 		go func() {
 			delayMs := 500 + rand.Intn(250)
-			time.Sleep(time.Duration(delayMs) * time.Millisecond)
-			close(signalReady)
+			select {
+			case <-time.After(time.Duration(delayMs) * time.Millisecond):
+			case <-ctx.Done():
+				return
+			}
+			signalNext()
 			log.Printf("[ГРУППА #%d] Успешный старт! Передача эстафеты следующей группе...", groupID)
 		}()
 	}

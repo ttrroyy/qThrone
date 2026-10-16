@@ -2,21 +2,24 @@ package rpc
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/google/shlex"
 	"qThroneCore/gen"
 	"qThroneCore/internal/process"
-	"github.com/google/shlex"
 )
 
 // All entries are owned by the running configuration, under lifecycleMu.
 type extraSession struct {
 	child     *process.Process
 	key       [32]byte
+	settings  [32]byte
 	transport bool
 	tag       string
 	release   func()
@@ -43,19 +46,37 @@ func stopExtraSessions(tunnelsOnly bool) {
 	}
 }
 
+func transportSettingsKey(config string) [32]byte {
+	var c map[string]json.RawMessage
+	if json.Unmarshal([]byte(config), &c) != nil || c == nil {
+		return [32]byte{}
+	}
+	// These belong to the local probe process, not the remote authenticated session.
+	for _, key := range []string{"socks", "socks_user", "socks_pass", "listen", "probe_only", "interactive_captcha", "ping_timeout_ms", "latency_probe"} {
+		delete(c, key)
+	}
+	encoded, _ := json.Marshal(c)
+	return sha256.Sum256(encoded)
+}
+
 func activeTransportTag(config string) (string, bool) {
+	tag, exists, _ := activeTransport(config)
+	return tag, exists
+}
+
+func activeTransport(config string) (string, bool, bool) {
 	key, valid := qwdttSessionKey(config)
 	if !valid {
-		return "", false
+		return "", false, false
 	}
 	lifecycleMu.Lock()
 	defer lifecycleMu.Unlock()
 	for _, session := range extraSessions {
 		if session.transport && session.key == key {
-			return session.tag, true
+			return session.tag, true, session.settings == transportSettingsKey(config)
 		}
 	}
-	return "", false
+	return "", false, false
 }
 
 func startExtraSessions(ctx context.Context, in *gen.LoadConfigReq) (err error) {
@@ -104,6 +125,7 @@ func startExtraSessions(ctx context.Context, in *gen.LoadConfigReq) (err error) 
 		session := &extraSession{transport: isTunnelHelper(spec.GetPath()), tag: spec.GetOutboundTag()}
 		if session.transport {
 			session.key, _ = qwdttSessionKey(spec.GetConfig())
+			session.settings = transportSettingsKey(spec.GetConfig())
 			gateCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
 			session.release, e = acquireQWDTTProbe(gateCtx, session.key)
 			cancel()

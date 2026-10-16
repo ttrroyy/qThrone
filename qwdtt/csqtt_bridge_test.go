@@ -111,3 +111,36 @@ func TestCSQTTAutoBrowserFailureKeepsNativeFallback(t *testing.T) {
 		t.Fatal("automatic failure cancelled the native fallback chain")
 	}
 }
+
+func TestCSQTTBackgroundAutomaticCaptchaRetries(t *testing.T) {
+	previous := desktopCaptchaSolver
+	defer func() { desktopCaptchaSolver = previous }()
+	calls := 0
+	desktopCaptchaSolver = func(_ context.Context, _ string, visible bool) (string, error) {
+		if visible {
+			t.Error("background solver opened a manual window")
+		}
+		calls++
+		if calls < 3 {
+			return "", errors.New("automatic attempt failed")
+		}
+		return "solved", nil
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// Native CSQTT asks for the next attempt after receiving the preceding result.
+	for i := 0; i < 3; i++ {
+		commands := make(chan string, 1)
+		scanCSQTTOutput(ctx, &bridgeConfig{ProbeOnly: true}, strings.NewReader("CAPTCHA_SOLVE|auto|https://vk.com/captcha|fake-session\n"), make(chan string, 1), func(s string) { commands <- s }, cancel)
+		want := "CAPTCHA_RESULT|error:cancelled"
+		if i == 2 {
+			want = "CAPTCHA_RESULT|solved"
+		}
+		if ctx.Err() != nil || <-commands != want {
+			t.Fatal("automatic failure stopped native retries")
+		}
+	}
+	if calls != 3 {
+		t.Fatal("native retry chain did not reach third attempt")
+	}
+}

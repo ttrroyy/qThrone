@@ -17,6 +17,7 @@ import (
 // Secrets travel in Throne's private, temporary extra-core config, never argv.
 type bridgeConfig struct {
 	PingTimeoutMS      int      `json:"ping_timeout_ms"`
+	LatencyProbe       bool     `json:"latency_probe"`
 	ProbeOnly          bool     `json:"probe_only"`
 	InteractiveCaptcha bool     `json:"interactive_captcha"`
 	VKAnonPath         string   `json:"vk_anon_path"`
@@ -81,6 +82,10 @@ func readBridgeConfig(filename string) (*bridgeConfig, error) {
 	}
 	// Match the profile editor and the anonymous client's groups of nine.
 	c.Workers = max(9, min(c.Workers, len(c.Hashes)*27)) / 9 * 9
+	// A latency probe needs one native group; speed tests keep full fan-out.
+	if c.ProbeOnly && c.LatencyProbe {
+		c.Workers = 9
+	}
 	if c.VKAnonPath == "" {
 		c.VKAnonPath = "vkcalls"
 	}

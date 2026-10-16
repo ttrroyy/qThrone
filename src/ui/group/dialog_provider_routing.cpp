@@ -66,8 +66,10 @@ bool editDocument(QJsonObject &doc, const QString &provider, QWidget *parent) {
         type->setCurrentText(doc.value(prefix + "DNSType").toString("UDP"));
         type->setObjectName(prefix + "DNSType");
         form->addRow(label, type);
-        field(prefix + "DNSIP", QObject::tr("IP DNS"), form);
-        auto domain = field(prefix + "DNSDomain", QObject::tr("Адрес DNS"), form);
+        const bool remote = prefix == "Remote";
+        auto dnsIP = field(prefix + "DNSIP", remote ? QObject::tr("IP DNS через прокси") : QObject::tr("IP прямого DNS"), form);
+        dnsIP->setToolTip(QObject::tr("IP DNS-сервера; для DoH и DoT используется при установке соединения с сервером."));
+        auto domain = field(prefix + "DNSDomain", remote ? QObject::tr("Адрес DNS через прокси") : QObject::tr("Адрес прямого DNS"), form);
         QObject::connect(type, &QComboBox::currentTextChanged, domain,
                          [domain](const QString &value) { domain->setEnabled(value == "DoH" || value == "DoT"); });
         domain->setEnabled(type->currentText() == "DoH" || type->currentText() == "DoT");

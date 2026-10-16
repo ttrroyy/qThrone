@@ -212,9 +212,7 @@ void TestRunner::runUrlProbe(const Target& target) {
             runOnUiThread([=, this] { mw_->refresh_proxy_list(updated); });
         }, kLatencyPollIntervalMs);
 
-        const auto transport = QJsonDocument::fromJson(target.qwdttConfig.toUtf8()).object();
-        const bool nativePing = !target.qwdttConfig.isEmpty() && transport.value("backend").toString().isEmpty();
-        result = defaultClient->Test(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 2) + (nativePing ? 90000 : 0));
+        result = defaultClient->Test(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 2) + (target.qwdttConfig.isEmpty() ? 0 : 330000));
     }
 
     if (!rpcOK || result.results.empty()) {
@@ -287,7 +285,7 @@ void TestRunner::runIpProbe(const Target& target) {
             runOnUiThread([=, this] { mw_->refresh_proxy_list(updated); });
         }, kLatencyPollIntervalMs);
 
-        result = defaultClient->IPTest(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 1) + (target.qwdttConfig.isEmpty() ? 0 : 210000));
+        result = defaultClient->IPTest(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 1) + (target.qwdttConfig.isEmpty() ? 0 : 330000));
     }
 
     if (!rpcOK || result.results.empty()) {
@@ -358,11 +356,11 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
 
     if (isUrl) runOnUiThread([this, profileIDs] { mw_->profilesTableModel->setTestState(profileIDs, 1); });
 
-    runOnNewThread([this, profileIDs, panelKind, isUrl, finish, interactive]() {
+    runOnNewThread([this, profileIDs, panelKind, isUrl, finish]() {
         mw_->dataViewHtmlGenerator_.seedLatencyTest(panelKind, profileIDs.size());
         mw_->UpdateDataView(true);
 
-        auto runBatch = [this, isUrl, interactive](const QList<std::shared_ptr<Configs::Profile>>& profileSlice, const QList<int>& ids) {
+        auto runBatch = [this, isUrl](const QList<std::shared_ptr<Configs::Profile>>& profileSlice, const QList<int>& ids) {
             // Per batch, not per probe: a batch's probes drain each other's results, and tags restart each batch.
             sessionGen_.fetch_add(1);
             auto buildObject = Configs::BuildTestConfig(profileSlice);
@@ -392,12 +390,9 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
                 target.qwdttConfig = buildObject->qwdttConfigs.value(entID);
                 if (isUrl && !target.qwdttConfig.isEmpty()) {
                     auto config = QJsonDocument::fromJson(target.qwdttConfig.toUtf8()).object();
-                    const auto profile = Configs::dataManager->profilesRepo->GetProfile(entID);
-                    if (profile && profile->type == "qwdtt") {
-                        const auto native = std::dynamic_pointer_cast<Configs::qwdtt>(profile->outbound);
-                        if (native) config = QJsonDocument::fromJson(native->NativePingConfig(target.qwdttConfig).toUtf8()).object();
-                    }
-                    config.insert("interactive_captcha", profile && profile->type == "qwdtt" ? false : interactive);
+                    // URL checks keep automatic captcha retries, without blocking the batch on a manual window.
+                    config.insert("interactive_captcha", false);
+                    config.insert("latency_probe", true);
                     target.qwdttConfig = QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact));
                 }
                 target.testCurrent = !target.qwdttConfig.isEmpty() && mw_->running && mw_->running->id == entID;

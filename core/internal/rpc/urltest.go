@@ -11,14 +11,6 @@ import (
 )
 
 func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, error) {
-	if nativeQWDTTPing(in.GetQwdttConfig()) {
-		delay, err := runQWDTTPing(ctx, in.GetQwdttConfig(), time.Duration(in.GetTestTimeoutMs())*time.Millisecond)
-		message := ""
-		if err != nil {
-			message = "qWDTT ping failed: " + err.Error()
-		}
-		return &gen.TestResp{Results: []*gen.URLTestResp{{OutboundTag: To("proxy"), LatencyMs: To(delay), Error: To(message)}}}, nil
-	}
 	env, err := prepareTestEnv(in.GetTestCurrent(), in.GetNeedXray(), in.GetXrayConfig(),
 		in.XrayFullConfigs, in.GetConfig(), in.OutboundTags, in.GetUseDefaultOutbound(),
 		in.GetXrayOutboundDnsStrategy(), in.GetQwdttConfig())
@@ -53,7 +45,7 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 		}
 		_ = json.Unmarshal([]byte(in.GetQwdttConfig()), &transport)
 		var coldAllowance time.Duration
-		if twice && !env.live && (transport.Backend == "csqtt" || transport.Backend == "openflux" || transport.Backend == "olcrtc") {
+		if twice && !env.live && (transport.Backend == "" || transport.Backend == "csqtt" || transport.Backend == "openflux" || transport.Backend == "olcrtc") {
 			// SOCKS hides the userspace tunnel from the ordinary VPN startup allowance.
 			// Warm it once; the measured request still uses the configured timeout.
 			coldAllowance = probe.TunnelStartupTimeout

@@ -44,7 +44,10 @@ func prepareTestEnv(current bool, needXray bool, xrayConfig string, xrayFullConf
 	// A routed tunnel owns the same device identity as its standalone profile.
 	// Reuse its live outbound rather than starting a competing authenticated session.
 	if len(qwdttConfig) > 0 && qwdttConfig[0] != "" {
-		if tag, exists := activeTransportTag(qwdttConfig[0]); exists {
+		if tag, exists, compatible := activeTransport(qwdttConfig[0]); exists {
+			if !compatible {
+				return nil, errors.New("transport test skipped: this server/device is active with different settings")
+			}
 			box := currentBox()
 			if box == nil {
 				return nil, errInstanceNotRunning

@@ -104,3 +104,18 @@ func TestBackgroundProbeAllowsAutomaticHeadlessCaptcha(t *testing.T) {
 		t.Fatalf("automatic captcha: %q %v", token, err)
 	}
 }
+
+func TestAutomaticCaptchaBrowserExitDoesNotCancelTunnel(t *testing.T) {
+	oldBridge, oldProbe, oldContext, oldCancel, oldSolver := desktopBridgeMode, desktopProbeOnly, bridgeContext, bridgeCancel, desktopCaptchaSolver
+	defer func() {
+		desktopBridgeMode, desktopProbeOnly, bridgeContext, bridgeCancel, desktopCaptchaSolver = oldBridge, oldProbe, oldContext, oldCancel, oldSolver
+	}()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	desktopBridgeMode, desktopProbeOnly, bridgeContext, bridgeCancel = true, false, ctx, cancel
+	desktopCaptchaSolver = func(context.Context, string, bool) (string, error) { return "", errCaptchaWindowClosed }
+	_, err := requestWebViewCaptcha(1, &VkCaptchaError{RedirectURI: "https://id.vk.ru/captcha"}, "auto", time.Second)
+	if err != errCaptchaWindowClosed || ctx.Err() != nil {
+		t.Fatal("automatic browser failure cancelled the tunnel instead of allowing fallback")
+	}
+}

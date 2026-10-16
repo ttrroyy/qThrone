@@ -70,6 +70,23 @@ func acquireQWDTTProbe(ctx context.Context, key [32]byte) (func(), error) {
 	}
 }
 
+// Cap fresh VK-authenticated test sessions across both transports. A permit
+// remains owned until native shutdown/leave cleanup has completed.
+var transportProbeSlots = make(chan struct{}, 3)
+
+func acquireTransportProbeSlot(ctx context.Context) (func(), error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	select {
+	case transportProbeSlots <- struct{}{}:
+		var once sync.Once
+		return func() { once.Do(func() { <-transportProbeSlots }) }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
 func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
@@ -88,8 +105,8 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 		return nil, errors.New("invalid qWDTT test config")
 	}
 	// Include queue waits in the startup budget; manual captcha gets time for user input.
-	budget := 3 * time.Minute
-	if (c.Backend == "csqtt" && !c.Interactive) || (c.Backend == "openflux" || c.Backend == "olcrtc") {
+	budget := 5 * time.Minute
+	if c.Backend == "openflux" || c.Backend == "olcrtc" {
 		budget = 15 * time.Second
 	}
 	if c.Backend == "olcrtc" {
@@ -110,8 +127,8 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	if conflicts {
 		return nil, errors.New("this qWDTT device is already connected; test its active profile instead")
 	}
-	queueBudget := 3 * time.Minute
-	if c.Backend == "csqtt" || (c.Backend == "openflux" || c.Backend == "olcrtc") {
+	queueBudget := 5 * time.Minute
+	if c.Backend == "openflux" || c.Backend == "olcrtc" {
 		queueBudget = 15 * time.Second
 	}
 	queueCtx, cancelQueue := context.WithTimeout(ctx, queueBudget)
@@ -119,6 +136,15 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	release, err := acquireQWDTTProbe(queueCtx, key)
 	if err != nil {
 		return nil, err
+	}
+	if c.Backend == "" || c.Backend == "csqtt" {
+		slotRelease, slotErr := acquireTransportProbeSlot(queueCtx)
+		if slotErr != nil {
+			release()
+			return nil, slotErr
+		}
+		deviceRelease := release
+		release = func() { slotRelease(); deviceRelease() }
 	}
 	var interaction struct {
 		Interactive bool `json:"interactive_captcha"`
@@ -197,10 +223,10 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	// Native VK call cleanup can take 20 seconds. Return the test result now,
 	// but retain the device gate until the child has actually stopped.
 	cleanup := deferredProbeCleanup(child.Stop, release)
-	readyCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	readyCtx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
-	startupBudget := 3 * time.Minute
-	if c.Backend == "csqtt" || (c.Backend == "openflux" || c.Backend == "olcrtc") {
+	startupBudget := 5 * time.Minute
+	if c.Backend == "openflux" || c.Backend == "olcrtc" {
 		startupBudget = 15 * time.Second
 	}
 	if c.Backend == "olcrtc" {
@@ -223,7 +249,7 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 					default:
 					}
 				}
-				startupTimer.Reset(3 * time.Minute)
+				startupTimer.Reset(5 * time.Minute)
 			}
 		case <-startupTimer.C:
 			cleanup()

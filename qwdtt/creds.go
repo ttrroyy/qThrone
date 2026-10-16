@@ -733,7 +733,7 @@ func requestWebViewCaptcha(streamID int, captchaErr *VkCaptchaError, mode string
 		ctx, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
 		token, err := desktopCaptchaSolver(ctx, captchaErr.RedirectURI, visible)
-		if errors.Is(err, errCaptchaWindowClosed) && bridgeCancel != nil {
+		if visible && errors.Is(err, errCaptchaWindowClosed) && bridgeCancel != nil {
 			bridgeCancel()
 		}
 		return token, err

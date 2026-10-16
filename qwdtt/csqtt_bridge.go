@@ -151,7 +151,7 @@ func runCSQTTBridge(path string) error {
 		input.Close()
 	}()
 	var config string
-	timer := time.NewTimer(3 * time.Minute)
+	timer := time.NewTimer(5 * time.Minute)
 	defer timer.Stop()
 	select {
 	case config = <-configs:
@@ -288,7 +288,7 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 			}
 			visible := parts[1] != "auto"
 			fmt.Println("[CSQTT] CAPTCHA_REQUIRED: требуется капча.")
-			if c.ProbeOnly && !c.InteractiveCaptcha {
+			if visible && c.ProbeOnly && !c.InteractiveCaptcha {
 				send("CAPTCHA_RESULT|error:cancelled")
 				cancelSession()
 				continue

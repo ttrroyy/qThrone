@@ -374,3 +374,24 @@ func TestPrivateBridgeConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestBackgroundBridgeUsesOneWorkerGroup(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "probe.json")
+	config := `{"latency_probe":true,"probe_only":true,"workers":108,"peer":"127.0.0.1:56000","password":"pass","hashes":["hash1","hash2","hash3","hash4"],"device_id":"test-device","listen":"127.0.0.1:19000","socks":"127.0.0.1:19001","socks_user":"user","socks_pass":"secret"}`
+	if err := os.WriteFile(path, []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c, err := readBridgeConfig(path)
+	if err != nil || c.Workers != 9 || len(c.Hashes) != 4 {
+		t.Fatalf("probe fan-out: %v %v", c, err)
+	}
+	config = strings.Replace(config, `"latency_probe":true`, `"latency_probe":false`, 1)
+	if err = os.WriteFile(path, []byte(config), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c, err = readBridgeConfig(path)
+	if err != nil || c.Workers != 108 {
+		t.Fatal("speed test lost the profile's worker count")
+	}
+
+}
