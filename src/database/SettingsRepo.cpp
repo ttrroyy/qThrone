@@ -367,8 +367,24 @@ namespace Configs {
     }
 
     bool SettingsRepo::Save() {
+        std::lock_guard<std::recursive_mutex> lock(db.WriteMutex());
         saveAllSettings();
         return true;
+    }
+
+    bool SettingsRepo::ResetToDefaults() {
+        std::lock_guard<std::recursive_mutex> lock(db.WriteMutex());
+        if (noSave) return false;
+        // Preserve device binding and authentication identity. No profile, route,
+        // subscription, OTP or history tables are touched by this operation.
+        const bool ok = db.transaction("reset application settings", [&] {
+            db.execThrow("DELETE FROM settings WHERE key NOT IN ('relay_device_id', 'core_box_api_secret')");
+            return true;
+        });
+        // Restart loads compiled defaults. Shutdown must not overwrite them
+        // with this instance's old in-memory settings.
+        if (ok) noSave = true;
+        return ok;
     }
 
     QStringList SettingsRepo::GetExtraCorePaths() const {

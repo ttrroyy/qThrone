@@ -81,8 +81,56 @@ func TestBackgroundCaptchaDoesNotLaunchBrowser(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	bridgeCancel = cancel
-	_, err := requestWebViewCaptcha(1, &VkCaptchaError{RedirectURI: "https://id.vk.ru/captcha"}, "auto", time.Second)
+	_, err := requestWebViewCaptcha(1, &VkCaptchaError{RedirectURI: "https://id.vk.ru/captcha"}, "manual", time.Second)
 	if err != errCaptchaInteractionRequired || ctx.Err() != context.Canceled {
 		t.Fatalf("background captcha: %v %v", err, ctx.Err())
+	}
+}
+
+func TestBackgroundProbeAllowsAutomaticHeadlessCaptcha(t *testing.T) {
+	oldBridge, oldProbe, oldInteractive, oldSolver := desktopBridgeMode, desktopProbeOnly, desktopInteractiveProbe, desktopCaptchaSolver
+	defer func() {
+		desktopBridgeMode, desktopProbeOnly, desktopInteractiveProbe, desktopCaptchaSolver = oldBridge, oldProbe, oldInteractive, oldSolver
+	}()
+	desktopBridgeMode, desktopProbeOnly, desktopInteractiveProbe = true, true, false
+	desktopCaptchaSolver = func(_ context.Context, _ string, visible bool) (string, error) {
+		if visible {
+			t.Fatal("background probe opened a visible window")
+		}
+		return "automatic-token", nil
+	}
+	token, err := requestWebViewCaptcha(1, &VkCaptchaError{RedirectURI: "https://id.vk.ru/captcha"}, "auto", time.Second)
+	if err != nil || token != "automatic-token" {
+		t.Fatalf("automatic captcha: %q %v", token, err)
+	}
+}
+
+func TestAutomaticCaptchaBrowserExitDoesNotCancelTunnel(t *testing.T) {
+	oldBridge, oldProbe, oldContext, oldCancel, oldSolver := desktopBridgeMode, desktopProbeOnly, bridgeContext, bridgeCancel, desktopCaptchaSolver
+	defer func() {
+		desktopBridgeMode, desktopProbeOnly, bridgeContext, bridgeCancel, desktopCaptchaSolver = oldBridge, oldProbe, oldContext, oldCancel, oldSolver
+	}()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	desktopBridgeMode, desktopProbeOnly, bridgeContext, bridgeCancel = true, false, ctx, cancel
+	desktopCaptchaSolver = func(context.Context, string, bool) (string, error) { return "", errCaptchaWindowClosed }
+	_, err := requestWebViewCaptcha(1, &VkCaptchaError{RedirectURI: "https://id.vk.ru/captcha"}, "auto", time.Second)
+	if err != errCaptchaWindowClosed || ctx.Err() != nil {
+		t.Fatal("automatic browser failure cancelled the tunnel instead of allowing fallback")
+	}
+}
+
+func TestCaptchaHonorsHashAuthorizationDeadline(t *testing.T) {
+	oldBridge, oldContext, oldSolver := desktopBridgeMode, bridgeContext, desktopCaptchaSolver
+	defer func() { desktopBridgeMode, bridgeContext, desktopCaptchaSolver = oldBridge, oldContext, oldSolver }()
+	desktopBridgeMode = true
+	bridgeContext = context.Background()
+	desktopCaptchaSolver = func(ctx context.Context, _ string, _ bool) (string, error) { <-ctx.Done(); return "", ctx.Err() }
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := requestWebViewCaptcha(1, &VkCaptchaError{RedirectURI: "https://id.vk.ru/captcha"}, "auto", time.Second, ctx)
+	if err != context.DeadlineExceeded || time.Since(start) > time.Second {
+		t.Fatalf("captcha ignored hash/probe deadline: %v", err)
 	}
 }

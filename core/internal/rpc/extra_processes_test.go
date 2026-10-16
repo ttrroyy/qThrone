@@ -91,6 +91,15 @@ func TestRoutedProbeReportsStandaloneTag(t *testing.T) {
 }
 
 func TestRoutedURLProbeUsesLiveOutboundWithoutRestart(t *testing.T) {
+	// qWDTT is measured by its own handshake probe; the other transports by HTTP through the live tunnel.
+	for _, backend := range []string{"csqtt", "openflux", "olcrtc"} {
+		t.Run(backend, func(t *testing.T) {
+			testLiveTransportHTTP(t, `{"backend":"`+backend+`","mode":"raw","peer":"example.invalid:56000","device_id":"live-device"}`)
+		})
+	}
+}
+
+func testLiveTransportHTTP(t *testing.T, conf string) {
 	var calls atomic.Int32
 	endpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
@@ -109,20 +118,67 @@ func TestRoutedURLProbeUsesLiveOutboundWithoutRestart(t *testing.T) {
 		box.CloseWithTimeout(cancel, time.Second, func(...any) {}, false)
 		extraSessions = nil
 	}()
-	conf := `{"backend":"csqtt","peer":"example.invalid:46000","device_id":"live-device"}`
 	key, _ := qwdttSessionKey(conf)
-	session := &extraSession{transport: true, key: key, tag: "route-transport"}
+	session := &extraSession{transport: true, key: key, settings: transportSettingsKey(conf), tag: "route-transport"}
 	extraSessions = []*extraSession{session}
-	result, err := (&server{}).Test(context.Background(), &gen.TestReq{
-		QwdttConfig: To(conf), OutboundTags: []string{"proxy"}, Url: To(endpoint.URL), TestTimeoutMs: To(int32(1000)),
-	})
-	if err != nil || len(result.GetResults()) != 1 || result.Results[0].GetError() != "" {
-		t.Fatalf("live routed probe failed: %v %v", result, err)
+	for round := 0; round < 50; round++ {
+		result, err := (&server{}).Test(context.Background(), &gen.TestReq{
+			QwdttConfig: To(conf), OutboundTags: []string{"proxy"}, Url: To(endpoint.URL), TestTimeoutMs: To(int32(1000)),
+		})
+		if err != nil || len(result.GetResults()) != 1 || result.Results[0].GetError() != "" {
+			t.Fatalf("live routed probe round %d failed: %v %v", round, result, err)
+		}
+		if result.Results[0].GetOutboundTag() != "proxy" || calls.Load() != int32((round+1)*2) {
+			t.Fatal("live routed test was not warmed and reported against its profile")
+		}
+		if currentBox() != box || len(extraSessions) != 1 || extraSessions[0] != session {
+			t.Fatal("repeated testing replaced or stopped the active connection")
+		}
 	}
-	if result.Results[0].GetOutboundTag() != "proxy" || calls.Load() != 2 {
-		t.Fatal("live routed test was not warmed and reported against its profile")
+}
+
+func TestTransportSessionReuseRejectsConflictingSettings(t *testing.T) {
+	conf := `{"peer":"server.invalid:56000","device_id":"device","mode":"raw","password":"first","socks":"127.0.0.1:10001"}`
+	key, _ := qwdttSessionKey(conf)
+	extraSessions = []*extraSession{{transport: true, key: key, settings: transportSettingsKey(conf), tag: "proxy"}}
+	defer func() { extraSessions = nil }()
+	same := `{"password":"first","mode":"raw","device_id":"device","peer":"server.invalid:56000","socks":"127.0.0.1:10002","probe_only":true}`
+	if _, exists, compatible := activeTransport(same); !exists || !compatible {
+		t.Fatal("probe-local settings prevented reuse")
 	}
-	if currentBox() != box || len(extraSessions) != 1 || extraSessions[0] != session {
-		t.Fatal("testing replaced or stopped the active connection")
+	changed := `{"peer":"server.invalid:56000","device_id":"device","mode":"raw","password":"different"}`
+	if _, exists, compatible := activeTransport(changed); !exists || compatible {
+		t.Fatal("conflicting settings reused active session")
+	}
+	env, err := prepareTestEnv(false, false, "", nil, "", nil, false, "", changed)
+	if env != nil || err == nil {
+		t.Fatal("conflicting test was not skipped")
+	}
+}
+
+func TestUserConnectionWaitsForProbeCleanup(t *testing.T) {
+	conf := `{"peer":"example.invalid:56000","device_id":"connect-after-probe"}`
+	key, _ := qwdttSessionKey(conf)
+	release, err := acquireQWDTTProbe(context.Background(), key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	cleanupDone := make(chan struct{})
+	go func() { time.Sleep(150 * time.Millisecond); release(); close(cleanupDone) }()
+	dir := t.TempDir()
+	// Missing executable is intentional: reaching process creation proves we waited
+	// past the old 100ms gate instead of rejecting the user's connection as busy.
+	in := &gen.LoadConfigReq{RoutedExtraProcesses: []*gen.RoutedExtraProcess{{Path: To(filepath.Join(dir, "qwdtt.exe")), Args: To("-config %s"), Config: To(conf), OutboundTag: To("route-0")}}}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	err = startExtraSessions(ctx, in)
+	select {
+	case <-cleanupDone:
+	default:
+		t.Fatal("user connection rejected before probe cleanup")
+	}
+	if err == nil || len(extraSessions) != 0 {
+		t.Fatal("invalid child did not roll back after acquiring the freed device")
 	}
 }

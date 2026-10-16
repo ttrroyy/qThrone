@@ -17,6 +17,12 @@ import (
 	"qThroneCore/internal/process"
 )
 
+const (
+	qwdttHandshakeBudget = 15 * time.Second
+	// Matches desktopPingAuthBudget of the bundled client.
+	qwdttPingAuthBudget = 90 * time.Second
+)
+
 // Only qWDTT has the native TURN/DTLS handshake probe. Other backends retain URL tests.
 func nativeQWDTTPing(config string) bool {
 	var c struct {
@@ -25,7 +31,7 @@ func nativeQWDTTPing(config string) bool {
 	return strings.HasPrefix(strings.TrimSpace(config), "{") && json.Unmarshal([]byte(config), &c) == nil && c.Backend == ""
 }
 
-func runQWDTTPing(parent context.Context, config string) (int32, error) {
+func runQWDTTPing(parent context.Context, config string, budget ...time.Duration) (int32, error) {
 	if len(config) > 65536 {
 		return 0, errors.New("test config is too large")
 	}
@@ -33,7 +39,14 @@ func runQWDTTPing(parent context.Context, config string) (int32, error) {
 	if !valid {
 		return 0, errors.New("invalid test session identity")
 	}
-	ctx, cancel := context.WithTimeout(parent, 3*time.Minute)
+	// The TURN allocation and DTLS handshake get the original app's 15 s; a 3 s
+	// HTTP timeout failed working servers on slower networks.
+	timeout := qwdttHandshakeBudget
+	if len(budget) > 0 && budget[0] > timeout {
+		timeout = budget[0]
+	}
+	// VK authorization (with automatic checks) is preparation, not the measured round trip.
+	ctx, cancel := context.WithTimeout(parent, timeout+qwdttPingAuthBudget+2*time.Second)
 	defer cancel()
 	stop := context.AfterFunc(probe.TestContext(), cancel)
 	defer stop()
@@ -45,6 +58,12 @@ func runQWDTTPing(parent context.Context, config string) (int32, error) {
 		return 0, err
 	}
 	defer release()
+	// qWDTT and CSQTT probes share one budget, so a sweep stays below VK's limits.
+	slotRelease, err := acquireTransportProbeSlot(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer slotRelease()
 	var c struct {
 		Interactive bool `json:"interactive_captcha"`
 	}
@@ -56,7 +75,19 @@ func runQWDTTPing(parent context.Context, config string) (int32, error) {
 		}
 		defer browserRelease()
 	}
-	config, err = noninteractiveQWDTTConfig(config)
+	var pingConfig map[string]any
+	if err = json.Unmarshal([]byte(config), &pingConfig); err != nil {
+		return 0, err
+	}
+	pingConfig["mode"] = "wg"
+	pingConfig["probe_only"] = true
+	pingConfig["ping_timeout_ms"] = timeout.Milliseconds()
+	pingConfig["interactive_captcha"] = false
+	encoded, err := json.Marshal(pingConfig)
+	if err != nil {
+		return 0, err
+	}
+	config, err = noninteractiveQWDTTConfig(string(encoded))
 	if err != nil {
 		return 0, err
 	}
@@ -78,11 +109,12 @@ func runQWDTTPing(parent context.Context, config string) (int32, error) {
 
 // Parse stdout incrementally: writes may split a result or combine it with logs.
 type qwdttPingOutput struct {
-	mu      sync.Mutex
-	pending string
-	delay   int32
-	found   bool
-	failed  bool
+	mu            sync.Mutex
+	pending       string
+	delay         int32
+	found         bool
+	failed        bool
+	failureReason string
 }
 
 func (p *qwdttPingOutput) write(b []byte) {
@@ -94,6 +126,9 @@ func (p *qwdttPingOutput) write(b []byte) {
 			if strings.HasPrefix(line, "PING_RESULT|") {
 				value, err := strconv.ParseInt(strings.TrimPrefix(line, "PING_RESULT|"), 10, 32)
 				if err == nil && value >= 0 {
+					if value == 0 {
+						value = 1
+					}
 					p.delay, p.found = int32(value), true
 				} else {
 					p.failed = true
@@ -101,6 +136,12 @@ func (p *qwdttPingOutput) write(b []byte) {
 			} else if strings.HasPrefix(line, "PING_ERROR|") {
 				// Do not return arbitrary authentication logs or credentials to the UI.
 				p.failed = true
+				if strings.HasPrefix(line, "PING_ERROR|VK authorization:") {
+					p.failureReason = "VK authorization failed"
+				}
+				if strings.HasPrefix(line, "PING_ERROR|TURN/DTLS:") {
+					p.failureReason = "TURN/DTLS server probe failed"
+				}
 			}
 			p.pending = ""
 		} else if len(p.pending) < 1024 {
@@ -133,6 +174,9 @@ func executeQWDTTPing(ctx context.Context, executable string, args []string) (in
 		defer output.mu.Unlock()
 		if output.found && !output.failed {
 			return output.delay, nil
+		}
+		if output.failureReason != "" {
+			return 0, errors.New(output.failureReason)
 		}
 		return 0, errors.New("TURN/DTLS handshake did not return a valid ping result")
 	}

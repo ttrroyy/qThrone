@@ -37,7 +37,6 @@ namespace Configs
         auto group = dataManager->groupsRepo->GetGroup(gid);
         if (group == nullptr) return "";
         QString result;
-        if (!test_country.isEmpty()) result += UNICODE_LRO + CountryCodeToFlag(test_country) + " ";
         if (latency == kLatencyConnectOnly) {
             result = QObject::tr("Connect OK");
             return result;
@@ -47,6 +46,7 @@ namespace Configs
         } else if (latency > 0) {
             result += QString("%1 ms").arg(latency);
         }
+        if (!test_country.isEmpty()) result += " " + UNICODE_LRO + CountryCodeToFlag(test_country);
         bool showSpeed = group->test_items_to_show == testShowItems::all || group->test_items_to_show == testShowItems::speedOnly;
         bool showIP = group->test_items_to_show == testShowItems::all || group->test_items_to_show == testShowItems::ipOnly;
         if (!dl_speed.isEmpty() && dl_speed != "N/A" && showSpeed) result += " ↓" + dl_speed;

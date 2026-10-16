@@ -4,6 +4,9 @@
 #include "include/ui/group/dialog_provider_routing.h"
 #include "include/ui/utils/ProfilesTableFilterHeader.h"
 #include "include/ui/utils/DataViewHtmlGenerator.h"
+#include "include/ui/utils/TestResultDelegate.hpp"
+#include "include/ui/widget/RestartNotice.hpp"
+#include <QStandardItemModel>
 #include "include/configs/outbounds/qwdtt.h"
 #include "include/configs/outbounds/csqtt.h"
 #include "include/configs/outbounds/openflux.h"
@@ -35,6 +38,8 @@
 #include <QDialogButtonBox>
 #include <QListWidget>
 #include <QApplication>
+#include <QMessageBox>
+#include <QTimer>
 #include <QMainWindow>
 #include <QDir>
 #include "ui_mainwindow.h"
@@ -103,27 +108,19 @@ int TestQwdttImport() {
             for (QDate date(year, 1, 1); date.year() == year; date = date.addDays(1)) {
                 check(!theme(date).isEmpty(), "Auto covers every local calendar day, including leap day");
             }
-            const QList<QPair<QDate, QString>> cases = {
-                {QDate(year, 10, 29), "autumn"}, {QDate(year, 10, 30), "remembrance"}, {QDate(year, 10, 31), "halloween"},
-                {QDate(year, 12, 23), "newyear"}, {QDate(year, 12, 24), "newyear"}, {QDate(year, 12, 25), "christmas"}, {QDate(year, 12, 31), "christmas"},
-                {QDate(year, 1, 1), "christmas"}, {QDate(year, 1, 7), "christmas"}, {QDate(year, 1, 8), "newyear"},
-                {QDate(year, 2, 13), "newyear"}, {QDate(year, 2, 14), "valentine"}, {QDate(year, 2, 15), "newyear"},
-                {QDate(year, 3, 7), "spring"}, {QDate(year, 3, 8), "maslenitsa"}, {QDate(year, 3, 14), "maslenitsa"},
-                {QDate(year, 3, 15), "patrick"}, {QDate(year, 3, 17), "patrick"}, {QDate(year, 3, 18), "patrick"},
-                {QDate(year, 3, 22), "patrick"}, {QDate(year, 3, 23), "spring"},
-                {QDate(year, 4, 21), "spring"}, {QDate(year, 4, 22), "easter"}, {QDate(year, 5, 7), "easter"}, {QDate(year, 5, 8), "may_remembrance"}, {QDate(year, 5, 9), "may_remembrance"},
-                {QDate(year, 5, 10), "spring"}, {QDate(year, 5, 31), "spring"}, {QDate(year, 6, 1), "kupala"},
-                {QDate(year, 8, 31), "kupala"}, {QDate(year, 9, 1), "autumn"}, {QDate(year, 11, 30), "halloween"}, {QDate(year, 12, 1), "newyear"}
-            };
-            for (const auto &entry : cases) check(theme(entry.first) == entry.second, "Auto exact-date priority and seasonal boundary");
+            for (int month = 1; month <= 12; ++month) {
+                const QString expected = month <= 2 || month == 12 ? "newyear" : month <= 5 ? "easter" : month <= 8 ? "kupala" : "halloween";
+                check(theme(QDate(year, month, 1)) == expected && theme(QDate(year, month, QDate(year, month, 1).daysInMonth())) == expected,
+                      "Auto follows the four seasons on both month boundaries");
+            }
         }
         QFile resource(":/seasonal/manifest.json");
         check(resource.open(QIODevice::ReadOnly), "seasonal manifest bundled");
         const auto manifest = QJsonDocument::fromJson(resource.readAll()).object();
-        check(manifest.size() == 12, "all twelve approved themes bundled");
+        check(manifest.size() == 4, "only four seasonal themes bundled");
         for (auto themeIt = manifest.begin(); themeIt != manifest.end(); ++themeIt) {
-            check(themeIt.value().toObject().size() == 2, "only wide and compact compositions remain");
-            for (const auto &variant : {QStringLiteral("wide"), QStringLiteral("compact")}) {
+            check(themeIt.value().toObject().size() == 3, "wide, compact and narrow compositions bundled");
+            for (const auto &variant : {QStringLiteral("wide"), QStringLiteral("compact"), QStringLiteral("narrow")}) {
                 const auto metadata = themeIt.value().toObject()[variant].toObject();
                 const QImage image(":/seasonal/" + metadata["file"].toString());
                 check(!image.isNull() && image.hasAlphaChannel() && metadata["frames"].toInt() > 1, "approved transparent animated composition bundled");
@@ -137,7 +134,7 @@ int TestQwdttImport() {
         const auto restoreCallback = qScopeGuard([previousCallback] { MW_dialog_message = previousCallback; });
         DialogBasicSettings dialog;
         auto *selector = dialog.findChild<QComboBox *>("seasonal_decoration");
-        check(selector && selector->count() == 12 && selector->findData("auto") >= 0 && selector->findData("remembrance") < 0 && selector->findData("may_remembrance") < 0, "only ten manual themes, Auto and Disabled; memorial themes hidden");
+        check(selector && selector->count() == 6 && selector->findData("auto") >= 0 && selector->findData("remembrance") < 0 && selector->findData("may_remembrance") < 0, "four manual seasons, Auto and Disabled");
         if (selector) {
             selector->setCurrentIndex(selector->findData("newyear"));
             const auto inboundBefore = Configs::dataManager->settingsRepo->inbound_socks_port;
@@ -242,6 +239,21 @@ int TestQwdttImport() {
         check(!QJsonDocument::fromJson(options.provider_routing.toUtf8()).object().value("GlobalProxy").toBool(), "older route cannot replace newer route");
         const auto profile = PR::Profile(document, "Happ");
         check(profile->defaultOutboundID == Configs::directID && profile->Rules.size() == 3 && profile->Rules[1]->rule_set.contains("geosite:WHITELIST") && profile->Rules[2]->ip_cidr.contains("192.0.2.1/32"), "provider rule order and IP normalization");
+        {
+            Configs::SubscriptionOptions separate;
+            auto happ = document; auto incy = document; incy["DirectSites"] = QJsonArray{"domain:other.example"};
+            PR::Apply(separate, {PR::Command{"Happ", true, false, happ}, PR::Command{"Incy", true, false, incy}});
+            const auto saved = QJsonDocument::fromJson(separate.provider_routing_profiles.toUtf8()).array();
+            check(saved.size() == 2 && PR::Identity(saved[0].toObject()) != PR::Identity(saved[1].toObject()), "same-name Happ and Incy originals remain separate");
+            check(!PR::SameSettings(saved[0].toObject(), saved[1].toObject()), "different settings remain distinct choices");
+            check(PR::SameSettings(happ, document), "identical settings group into one choice");
+            auto renamed = happ; renamed["Name"] = "Different name"; renamed["LastUpdated"] = 999;
+            check(PR::SameSettings(happ, renamed), "choice grouping ignores name and timestamp");
+            separate.provider_routing = QJsonDocument(saved[0].toObject()).toJson(QJsonDocument::Compact);
+            separate.routing_provider = "Happ"; separate.provider_routing_manual = true;
+            PR::Apply(separate, {PR::Command{"Incy", true, false, incy}});
+            check(separate.routing_provider == "Happ", "subscription onadd preserves explicit manual selection");
+        }
         options.provider_ignore_import = true; const auto previous = options.provider_routing;
         PR::Apply(options, {PR::Command{"Happ", false, true, {}}});
         check(options.provider_routing == previous, "disabled route import preserves selection");
@@ -312,17 +324,49 @@ int TestQwdttImport() {
         check(header->sectionSize(0) + header->sectionSize(1) == beforeDrag[0] + beforeDrag[1], "drag only redistributes the adjacent column pair");
         for (int i = 2; i < header->count(); ++i) check(header->sectionSize(i) == beforeDrag[i], "drag preserves unrelated columns");
         check(header->length() == table.viewport()->width(), "drag keeps all columns inside the viewport");
+        {
+            QWidget host; host.resize(340, 250); host.show();
+            RestartNotice notice(&host);
+            notice.present("<p>Настройки изменены, перезапустите для применения</p><a href='restart'>Перезапустить</a> · <a href='ignore'>Игнорировать</a>");
+            QApplication::processEvents();
+            check(notice.verticalScrollBarPolicy() == Qt::ScrollBarAlwaysOff && host.rect().contains(notice.geometry()), "restart notice fits narrow window without scroll bars");
+            host.resize(600, 300); QApplication::processEvents();
+            check(host.rect().contains(notice.geometry()), "restart notice follows viewport resize");
+        }
+        {
+            QTableView preview;
+            QStandardItemModel rows(4,1);
+            rows.setData(rows.index(0,0),1,ProfilesTableModel::TestStateRole);
+            rows.setData(rows.index(1,0),2,ProfilesTableModel::TestStateRole);
+            rows.setData(rows.index(1,0),"28 ms");
+            rows.setData(rows.index(2,0),2,ProfilesTableModel::TestStateRole);
+            rows.setData(rows.index(2,0),"RU",ProfilesTableModel::TestCountryRole);
+            rows.setData(rows.index(2,0),QString::fromUtf8("28 ms 🇷🇺 ↓85.74 Mbps ↑103.23 Mbps"));
+            rows.setData(rows.index(3,0),"39 ms");
+            preview.setModel(&rows);preview.setItemDelegate(new TestResultDelegate(&preview));
+            preview.resize(420,170);preview.horizontalHeader()->setStretchLastSection(true);preview.show();
+            QApplication::processEvents();
+            const auto image=preview.grab().toImage();
+            check(!image.isNull(),"animated test indicators render inside table cells");
+            const auto directory=qEnvironmentVariable("THRONE_SEASONAL_PREVIEW_DIR");
+            if (!directory.isEmpty()) check(image.save(directory+"/test-indicators.png"),"test indicator preview saved");
+        }
         DataViewHtmlGenerator panels;
         panels.seedLatencyTest(DataViewHtmlGenerator::LatencyTestPanelState::Kind::Url, 10);
         check(panels.buildHtml().isEmpty() && !panels.hasPriorityNotice(), "latency test has no top-bar indicator or decoration priority");
         panels.seedSpeedTest(3);
         panels.addTestProgress(1);
-        check(panels.buildHtml().contains("Running") && panels.hasPriorityNotice(), "speed test retains its top-bar progress and decoration priority");
+        check(panels.buildHtml().isEmpty() && !panels.hasPriorityNotice(), "speed test progress moves into table cells");
         panels.clearTestSections();
         panels.setDownloadReport({}, true);
         check(panels.hasPriorityNotice(), "update progress takes priority over decoration");
         panels.setDownloadReport({}, false);
         check(!panels.hasPriorityNotice(), "decoration returns after update progress clears");
+        Configs::qwdtt rawPing;
+        rawPing.server="2001:db8::1"; rawPing.server_port=56000; rawPing.rawPort=56003; rawPing.mode="raw";
+        const auto probeConfig=QJsonDocument::fromJson(rawPing.NativePingConfig("{\"peer\":\"[2001:db8::1]:56003\",\"mode\":\"raw\"}").toUtf8()).object();
+        check(probeConfig["peer"].toString()=="[2001:db8::1]:56000" && probeConfig["mode"].toString()=="wg" && probeConfig["probe_only"].toBool(),"RAW profile native ping uses the DTLS endpoint, including IPv6");
+        check(rawPing.mode=="raw" && rawPing.rawPort==56003,"native ping does not change the connection mode");
         Configs::qwdtt q1, q2;
         Configs::csqtt c1, c2;
         check(!q1.deviceID.isEmpty() && q1.deviceID == q2.deviceID && q1.deviceID == c1.deviceID && c1.deviceID == c2.deviceID, "new relay profiles share a persistent client device identity");
@@ -354,6 +398,15 @@ int TestQwdttImport() {
             auto other = old; other["device_id"] = "another-device";
             auto incoming = old; incoming["hashes"] = QJsonArray{"new"};
             check(Subscription::PreserveRelaySettings(type, incoming, {old, other})["hashes"] == incoming["hashes"], "ambiguous relay profiles never copy manual hashes");
+        }
+        for (const auto &type : {QString("qwdtt"), QString("csqtt")}) {
+            QJsonObject old{{"_type",type},{"tag","Workers"},{"hash_source","manual"},{"hashes",QJsonArray{"one"}},{"workers",27}};
+            auto incoming=old; incoming["workers"]=9; incoming["hashes"]=QJsonArray{"one","two","three"};
+            auto merged=Subscription::PreserveRelaySettings(type,incoming,{old});
+            check(merged["workers"].toInt()==81,"maximum worker preference follows a growing hash limit");
+            old=merged; old["workers"]=108; incoming["hashes"]=QJsonArray{"same","same","same","same"};
+            merged=Subscription::PreserveRelaySettings(type,incoming,{old});
+            check(merged["workers"].toInt()==27,"workers clamp to the final deduplicated hash limit instead of default 9");
         }
         const auto hy = parse(R"({"remarks":"HY2","outbounds":[{"protocol":"freedom","tag":"direct"},{"protocol":"hysteria","tag":"hy","settings":{"address":"hy.example","port":443}}],"routing":{"balancers":[{"tag":"auto","selector":["hy"]}],"rules":[{"balancerTag":"auto"}]}})");
         check(hy.size() == 1 && hy.first()->outbound->DisplayType() == "Hysteria" && hy.first()->outbound->DisplayAddress() == "hy.example:443", "JSON Hysteria2 retains its protocol and address despite embedded balancers");
@@ -603,6 +656,62 @@ int TestQwdttImport() {
     auto invalidFlux = fluxConfig; invalidFlux["secret"] = "short";
     check(!flux.ParseFromJson(invalidFlux), "OpenFlux rejects short secrets");
     check(!flux.ParseFromLink("openflux://v1/not-a-valid-payload"), "OpenFlux rejects malformed compressed links");
+    {
+        // Links from OpenFlux's share package: frozen ones from share/compat_test.go and ones share.Make writes today.
+        const auto read = [](const QString &link) {
+            auto profile = std::make_shared<Configs::openflux>();
+            return profile->ParseFromLink(link) ? profile : nullptr;
+        };
+        const auto types = [](const std::shared_ptr<Configs::openflux> &profile) {
+            QStringList list;
+            for (const auto &entry : profile->transports) list << entry.toObject()["type"].toString();
+            return list;
+        };
+        const QString cupsLink = "openflux://v1/TMpBCsIwEAXQu_y1aTCJm4B4EHEhNehAnAmTaUVK7y6ii771W2B65d5ErSOfF9i7FWSMU-vClbhgh0krMh5mrWfvia3oTOU1fNPwW77SXNwoN-K7P6nI87j_cyGE4GKM0aWUkjtsYL2snwAAAP__";
+        const auto cups = read(cupsLink);
+        check(cups && types(cups) == QStringList{"cupsonline"} && !cups->negotiate, "OpenFlux reads frozen classic Cups.online link");
+        check(cups && cups->context.isEmpty() && !cups->ExportToJson().contains("context"), "OpenFlux never invents an encryption context");
+        const auto mailru = read("openflux://v1/qlbKS8xNVbJS8k3MzNErKlVIK8pMzUtR0lEqKUrMKy7ILyopVrKKrlYqqSwAKctNzMwpKlXSUSotylGyUnJMck5xTXPPMNT3zPLO8c3zLzBSqo2tBQQAAP__");
+        check(mailru && mailru->name == "Mail.ru friend" && mailru->transports.first().toObject()["url"].toString() == "AbCdEfGh1/IjKlMnOp2", "OpenFlux reads frozen Mail.ru link");
+        const QString sessionLink = "openflux://v1/rI_BaiwhEEV_pSnonWPb7TweCCFkM-QfQha2FhlJj0pZTkaG_vdgAoHssyw4dc-9d4j2gmDgOV0QBER8SxwsIximigIKOkIGAy4RoePhnKjgsFpmpDYUtnnrjy5FxlsHz8y5mGnyyRXZbPR4k1S_zuka8OOx0vbQ7MGH8n7Idd2CG_XTuJzG5WRXBwKYbCw5ERcwL3fglnvD63cWCKi0_YknU0gUuIGZldrFj8mHvvQX8E8J8MF276K0VHKetfxvjketYX_dPwMAAP__";
+        const auto session = read(sessionLink);
+        check(session && session->negotiate && session->secret == "correct horse battery staple" && session->server == "203.0.113.7" && session->server_port == 4433, "OpenFlux reads frozen Session link");
+        const auto legacy = read("openflux://v1/JMk7DsIwDAbgu_xz1PB--CqIIdgGhqqJbFdqVPXuDMzfCq6iDMKon8IdCa5sGiDs9ofj6Xy53u7lxaJvJISVyVu1cNBjRfSmIPQyiS5ImG0E4RvRnHKWyj78bbA5L9ie2y8AAP__");
+        check(legacy && legacy->codec == "legacy", "OpenFlux keeps the legacy codec");
+        const auto node = read("openflux://v1/jM7BSsQwFIXhVwlnHZJ0OiJmJz6GuLgmVxvQJNzcypSh7y5lQHA328PPx7mi0jcjorbMsKj82bSQMqLKyhaDk7AigsxYSDib22Lah5lPJi0klJRlwCK1qnw54kW1j-h9bmm4jWrmi5PVcy7qs39-f4GFCtXRm-hAfL1Ct378-LnVsFjl606pS2lSdEOcQtjtn5WLcNJ_wUOwyIUO-RRmF9w0ze4xPp3PM_a3_XcA");
+        check(node && types(node) == QStringList{"vyandex", "direct"} && node->context == "https://docs.yandex.ru/edit/d/AbC", "OpenFlux reads node wizard link with Volga document and direct backup");
+        const auto telemost = read("openflux://v1/lI5NSsAwFISvEmYdGm39zVXExSN9WqVNyssrtJQu9CjeoSvFM6Q3kiIewN0wzHx8KyINDI_yUfbyWfbyVb6Pt-MdFpGfk76QMrzKxBaZg7DCg0zuSLg1v41JT6apTehIKChLhkVIUXk-x53qmL1zyj0PKWu1UGx5rmRyr-6ybq6ub27v7i_OBAsVinlMohn-YYUu42n394XFJP0_odvj9jMA");
+        check(telemost && telemost->name == QStringLiteral("Телемост") && types(telemost) == QStringList{"telemost"}, "OpenFlux reads Telemost link");
+        const auto avito = read("openflux://v1/TMwxCgJBDIXhq4RXj412exWxiDGygm6WlyjKMneXwcb25-PfkG70wgSVnJV-kV-RuMphLzYr1cqZaLBYyt8DM-Kx07OhoahLrsFKTMcN9Vl93F63CjQ8ef_n_dS_AwA");
+        check(avito && types(avito) == QStringList{"avito"}, "OpenFlux reads Avito link");
+        const auto stream = read("openflux://v1/JMnBCsMgDAbgd_nPstzzKmMH2YQV1IQkQov47kV6_iaa_AoYHlZyQ0JY7q5i4eD3RFy6-TvUpdejFyQMq2D8I9SZaNPrMTKRRifWZ90DAA");
+        check(stream && stream->mode == "stream", "OpenFlux reads phpbox stream link");
+        const auto body = sessionLink.mid(QStringLiteral("openflux://v1/").size());
+        auto swapped = body; swapped.replace('-', '+').replace('_', '/');
+        QStringList mangledLinks;
+        mangledLinks << QStringLiteral("  ") + sessionLink + QStringLiteral("\n")
+                     << sessionLink + QString((4 - body.size() % 4) % 4, QLatin1Char('='))
+                     << QStringLiteral("openflux://v1/") + swapped
+                     << QStringLiteral("openflux://v1/") + body.left(30) + QString(QChar(0x200b)) + body.mid(30);
+        for (const auto &mangled : mangledLinks) {
+            check(read(mangled) != nullptr, "OpenFlux reads a link mangled by a chat");
+        }
+        check(parse(("\n" + sessionLink + "\n").toUtf8()).size() == 1, "OpenFlux link imports from the clipboard");
+        check(read(cupsLink.toUpper()) == nullptr && read("openflux://v2/abc") == nullptr && read(cupsLink.chopped(30)) == nullptr, "OpenFlux rejects changed or truncated links");
+        Configs::openflux stored;
+        check(stored.ParseFromJson(QJsonObject{{"type", "openflux"}, {"negotiate", true}, {"secret", "a shared secret of 32 characters"}, {"context", "http://openflux"},
+                                               {"transports", QJsonArray{QJsonObject{{"type", "yandex"}, {"url", "https://disk.yandex.ru/i/abc"}}}}})
+              && stored.context.isEmpty(), "OpenFlux drops the context earlier builds invented");
+        if (node) {
+            const auto again = read(node->ExportToLink());
+            check(again && again->ExportIdentity() == node->ExportIdentity() && again->name == node->name, "OpenFlux exported link reads back");
+            check(node->Prepare().isEmpty(), "OpenFlux node profile prepares its helper");
+            const auto prepared = QJsonDocument::fromJson(node->extraCoreConf.toUtf8()).object();
+            const auto user = prepared["socks_user"].toString();
+            check(!user.isEmpty() && prepared["socks_pass"].toString() == user && node->Build().object["username"].toString() == user,
+                  "OpenFlux helper listener requires per-launch credentials");
+        }
+    }
     if (!testProfiles.isEmpty()) {
         const auto &settings = Configs::dataManager->settingsRepo;
         const bool oldTun = settings->spmode_vpn;
@@ -708,6 +817,43 @@ int TestQwdttImport() {
     check(!ReleaseVersion::IsNewer("invalid", "1.0"), "invalid update version");
     check(ReleaseVersion::FromAsset("qThrone-1.0-beta.2-windows-amd64.zip") == "1.0-beta.2", "beta asset version");
     check(ReleaseVersion::FromAsset("qThrone-1.0-linux-amd64.tar.gz") == "1.0", "stable asset version");
+    {
+        auto *settings = Configs::dataManager->settingsRepo.get();
+        auto &db = Configs::dataManager->getDatabase();
+        settings->log_level = "debug";
+        settings->url_test_timeout_ms = 12345;
+        settings->Save();
+        const auto device = settings->relay_device_id;
+        const auto secret = settings->core_box_api_secret;
+        const auto counts = [&db] {
+            QMap<QString, qlonglong> result;
+            auto tables = db.queryThrow("SELECT name FROM sqlite_master WHERE type='table' AND name <> 'settings'");
+            while (tables->executeStep()) {
+                const auto name = QString::fromStdString(tables->getColumn(0).getText());
+                auto quoted = name; quoted.replace('"', "\"\"");
+                auto count = db.queryThrow(("SELECT count(*) FROM \"" + quoted + "\"").toStdString());
+                if (count->executeStep()) result[name] = count->getColumn(0).getInt64();
+            }
+            return result;
+        };
+        const auto before = counts();
+        QTimer::singleShot(0, [] {
+            if (auto *confirmation = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                confirmation->done(QMessageBox::No);
+        });
+        check(!DialogBasicSettings::RestoreDefaultsWithConfirmation(nullptr), "cancel reset confirmation");
+        check(!settings->noSave && settings->log_level == "debug" && counts() == before,
+              "cancel reset leaves settings and data intact");
+        check(settings->ResetToDefaults(), "reset application settings transaction");
+        settings->Save(); // An exit-time save must not restore stale preferences.
+        check(settings->noSave, "reset prevents stale shutdown save");
+        check(before == counts(), "reset retains every non-settings table");
+        Configs::SettingsRepo defaults(db);
+        check(defaults.log_level == "info" && defaults.url_test_timeout_ms == 3000 &&
+              defaults.seasonal_decoration == "auto", "reset loads compiled defaults after restart");
+        check(defaults.relay_device_id == device && defaults.core_box_api_secret == secret,
+              "reset preserves bound device and API identity");
+    }
     qInfo() << "qWDTT import and release version tests:" << failures << "failures";
     return failures == 0 ? 0 : 1;
 }

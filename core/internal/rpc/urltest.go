@@ -11,15 +11,27 @@ import (
 )
 
 func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, error) {
+	// qWDTT is measured like the original app does it: one TURN/DTLS handshake with the
+	// server, no tunnel. A sweep through full tunnels hit VK's Flood control and ended
+	// with a device-wide disconnect that also dropped the connected VPN.
 	if nativeQWDTTPing(in.GetQwdttConfig()) {
-		delay, err := runQWDTTPing(ctx, in.GetQwdttConfig())
+		delay, err := runQWDTTPing(ctx, in.GetQwdttConfig(), time.Duration(in.GetTestTimeoutMs())*time.Millisecond)
 		message := ""
 		if err != nil {
 			message = "qWDTT ping failed: " + err.Error()
 		}
 		return &gen.TestResp{Results: []*gen.URLTestResp{{OutboundTag: To("proxy"), LatencyMs: To(delay), Error: To(message)}}}, nil
 	}
-	env, err := prepareTestEnv(in.GetTestCurrent(), in.GetNeedXray(), in.GetXrayConfig(),
+	// Each RPC owns a deadline/cancellation scope. Expiring one native probe
+	// must not cancel sibling requests or leave a helper running after its caller.
+	parent, cancel := context.WithCancel(probe.TestContext())
+	defer cancel()
+	stopRPC := context.AfterFunc(ctx, cancel)
+	defer stopRPC()
+	total := urlProbeBudget(in)
+	parent, finish := context.WithTimeout(parent, total)
+	defer finish()
+	env, err := prepareTestEnvContext(parent, in.GetTestCurrent(), in.GetNeedXray(), in.GetXrayConfig(),
 		in.XrayFullConfigs, in.GetConfig(), in.OutboundTags, in.GetUseDefaultOutbound(),
 		in.GetXrayOutboundDnsStrategy(), in.GetQwdttConfig())
 	if err != nil {
@@ -53,7 +65,7 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 		}
 		_ = json.Unmarshal([]byte(in.GetQwdttConfig()), &transport)
 		var coldAllowance time.Duration
-		if twice && !env.live && (transport.Backend == "csqtt" || transport.Backend == "openflux" || transport.Backend == "olcrtc") {
+		if twice && !env.live && (transport.Backend == "" || transport.Backend == "csqtt" || transport.Backend == "openflux" || transport.Backend == "olcrtc") {
 			// SOCKS hides the userspace tunnel from the ordinary VPN startup allowance.
 			// Warm it once; the measured request still uses the configured timeout.
 			coldAllowance = probe.TunnelStartupTimeout
@@ -93,6 +105,24 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 		out.VpnStatus = collectVPNStatus(testCtx, env.box, pending, 0)
 	}
 	return out, nil
+}
+
+func urlProbeBudget(in *gen.TestReq) time.Duration {
+	timeout := time.Duration(in.GetTestTimeoutMs()) * time.Millisecond
+	if timeout <= 0 {
+		timeout = probe.URLTestTimeout
+	}
+	concurrency := int(in.GetMaxConcurrency())
+	if concurrency <= 0 || concurrency >= 500 {
+		concurrency = 100
+	}
+	count := max(1, len(in.OutboundTags))
+	rounds := (count + concurrency - 1) / concurrency
+	budget := 30*time.Second + time.Duration(rounds)*(2*timeout+probe.TunnelHandshakeTimeout+probe.TunnelStartupTimeout)
+	if in.GetQwdttConfig() != "" {
+		budget += 5 * time.Minute
+	}
+	return budget
 }
 
 func (s *server) StopTest(ctx context.Context, in *gen.EmptyReq) (*gen.EmptyResp, error) {

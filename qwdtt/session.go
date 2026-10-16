@@ -730,6 +730,8 @@ func RunPing(
 		return 0, err
 	}
 	defer turnConnCloser.Close()
+	stopPingIO := context.AfterFunc(ctx, func() { _ = turnConnCloser.Close() })
+	defer stopPingIO()
 
 	var addrFamily turn.RequestedAddressFamily
 	if peer.IP.To4() != nil {

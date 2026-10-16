@@ -17,6 +17,16 @@
 #include <QUrlQuery>
 
 namespace Subscription::ProviderRouting {
+QString Source(const QJsonObject &document, const QString &fallback) {
+    return document.value("_qthrone_source").toString(fallback.isEmpty() ? "Happ" : fallback);
+}
+QString Identity(const QJsonObject &document, const QString &fallback) {
+    return Source(document, fallback) + QChar(0) + document.value("Name").toString();
+}
+bool SameSettings(QJsonObject a, QJsonObject b) {
+    for (const auto &key : {"Name", "LastUpdated", "_qthrone_source"}) { a.remove(key); b.remove(key); }
+    return a == b;
+}
 namespace {
 const QRegularExpression
     link(QStringLiteral("^(happ|incy)?://routing/(add|onadd|off)(?:/([^?#]*))?(?:\\?data=([^#]*))?(?:#.*)?$"),
@@ -221,17 +231,24 @@ void Apply(Configs::SubscriptionOptions &options, const QList<Command> &commands
     if (options.provider_ignore_import)
         return;
     auto profiles = QJsonDocument::fromJson(options.provider_routing_profiles.toUtf8()).array();
+    const QString fallback = options.routing_provider.isEmpty() ? "Happ" : options.routing_provider;
+    auto selected = decode(options.provider_routing);
+    if (!selected.isEmpty()) selected["_qthrone_source"] = Source(selected, fallback);
+    for (int i = 0; i < profiles.size(); ++i) {
+        auto doc = profiles[i].toObject(); doc["_qthrone_source"] = Source(doc, fallback); profiles[i] = doc;
+    }
+    const bool firstImport = options.provider_routing.isEmpty();
     for (const auto &command : commands) {
-        options.routing_provider = command.provider;
         if (command.off) {
-            options.provider_routing_enabled = false;
+            if (!options.provider_routing_manual) options.provider_routing_enabled = false;
             continue;
         }
-        const auto doc = command.document;
+        auto doc = command.document;
+        doc["_qthrone_source"] = command.provider;
         const auto name = doc.value("Name").toString();
         int index = -1;
         for (int i = 0; i < profiles.size(); ++i)
-            if (profiles[i].toObject().value("Name").toString() == name) {
+            if (Identity(profiles[i].toObject(), fallback) == Identity(doc)) {
                 index = i;
                 break;
             }
@@ -241,16 +258,19 @@ void Apply(Configs::SubscriptionOptions &options, const QList<Command> &commands
             if (stamp > 0 && old > 0 && stamp < old)
                 continue;
             profiles[index] = doc;
-            if (decode(options.provider_routing).value("Name").toString() == name)
-                options.provider_routing = QJsonDocument(doc).toJson(QJsonDocument::Compact);
+            if (Identity(selected, fallback) == Identity(doc)) selected = doc;
         } else
             profiles.append(doc);
-        if (options.provider_routing.isEmpty() || options.provider_routing == "off" || command.activate) {
-            options.provider_routing = QJsonDocument(doc).toJson(QJsonDocument::Compact);
+        if (selected.isEmpty() || (firstImport && command.activate && !options.provider_routing_manual)) {
+            selected = doc;
             options.provider_routing_enabled = true;
         }
     }
     options.provider_routing_profiles = QJsonDocument(profiles).toJson(QJsonDocument::Compact);
+    if (!selected.isEmpty()) {
+        options.provider_routing = QJsonDocument(selected).toJson(QJsonDocument::Compact);
+        options.routing_provider = Source(selected, fallback);
+    }
 }
 bool Truth(const QJsonObject &doc, const QString &key, bool fallback) {
     const auto value = doc.value(key);

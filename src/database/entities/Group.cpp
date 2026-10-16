@@ -71,6 +71,7 @@ namespace Configs
         json["provider_routing_profiles"] = provider_routing_profiles;
         json["provider_routing_enabled"] = provider_routing_enabled;
         json["provider_ignore_import"] = provider_ignore_import;
+        json["provider_routing_manual"] = provider_routing_manual;
         if (!user_agent.isEmpty()) json["user_agent"] = user_agent;
         if (tls_version) json["tls_version"] = static_cast<int>(*tls_version);
         if (http_version) json["http_version"] = static_cast<int>(*http_version);
@@ -99,6 +100,7 @@ namespace Configs
         options.provider_routing_enabled = json["provider_routing_enabled"].toBool(!options.provider_routing.isEmpty() && options.provider_routing != "off");
         if (options.provider_routing.isEmpty() || options.provider_routing == "off") options.provider_routing_enabled = false;
         options.provider_ignore_import = json["provider_ignore_import"].toBool();
+        options.provider_routing_manual = json["provider_routing_manual"].toBool();
         options.user_agent = json["user_agent"].toString();
         if (const int tls = json["tls_version"].toInt(-1); tls >= 0 && tls <= static_cast<int>(subTlsVersion::tls13)) {
             options.tls_version = static_cast<subTlsVersion>(tls);

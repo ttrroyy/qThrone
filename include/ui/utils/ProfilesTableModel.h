@@ -13,7 +13,8 @@ namespace Configs {
 class ProfilesTableModel : public QAbstractTableModel {
     Q_OBJECT
 public:
-    enum { ProfileIdRole = Qt::UserRole };
+    enum { ProfileIdRole = Qt::UserRole, TestStateRole, TestCountryRole };
+    void setTestState(const QList<int> &ids, int state, const QString &country = {}, const QString &text = {});
 
     enum Column {
         ColType = 0,
@@ -62,6 +63,8 @@ public:
     const FilterKey *filterKeyAt(int row) const;
 
 private:
+    QHash<int, QPair<int, QString>> testStates;
+    QHash<int, QString> testProgressText;
     void ensureCached(int profileId) const;
     void evictOne() const;
     void setProfileIds(const QList<int> &ids);

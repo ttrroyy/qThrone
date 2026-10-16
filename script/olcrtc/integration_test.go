@@ -189,7 +189,7 @@ func TestEncryptedHTTPBulkAndRestart(t *testing.T) {
 			cancel()
 			t.Fatal("client startup timed out")
 		}
-		proxy, _ := url.Parse("socks5://" + addr)
+		proxy, _ := url.Parse("socks5://" + base.SOCKSUser + ":" + base.SOCKSPass + "@" + addr)
 		transport := &http.Transport{Proxy: http.ProxyURL(proxy)}
 		httpClient := &http.Client{Transport: transport, Timeout: 3 * time.Second}
 		for n := 0; n < 4; n++ {

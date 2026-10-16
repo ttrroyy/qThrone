@@ -57,5 +57,8 @@ func applyHashCheckConfig(path string) error {
 	}
 	// Browser, DNS and credential caches belong solely to this child process.
 	desktopBridgeMode = true
+	if c.Device != "" {
+		return enterDesktopState(c.Device)
+	}
 	return nil
 }

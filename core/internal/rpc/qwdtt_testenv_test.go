@@ -161,3 +161,34 @@ func TestQWDTTSessionIdentity(t *testing.T) {
 		}
 	}
 }
+
+func TestTransportProbeConcurrencyIsBoundedAndCancellable(t *testing.T) {
+	var releases []func()
+	defer func() {
+		for _, release := range releases {
+			release()
+		}
+	}()
+	for i := 0; i < 3; i++ {
+		release, err := acquireTransportProbeSlot(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		releases = append(releases, release)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
+	defer cancel()
+	if release, err := acquireTransportProbeSlot(ctx); err != context.DeadlineExceeded {
+		if release != nil {
+			release()
+		}
+		t.Fatal("more than three fresh transport probes allowed")
+	}
+	releases[0]()
+	release, err := acquireTransportProbeSlot(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	release()
+	release()
+}

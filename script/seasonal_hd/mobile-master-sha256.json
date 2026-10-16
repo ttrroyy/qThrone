@@ -1,0 +1,22 @@
+[
+  {
+    "theme": "halloween",
+    "mobile_master_sha256": "45c002a8182f9840a799c09f523c5b5b937462e5ea2363843d89cf1449bdd4eb",
+    "frames": 360
+  },
+  {
+    "theme": "newyear",
+    "mobile_master_sha256": "0476694f8e9e2f7e9c2136dddaea4b6b661a9fb477b294c500d5c34ef4737f6a",
+    "frames": 480
+  },
+  {
+    "theme": "easter",
+    "mobile_master_sha256": "c7c6999ad09977bc509ca71fcf7b696f47b213809e70b8e3fb74fb6c4a959355",
+    "frames": 480
+  },
+  {
+    "theme": "kupala",
+    "mobile_master_sha256": "065dcf662b828d21ba72237bf56acb2d11c7bd9d7c9a725db0f995aa2e83affc",
+    "frames": 480
+  }
+]

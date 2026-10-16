@@ -101,7 +101,6 @@ func runCSQTTBridge(path string) error {
 		name += ".exe"
 	}
 	command := exec.Command(filepath.Join(filepath.Dir(exe), name))
-	command.Env = append(os.Environ(), "CSQTT_EVENTS=1", "CSQTT_CONFIG_FILE="+path)
 	cache, err := os.UserCacheDir()
 	if err != nil {
 		return err
@@ -111,6 +110,15 @@ func runCSQTTBridge(path string) error {
 	if err := os.MkdirAll(command.Dir, 0700); err != nil {
 		return err
 	}
+	// Every launch is a new epoch on the server, as in the original app: a probe or a
+	// reconnect must not share the generation the connected tunnel's disconnect ends.
+	launch, err := csqttLaunchConfig(path, command.Dir, time.Now())
+	if err != nil {
+		return err
+	}
+	// Deferred before the shutdown below, so it runs once the transport has stopped.
+	defer os.Remove(launch)
+	command.Env = append(os.Environ(), "CSQTT_EVENTS=1", "CSQTT_CONFIG_FILE="+launch)
 	input, err := command.StdinPipe()
 	if err != nil {
 		return err
@@ -151,7 +159,7 @@ func runCSQTTBridge(path string) error {
 		input.Close()
 	}()
 	var config string
-	timer := time.NewTimer(3 * time.Minute)
+	timer := time.NewTimer(5 * time.Minute)
 	defer timer.Stop()
 	select {
 	case config = <-configs:
@@ -219,6 +227,9 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 	defer solvers.Wait()
 	var pendingConfig string
 	workerReady, configSent := false, false
+	// The desktop watchdog asks for lifecycle events in the private configuration.
+	diagnostics := os.Getenv("CSQTT_DIAGNOSTICS") == "1" || c.Diagnostics
+	lastActive := -1
 	forwardReadyConfig := func() {
 		if !workerReady || pendingConfig == "" || configSent || ctx.Err() != nil {
 			return
@@ -242,7 +253,7 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 				forwardReadyConfig()
 			}
 		}
-		if os.Getenv("CSQTT_DIAGNOSTICS") == "1" {
+		if diagnostics {
 			for _, kind := range []string{"STATS", "READY", "ACTIVE_ZERO", "NETWORK_SUSPECT", "SERVER_RESTART", "STOPPED"} {
 				prefix := "__CSQTT_EVENT__|" + kind + "|"
 				if i := strings.Index(line, prefix); i >= 0 {
@@ -252,7 +263,9 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 							Up     int64 `json:"bytes_up"`
 							Down   int64 `json:"bytes_down"`
 						}
-						if json.Unmarshal([]byte(line[i+len(prefix):]), &stats) == nil {
+						// The desktop log keeps changes only; Android reads every report.
+						if json.Unmarshal([]byte(line[i+len(prefix):]), &stats) == nil && (os.Getenv("CSQTT_DIAGNOSTICS") == "1" || stats.Active != lastActive) {
+							lastActive = stats.Active
 							fmt.Printf("[CSQTT diagnostic] active=%d up=%d down=%d\n", stats.Active, stats.Up, stats.Down)
 						}
 					} else {
@@ -288,7 +301,7 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 			}
 			visible := parts[1] != "auto"
 			fmt.Println("[CSQTT] CAPTCHA_REQUIRED: требуется капча.")
-			if c.ProbeOnly && !c.InteractiveCaptcha {
+			if visible && c.ProbeOnly && !c.InteractiveCaptcha {
 				send("CAPTCHA_RESULT|error:cancelled")
 				cancelSession()
 				continue

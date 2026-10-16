@@ -221,16 +221,10 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     bool ok;
     ui->seasonal_decoration->addItem(tr("Disabled"), "none");
     ui->seasonal_decoration->addItem(tr("Авто"), "auto");
-    ui->seasonal_decoration->addItem(tr("Хэллоуин"), "halloween");
+    ui->seasonal_decoration->addItem(tr("Осень"), "halloween");
     ui->seasonal_decoration->addItem(tr("Зима"), "newyear");
-    ui->seasonal_decoration->addItem(tr("Иван Купала"), "kupala");
-    ui->seasonal_decoration->addItem(tr("День святого Патрика"), "patrick");
-    ui->seasonal_decoration->addItem(tr("Рождество"), "christmas");
-    ui->seasonal_decoration->addItem(tr("Пасха"), "easter");
-    ui->seasonal_decoration->addItem(tr("День святого Валентина"), "valentine");
-    ui->seasonal_decoration->addItem(tr("Масленица"), "maslenitsa");
-    ui->seasonal_decoration->addItem(tr("Весна"), "spring");
-    ui->seasonal_decoration->addItem(tr("Осень"), "autumn");
+    ui->seasonal_decoration->addItem(tr("Весна"), "easter");
+    ui->seasonal_decoration->addItem(tr("Лето"), "kupala");
     const int decorationIndex = ui->seasonal_decoration->findData(Configs::dataManager->settingsRepo->seasonal_decoration);
     ui->seasonal_decoration->setCurrentIndex(decorationIndex >= 0 ? decorationIndex : ui->seasonal_decoration->findData("auto"));
     auto themeId = Configs::dataManager->settingsRepo->theme.toInt(&ok);
@@ -336,6 +330,14 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
 
     ui->tabWidget->addTab(new DiagnosticsTab(ui->tabWidget), tr("Diagnostics"));
 
+    auto resetDefaults = new QPushButton(tr("Восстановить настройки по умолчанию"), ui->tab_backup);
+    resetDefaults->setObjectName("restore_defaults");
+    resetDefaults->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+    ui->verticalLayout_backup->addWidget(resetDefaults, 0, Qt::AlignLeft);
+    connect(resetDefaults, &QPushButton::clicked, this, [this] {
+        if (RestoreDefaultsWithConfirmation(this)) QDialog::reject();
+    });
+
     // The .ui geometry underruns real font metrics/translations and Qt then overlaps the rows (#1671).
     QSize want = sizeHint();
     if (const QScreen *scr = parent ? parent->screen() : screen()) {
@@ -345,6 +347,21 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     resize(want);
     initialFormState = formStateWithoutDecoration();
     initialCustomInbound = CACHE.custom_inbound;
+}
+
+bool DialogBasicSettings::RestoreDefaultsWithConfirmation(QWidget *parent) {
+    const auto title = tr("Восстановить настройки по умолчанию");
+    const auto answer = QMessageBox::question(parent, title,
+        tr("Сбросить настройки приложения и перезапустить qThrone?\n\n"
+           "Профили, подписки, маршруты, OTP и привязка устройства сохранятся."),
+        QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if (answer != QMessageBox::Yes) return false;
+    if (!Configs::dataManager->settingsRepo->ResetToDefaults()) {
+        QMessageBox::critical(parent, title, tr("Не удалось сбросить настройки."));
+        return false;
+    }
+    MW_dialog_message(MwMessage::RestartProgram, {});
+    return true;
 }
 
 DialogBasicSettings::~DialogBasicSettings() {

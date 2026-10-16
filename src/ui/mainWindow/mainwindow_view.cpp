@@ -55,6 +55,8 @@ void MainWindow::applyTopBarMetrics() {
                    qMax(designMinimumSize.height(), contentMin.height()));
 }
 
+#include "include/ui/widget/RestartNotice.hpp"
+
 void MainWindow::UpdateDataView(bool force)
 {
     const auto now = QDateTime::currentMSecsSinceEpoch();
@@ -64,7 +66,18 @@ void MainWindow::UpdateDataView(bool force)
     }
     auto html = dataViewHtmlGenerator_.buildHtml();
     runOnUiThread([=, this] {
-        ui->data_view->setHtml(html);
+        auto *toast = ui->centralwidget->findChild<QTextBrowser *>("restartNotice");
+        if (!toast) {
+            toast = new RestartNotice(ui->centralwidget);
+            toast->setFont(ui->data_view->font());
+            connect(toast, &QTextBrowser::anchorClicked, ui->data_view, &QTextBrowser::anchorClicked);
+        }
+        if (dataViewHtmlGenerator_.hasPendingRestart()) {
+            ui->data_view->clear();
+            static_cast<RestartNotice *>(toast)->present(html);
+        } else {
+            toast->hide(); ui->data_view->setHtml(html);
+        }
         if (seasonalDecoration) seasonalDecoration->setNoticePriority(dataViewHtmlGenerator_.hasPriorityNotice());
     }, true);
     lastUpdatedMs.store(QDateTime::currentMSecsSinceEpoch());

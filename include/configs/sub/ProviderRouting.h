@@ -4,6 +4,9 @@
 #include <QJsonArray>
 
 namespace Subscription::ProviderRouting {
+QString Source(const QJsonObject &document, const QString &fallback = "Happ");
+QString Identity(const QJsonObject &document, const QString &fallback = "Happ");
+bool SameSettings(QJsonObject a, QJsonObject b);
 struct Command {
     QString provider;
     bool activate = false;

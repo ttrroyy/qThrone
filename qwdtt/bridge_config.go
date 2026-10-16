@@ -11,10 +11,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Secrets travel in Throne's private, temporary extra-core config, never argv.
 type bridgeConfig struct {
+	PingTimeoutMS      int      `json:"ping_timeout_ms"`
+	LatencyProbe       bool     `json:"latency_probe"`
 	ProbeOnly          bool     `json:"probe_only"`
 	InteractiveCaptcha bool     `json:"interactive_captcha"`
 	VKAnonPath         string   `json:"vk_anon_path"`
@@ -32,6 +35,7 @@ type bridgeConfig struct {
 	SOCKS              string   `json:"socks"`
 	SOCKSUser          string   `json:"socks_user"`
 	SOCKSPass          string   `json:"socks_pass"`
+	Diagnostics        bool     `json:"diagnostics"`
 }
 
 var desktopBridgeMode bool
@@ -79,6 +83,10 @@ func readBridgeConfig(filename string) (*bridgeConfig, error) {
 	}
 	// Match the profile editor and the anonymous client's groups of nine.
 	c.Workers = max(9, min(c.Workers, len(c.Hashes)*27)) / 9 * 9
+	// A latency probe needs one native group; speed tests keep full fan-out.
+	if c.ProbeOnly && c.LatencyProbe {
+		c.Workers = 9
+	}
 	if c.VKAnonPath == "" {
 		c.VKAnonPath = "vkcalls"
 	}
@@ -127,6 +135,7 @@ func applyBridgeConfig(filename string) error {
 	}
 	desktopBridgeMode = true
 	desktopProbeOnly = c.ProbeOnly
+	desktopPingTimeout = time.Duration(c.PingTimeoutMS) * time.Millisecond
 	desktopInteractiveProbe = c.ProbeOnly && c.InteractiveCaptcha
 	mode := "socks"
 	if c.Mode == "raw" {
@@ -145,13 +154,17 @@ func applyBridgeConfig(filename string) error {
 			return err
 		}
 	}
+	return enterDesktopState(c.DeviceID)
+}
+
+func enterDesktopState(deviceID string) error {
 	// The privileged core owns the config directory on Unix. Keep qWDTT's
 	// browser fingerprint files in an unprivileged, private per-device cache.
 	cache, err := os.UserCacheDir()
 	if err != nil {
 		return err
 	}
-	key := sha256.Sum256([]byte(c.DeviceID))
+	key := sha256.Sum256([]byte(deviceID))
 	state := filepath.Join(cache, "qThrone", "qwdtt", fmt.Sprintf("%x", key[:16]))
 	if err = os.MkdirAll(state, 0700); err != nil {
 		return err

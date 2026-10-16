@@ -44,23 +44,14 @@ public:
         calendarTimer.start();
     }
     static QStringList manualThemes() {
-        return {"halloween", "newyear", "kupala", "patrick", "christmas", "easter", "valentine", "maslenitsa", "spring", "autumn"};
+        return {"halloween", "newyear", "easter", "kupala"};
     }
     static QString themeForDate(const QDate &date) {
         if (!date.isValid()) return {};
-        const int month = date.month(), day = date.day();
-        // Inclusive fixed display periods, evaluated in the user's local calendar.
-        if (month == 10 && day == 30) return "remembrance";
-        if (month == 5 && (day == 8 || day == 9)) return "may_remembrance";
-        if ((month == 12 && day >= 25) || (month == 1 && day <= 7)) return "christmas";
-        if (month == 2 && day == 14) return "valentine";
-        if (month == 3 && day >= 8 && day <= 14) return "maslenitsa";
-        if (month == 3 && day >= 15 && day <= 22) return "patrick";
-        if ((month == 4 && day >= 22) || (month == 5 && day <= 7)) return "easter";
-        if (month == 9 || (month == 10 && day <= 29)) return "autumn";
-        if (month == 10 || month == 11) return "halloween";
+        const int month = date.month();
+        if (month >= 9 && month <= 11) return "halloween";
         if (month == 12 || month <= 2) return "newyear";
-        if (month >= 3 && month <= 5) return "spring";
+        if (month >= 3 && month <= 5) return "easter";
         return "kupala";
     }
     QString currentTheme() const { return theme; }
@@ -143,7 +134,7 @@ private:
         QString chosen;
         int artWidth = 0;
         if (enabled && height >= 24) {
-            for (const auto &candidate : {QStringLiteral("wide"), QStringLiteral("compact")}) {
+            for (const auto &candidate : {QStringLiteral("wide"), QStringLiteral("compact"), QStringLiteral("narrow")}) {
                 const auto meta = manifest()[resolved].toObject()[candidate].toObject();
                 const int sourceHeight = meta["height"].toInt(1);
                 const int width = qRound(double(meta["width"].toInt()) * height / sourceHeight);

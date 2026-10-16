@@ -1,4 +1,6 @@
 // Command qthrone-olcrtc owns one olcRTC session and its local SOCKS listener.
+// The listener requires the per-launch credentials qThrone generates and opens
+// only after the link to the server is up.
 package main
 
 import (
@@ -30,6 +32,8 @@ type config struct {
 	DNS       string                     `json:"dns"`
 	DeviceID  string                     `json:"device_id"`
 	SOCKS     string                     `json:"socks"`
+	SOCKSUser string                     `json:"socks_user"`
+	SOCKSPass string                     `json:"socks_pass"`
 	Options   map[string]json.RawMessage `json:"options"`
 }
 
@@ -67,6 +71,9 @@ func text(options map[string]json.RawMessage, key, fallback string) string {
 	return s
 }
 func makeClient(c config) (client.Config, error) {
+	if len(c.SOCKSUser) < 1 || len(c.SOCKSUser) > 255 || len(c.SOCKSPass) < 1 || len(c.SOCKSPass) > 255 {
+		return client.Config{}, errors.New("authenticated bridge required")
+	}
 	key, err := hex.DecodeString(c.Key)
 	if err != nil || len(key) != 32 {
 		return client.Config{}, errors.New("invalid encryption key")
@@ -88,7 +95,7 @@ func makeClient(c config) (client.Config, error) {
 	if _, _, err = net.SplitHostPort(c.DNS); err != nil {
 		return client.Config{}, errors.New("invalid DNS resolver")
 	}
-	cfg := client.Config{Provider: c.Provider, Transport: c.Transport, RoomURL: c.Room, KeyHex: c.Key, ProviderToken: c.Token, ChannelID: c.Channel, DNSServer: c.DNS, LocalAddr: c.SOCKS, DeviceID: c.DeviceID, Liveness: client.LivenessConfig{Interval: 10 * time.Second, Timeout: 15 * time.Second, Failures: 4}}
+	cfg := client.Config{Provider: c.Provider, Transport: c.Transport, RoomURL: c.Room, KeyHex: c.Key, ProviderToken: c.Token, ChannelID: c.Channel, DNSServer: c.DNS, LocalAddr: c.SOCKS, SOCKSUser: c.SOCKSUser, SOCKSPass: c.SOCKSPass, DeviceID: c.DeviceID, Liveness: client.LivenessConfig{Interval: 10 * time.Second, Timeout: 15 * time.Second, Failures: 4}}
 	get := func(key string, def, min, max int) int {
 		v, e := number(c.Options, key, def, min, max)
 		if e != nil {
@@ -99,7 +106,7 @@ func makeClient(c config) (client.Config, error) {
 	switch c.Transport {
 	case "datachannel":
 	case "vp8channel":
-		cfg.TransportOptions = client.VP8Options{FPS: get("vp8-fps", 60, 1, 120), BatchSize: get("vp8-batch", 64, 1, 64)}
+		cfg.TransportOptions = client.VP8Options{FPS: get("vp8-fps", 30, 1, 120), BatchSize: get("vp8-batch", 64, 1, 64)}
 	case "seichannel":
 		cfg.TransportOptions = client.SEIOptions{FPS: get("fps", 30, 1, 120), BatchSize: get("batch", 64, 1, 64), FragmentSize: get("frag", 900, 1, 65535), AckTimeoutMS: get("ack-ms", 2000, 1, 60000)}
 	case "videochannel":
@@ -157,7 +164,7 @@ func run() int {
 		cancel()
 	}()
 	if err = client.New(cfg).RunWithReady(ctx, func() { fmt.Println("[OLCRTC] READY") }); err != nil && ctx.Err() == nil {
-		fmt.Fprintln(os.Stderr, "olcRTC: session failed; check service, room and server compatibility")
+		fmt.Fprintf(os.Stderr, "olcRTC: session failed: %v\n", err)
 		return 1
 	}
 	return 0

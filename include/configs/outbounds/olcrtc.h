@@ -17,8 +17,15 @@ public:
     SecurityInfo GetSecurity() override { return {"XChaCha20-Poly1305", "WebRTC", SecurityLevel::Secure}; }
     QString Validate() const;
     QString Prepare();
-    BuildResult Build() override { auto r = extracore::Build(); r.object["network"] = "tcp"; return r; }
+    BuildResult Build() override {
+        auto r = extracore::Build(); r.object["network"] = "tcp";
+        // The helper's loopback listener accepts only this launch's credentials.
+        if (!bridgeAuth.isEmpty()) { r.object["version"] = "5"; r.object["username"] = bridgeAuth; r.object["password"] = bridgeAuth; }
+        return r;
+    }
     bool SupportsCredentialStrip() const override { return true; }
     void StripCredentials() override { key.clear(); token.clear(); }
+private:
+    QString bridgeAuth;
 };
 }

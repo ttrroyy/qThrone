@@ -2,11 +2,44 @@ package rpc
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"testing"
 	"time"
 )
+
+func TestQWDTTPingWaitsForItsDeviceUntilCancelled(t *testing.T) {
+	config := `{"peer":"example.invalid:56000","device_id":"ping-budget-test"}`
+	key, valid := qwdttSessionKey(config)
+	if !valid {
+		t.Fatal("invalid fixture")
+	}
+	pingKey := sha256.Sum256(append([]byte("qwdtt native ping\x00"), key[:]...))
+	release, err := acquireQWDTTProbe(context.Background(), pingKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	// A short HTTP timeout no longer fails a ping queued behind its device's previous one.
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err = runQWDTTPing(ctx, config, 50*time.Millisecond)
+	if err == nil || time.Since(start) < 250*time.Millisecond || time.Since(start) > 2*time.Second {
+		t.Fatalf("queued ping did not wait for its device or ignored cancellation: %v", err)
+	}
+}
+
+func TestQWDTTDeviceSessionsAreKeyedByServer(t *testing.T) {
+	raw, _ := qwdttSessionKey(`{"peer":"Server.example:56003","device_id":"device"}`)
+	wg, _ := qwdttSessionKey(`{"peer":"server.example:56000","device_id":"device"}`)
+	other, _ := qwdttSessionKey(`{"peer":"server.example:56000","device_id":"other"}`)
+	csqtt, _ := qwdttSessionKey(`{"backend":"csqtt","peer":"server.example:46000","device_id":"device"}`)
+	if raw != wg || raw == other || raw == csqtt {
+		t.Fatal("device sessions are not keyed by server and device")
+	}
+}
 
 func TestQWDTTPingBackendSelection(t *testing.T) {
 	for _, c := range []string{`{"peer":"server:1"}`, `{"backend":""}`} {
@@ -22,6 +55,13 @@ func TestQWDTTPingBackendSelection(t *testing.T) {
 }
 
 func TestQWDTTPingOutput(t *testing.T) {
+	for input, want := range map[string]string{"PING_ERROR|VK authorization: private-token\n": "VK authorization failed", "PING_ERROR|TURN/DTLS: private-endpoint\n": "TURN/DTLS server probe failed"} {
+		var failure qwdttPingOutput
+		failure.write([]byte(input))
+		if !failure.failed || failure.failureReason != want {
+			t.Fatal("ping failure stage not sanitized")
+		}
+	}
 	var p qwdttPingOutput
 	for _, chunk := range []string{"startup\nPING_RES", "ULT|12", "3\r\nshutdown\n"} {
 		p.write([]byte(chunk))

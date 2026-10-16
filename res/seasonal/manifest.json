@@ -15,6 +15,14 @@
       "columns": 8,
       "frames": 360,
       "interval": 50
+    },
+    "narrow": {
+      "file": "halloween-narrow.png",
+      "width": 96,
+      "height": 92,
+      "columns": 8,
+      "frames": 360,
+      "interval": 50
     }
   },
   "newyear": {
@@ -33,128 +41,10 @@
       "columns": 8,
       "frames": 480,
       "interval": 50
-    }
-  },
-  "remembrance": {
-    "wide": {
-      "file": "remembrance-wide.png",
-      "width": 272,
-      "height": 92,
-      "columns": 8,
-      "frames": 600,
-      "interval": 50
     },
-    "compact": {
-      "file": "remembrance-compact.png",
-      "width": 184,
-      "height": 92,
-      "columns": 8,
-      "frames": 600,
-      "interval": 50
-    }
-  },
-  "may_remembrance": {
-    "wide": {
-      "file": "may_remembrance-wide.png",
-      "width": 272,
-      "height": 92,
-      "columns": 8,
-      "frames": 480,
-      "interval": 50
-    },
-    "compact": {
-      "file": "may_remembrance-compact.png",
-      "width": 184,
-      "height": 92,
-      "columns": 8,
-      "frames": 480,
-      "interval": 50
-    }
-  },
-  "kupala": {
-    "wide": {
-      "file": "kupala-wide.png",
-      "width": 272,
-      "height": 92,
-      "columns": 8,
-      "frames": 480,
-      "interval": 50
-    },
-    "compact": {
-      "file": "kupala-compact.png",
-      "width": 184,
-      "height": 92,
-      "columns": 8,
-      "frames": 480,
-      "interval": 50
-    }
-  },
-  "patrick": {
-    "wide": {
-      "file": "patrick-wide.png",
-      "width": 272,
-      "height": 92,
-      "columns": 8,
-      "frames": 480,
-      "interval": 50
-    },
-    "compact": {
-      "file": "patrick-compact.png",
-      "width": 184,
-      "height": 92,
-      "columns": 8,
-      "frames": 480,
-      "interval": 50
-    }
-  },
-  "valentine": {
-    "wide": {
-      "file": "valentine-wide.png",
-      "width": 272,
-      "height": 92,
-      "columns": 8,
-      "frames": 480,
-      "interval": 50
-    },
-    "compact": {
-      "file": "valentine-compact.png",
-      "width": 184,
-      "height": 92,
-      "columns": 8,
-      "frames": 480,
-      "interval": 50
-    }
-  },
-  "maslenitsa": {
-    "wide": {
-      "file": "maslenitsa-wide.png",
-      "width": 272,
-      "height": 92,
-      "columns": 8,
-      "frames": 480,
-      "interval": 50
-    },
-    "compact": {
-      "file": "maslenitsa-compact.png",
-      "width": 184,
-      "height": 92,
-      "columns": 8,
-      "frames": 480,
-      "interval": 50
-    }
-  },
-  "christmas": {
-    "wide": {
-      "file": "christmas-wide.png",
-      "width": 272,
-      "height": 92,
-      "columns": 8,
-      "frames": 480,
-      "interval": 50
-    },
-    "compact": {
-      "file": "christmas-compact.png",
-      "width": 184,
+    "narrow": {
+      "file": "newyear-narrow.png",
+      "width": 96,
       "height": 92,
       "columns": 8,
       "frames": 480,
@@ -177,11 +67,19 @@
       "columns": 8,
       "frames": 480,
       "interval": 50
+    },
+    "narrow": {
+      "file": "easter-narrow.png",
+      "width": 96,
+      "height": 92,
+      "columns": 8,
+      "frames": 480,
+      "interval": 50
     }
   },
-  "spring": {
+  "kupala": {
     "wide": {
-      "file": "spring-wide.png",
+      "file": "kupala-wide.png",
       "width": 272,
       "height": 92,
       "columns": 8,
@@ -189,26 +87,16 @@
       "interval": 50
     },
     "compact": {
-      "file": "spring-compact.png",
+      "file": "kupala-compact.png",
       "width": 184,
-      "height": 92,
-      "columns": 8,
-      "frames": 480,
-      "interval": 50
-    }
-  },
-  "autumn": {
-    "wide": {
-      "file": "autumn-wide.png",
-      "width": 272,
       "height": 92,
       "columns": 8,
       "frames": 480,
       "interval": 50
     },
-    "compact": {
-      "file": "autumn-compact.png",
-      "width": 184,
+    "narrow": {
+      "file": "kupala-narrow.png",
+      "width": 96,
       "height": 92,
       "columns": 8,
       "frames": 480,

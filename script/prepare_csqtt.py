@@ -33,6 +33,15 @@ new = r'''let mut args: Vec<String> = std::env::args().map(normalize_cli_argumen
         if let Some(workers) = config["workers"].as_u64() {
             args.extend(["--workers".to_owned(), workers.to_string()]);
         }
+        // The session epoch the original app gives every launch (written by the qWDTT bridge).
+        if let Some(generation) = config["generation"].as_u64() {
+            args.extend(["--gen".to_owned(), generation.to_string()]);
+        }
+        if let Some(salt) = config["salt"].as_str() {
+            args.push(format!("--salt={salt}"));
+        }
+        // The original Android app's TLS profile for VK requests.
+        args.push("--fingerprint=firefox".to_owned());
         args.extend(["--turn-transport".to_owned(),
             if config["turn_tcp"].as_bool().unwrap_or(false) { "tcp" } else { "udp" }.to_owned()]);
     }

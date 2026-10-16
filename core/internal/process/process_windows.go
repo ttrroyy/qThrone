@@ -18,7 +18,8 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-// exec.Cmd+SysProcAttr.Token routes through CreateProcessAsUser, needing SeAssignPrimaryTokenPrivilege that elevated admins lack; CreateProcessWithTokenW needs only SeImpersonatePrivilege (#1482).
+// Normal linked/session tokens use CreateProcessWithTokenW. A restricted version
+// of our own token prefers CreateProcessAsUser with a restricted-token fallback.
 func startChild(path string, args []string, noOut bool, input *os.File, observers ...func([]byte)) (running, error) {
 	self, err := selfToken()
 	if err != nil {
@@ -30,13 +31,42 @@ func startChild(path string, args []string, noOut bool, input *os.File, observer
 		return startCmd(newCmd(path, args, noOut, input, observers...))
 	}
 
-	tok, err := unprivilegedToken(self)
+	tok, source, err := unprivilegedToken(self)
 	if err != nil {
 		return nil, fmt.Errorf("refusing to start extra process: cannot obtain an unprivileged user token: %w", err)
 	}
 	defer tok.Close()
 
+	if source == "restricted self token" {
+		return startRestrictedSelf(path, args, noOut, tok, input, observers...)
+	}
 	return startWithToken(path, args, noOut, tok, input, observers...)
+}
+
+// Restricted self tokens do not require SeAssignPrimaryTokenPrivilege, but
+// CreateProcessAsUser can still require SeIncreaseQuotaPrivilege. Use the same
+// restricted token with Secondary Logon when that privilege is unavailable.
+func startRestrictedSelf(path string, args []string, noOut bool, tok windows.Token, input *os.File, observers ...func([]byte)) (running, error) {
+	return startRestrictedWithFallback(
+		func() (running, error) { return startAsUser(path, args, noOut, tok, input, observers...) },
+		func() (running, error) { return startWithTokenW(path, args, noOut, tok, input, observers...) },
+	)
+}
+
+func startRestrictedWithFallback(native, secondary func() (running, error)) (running, error) {
+	run, err := native()
+	if err == nil {
+		return run, nil
+	}
+	if !errors.Is(err, windows.ERROR_PRIVILEGE_NOT_HELD) {
+		return nil, fmt.Errorf("restricted-token CreateProcessAsUser: %w", err)
+	}
+	log.Printf("%s: CreateProcessAsUser lacks a required privilege; trying the same restricted token with CreateProcessWithTokenW", extraCorePrefix)
+	run, fallbackErr := secondary()
+	if fallbackErr != nil {
+		return nil, errors.Join(fmt.Errorf("restricted-token CreateProcessAsUser: %w", err), fmt.Errorf("restricted-token CreateProcessWithTokenW: %w", fallbackErr))
+	}
+	return run, nil
 }
 
 // CreateProcessWithTokenW is served by the Secondary Logon service, which some systems disable; CreateProcessAsUser then still works for a Core running as SYSTEM.
@@ -45,17 +75,17 @@ func startWithToken(path string, args []string, noOut bool, tok windows.Token, i
 	if err == nil {
 		return run, nil
 	}
-	cmd := newCmd(path, args, noOut, input, observers...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Token:         syscall.Token(tok),
-		HideWindow:    true,
-		CreationFlags: windows.CREATE_NO_WINDOW,
-	}
-	run, asUserErr := startCmd(cmd)
+	run, asUserErr := startAsUser(path, args, noOut, tok, input, observers...)
 	if asUserErr != nil {
 		return nil, errors.Join(err, fmt.Errorf("CreateProcessAsUser: %w", asUserErr))
 	}
 	return run, nil
+}
+
+func startAsUser(path string, args []string, noOut bool, tok windows.Token, input *os.File, observers ...func([]byte)) (running, error) {
+	cmd := newCmd(path, args, noOut, input, observers...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Token: syscall.Token(tok), HideWindow: true, CreationFlags: windows.CREATE_NO_WINDOW}
+	return startCmd(cmd)
 }
 
 var procCreateProcessWithTokenW = windows.NewLazySystemDLL("advapi32.dll").NewProc("CreateProcessWithTokenW")
@@ -173,6 +203,13 @@ func (t *tokenRunner) Wait() error {
 		return nil
 	}
 	_, err := windows.WaitForSingleObject(h, windows.INFINITE)
+	var exitCode uint32
+	if err == nil {
+		err = windows.GetExitCodeProcess(h, &exitCode)
+		if err == nil && exitCode != 0 {
+			err = fmt.Errorf("child process exited with Windows status 0x%08x", exitCode)
+		}
+	}
 	<-t.done
 	<-t.done
 	t.mu.Lock()
@@ -244,17 +281,17 @@ var tokenSources = []tokenSource{
 	{"restricted self token", restrictedSelfToken},
 }
 
-func unprivilegedToken(self windows.Token) (windows.Token, error) {
+func unprivilegedToken(self windows.Token) (windows.Token, string, error) {
 	var errs []error
 	for _, src := range tokenSources {
 		tok, err := src.get(self)
 		if err == nil {
 			log.Printf("%s: dropping privileges via %s", extraCorePrefix, src.name)
-			return tok, nil
+			return tok, src.name, nil
 		}
 		errs = append(errs, fmt.Errorf("%s: %w", src.name, err))
 	}
-	return 0, errors.Join(errs...)
+	return 0, "", errors.Join(errs...)
 }
 
 func linkedToken(self windows.Token) (windows.Token, error) {

@@ -33,6 +33,14 @@ QString normalizedMode(const QString &m) {
 }
 
 namespace Configs {
+QString qwdtt::NativePingConfig(const QString &transportConfig) const {
+    auto config = QJsonDocument::fromJson(transportConfig.toUtf8()).object();
+    config["peer"] = peerString(server, server_port);
+    config["mode"] = "wg";
+    config["probe_only"] = true;
+    config["interactive_captcha"] = false;
+    return QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact));
+}
 qwdtt::qwdtt() {
     server_port = 56000; socksPort = 0; deviceID = RelayDeviceID();
     if (dataManager) { const auto *settings = dataManager->settingsRepo.get(); hashSource = settings->vk_relay_linked ? settings->qwdtt_hash_source : "manual"; autoHashCount = qBound(1, settings->qwdtt_auto_hash_count, 4); }

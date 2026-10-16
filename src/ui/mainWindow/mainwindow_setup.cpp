@@ -1,6 +1,7 @@
 #include <QAbstractTextDocumentLayout>
 #include <QTextDocument>
 #include <QtMath>
+#include "include/ui/utils/TestResultDelegate.hpp"
 #include "include/ui/mainwindow.h"
 #include "NkrVersion.h"
 
@@ -12,6 +13,7 @@
 #include "include/ui/mainWindow/TestRunner.h"
 
 #include <QMenu>
+#include "include/ui/setting/dialog_basic_settings.h"
 
 #include "include/configs/sub/GroupUpdater.hpp"
 #include "include/configs/sub/RouteUpdater.hpp"
@@ -346,6 +348,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     ui->toolButton_routing->setMenu(ui->menuRouting_Menu);
     ui->toolButton_testing->setMenu(ui->menuTesting);
     ui->toolButton_tools->setMenu(ui->menuTools);
+    ui->menuTools->addSeparator();
+    auto restoreDefaults = ui->menuTools->addAction(tr("Восстановить настройки по умолчанию"));
+    connect(restoreDefaults, &QAction::triggered, this, [this] {
+        DialogBasicSettings::RestoreDefaultsWithConfirmation(this);
+    });
     ui->toolButton_program->installEventFilter(this);
 
     ui->tabWidget->setMinimumHeight(100);
@@ -439,6 +446,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     profilesFilterModel = new ProfilesFilterProxyModel(this);
     profilesFilterModel->setSourceModel(profilesTableModel);
     ui->profilesTableView->setModel(profilesFilterModel);
+    ui->profilesTableView->setItemDelegateForColumn(ProfilesTableModel::ColTestResult, new TestResultDelegate(ui->profilesTableView));
     connect(ui->profilesTableView->selectionModel(), &QItemSelectionModel::selectionChanged, this,
             [this] { refresh_startstop_button(); });
     ui->profilesTableView->rowsSwapped = [this](int row1, int row2)

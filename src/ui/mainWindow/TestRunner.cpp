@@ -4,9 +4,11 @@
 
 #include "include/api/RPC.h"
 #include "include/configs/generate.h"
+#include "include/configs/outbounds/qwdtt.h"
 #include "include/database/GroupsRepo.h"
 #include "include/database/ProfilesRepo.h"
 #include "include/stats/traffic/TrafficStatsManager.hpp"
+#include "include/ui/utils/ProfilesTableModel.h"
 
 #include <QSemaphore>
 #include <QJsonDocument>
@@ -134,7 +136,7 @@ void TestRunner::applyUrlResult(const std::shared_ptr<Configs::Profile>& ent, co
     } else if (isTestAborted(error)) {
         ent->SetLatency(0);
     } else if (error.startsWith("qWDTT test not started:")) {
-        ent->SetLatency(0);
+        ent->SetLatency(error.contains("skipped:") ? 0 : -1);
         MW_show_log(MainWindow::tr("[%1] test error: %2").arg(ent->outbound->DisplayTypeAndName(), error));
     } else if (vpnConnected != nullptr && isVpnProfile(ent)
                && vpnConnected->value(QString::fromStdString(res.outbound_tag.value()), false)) {
@@ -144,6 +146,7 @@ void TestRunner::applyUrlResult(const std::shared_ptr<Configs::Profile>& ent, co
         MW_show_log(MainWindow::tr("[%1] test error: %2").arg(ent->outbound->DisplayTypeAndName(), error));
     }
     Configs::dataManager->profilesRepo->Save(ent);
+    runOnUiThread([this, id = ent->id] { mw_->profilesTableModel->setTestState({id}, 0); });
 }
 
 void TestRunner::applyIpResult(const std::shared_ptr<Configs::Profile>& ent, const libcore::IPTestRes& res) {
@@ -209,11 +212,21 @@ void TestRunner::runUrlProbe(const Target& target) {
             runOnUiThread([=, this] { mw_->refresh_proxy_list(updated); });
         }, kLatencyPollIntervalMs);
 
-        result = defaultClient->Test(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 2) + (target.qwdttConfig.isEmpty() ? 0 : 210000));
+        result = defaultClient->Test(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 2) + (target.qwdttConfig.isEmpty() ? 0 : 330000));
     }
 
     if (!rpcOK || result.results.empty()) {
         if (!rpcOK) mw_->handleXrayGeoAssetError(coreError, contextName(target.entID));
+        const auto error = stopRequested_.load() ? QStringLiteral("test aborted") :
+            (coreError.isEmpty() ? QStringLiteral("HTTP test returned no result or exceeded its deadline") : coreError);
+        for (auto it = target.tag2entID.cbegin(); it != target.tag2entID.cend(); ++it) {
+            if (auto ent = Configs::dataManager->profilesRepo->GetProfile(it.value())) {
+                libcore::URLTestResp failed;
+                failed.outbound_tag = it.key().toStdString(); failed.latency_ms = 0;
+                failed.error = error.toStdString();
+                applyUrlResult(ent, failed);
+            }
+        }
         return;
     }
 
@@ -282,7 +295,7 @@ void TestRunner::runIpProbe(const Target& target) {
             runOnUiThread([=, this] { mw_->refresh_proxy_list(updated); });
         }, kLatencyPollIntervalMs);
 
-        result = defaultClient->IPTest(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 1) + (target.qwdttConfig.isEmpty() ? 0 : 210000));
+        result = defaultClient->IPTest(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 1) + (target.qwdttConfig.isEmpty() ? 0 : 330000));
     }
 
     if (!rpcOK || result.results.empty()) {
@@ -351,11 +364,13 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
     // Reset here, not on the worker: a stop() that lands before the worker runs must still count.
     stopRequested_.store(false);
 
-    runOnNewThread([this, profileIDs, panelKind, isUrl, finish, interactive]() {
+    if (isUrl) runOnUiThread([this, profileIDs] { mw_->profilesTableModel->setTestState(profileIDs, 1); });
+
+    runOnNewThread([this, profileIDs, panelKind, isUrl, finish]() {
         mw_->dataViewHtmlGenerator_.seedLatencyTest(panelKind, profileIDs.size());
         mw_->UpdateDataView(true);
 
-        auto runBatch = [this, isUrl, interactive](const QList<std::shared_ptr<Configs::Profile>>& profileSlice, const QList<int>& ids) {
+        auto runBatch = [this, isUrl](const QList<std::shared_ptr<Configs::Profile>>& profileSlice, const QList<int>& ids) {
             // Per batch, not per probe: a batch's probes drain each other's results, and tags restart each batch.
             sessionGen_.fetch_add(1);
             auto buildObject = Configs::BuildTestConfig(profileSlice);
@@ -369,7 +384,8 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
 
             QSemaphore batchDone;
             const auto probe = [this, isUrl, &batchDone](const Target& target) {
-                mw_->parallelCoreCallPool->start([this, isUrl, target, &batchDone] {
+                auto *pool = target.qwdttConfig.isEmpty() ? mw_->parallelCoreCallPool : &nativeProbePool_;
+                pool->start([this, isUrl, target, &batchDone] {
                     const QSemaphoreReleaser releaser(batchDone);
                     if (isUrl) runUrlProbe(target);
                     else runIpProbe(target);
@@ -383,9 +399,18 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
                 target.useDefaultOutbound = true;
                 target.entID = entID;
                 target.qwdttConfig = buildObject->qwdttConfigs.value(entID);
-                if (isUrl && interactive && !target.qwdttConfig.isEmpty()) {
+                if (isUrl && !target.qwdttConfig.isEmpty()) {
                     auto config = QJsonDocument::fromJson(target.qwdttConfig.toUtf8()).object();
-                    config.insert("interactive_captcha", true);
+                    // qWDTT is pinged by one TURN/DTLS handshake with the server's DTLS port, also in RAW mode.
+                    const auto profile = Configs::dataManager->profilesRepo->GetProfile(entID);
+                    if (profile && profile->type == "qwdtt") {
+                        if (const auto native = std::dynamic_pointer_cast<Configs::qwdtt>(profile->outbound)) {
+                            config = QJsonDocument::fromJson(native->NativePingConfig(target.qwdttConfig).toUtf8()).object();
+                        }
+                    }
+                    // URL checks keep automatic captcha retries, without blocking the batch on a manual window.
+                    config.insert("interactive_captcha", false);
+                    config.insert("latency_probe", true);
                     target.qwdttConfig = QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact));
                 }
                 target.testCurrent = !target.qwdttConfig.isEmpty() && mw_->running && mw_->running->id == entID;
@@ -422,8 +447,10 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
             runBatch(profiles, profileIDsSlice);
         }
 
+        sessionGen_.fetch_add(1);
         mw_->dataViewHtmlGenerator_.clearTestSections();
         mw_->UpdateDataView(true);
+        runOnUiThread([this, profileIDs] { mw_->profilesTableModel->setTestState(profileIDs, 0); }, true);
         session_.unlock();
         finish();
 
@@ -459,8 +486,10 @@ bool TestRunner::runSpeedTests(const QList<int>& requestedIDs, bool testCurrent,
     stopRequested_.store(false);
 
     testingCurrent_.store(testCurrent);
+    const QList<int> speedIDs = testCurrent && mw_->running ? QList<int>{mw_->running->id} : profileIDs;
+    runOnUiThread([this, speedIDs] { mw_->profilesTableModel->setTestState(speedIDs, 2); });
 
-    runOnNewThread([this, profileIDs, testCurrent, finish]() {
+    runOnNewThread([this, profileIDs, speedIDs, testCurrent, finish]() {
         { QMutexLocker lk(&creditMu_); credited_.clear(); }
         if (!testCurrent)
         {
@@ -510,8 +539,10 @@ bool TestRunner::runSpeedTests(const QList<int>& requestedIDs, bool testCurrent,
             runSpeedProbe(target);
             testingCurrent_.store(false);
         }
+        sessionGen_.fetch_add(1);
         mw_->dataViewHtmlGenerator_.clearTestSections();
         mw_->UpdateDataView(true);
+        runOnUiThread([this, speedIDs] { mw_->profilesTableModel->setTestState(speedIDs, 0); }, true);
         session_.unlock();
         finish();
         runOnUiThread([=,this]{
@@ -560,8 +591,16 @@ void TestRunner::pollSpeedTest(const QMap<QString, int>& tag2entID, bool testCur
         return;
     }
     creditTraffic(profile, tag, result.ul_bytes.value(), result.dl_bytes.value());
-    runOnUiThread([this, profile, result]
+    runOnUiThread([this, profile, result, gen]
     {
+        if (staleGen(gen)) return;
+        const auto country = CountryNameToCode(QString::fromStdString(result.server_country.value()));
+        QString liveText = profile->latency > 0 ? QString("%1 ms ").arg(profile->latency) : QString();
+        if (!country.isEmpty()) liveText += CountryCodeToFlag(country);
+        if (!result.dl_speed.value().empty()) liveText += " ↓" + QString::fromStdString(result.dl_speed.value());
+        if (!result.ul_speed.value().empty()) liveText += " ↑" + QString::fromStdString(result.ul_speed.value());
+        const bool measuring = !result.server_name.value().empty() || !result.dl_speed.value().empty() || !result.ul_speed.value().empty();
+        mw_->profilesTableModel->setTestState({profile->id}, 2, country.isEmpty() && measuring ? QStringLiteral("unknown") : country, liveText);
         mw_->dataViewHtmlGenerator_.setSpeedtestProgress(profile->outbound->name, result);
         mw_->UpdateDataView();
 
@@ -689,5 +728,6 @@ void TestRunner::runSpeedProbe(const Target& target)
             MW_show_log(MainWindow::tr("[%1] speed test error: %2").arg(ent->outbound->DisplayTypeAndName(), error));
         }
         Configs::dataManager->profilesRepo->Save(ent);
+        runOnUiThread([this, entid] { mw_->profilesTableModel->setTestState({entid}, 0); });
     }
 }

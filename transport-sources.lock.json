@@ -5,9 +5,9 @@
     "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.1.2/olcrtc-f3ad8fb7c0d0.bundle"
   },
   "https://github.com/p1neappleXpress/OpenFlux.git": {
-    "revision": "74cac6d47bf4c27947348ee957538a2c0728a485",
-    "sha256": "5073d7d6bec600e4f68b82df82ac7af88bcdde96bcc2238d5d7ccfe9d1775430",
-    "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.1.2/openflux-74cac6d47bf4.bundle"
+    "revision": "edcf77a1848a72370cfba9f346d3b897b61e7e7d",
+    "sha256": "3ea49db7d2309cf230e2b432d7d762a51a57d0f5a9bd4bf900093e37c4614294",
+    "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.3.6/openflux-edcf77a1848a.bundle"
   },
   "https://github.com/amurcanov/csqtt.git": {
     "revision": "71712b07dbabe16fa43f5a248dc69e1ab9f3a270",

@@ -17,6 +17,8 @@ public:
 
     ~DialogBasicSettings();
 
+    static bool RestoreDefaultsWithConfirmation(QWidget *parent);
+
 public slots:
 
     void accept();
