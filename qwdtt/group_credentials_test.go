@@ -42,3 +42,16 @@ func TestConfigGroupStopsFallbackOnCancellation(t *testing.T) {
 		t.Fatalf("cancellation: calls=%d err=%v", calls, err)
 	}
 }
+
+func TestConfigGroupDoesNotMultiplyCaptchaOrNetworkFailures(t *testing.T) {
+	for _, failure := range []error{errors.New("CAPTCHA_WAIT_REQUIRED"), errors.New("network timeout")} {
+		calls := 0
+		_, _, _, _, err := fetchGroupCredentials(context.Background(), []string{"first", "second", "third"}, 0, 100, true, func(context.Context, string, int) (string, string, []string, error) {
+			calls++
+			return "", "", nil, failure
+		})
+		if err != failure || calls != 1 {
+			t.Fatal("non-call failure triggered extra VK hash requests")
+		}
+	}
+}

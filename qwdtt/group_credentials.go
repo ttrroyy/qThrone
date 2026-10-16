@@ -27,6 +27,11 @@ func fetchGroupCredentials(ctx context.Context, hashes []string, start, stream i
 		if err == nil {
 			return user, pass, urls, hash, nil
 		}
+		// Only a dead call/link justifies switching hashes. A captcha or network
+		// failure keeps the native retry chain and must not multiply VK requests.
+		if _, unavailable := asCallUnavailableError(err); !unavailable {
+			return "", "", nil, "", err
+		}
 		last = err
 		if i+1 < attempts {
 			log.Printf("[qWDTT] VK authorization failed for hash slot %d; trying the next configured hash", (start+i)%len(hashes)+1)
