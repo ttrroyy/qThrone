@@ -136,7 +136,7 @@ void TestRunner::applyUrlResult(const std::shared_ptr<Configs::Profile>& ent, co
     } else if (isTestAborted(error)) {
         ent->SetLatency(0);
     } else if (error.startsWith("qWDTT test not started:")) {
-        ent->SetLatency(0);
+        ent->SetLatency(error.contains("skipped:") ? 0 : -1);
         MW_show_log(MainWindow::tr("[%1] test error: %2").arg(ent->outbound->DisplayTypeAndName(), error));
     } else if (vpnConnected != nullptr && isVpnProfile(ent)
                && vpnConnected->value(QString::fromStdString(res.outbound_tag.value()), false)) {
@@ -217,6 +217,16 @@ void TestRunner::runUrlProbe(const Target& target) {
 
     if (!rpcOK || result.results.empty()) {
         if (!rpcOK) mw_->handleXrayGeoAssetError(coreError, contextName(target.entID));
+        const auto error = stopRequested_.load() ? QStringLiteral("test aborted") :
+            (coreError.isEmpty() ? QStringLiteral("HTTP test returned no result or exceeded its deadline") : coreError);
+        for (auto it = target.tag2entID.cbegin(); it != target.tag2entID.cend(); ++it) {
+            if (auto ent = Configs::dataManager->profilesRepo->GetProfile(it.value())) {
+                libcore::URLTestResp failed;
+                failed.outbound_tag = it.key().toStdString(); failed.latency_ms = 0;
+                failed.error = error.toStdString();
+                applyUrlResult(ent, failed);
+            }
+        }
         return;
     }
 
@@ -374,7 +384,8 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
 
             QSemaphore batchDone;
             const auto probe = [this, isUrl, &batchDone](const Target& target) {
-                mw_->parallelCoreCallPool->start([this, isUrl, target, &batchDone] {
+                auto *pool = target.qwdttConfig.isEmpty() ? mw_->parallelCoreCallPool : &nativeProbePool_;
+                pool->start([this, isUrl, target, &batchDone] {
                     const QSemaphoreReleaser releaser(batchDone);
                     if (isUrl) runUrlProbe(target);
                     else runIpProbe(target);

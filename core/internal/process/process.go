@@ -92,7 +92,9 @@ func (p *Process) Start() error {
 			defer p.stdin.Close()
 		}
 		fmt.Println(p.path, ":", "process started, waiting for it to end")
-		_ = p.run.Wait()
+		if err := p.run.Wait(); err != nil && !p.stopped.Load() {
+			fmt.Println(extraCorePrefix+":", err)
+		}
 		if !p.stopped.Load() {
 			if p.backgroundProbe {
 				fmt.Println("Background probe process exited")

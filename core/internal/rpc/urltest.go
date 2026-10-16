@@ -11,7 +11,16 @@ import (
 )
 
 func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, error) {
-	env, err := prepareTestEnv(in.GetTestCurrent(), in.GetNeedXray(), in.GetXrayConfig(),
+	// Each RPC owns a deadline/cancellation scope. Expiring one native probe
+	// must not cancel sibling requests or leave a helper running after its caller.
+	parent, cancel := context.WithCancel(probe.TestContext())
+	defer cancel()
+	stopRPC := context.AfterFunc(ctx, cancel)
+	defer stopRPC()
+	total := urlProbeBudget(in)
+	parent, finish := context.WithTimeout(parent, total)
+	defer finish()
+	env, err := prepareTestEnvContext(parent, in.GetTestCurrent(), in.GetNeedXray(), in.GetXrayConfig(),
 		in.XrayFullConfigs, in.GetConfig(), in.OutboundTags, in.GetUseDefaultOutbound(),
 		in.GetXrayOutboundDnsStrategy(), in.GetQwdttConfig())
 	if err != nil {
@@ -85,6 +94,24 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 		out.VpnStatus = collectVPNStatus(testCtx, env.box, pending, 0)
 	}
 	return out, nil
+}
+
+func urlProbeBudget(in *gen.TestReq) time.Duration {
+	timeout := time.Duration(in.GetTestTimeoutMs()) * time.Millisecond
+	if timeout <= 0 {
+		timeout = probe.URLTestTimeout
+	}
+	concurrency := int(in.GetMaxConcurrency())
+	if concurrency <= 0 || concurrency >= 500 {
+		concurrency = 100
+	}
+	count := max(1, len(in.OutboundTags))
+	rounds := (count + concurrency - 1) / concurrency
+	budget := 30*time.Second + time.Duration(rounds)*(2*timeout+probe.TunnelHandshakeTimeout+probe.TunnelStartupTimeout)
+	if in.GetQwdttConfig() != "" {
+		budget += 5 * time.Minute
+	}
+	return budget
 }
 
 func (s *server) StopTest(ctx context.Context, in *gen.EmptyReq) (*gen.EmptyResp, error) {

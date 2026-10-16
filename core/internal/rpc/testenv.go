@@ -36,8 +36,12 @@ func prepareTestEnv(current bool, needXray bool, xrayConfig string, xrayFullConf
 	coreConfig string, tags []string, useDefaultOutbound bool,
 	xrayDNSStrategy string, qwdttConfig ...string) (*testEnv, error) {
 
+	return prepareTestEnvContext(probe.TestContext(), current, needXray, xrayConfig, xrayFullConfigs, coreConfig, tags, useDefaultOutbound, xrayDNSStrategy, qwdttConfig...)
+}
+
+func prepareTestEnvContext(testCtx context.Context, current bool, needXray bool, xrayConfig string, xrayFullConfigs []string,
+	coreConfig string, tags []string, useDefaultOutbound bool, xrayDNSStrategy string, qwdttConfig ...string) (*testEnv, error) {
 	// Owned here, not by the caller: this builds the probe box the Xray instances below resolve through.
-	testCtx := probe.TestContext()
 	var boxCtx boxContextHolder
 	prepareXray := xrayPreparer(xrayDNSStrategy, boxCtx.get)
 

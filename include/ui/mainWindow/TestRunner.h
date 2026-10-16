@@ -4,6 +4,7 @@
 #include <QList>
 #include <QMap>
 #include <QMutex>
+#include <QThreadPool>
 #include <QPair>
 #include <QString>
 #include <QStringList>
@@ -23,7 +24,9 @@ class MainWindow;
 // Not a QObject: queued signals would reorder the synchronous progress path.
 class TestRunner {
 public:
-    explicit TestRunner(MainWindow* mw) : mw_(mw) {}
+    explicit TestRunner(MainWindow* mw) : mw_(mw) {
+        nativeProbePool_.setMaxThreadCount(3);
+    }
 
     TestRunner(const TestRunner&) = delete;
     TestRunner& operator=(const TestRunner&) = delete;
@@ -102,4 +105,6 @@ private:
     // Tests bypass the clash tracker, so their bytes are counted only here, diffed per tag.
     QMutex creditMu_;
     QHash<QString, QPair<qint64, qint64>> credited_;
+    // Destroyed first: wait for native workers before their owner state disappears.
+    QThreadPool nativeProbePool_;
 };

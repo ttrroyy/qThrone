@@ -5,6 +5,7 @@
 #include <QSpinBox>
 #include <QWidget>
 #include <array>
+#include <QSet>
 class QFormLayout;
 class QProcess;
 class QLabel;
@@ -36,7 +37,10 @@ class EditQWDTT : public QWidget, public ProfileEditor {
     QString hashCheckFailure;
     QList<int> checkingSlots;
     bool hashCheckStopped = false;
+    QSet<int> completedHashChecks;
+    int activeCheckingSlot = -1;
     void stopHashCheck();
+    void consumeHashCheckOutput();
     QSpinBox *rawPort;
     QComboBox *workers;
     void updateWorkers(int requested = -1);

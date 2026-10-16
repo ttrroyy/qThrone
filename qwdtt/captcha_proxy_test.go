@@ -119,3 +119,18 @@ func TestAutomaticCaptchaBrowserExitDoesNotCancelTunnel(t *testing.T) {
 		t.Fatal("automatic browser failure cancelled the tunnel instead of allowing fallback")
 	}
 }
+
+func TestCaptchaHonorsHashAuthorizationDeadline(t *testing.T) {
+	oldBridge, oldContext, oldSolver := desktopBridgeMode, bridgeContext, desktopCaptchaSolver
+	defer func() { desktopBridgeMode, bridgeContext, desktopCaptchaSolver = oldBridge, oldContext, oldSolver }()
+	desktopBridgeMode = true
+	bridgeContext = context.Background()
+	desktopCaptchaSolver = func(ctx context.Context, _ string, _ bool) (string, error) { <-ctx.Done(); return "", ctx.Err() }
+	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	_, err := requestWebViewCaptcha(1, &VkCaptchaError{RedirectURI: "https://id.vk.ru/captcha"}, "auto", time.Second, ctx)
+	if err != context.DeadlineExceeded || time.Since(start) > time.Second {
+		t.Fatalf("captcha ignored hash/probe deadline: %v", err)
+	}
+}

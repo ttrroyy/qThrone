@@ -160,6 +160,11 @@ func startExtraSessions(ctx context.Context, in *gen.LoadConfigReq) (err error) 
 		if e := session.child.Start(); e != nil {
 			return e
 		}
+		if session.transport && strings.TrimSuffix(strings.ToLower(filepath.Base(spec.GetPath())), ".exe") == "qwdtt" {
+			if e := waitTransportReady(ctx, spec.GetConfig(), session.child.Done()); e != nil {
+				return fmt.Errorf("transport startup failed: %w", e)
+			}
+		}
 	}
 	return nil
 }

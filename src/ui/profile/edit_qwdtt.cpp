@@ -74,40 +74,26 @@ EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
         for (int slot : checkingSlots)
             if (hashStatus[slot]->text() == "Остановлено") hashStatus[slot]->setText("Время проверки истекло");
     });
-    connect(hashProcess, &QProcess::readyReadStandardOutput, this, [this] {
-        hashCheckOutput += hashProcess->readAllStandardOutput();
-        while (hashCheckOutput.contains('\n')) {
-            const auto end = hashCheckOutput.indexOf('\n');
-            const auto parts = QString::fromUtf8(hashCheckOutput.left(end)).trimmed().split('|');
-            hashCheckOutput.remove(0, end + 1);
-            if (hashCheckStopped || parts.size() < 3 ||
-                (parts[0] != "HASH_CHECK_START" && parts[0] != "HASH_CHECK")) continue;
-            const int order = parts[1].toInt() - 1;
-            if (order < 0 || order >= checkingSlots.size()) continue;
-            auto *label = hashStatus[checkingSlots[order]];
-            if (parts[0] == "HASH_CHECK_START") label->setText("Проверяется…");
-            else if (parts.size() >= 5) {
-                const QString status = parts[3] == "ok" ? "Работает" : parts[3] == "dead" ? "Закрыт" :
-                    parts[3] == "captcha" ? "Капча" : parts[3] == "limited" ? "Лимит VK" :
-                    parts[3] == "network" ? "Сетевая ошибка" : "Ошибка";
-                label->setText(status);
-                label->setToolTip(parts.mid(4).join('|'));
-            }
-        }
-    });
+    connect(hashProcess, &QProcess::readyReadStandardOutput, this, &EditQWDTT::consumeHashCheckOutput);
     // Diagnostic logs can contain URLs/captcha tokens; only structured results reach the UI.
     connect(hashProcess, &QProcess::readyReadStandardError, this, [this] {
         const auto text = QString::fromUtf8(hashProcess->readAllStandardError()).toLower();
+        if (activeCheckingSlot>=0 && !completedHashChecks.contains(activeCheckingSlot) && !hashCheckStopped &&
+            (text.contains("[captcha]") || text.contains("[капча]"))) {
+            hashStatus[activeCheckingSlot]->setText("Решается капча…");
+            hashStatus[activeCheckingSlot]->setToolTip("Авторизация VK ожидает завершения автоматического или ручного решения капчи.");
+        }
         if (text.contains("[check] config:")) hashCheckFailure = "Неверные параметры проверки";
         else if (text.contains("permission denied")) hashCheckFailure = "Нет доступа к файлам проверки";
         else if (text.contains("cannot load vk captcha") || text.contains("executable file not found")) hashCheckFailure = "Не удалось запустить браузер для капчи";
     });
     const auto finishedCheck = [this, timeout] {
+        consumeHashCheckOutput();
         timeout->stop();
         checkHashes->setText("Проверить хеши");
         checkHashes->setEnabled(true);
         for (int i : checkingSlots)
-            if (hashStatus[i]->text().isEmpty() || hashStatus[i]->text() == "Проверяется…")
+            if (!completedHashChecks.contains(i))
                 hashStatus[i]->setText(hashCheckStopped ? "Остановлено" : hashCheckFailure.isEmpty() ? "Нет ответа" : hashCheckFailure);
         hashCheckDirectory.reset();
     };
@@ -119,6 +105,8 @@ EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
         if (hashProcess->state() != QProcess::NotRunning) { stopHashCheck(); return; }
         QJsonArray values;
         checkingSlots.clear();
+        completedHashChecks.clear();
+        activeCheckingSlot = -1;
         for (int i = 0; i < 4; ++i) {
             const auto normalized = Configs::qwdtt::NormalizeHashes({hashes[i]->text()});
             hashStatus[i]->clear();
@@ -216,6 +204,32 @@ EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
             [this](int) { rawPort->setEnabled(mode->currentData() == "raw"); });
 }
 
+void EditQWDTT::consumeHashCheckOutput() {
+    hashCheckOutput += hashProcess->readAllStandardOutput();
+    while (hashCheckOutput.contains('\n')) {
+        const auto end = hashCheckOutput.indexOf('\n');
+        const auto parts = QString::fromUtf8(hashCheckOutput.left(end)).trimmed().split('|');
+        hashCheckOutput.remove(0, end + 1);
+        if (hashCheckStopped || parts.size() < 3 ||
+            (parts[0] != "HASH_CHECK_START" && parts[0] != "HASH_CHECK")) continue;
+        const int order = parts[1].toInt() - 1;
+        if (order < 0 || order >= checkingSlots.size()) continue;
+        auto *label = hashStatus[checkingSlots[order]];
+        if (parts[0] == "HASH_CHECK_START") {
+            activeCheckingSlot = checkingSlots[order];
+            label->setText("Проверяется…");
+        }
+        else if (parts.size() >= 5) {
+            const QString status = parts[3] == "ok" ? "Работает" : parts[3] == "dead" ? "Закрыт" :
+                parts[3] == "captcha" ? "Капча" : parts[3] == "limited" ? "Лимит VK" :
+                parts[3] == "network" ? "Сетевая ошибка" : "Ошибка";
+            completedHashChecks.insert(checkingSlots[order]);
+            label->setText(status);
+            label->setToolTip(parts.mid(4).join('|'));
+        }
+    }
+}
+
 void EditQWDTT::stopHashCheck() {
     if (!hashProcess || hashProcess->state() == QProcess::NotRunning || hashCheckStopped) return;
     hashCheckStopped = true;
@@ -223,7 +237,7 @@ void EditQWDTT::stopHashCheck() {
     checkHashes->setText("Проверить хеши");
     checkHashes->setEnabled(false);
     for (int i : checkingSlots) {
-        if (hashStatus[i]->text().isEmpty() || hashStatus[i]->text() == "Проверяется…") hashStatus[i]->setText("Остановлено");
+        if (!completedHashChecks.contains(i)) hashStatus[i]->setText("Остановлено");
     }
     QTimer::singleShot(1000, hashProcess, [this] {
         if (hashCheckStopped && hashProcess->state() != QProcess::NotRunning) hashProcess->kill();

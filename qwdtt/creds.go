@@ -619,7 +619,7 @@ func solveCaptchaBySelectedMode(
 	switch getCaptchaMode() {
 	case "wv":
 		log.Printf("[STREAM %d] [КАПЧА] WBV: режим из настроек Android (attempt %d)", streamID, attempt)
-		return requestWebViewCaptcha(streamID, captchaErr, "selected", captchaSelectedWebViewTimeout)
+		return requestWebViewCaptcha(streamID, captchaErr, "selected", captchaSelectedWebViewTimeout, ctx)
 	case "rjs":
 		log.Printf("[STREAM %d] [КАПЧА] RJS: Go v2 выбран в настройках (attempt %d)", streamID, attempt)
 		token, solveErr := solveVkCaptchaV2Attempts(ctx, captchaErr, client, profile, savedProfile, 2)
@@ -635,10 +635,10 @@ func solveCaptchaBySelectedMode(
 		}
 		if isCaptchaSessionExhausted(solveErr) {
 			log.Printf("[STREAM %d] [КАПЧА] RJS: rate limit, fallback на WBV Auto", streamID)
-			return requestWebViewCaptcha(streamID, captchaErr, "auto", captchaAutoWebViewTimeout)
+			return requestWebViewCaptcha(streamID, captchaErr, "auto", captchaAutoWebViewTimeout, ctx)
 		}
 		log.Printf("[STREAM %d] [КАПЧА] RJS: ошибка, fallback на WBV Auto: %v", streamID, solveErr)
-		return requestWebViewCaptcha(streamID, captchaErr, "auto", captchaAutoWebViewTimeout)
+		return requestWebViewCaptcha(streamID, captchaErr, "auto", captchaAutoWebViewTimeout, ctx)
 	}
 
 	log.Printf("[STREAM %d] [КАПЧА] AUTO: старт цепочки (captcha attempt %d)", streamID, attempt)
@@ -663,7 +663,7 @@ func solveCaptchaBySelectedMode(
 
 	for wbvAttempt := 1; wbvAttempt <= 2; wbvAttempt++ {
 		log.Printf("[STREAM %d] [КАПЧА] AUTO: WBV Auto попытка %d/2 (timeout %s)", streamID, wbvAttempt, captchaAutoWebViewTimeout)
-		token, solveErr = requestWebViewCaptcha(streamID, captchaErr, "auto", captchaAutoWebViewTimeout)
+		token, solveErr = requestWebViewCaptcha(streamID, captchaErr, "auto", captchaAutoWebViewTimeout, ctx)
 		if solveErr == nil {
 			log.Printf("[STREAM %d] [КАПЧА] AUTO: WBV Auto решил капчу", streamID)
 			return token, nil
@@ -700,7 +700,7 @@ func solveCaptchaBySelectedMode(
 	log.Printf("[STREAM %d] [КАПЧА] AUTO: финальная Go v2 ошибка: %v", streamID, solveErr)
 
 	log.Printf("[STREAM %d] [КАПЧА] AUTO: автоцепочка не прошла, открыт ручной WebView", streamID)
-	token, solveErr = requestWebViewCaptcha(streamID, captchaErr, "manual", captchaManualWebViewTimeout)
+	token, solveErr = requestWebViewCaptcha(streamID, captchaErr, "manual", captchaManualWebViewTimeout, ctx)
 	if solveErr == nil {
 		log.Printf("[STREAM %d] [КАПЧА] AUTO: ручной WebView решил капчу", streamID)
 		return token, nil
@@ -711,12 +711,15 @@ func solveCaptchaBySelectedMode(
 	return "", solveErr
 }
 
-func requestWebViewCaptcha(streamID int, captchaErr *VkCaptchaError, mode string, timeout time.Duration) (string, error) {
+func requestWebViewCaptcha(streamID int, captchaErr *VkCaptchaError, mode string, timeout time.Duration, parents ...context.Context) (string, error) {
 	if desktopBridgeMode {
 		if captchaErr == nil {
 			return "", fmt.Errorf("VK captcha data is missing")
 		}
 		visible := mode != "auto"
+		if !visible && timeout < 30*time.Second {
+			timeout = 30 * time.Second
+		}
 		if visible && desktopProbeOnly && !desktopInteractiveProbe {
 			if bridgeCancel != nil {
 				bridgeCancel()
@@ -727,6 +730,9 @@ func requestWebViewCaptcha(streamID int, captchaErr *VkCaptchaError, mode string
 			log.Printf("[qWDTT] VK требует ручное решение капчи. Открываю окно браузера.")
 		}
 		ctx := bridgeContext
+		if len(parents) > 0 && parents[0] != nil {
+			ctx = parents[0]
+		}
 		if ctx == nil {
 			ctx = context.Background()
 		}
