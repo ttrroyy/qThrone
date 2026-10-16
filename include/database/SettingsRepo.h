@@ -40,6 +40,7 @@ namespace Configs {
         explicit SettingsRepo(Database& database);
         
         bool Save();
+        bool ResetToDefaults();
         
         // Runtime state and flags below are never persisted.
         QString core_socket_name = "";

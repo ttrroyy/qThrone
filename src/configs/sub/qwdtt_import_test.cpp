@@ -38,6 +38,8 @@
 #include <QDialogButtonBox>
 #include <QListWidget>
 #include <QApplication>
+#include <QMessageBox>
+#include <QTimer>
 #include <QMainWindow>
 #include <QDir>
 #include "ui_mainwindow.h"
@@ -759,6 +761,43 @@ int TestQwdttImport() {
     check(!ReleaseVersion::IsNewer("invalid", "1.0"), "invalid update version");
     check(ReleaseVersion::FromAsset("qThrone-1.0-beta.2-windows-amd64.zip") == "1.0-beta.2", "beta asset version");
     check(ReleaseVersion::FromAsset("qThrone-1.0-linux-amd64.tar.gz") == "1.0", "stable asset version");
+    {
+        auto *settings = Configs::dataManager->settingsRepo.get();
+        auto &db = Configs::dataManager->getDatabase();
+        settings->log_level = "debug";
+        settings->url_test_timeout_ms = 12345;
+        settings->Save();
+        const auto device = settings->relay_device_id;
+        const auto secret = settings->core_box_api_secret;
+        const auto counts = [&db] {
+            QMap<QString, qlonglong> result;
+            auto tables = db.queryThrow("SELECT name FROM sqlite_master WHERE type='table' AND name <> 'settings'");
+            while (tables->executeStep()) {
+                const auto name = QString::fromStdString(tables->getColumn(0).getText());
+                auto quoted = name; quoted.replace('"', "\"\"");
+                auto count = db.queryThrow(("SELECT count(*) FROM \"" + quoted + "\"").toStdString());
+                if (count->executeStep()) result[name] = count->getColumn(0).getInt64();
+            }
+            return result;
+        };
+        const auto before = counts();
+        QTimer::singleShot(0, [] {
+            if (auto *confirmation = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()))
+                confirmation->done(QMessageBox::No);
+        });
+        check(!DialogBasicSettings::RestoreDefaultsWithConfirmation(nullptr), "cancel reset confirmation");
+        check(!settings->noSave && settings->log_level == "debug" && counts() == before,
+              "cancel reset leaves settings and data intact");
+        check(settings->ResetToDefaults(), "reset application settings transaction");
+        settings->Save(); // An exit-time save must not restore stale preferences.
+        check(settings->noSave, "reset prevents stale shutdown save");
+        check(before == counts(), "reset retains every non-settings table");
+        Configs::SettingsRepo defaults(db);
+        check(defaults.log_level == "info" && defaults.url_test_timeout_ms == 3000 &&
+              defaults.seasonal_decoration == "auto", "reset loads compiled defaults after restart");
+        check(defaults.relay_device_id == device && defaults.core_box_api_secret == secret,
+              "reset preserves bound device and API identity");
+    }
     qInfo() << "qWDTT import and release version tests:" << failures << "failures";
     return failures == 0 ? 0 : 1;
 }
