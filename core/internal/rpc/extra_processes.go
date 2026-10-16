@@ -126,11 +126,13 @@ func startExtraSessions(ctx context.Context, in *gen.LoadConfigReq) (err error) 
 		if session.transport {
 			session.key, _ = qwdttSessionKey(spec.GetConfig())
 			session.settings = transportSettingsKey(spec.GetConfig())
-			gateCtx, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+			// A latency-only test cannot become the user's full-worker connection.
+			// Wait for its HTTP request and native leave cleanup, then launch normally.
+			gateCtx, cancel := context.WithTimeout(ctx, 330*time.Second)
 			session.release, e = acquireQWDTTProbe(gateCtx, session.key)
 			cancel()
 			if e != nil {
-				return errors.New("tunnel device is busy with a test; stop its test and retry")
+				return errors.New("timed out waiting for the previous tunnel test to finish cleanup")
 			}
 		}
 		confPath, folder, e := process.CreateExtraConfig(spec.GetConfig())

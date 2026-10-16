@@ -267,7 +267,8 @@ namespace API {
     QString Client::Start(bool *rpcOK, const libcore::LoadConfigReq &request) {
         libcore::ErrorResp reply;
         std::vector<uint8_t> resp;
-        auto status = channel->Call("Start", spb::pb::serialize<std::string>(request), resp);
+        const bool hasTransport = request.need_extra_process.value_or(false) || !request.routed_extra_processes.empty();
+        auto status = channel->Call("Start", spb::pb::serialize<std::string>(request), resp, hasTransport ? 360000 : 0);
 
         if (status == LocalSocketChannel::CallOK && tryDeserialize(resp, reply)) {
             *rpcOK = true;

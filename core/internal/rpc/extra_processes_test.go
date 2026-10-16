@@ -158,3 +158,30 @@ func TestTransportSessionReuseRejectsConflictingSettings(t *testing.T) {
 		t.Fatal("conflicting test was not skipped")
 	}
 }
+
+func TestUserConnectionWaitsForProbeCleanup(t *testing.T) {
+	conf := `{"peer":"example.invalid:56000","device_id":"connect-after-probe"}`
+	key, _ := qwdttSessionKey(conf)
+	release, err := acquireQWDTTProbe(context.Background(), key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer release()
+	cleanupDone := make(chan struct{})
+	go func() { time.Sleep(150 * time.Millisecond); release(); close(cleanupDone) }()
+	dir := t.TempDir()
+	// Missing executable is intentional: reaching process creation proves we waited
+	// past the old 100ms gate instead of rejecting the user's connection as busy.
+	in := &gen.LoadConfigReq{RoutedExtraProcesses: []*gen.RoutedExtraProcess{{Path: To(filepath.Join(dir, "qwdtt.exe")), Args: To("-config %s"), Config: To(conf), OutboundTag: To("route-0")}}}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	err = startExtraSessions(ctx, in)
+	select {
+	case <-cleanupDone:
+	default:
+		t.Fatal("user connection rejected before probe cleanup")
+	}
+	if err == nil || len(extraSessions) != 0 {
+		t.Fatal("invalid child did not roll back after acquiring the freed device")
+	}
+}
