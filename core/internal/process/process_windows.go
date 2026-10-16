@@ -19,7 +19,7 @@ import (
 )
 
 // Normal linked/session tokens use CreateProcessWithTokenW. A restricted version
-// of our own token instead uses CreateProcessAsUser, including when UAC is off.
+// of our own token prefers CreateProcessAsUser with a restricted-token fallback.
 func startChild(path string, args []string, noOut bool, input *os.File, observers ...func([]byte)) (running, error) {
 	self, err := selfToken()
 	if err != nil {
@@ -38,16 +38,35 @@ func startChild(path string, args []string, noOut bool, input *os.File, observer
 	defer tok.Close()
 
 	if source == "restricted self token" {
-		// This token is derived from our own primary token. CreateProcessAsUser
-		// is the documented path and does not require SeAssignPrimaryTokenPrivilege.
-		// Avoid the Secondary Logon service path for synthetic LUA tokens (UAC off).
-		run, err := startAsUser(path, args, noOut, tok, input, observers...)
-		if err != nil {
-			return nil, fmt.Errorf("restricted-token CreateProcessAsUser: %w", err)
-		}
-		return run, nil
+		return startRestrictedSelf(path, args, noOut, tok, input, observers...)
 	}
 	return startWithToken(path, args, noOut, tok, input, observers...)
+}
+
+// Restricted self tokens do not require SeAssignPrimaryTokenPrivilege, but
+// CreateProcessAsUser can still require SeIncreaseQuotaPrivilege. Use the same
+// restricted token with Secondary Logon when that privilege is unavailable.
+func startRestrictedSelf(path string, args []string, noOut bool, tok windows.Token, input *os.File, observers ...func([]byte)) (running, error) {
+	return startRestrictedWithFallback(
+		func() (running, error) { return startAsUser(path, args, noOut, tok, input, observers...) },
+		func() (running, error) { return startWithTokenW(path, args, noOut, tok, input, observers...) },
+	)
+}
+
+func startRestrictedWithFallback(native, secondary func() (running, error)) (running, error) {
+	run, err := native()
+	if err == nil {
+		return run, nil
+	}
+	if !errors.Is(err, windows.ERROR_PRIVILEGE_NOT_HELD) {
+		return nil, fmt.Errorf("restricted-token CreateProcessAsUser: %w", err)
+	}
+	log.Printf("%s: CreateProcessAsUser lacks a required privilege; trying the same restricted token with CreateProcessWithTokenW", extraCorePrefix)
+	run, fallbackErr := secondary()
+	if fallbackErr != nil {
+		return nil, errors.Join(fmt.Errorf("restricted-token CreateProcessAsUser: %w", err), fmt.Errorf("restricted-token CreateProcessWithTokenW: %w", fallbackErr))
+	}
+	return run, nil
 }
 
 // CreateProcessWithTokenW is served by the Secondary Logon service, which some systems disable; CreateProcessAsUser then still works for a Core running as SYSTEM.

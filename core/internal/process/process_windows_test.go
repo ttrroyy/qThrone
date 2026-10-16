@@ -3,10 +3,12 @@
 package process
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -55,7 +57,7 @@ func TestRestrictedTokenChildHelper(t *testing.T) {
 	fmt.Println("restricted-child-ready")
 }
 
-func TestRestrictedSelfUsesNativeProcessCreation(t *testing.T) {
+func TestRestrictedSelfProcessInitializesWithoutElevation(t *testing.T) {
 	self, err := selfToken()
 	if err != nil {
 		t.Fatal(err)
@@ -75,7 +77,7 @@ func TestRestrictedSelfUsesNativeProcessCreation(t *testing.T) {
 	}
 	var mu sync.Mutex
 	var output strings.Builder
-	child, err := startAsUser(exe, []string{"-test.run=^TestRestrictedTokenChildHelper$", "qthrone-restricted-child"}, true, token, nil, func(b []byte) { mu.Lock(); output.Write(b); mu.Unlock() })
+	child, err := startRestrictedSelf(exe, []string{"-test.run=^TestRestrictedTokenChildHelper$", "qthrone-restricted-child"}, true, token, nil, func(b []byte) { mu.Lock(); output.Write(b); mu.Unlock() })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,5 +96,47 @@ func TestRestrictedSelfUsesNativeProcessCreation(t *testing.T) {
 	defer mu.Unlock()
 	if !strings.Contains(output.String(), "restricted-child-ready") {
 		t.Fatalf("restricted child did not initialize: %s", output.String())
+	}
+}
+
+type restrictedStartTestRunner struct{}
+
+func (restrictedStartTestRunner) Wait() error { return nil }
+func (restrictedStartTestRunner) Kill() error { return nil }
+
+func TestRestrictedStartFallbackOnlyOnMissingPrivilege(t *testing.T) {
+	expected := restrictedStartTestRunner{}
+	for _, tc := range []struct {
+		name     string
+		first    error
+		fallback bool
+	}{
+		{"native success", nil, false},
+		{"missing privilege", &os.PathError{Op: "fork/exec", Path: "test.exe", Err: windows.ERROR_PRIVILEGE_NOT_HELD}, true},
+		{"missing executable", os.ErrNotExist, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			calls := 0
+			got, err := startRestrictedWithFallback(func() (running, error) {
+				if tc.first != nil {
+					return nil, tc.first
+				}
+				return expected, nil
+			}, func() (running, error) { calls++; return expected, nil })
+			if tc.fallback || tc.first == nil {
+				if err != nil || got != expected {
+					t.Fatalf("startup: %v %v", got, err)
+				}
+			} else if !errors.Is(err, tc.first) {
+				t.Fatalf("lost startup error: %v", err)
+			}
+			if (calls == 1) != tc.fallback {
+				t.Fatalf("fallback calls=%d", calls)
+			}
+		})
+	}
+	_, err := startRestrictedWithFallback(func() (running, error) { return nil, syscall.Errno(1314) }, func() (running, error) { return nil, os.ErrPermission })
+	if !errors.Is(err, windows.ERROR_PRIVILEGE_NOT_HELD) || !errors.Is(err, os.ErrPermission) {
+		t.Fatalf("missing startup diagnostics: %v", err)
 	}
 }
