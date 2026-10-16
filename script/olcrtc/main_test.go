@@ -8,7 +8,7 @@ import (
 )
 
 func fixture() config {
-	return config{Provider: "jitsi", Transport: "datachannel", Room: "https://example.org/room", Key: strings.Repeat("01", 32), DNS: "8.8.8.8:53", SOCKS: "127.0.0.1:1080", DeviceID: "persistent-test-device"}
+	return config{Provider: "jitsi", Transport: "datachannel", Room: "https://example.org/room", Key: strings.Repeat("01", 32), DNS: "8.8.8.8:53", SOCKS: "127.0.0.1:1080", SOCKSUser: "user", SOCKSPass: "pass", DeviceID: "persistent-test-device"}
 }
 func TestOptionsAndIdentity(t *testing.T) {
 	for _, transport := range []string{"datachannel", "vp8channel", "seichannel", "videochannel"} {
@@ -39,7 +39,7 @@ func TestOptionsAndIdentity(t *testing.T) {
 	}
 }
 func TestRejectsUnsupportedAndUnsafeConfigurations(t *testing.T) {
-	changes := []func(*config){func(c *config) { c.Provider = "telemost" }, func(c *config) { c.Provider = "wbstream" }, func(c *config) { c.SOCKS = "0.0.0.0:1080" }, func(c *config) { c.DeviceID = "" }, func(c *config) { c.Key = "short" }, func(c *config) {
+	changes := []func(*config){func(c *config) { c.Provider = "telemost" }, func(c *config) { c.Provider = "wbstream" }, func(c *config) { c.SOCKS = "0.0.0.0:1080" }, func(c *config) { c.DeviceID = "" }, func(c *config) { c.SOCKSPass = "" }, func(c *config) { c.Key = "short" }, func(c *config) {
 		c.Transport = "videochannel"
 		c.Options = map[string]json.RawMessage{"video-w": json.RawMessage(`1`), "video-codec": json.RawMessage(`"tile"`)}
 	}}
@@ -55,5 +55,20 @@ func TestRejectsUnsupportedAndUnsafeConfigurations(t *testing.T) {
 	c.Token = "test-publish-token"
 	if _, err := makeClient(c); err != nil {
 		t.Fatal("moderator-token mode rejected")
+	}
+}
+
+func TestVP8DefaultsMatchOriginalClient(t *testing.T) {
+	c := fixture()
+	c.Transport = "vp8channel"
+	got, err := makeClient(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o := got.TransportOptions.(client.VP8Options); o.FPS != 30 || o.BatchSize != 64 {
+		t.Fatalf("vp8 defaults %+v, olcrtc uses 30 fps and batches of 64", o)
+	}
+	if got.SOCKSUser != "user" || got.SOCKSPass != "pass" {
+		t.Fatal("bridge credentials not passed to the listener")
 	}
 }

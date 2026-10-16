@@ -9,8 +9,8 @@ import (
 	"time"
 )
 
-// The helper process existing is not proof of a usable RAW/WG tunnel.
-// Its SOCKS listener is created only after native configuration has arrived.
+// The helper process existing is not proof of a usable tunnel. Every bundled
+// helper opens its SOCKS listener only once its tunnel can carry traffic.
 func waitTransportReady(ctx context.Context, config string, done <-chan struct{}) error {
 	var c struct {
 		SOCKS   string `json:"socks"`
@@ -19,15 +19,17 @@ func waitTransportReady(ctx context.Context, config string, done <-chan struct{}
 	if json.Unmarshal([]byte(config), &c) != nil {
 		return errors.New("invalid transport startup configuration")
 	}
-	if c.Backend != "" && c.Backend != "csqtt" {
-		return nil
-	}
 	host, port, err := net.SplitHostPort(c.SOCKS)
 	n, _ := strconv.Atoi(port)
 	if err != nil || host != "127.0.0.1" || n < 1 || n > 65535 {
 		return errors.New("invalid transport startup listener")
 	}
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	// VK authorization may include captcha checks; rooms and documents answer quickly or not at all.
+	budget := 5 * time.Minute
+	if c.Backend == "openflux" || c.Backend == "olcrtc" {
+		budget = 2 * time.Minute
+	}
+	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()

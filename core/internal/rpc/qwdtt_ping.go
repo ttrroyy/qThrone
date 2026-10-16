@@ -17,6 +17,12 @@ import (
 	"qThroneCore/internal/process"
 )
 
+const (
+	qwdttHandshakeBudget = 15 * time.Second
+	// Matches desktopPingAuthBudget of the bundled client.
+	qwdttPingAuthBudget = 90 * time.Second
+)
+
 // Only qWDTT has the native TURN/DTLS handshake probe. Other backends retain URL tests.
 func nativeQWDTTPing(config string) bool {
 	var c struct {
@@ -33,24 +39,31 @@ func runQWDTTPing(parent context.Context, config string, budget ...time.Duration
 	if !valid {
 		return 0, errors.New("invalid test session identity")
 	}
-	timeout := 3 * time.Second
-	if len(budget) > 0 && budget[0] > 0 {
+	// The TURN allocation and DTLS handshake get the original app's 15 s; a 3 s
+	// HTTP timeout failed working servers on slower networks.
+	timeout := qwdttHandshakeBudget
+	if len(budget) > 0 && budget[0] > timeout {
 		timeout = budget[0]
 	}
-	ctx, cancel := context.WithTimeout(parent, timeout+92*time.Second)
+	// VK authorization (with automatic checks) is preparation, not the measured round trip.
+	ctx, cancel := context.WithTimeout(parent, timeout+qwdttPingAuthBudget+2*time.Second)
 	defer cancel()
 	stop := context.AfterFunc(probe.TestContext(), cancel)
 	defer stop()
 	// A handshake probe never authenticates a second netstack as the same device.
 	// Use a separate gate so testing the active profile cannot wait on its own VPN.
 	pingKey := sha256.Sum256(append([]byte("qwdtt native ping\x00"), key[:]...))
-	gateCtx, cancelGate := context.WithTimeout(ctx, timeout)
-	defer cancelGate()
-	release, err := acquireQWDTTProbe(gateCtx, pingKey)
+	release, err := acquireQWDTTProbe(ctx, pingKey)
 	if err != nil {
 		return 0, err
 	}
 	defer release()
+	// qWDTT and CSQTT probes share one budget, so a sweep stays below VK's limits.
+	slotRelease, err := acquireTransportProbeSlot(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer slotRelease()
 	var c struct {
 		Interactive bool `json:"interactive_captcha"`
 	}

@@ -91,12 +91,9 @@ func TestRoutedProbeReportsStandaloneTag(t *testing.T) {
 }
 
 func TestRoutedURLProbeUsesLiveOutboundWithoutRestart(t *testing.T) {
-	for _, backend := range []string{"", "csqtt"} {
-		name := backend
-		if name == "" {
-			name = "qwdtt-raw"
-		}
-		t.Run(name, func(t *testing.T) {
+	// qWDTT is measured by its own handshake probe; the other transports by HTTP through the live tunnel.
+	for _, backend := range []string{"csqtt", "openflux", "olcrtc"} {
+		t.Run(backend, func(t *testing.T) {
 			testLiveTransportHTTP(t, `{"backend":"`+backend+`","mode":"raw","peer":"example.invalid:56000","device_id":"live-device"}`)
 		})
 	}

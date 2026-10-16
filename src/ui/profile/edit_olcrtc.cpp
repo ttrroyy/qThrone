@@ -18,7 +18,7 @@ EditOLCRTC::EditOLCRTC(QWidget *parent) : QWidget(parent) {
         auto *spin = new QSpinBox(this); spin->setRange(min,max); spin->setValue(value); numbers[id]=spin;
         auto *text = new QLabel(label,this); form->addRow(text,spin); fields[id]=text;
     };
-    add("vp8-fps","VP8: кадров/с",1,120,60); add("vp8-batch",QStringLiteral("VP8: кадров в пакете"),1,64,64);
+    add("vp8-fps","VP8: кадров/с",1,120,30); add("vp8-batch",QStringLiteral("VP8: кадров в пакете"),1,64,64);
     add("fps","SEI: кадров/с",1,120,30); add("batch",QStringLiteral("SEI: кадров в пакете"),1,64,64);
     add("frag",QStringLiteral("SEI: размер фрагмента"),1,65535,900); add("ack-ms",QStringLiteral("SEI: ожидание ACK, мс"),1,60000,2000);
     add("video-w",QStringLiteral("Видео: ширина"),1,4096,1080); add("video-h",QStringLiteral("Видео: высота"),1,4096,1080);

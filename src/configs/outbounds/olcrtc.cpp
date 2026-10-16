@@ -71,7 +71,10 @@ QString olcrtc::Prepare() {
 #endif
     extraCorePath = QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(executable);
     if (!socksPort) { const auto ports = MkManyPorts(1); if (ports.isEmpty()) return QStringLiteral("Не удалось открыть локальный порт olcRTC"); socksPort = ports.first(); }
+    if (deviceID.isEmpty()) deviceID = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    bridgeAuth = QUuid::createUuid().toString(QUuid::WithoutBraces);
     auto config = ExportToJson(); config["backend"] = "olcrtc"; config["peer"] = provider + ":" + room; config["socks"] = "127.0.0.1:" + QString::number(socksPort);
+    config["socks_user"] = bridgeAuth; config["socks_pass"] = bridgeAuth;
     extraCoreConf = QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact)); extraCoreArgs = "--qthrone-config %s"; noLogs = true;
     return {};
 }

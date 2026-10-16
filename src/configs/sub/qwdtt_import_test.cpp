@@ -656,6 +656,62 @@ int TestQwdttImport() {
     auto invalidFlux = fluxConfig; invalidFlux["secret"] = "short";
     check(!flux.ParseFromJson(invalidFlux), "OpenFlux rejects short secrets");
     check(!flux.ParseFromLink("openflux://v1/not-a-valid-payload"), "OpenFlux rejects malformed compressed links");
+    {
+        // Links from OpenFlux's share package: frozen ones from share/compat_test.go and ones share.Make writes today.
+        const auto read = [](const QString &link) {
+            auto profile = std::make_shared<Configs::openflux>();
+            return profile->ParseFromLink(link) ? profile : nullptr;
+        };
+        const auto types = [](const std::shared_ptr<Configs::openflux> &profile) {
+            QStringList list;
+            for (const auto &entry : profile->transports) list << entry.toObject()["type"].toString();
+            return list;
+        };
+        const QString cupsLink = "openflux://v1/TMpBCsIwEAXQu_y1aTCJm4B4EHEhNehAnAmTaUVK7y6ii771W2B65d5ErSOfF9i7FWSMU-vClbhgh0krMh5mrWfvia3oTOU1fNPwW77SXNwoN-K7P6nI87j_cyGE4GKM0aWUkjtsYL2snwAAAP__";
+        const auto cups = read(cupsLink);
+        check(cups && types(cups) == QStringList{"cupsonline"} && !cups->negotiate, "OpenFlux reads frozen classic Cups.online link");
+        check(cups && cups->context.isEmpty() && !cups->ExportToJson().contains("context"), "OpenFlux never invents an encryption context");
+        const auto mailru = read("openflux://v1/qlbKS8xNVbJS8k3MzNErKlVIK8pMzUtR0lEqKUrMKy7ILyopVrKKrlYqqSwAKctNzMwpKlXSUSotylGyUnJMck5xTXPPMNT3zPLO8c3zLzBSqo2tBQQAAP__");
+        check(mailru && mailru->name == "Mail.ru friend" && mailru->transports.first().toObject()["url"].toString() == "AbCdEfGh1/IjKlMnOp2", "OpenFlux reads frozen Mail.ru link");
+        const QString sessionLink = "openflux://v1/rI_BaiwhEEV_pSnonWPb7TweCCFkM-QfQha2FhlJj0pZTkaG_vdgAoHssyw4dc-9d4j2gmDgOV0QBER8SxwsIximigIKOkIGAy4RoePhnKjgsFpmpDYUtnnrjy5FxlsHz8y5mGnyyRXZbPR4k1S_zuka8OOx0vbQ7MGH8n7Idd2CG_XTuJzG5WRXBwKYbCw5ERcwL3fglnvD63cWCKi0_YknU0gUuIGZldrFj8mHvvQX8E8J8MF276K0VHKetfxvjketYX_dPwMAAP__";
+        const auto session = read(sessionLink);
+        check(session && session->negotiate && session->secret == "correct horse battery staple" && session->server == "203.0.113.7" && session->server_port == 4433, "OpenFlux reads frozen Session link");
+        const auto legacy = read("openflux://v1/JMk7DsIwDAbgu_xz1PB--CqIIdgGhqqJbFdqVPXuDMzfCq6iDMKon8IdCa5sGiDs9ofj6Xy53u7lxaJvJISVyVu1cNBjRfSmIPQyiS5ImG0E4RvRnHKWyj78bbA5L9ie2y8AAP__");
+        check(legacy && legacy->codec == "legacy", "OpenFlux keeps the legacy codec");
+        const auto node = read("openflux://v1/jM7BSsQwFIXhVwlnHZJ0OiJmJz6GuLgmVxvQJNzcypSh7y5lQHA328PPx7mi0jcjorbMsKj82bSQMqLKyhaDk7AigsxYSDib22Lah5lPJi0klJRlwCK1qnw54kW1j-h9bmm4jWrmi5PVcy7qs39-f4GFCtXRm-hAfL1Ct378-LnVsFjl606pS2lSdEOcQtjtn5WLcNJ_wUOwyIUO-RRmF9w0ze4xPp3PM_a3_XcA");
+        check(node && types(node) == QStringList{"vyandex", "direct"} && node->context == "https://docs.yandex.ru/edit/d/AbC", "OpenFlux reads node wizard link with Volga document and direct backup");
+        const auto telemost = read("openflux://v1/lI5NSsAwFISvEmYdGm39zVXExSN9WqVNyssrtJQu9CjeoSvFM6Q3kiIewN0wzHx8KyINDI_yUfbyWfbyVb6Pt-MdFpGfk76QMrzKxBaZg7DCg0zuSLg1v41JT6apTehIKChLhkVIUXk-x53qmL1zyj0PKWu1UGx5rmRyr-6ybq6ub27v7i_OBAsVinlMohn-YYUu42n394XFJP0_odvj9jMA");
+        check(telemost && telemost->name == QStringLiteral("Телемост") && types(telemost) == QStringList{"telemost"}, "OpenFlux reads Telemost link");
+        const auto avito = read("openflux://v1/TMwxCgJBDIXhq4RXj412exWxiDGygm6WlyjKMneXwcb25-PfkG70wgSVnJV-kV-RuMphLzYr1cqZaLBYyt8DM-Kx07OhoahLrsFKTMcN9Vl93F63CjQ8ef_n_dS_AwA");
+        check(avito && types(avito) == QStringList{"avito"}, "OpenFlux reads Avito link");
+        const auto stream = read("openflux://v1/JMnBCsMgDAbgd_nPstzzKmMH2YQV1IQkQov47kV6_iaa_AoYHlZyQ0JY7q5i4eD3RFy6-TvUpdejFyQMq2D8I9SZaNPrMTKRRifWZ90DAA");
+        check(stream && stream->mode == "stream", "OpenFlux reads phpbox stream link");
+        const auto body = sessionLink.mid(QStringLiteral("openflux://v1/").size());
+        auto swapped = body; swapped.replace('-', '+').replace('_', '/');
+        QStringList mangledLinks;
+        mangledLinks << QStringLiteral("  ") + sessionLink + QStringLiteral("\n")
+                     << sessionLink + QString((4 - body.size() % 4) % 4, QLatin1Char('='))
+                     << QStringLiteral("openflux://v1/") + swapped
+                     << QStringLiteral("openflux://v1/") + body.left(30) + QString(QChar(0x200b)) + body.mid(30);
+        for (const auto &mangled : mangledLinks) {
+            check(read(mangled) != nullptr, "OpenFlux reads a link mangled by a chat");
+        }
+        check(parse(("\n" + sessionLink + "\n").toUtf8()).size() == 1, "OpenFlux link imports from the clipboard");
+        check(read(cupsLink.toUpper()) == nullptr && read("openflux://v2/abc") == nullptr && read(cupsLink.chopped(30)) == nullptr, "OpenFlux rejects changed or truncated links");
+        Configs::openflux stored;
+        check(stored.ParseFromJson(QJsonObject{{"type", "openflux"}, {"negotiate", true}, {"secret", "a shared secret of 32 characters"}, {"context", "http://openflux"},
+                                               {"transports", QJsonArray{QJsonObject{{"type", "yandex"}, {"url", "https://disk.yandex.ru/i/abc"}}}}})
+              && stored.context.isEmpty(), "OpenFlux drops the context earlier builds invented");
+        if (node) {
+            const auto again = read(node->ExportToLink());
+            check(again && again->ExportIdentity() == node->ExportIdentity() && again->name == node->name, "OpenFlux exported link reads back");
+            check(node->Prepare().isEmpty(), "OpenFlux node profile prepares its helper");
+            const auto prepared = QJsonDocument::fromJson(node->extraCoreConf.toUtf8()).object();
+            const auto user = prepared["socks_user"].toString();
+            check(!user.isEmpty() && prepared["socks_pass"].toString() == user && node->Build().object["username"].toString() == user,
+                  "OpenFlux helper listener requires per-launch credentials");
+        }
+    }
     if (!testProfiles.isEmpty()) {
         const auto &settings = Configs::dataManager->settingsRepo;
         const bool oldTun = settings->spmode_vpn;

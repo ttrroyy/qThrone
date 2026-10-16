@@ -18,6 +18,7 @@ type Process struct {
 	noOut           bool
 	backgroundProbe bool
 	routedTransport bool
+	supervised      bool
 	outputObserver  func([]byte)
 	cleanupPath     string
 	run             running
@@ -61,7 +62,11 @@ func (p *Process) SetBackgroundProbe() { p.backgroundProbe = true }
 // Failure of a routing-only transport must not tear down the main VPN.
 func (p *Process) SetRoutedTransport() { p.routedTransport = true }
 
+// The observer receives whole output lines of both streams, each with its newline.
 func (p *Process) SetOutputObserver(observer func([]byte)) { p.outputObserver = observer }
+
+// A supervised transport is restarted by its owner, who alone decides when an exit ends the profile.
+func (p *Process) SetSupervised() { p.supervised = true }
 
 func (p *Process) Start() error {
 	var input *os.File
@@ -95,18 +100,23 @@ func (p *Process) Start() error {
 		if err := p.run.Wait(); err != nil && !p.stopped.Load() {
 			fmt.Println(extraCorePrefix+":", err)
 		}
-		if !p.stopped.Load() {
-			if p.backgroundProbe {
-				fmt.Println("Background probe process exited")
-			} else if p.routedTransport {
-				fmt.Println("Routed transport exited unexpectedly; its outbound is unavailable, main VPN remains running")
-			} else {
-				fmt.Println("Extra process exited unexpectedly")
-			}
+		if !p.stopped.Load() && !p.supervised {
+			p.ReportUnexpectedExit()
 		}
 		p.cleanup()
 	}()
 	return nil
+}
+
+// ReportUnexpectedExit tells the GUI what the end of this process means for the profile.
+func (p *Process) ReportUnexpectedExit() {
+	if p.backgroundProbe {
+		fmt.Println("Background probe process exited")
+	} else if p.routedTransport {
+		fmt.Println("Routed transport exited unexpectedly; its outbound is unavailable, main VPN remains running")
+	} else {
+		fmt.Println("Extra process exited unexpectedly")
+	}
 }
 
 func (p *Process) ExecutablePath() string { return p.path }

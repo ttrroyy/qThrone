@@ -11,6 +11,17 @@ import (
 )
 
 func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, error) {
+	// qWDTT is measured like the original app does it: one TURN/DTLS handshake with the
+	// server, no tunnel. A sweep through full tunnels hit VK's Flood control and ended
+	// with a device-wide disconnect that also dropped the connected VPN.
+	if nativeQWDTTPing(in.GetQwdttConfig()) {
+		delay, err := runQWDTTPing(ctx, in.GetQwdttConfig(), time.Duration(in.GetTestTimeoutMs())*time.Millisecond)
+		message := ""
+		if err != nil {
+			message = "qWDTT ping failed: " + err.Error()
+		}
+		return &gen.TestResp{Results: []*gen.URLTestResp{{OutboundTag: To("proxy"), LatencyMs: To(delay), Error: To(message)}}}, nil
+	}
 	// Each RPC owns a deadline/cancellation scope. Expiring one native probe
 	// must not cancel sibling requests or leave a helper running after its caller.
 	parent, cancel := context.WithCancel(probe.TestContext())

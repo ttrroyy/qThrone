@@ -35,6 +35,7 @@ type bridgeConfig struct {
 	SOCKS              string   `json:"socks"`
 	SOCKSUser          string   `json:"socks_user"`
 	SOCKSPass          string   `json:"socks_pass"`
+	Diagnostics        bool     `json:"diagnostics"`
 }
 
 var desktopBridgeMode bool

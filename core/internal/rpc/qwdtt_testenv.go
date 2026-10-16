@@ -35,7 +35,14 @@ func qwdttSessionKey(config string) ([32]byte, bool) {
 	if json.Unmarshal([]byte(config), &c) != nil || c.Peer == "" || c.DeviceID == "" {
 		return [32]byte{}, false
 	}
-	return sha256.Sum256([]byte(c.Backend + "\x00" + c.Peer + "\x00" + c.DeviceID)), true
+	// The server keeps one session per device, whichever of its ports (RAW or DTLS) a profile dials.
+	peer := c.Peer
+	if c.Backend == "" || c.Backend == "csqtt" {
+		if host, _, err := net.SplitHostPort(c.Peer); err == nil && host != "" {
+			peer = strings.ToLower(host)
+		}
+	}
+	return sha256.Sum256([]byte(c.Backend + "\x00" + peer + "\x00" + c.DeviceID)), true
 }
 
 // Separate devices/servers can run together. Duplicate profiles must not share
@@ -123,9 +130,13 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	if !validKey {
 		return nil, errors.New("invalid qWDTT test session identity")
 	}
+	// A probe sharing the connected profile's remote session would take it over: it stays unmeasured.
 	_, conflicts := activeTransportTag(config)
 	if conflicts {
-		return nil, errors.New("this qWDTT device is already connected; test its active profile instead")
+		return nil, errors.New("skipped: this server already serves the connected device; test the active profile instead")
+	}
+	if activeOpenFluxCarrier(config) {
+		return nil, errors.New("skipped: the connected OpenFlux profile uses this exit")
 	}
 	queueBudget := 5 * time.Minute
 	if c.Backend == "openflux" || c.Backend == "olcrtc" {

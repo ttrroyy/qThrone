@@ -401,6 +401,13 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
                 target.qwdttConfig = buildObject->qwdttConfigs.value(entID);
                 if (isUrl && !target.qwdttConfig.isEmpty()) {
                     auto config = QJsonDocument::fromJson(target.qwdttConfig.toUtf8()).object();
+                    // qWDTT is pinged by one TURN/DTLS handshake with the server's DTLS port, also in RAW mode.
+                    const auto profile = Configs::dataManager->profilesRepo->GetProfile(entID);
+                    if (profile && profile->type == "qwdtt") {
+                        if (const auto native = std::dynamic_pointer_cast<Configs::qwdtt>(profile->outbound)) {
+                            config = QJsonDocument::fromJson(native->NativePingConfig(target.qwdttConfig).toUtf8()).object();
+                        }
+                    }
                     // URL checks keep automatic captcha retries, without blocking the batch on a manual window.
                     config.insert("interactive_captcha", false);
                     config.insert("latency_probe", true);

@@ -29,10 +29,15 @@ def exact(sock, n):
     return data
 
 
+USER, PASSWORD = b'qthrone-test-user', b'qthrone-test-pass'
+
+
 def socks(port, command, host, target_port):
     sock = socket.create_connection(('127.0.0.1', port), timeout=10)
-    sock.sendall(b'\x05\x01\x00')
-    assert exact(sock, 2) == b'\x05\x00', 'SOCKS greeting failed'
+    sock.sendall(b'\x05\x01\x02')
+    assert exact(sock, 2) == b'\x05\x02', 'SOCKS greeting failed'
+    sock.sendall(b'\x01' + bytes([len(USER)]) + USER + bytes([len(PASSWORD)]) + PASSWORD)
+    assert exact(sock, 2) == b'\x01\x00', 'SOCKS authentication failed'
     sock.sendall(b'\x05' + bytes([command, 0, 1]) + socket.inet_aton(host) + struct.pack('!H', target_port))
     reply = exact(sock, 4)
     assert reply[:2] == b'\x05\x00', 'SOCKS request failed'
@@ -54,8 +59,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(data)
 
 
-def main(binary):
+def main(binary, exit_binary):
     binary = str(Path(binary).resolve())
+    exit_binary = str(Path(exit_binary).resolve())
     # Use the host's IPv4 interface: a userspace stack owns its own loopback.
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as route:
         route.connect(('192.0.2.1', 9))
@@ -87,17 +93,18 @@ def main(binary):
             config.write_text(f'[Interface]\nRole = exit\nMode = l4\nCodec = batched\nEncryptionKeyFile = {key}\nSessionContext = http://openflux\nURL = http://openflux\n\n[Transport "direct"]\nType = direct\nPriority = 100\nListen = 127.0.0.1:{carrier_port}\n')
             private = folder / 'client.json'
             private.write_text(json.dumps({'negotiate': True, 'secret': secret, 'context': 'http://openflux',
-                'socks': f'127.0.0.1:{socks_port}', 'transports': [{'type': 'direct', 'priority': 100, 'dial': f'127.0.0.1:{carrier_port}'}]}))
+                'socks': f'127.0.0.1:{socks_port}', 'socks_user': USER.decode(), 'socks_pass': PASSWORD.decode(), 'transports': [{'type': 'direct', 'priority': 100, 'dial': f'127.0.0.1:{carrier_port}'}]}))
             os.chmod(private, 0o600)
             flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
-            for arguments in (['--config', str(config), '--negotiate'], ['--qthrone-config', str(private)]):
-                processes.append(subprocess.Popen([binary, *arguments], stdin=subprocess.PIPE,
+            for command in ([exit_binary, '--config', str(config), '--negotiate'], [binary, '--qthrone-config', str(private)]):
+                processes.append(subprocess.Popen(command, stdin=subprocess.PIPE,
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags))
                 time.sleep(0.5)
-            deadline = time.monotonic() + 15
+            deadline = time.monotonic() + 30
             while True:
                 assert all(p.poll() is None for p in processes), 'OpenFlux exited during startup'
                 try:
+                    # The helper opens its listener only once the tunnel is up.
                     with socket.create_connection(('127.0.0.1', socks_port), timeout=0.2):
                         break
                 except OSError:
@@ -132,4 +139,4 @@ def main(binary):
 
 
 if __name__ == '__main__':
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2])

@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-func TestQWDTTPingHonorsConfiguredBudgetWhileQueued(t *testing.T) {
+func TestQWDTTPingWaitsForItsDeviceUntilCancelled(t *testing.T) {
 	config := `{"peer":"example.invalid:56000","device_id":"ping-budget-test"}`
 	key, valid := qwdttSessionKey(config)
 	if !valid {
@@ -21,10 +21,23 @@ func TestQWDTTPingHonorsConfiguredBudgetWhileQueued(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer release()
+	// A short HTTP timeout no longer fails a ping queued behind its device's previous one.
+	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
 	start := time.Now()
-	_, err = runQWDTTPing(context.Background(), config, 50*time.Millisecond)
-	if err == nil || time.Since(start) > time.Second {
-		t.Fatalf("configured ping timeout ignored: %v", err)
+	_, err = runQWDTTPing(ctx, config, 50*time.Millisecond)
+	if err == nil || time.Since(start) < 250*time.Millisecond || time.Since(start) > 2*time.Second {
+		t.Fatalf("queued ping did not wait for its device or ignored cancellation: %v", err)
+	}
+}
+
+func TestQWDTTDeviceSessionsAreKeyedByServer(t *testing.T) {
+	raw, _ := qwdttSessionKey(`{"peer":"Server.example:56003","device_id":"device"}`)
+	wg, _ := qwdttSessionKey(`{"peer":"server.example:56000","device_id":"device"}`)
+	other, _ := qwdttSessionKey(`{"peer":"server.example:56000","device_id":"other"}`)
+	csqtt, _ := qwdttSessionKey(`{"backend":"csqtt","peer":"server.example:46000","device_id":"device"}`)
+	if raw != wg || raw == other || raw == csqtt {
+		t.Fatal("device sessions are not keyed by server and device")
 	}
 }
 
