@@ -38,6 +38,19 @@
 #include <QUuid>
 #include <QVBoxLayout>
 
+namespace {
+// Like the original app, a deployment's qWDTT link names no tunnel mode: the client's
+// default (WG) applies. Links stored by earlier versions said RAW; they read the same now.
+QString withoutTunnelMode(QString link) {
+    if (!link.startsWith("qwdtt://config", Qt::CaseInsensitive)) return link;
+    static const QRegularExpression mode(R"(([?&])mode=[^&#]*&?)");
+    static const QRegularExpression dangling(R"([?&](#|$))");
+    link.replace(mode, "\\1");
+    link.replace(dangling, "\\1");
+    return link;
+}
+}
+
 RelayTask::RelayTask(QObject *parent) : QObject(parent) {
     connect(&process, &QProcess::started, this, [this] { process.write(requestBytes); });
     connect(&process, &QProcess::readyReadStandardOutput, this, [this] {
@@ -253,8 +266,8 @@ class ServerEditor : public QDialog {
         saveButton->setEnabled(!busy && editableState() != savedState);
     }
     void applyConfiguration(const QJsonValue &value) {
-        server["config"] = value;
-        configuration->setPlainText(value.toString());
+        server["config"] = withoutTunnelMode(value.toString());
+        configuration->setPlainText(server["config"].toString());
         rememberConsole();
     }
     QList<QWidget *> controls;
@@ -550,7 +563,7 @@ class ServerEditor : public QDialog {
         auto *configGroup = new QGroupBox(server["kind"].toString() + " конфиг", body);
         layout->addWidget(configGroup);
         auto *configLayout = new QVBoxLayout(configGroup);
-        configuration = new QPlainTextEdit(server["config"].toString(), configGroup);
+        configuration = new QPlainTextEdit(withoutTunnelMode(server["config"].toString()), configGroup);
         configuration->setReadOnly(true);
         configuration->setPlaceholderText("Конфиг появится после успешной установки");
         configLayout->addWidget(configuration);

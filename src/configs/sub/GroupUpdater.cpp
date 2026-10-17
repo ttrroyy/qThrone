@@ -432,7 +432,7 @@ namespace Subscription {
         const auto candidates = named.size() == 1 ? named : matching;
         if (candidates.size() == 1) {
             const auto &old = candidates.first();
-            if (type == "csqtt" || old.value("hash_source").toString("manual") == "manual") {
+            if (old.value("hash_source").toString("manual") == "manual") {
                 const int limit = type == "csqtt" ? 6 : 4;
                 const auto prefix = incoming.value("hashes").toArray();
                 const auto previousSlots = old.value("hashes").toArray();
@@ -448,14 +448,16 @@ namespace Subscription {
                 for (qsizetype slot = qMin(prefix.size(), qsizetype(limit)); slot < previousSlots.size(); ++slot) append(previousSlots.at(slot));
                 incoming["hashes"] = merged;
             }
-            if (type == "qwdtt") {
-                incoming["hash_source"] = candidates.first().value("hash_source");
-                incoming["auto_hash_count"] = candidates.first().value("auto_hash_count");
-            }
-            const int count = type == "qwdtt" && incoming.value("hash_source").toString() == "auto"
+            // Where the hashes come from is the user's choice in both clients (CSQTT reads the qWDTT binding).
+            if (old.contains("hash_source")) incoming["hash_source"] = old.value("hash_source");
+            if (old.contains("auto_hash_count")) incoming["auto_hash_count"] = old.value("auto_hash_count");
+            // The tunnel mode is the user's choice, like the hashes and workers.
+            if (type == "qwdtt" && old.contains("mode")) incoming["mode"] = old.value("mode");
+            if (old.contains("turn_tcp")) incoming["turn_tcp"] = old.value("turn_tcp");
+            const int count = incoming.value("hash_source").toString() == "auto"
                 ? incoming.value("auto_hash_count").toInt(1) : incoming.value("hashes").toArray().size();
             const int maximum = qMin(type == "csqtt" ? 126 : 108, qBound(1, count, type == "csqtt" ? 6 : 4) * 27);
-            const int oldCount = type == "qwdtt" && old.value("hash_source").toString() == "auto"
+            const int oldCount = old.value("hash_source").toString() == "auto"
                 ? old.value("auto_hash_count").toInt(1) : old.value("hashes").toArray().size();
             const int oldMaximum = qMin(type == "csqtt" ? 126 : 108, qBound(1, oldCount, type == "csqtt" ? 6 : 4) * 27);
             const int requested = old.value("workers").toInt(type == "csqtt" ? 18 : 9);

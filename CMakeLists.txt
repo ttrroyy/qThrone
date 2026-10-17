@@ -312,6 +312,16 @@ set(PROJECT_SOURCES
         src/configs/outbounds/csqtt.cpp
         src/configs/outbounds/openflux.cpp
         src/configs/outbounds/olcrtc.cpp
+        src/configs/outbounds/dnstunnel.cpp
+        include/configs/outbounds/dnstunnel.h
+        src/configs/outbounds/s3bypass.cpp
+        include/configs/outbounds/s3bypass.h
+        src/configs/outbounds/native.cpp
+        include/configs/outbounds/native.h
+        src/ui/profile/edit_dnstunnel.cpp
+        include/ui/profile/edit_dnstunnel.h
+        src/ui/profile/edit_s3bypass.cpp
+        include/ui/profile/edit_s3bypass.h
         include/configs/outbounds/olcrtc.h
         src/ui/profile/edit_olcrtc.cpp
         include/ui/profile/edit_olcrtc.h

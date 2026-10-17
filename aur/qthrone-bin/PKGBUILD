@@ -24,7 +24,7 @@ package() {
   cp -a "$srcdir/qThrone/." "$pkgdir/usr/lib/qthrone/"
   # The release omits the library for obsolete wl_shell; modern Wayland uses xdg-shell.
   rm -f "$pkgdir/usr/lib/qthrone/usr/plugins/wayland-shell-integration/libwl-shell-plugin.so"
-  for binary in qThrone qThroneCore qThroneUpdater qwdtt olcrtc openflux csqtt-transport; do
+  for binary in qThrone qThroneCore qThroneUpdater qwdtt olcrtc openflux csqtt-transport dnstun masterdns s3bypass slipstream-client; do
     chmod 755 "$pkgdir/usr/lib/qthrone/$binary"
   done
   install -Dm755 "$srcdir/qthrone" "$pkgdir/usr/bin/qthrone"

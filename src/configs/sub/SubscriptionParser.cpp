@@ -5,6 +5,8 @@
 #include "include/configs/sub/clash.hpp"
 #include "include/configs/sub/vpnFileImport.hpp"
 #include "include/database/ProfilesRepo.h"
+#include "include/configs/outbounds/dnstunnel.h"
+#include "include/configs/outbounds/s3bypass.h"
 #include "include/global/Utils.hpp"
 
 #include <QJsonArray>
@@ -53,6 +55,12 @@ namespace Subscription {
             {"csqtt", {"csqtt://"}, {"csqtt"}, {}},
             {"openflux", {"openflux://"}, {"openflux"}, {}},
             {"olcrtc", {"olcrtc://"}, {"olcrtc"}, {}},
+            // One model reads every DNS tunnel link and takes its transport from it.
+            {"dnstt", {"dnst://", "slipnet://", "masterdns://"}, {"dnstt"}, {}},
+            {"vaydns", {}, {"vaydns"}, {}},
+            {"slipstream", {}, {"slipstream"}, {}},
+            {"masterdns", {}, {"masterdns"}, {}},
+            {"s3bypass", {}, {"s3bypass"}, {}},
             {"socks", {"socks5://", "socks4://", "socks4a://", "socks://"}, {"socks"}, {"socks5"}},
             {"http", {"http://", "https://"}, {"http"}, {"http"}},
             {"shadowsocks", {"ss://"}, {"shadowsocks"}, {"ss"}},
@@ -456,6 +464,12 @@ namespace Subscription {
                     return;
                 }
             }
+            if (Configs::s3bypass::IsXrayConfig(object)) {
+                auto ent = Configs::ProfilesRepo::NewProfile("s3bypass");
+                if (dynamic_cast<Configs::s3bypass *>(ent->outbound.get())->ParseFromXrayConfig(object)) produce(ent);
+                else log("Invalid S3 Bypass configuration");
+                return;
+            }
             // Xray first: its configs share the "outbounds" wrapper with sing-box.
             const auto xrayType = getXraySubType(doc);
             if (xrayType == XraySubType::outboundObject) {
@@ -678,7 +692,13 @@ namespace Subscription {
             }
             if (!ent->outbound->ParseFromLink(str)) {
                 if (std::string_view(profileType) == "qwdtt") log("Invalid qWDTT link: check the peer address, ports and mode.");
+                if (std::string_view(profileType) == "dnstt") log("Invalid DNS tunnel link.");
                 return;
+            }
+            if (const auto *tunnel = dynamic_cast<Configs::dnstunnel *>(ent->outbound.get()); tunnel && tunnel->kind != ent->type) {
+                auto typed = Configs::ProfilesRepo::NewProfile(tunnel->kind);
+                if (!typed->outbound->ParseFromJson(ent->outbound->ExportToJson())) return;
+                ent = typed;
             }
 
             if (std::string_view(profileType) == "wireguard") setNameIfEmpty(*ent, {overrideName});

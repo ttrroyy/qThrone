@@ -11,6 +11,8 @@
 #include "include/configs/outbounds/csqtt.h"
 #include "include/configs/outbounds/openflux.h"
 #include "include/configs/outbounds/olcrtc.h"
+#include "include/configs/outbounds/dnstunnel.h"
+#include "include/configs/outbounds/s3bypass.h"
 #include "include/configs/generate.h"
 #include "include/global/Configs.hpp"
 #include "include/global/Utils.hpp"
@@ -408,6 +410,22 @@ int TestQwdttImport() {
             merged=Subscription::PreserveRelaySettings(type,incoming,{old});
             check(merged["workers"].toInt()==27,"workers clamp to the final deduplicated hash limit instead of default 9");
         }
+        for (const auto &type : {QString("qwdtt"), QString("csqtt")}) {
+            // The user's own choices survive a subscription refresh: hashes, workers, mode and TURN transport.
+            const QJsonObject old{{"_type", type}, {"tag", "Choices"}, {"server", "example.org"}, {"server_port", 443}, {"password", "secret"},
+                                  {"hash_source", "manual"}, {"hashes", QJsonArray{"user-hash-1", "user-hash-2"}}, {"workers", 18},
+                                  {"mode", "raw"}, {"turn_tcp", type == "qwdtt" ? false : true}};
+            const QJsonObject incoming{{"tag", "Choices"}, {"server", "example.org"}, {"server_port", 443}, {"password", "secret"},
+                                       {"hashes", QJsonArray{}}, {"workers", 9}, {"mode", "wg"}, {"turn_tcp", type == "qwdtt"}};
+            const auto merged = Subscription::PreserveRelaySettings(type, incoming, {old});
+            check(merged["hashes"] == old["hashes"] && merged["workers"].toInt() == 18, "subscription refresh keeps the user's hashes and workers");
+            check(merged["turn_tcp"] == old["turn_tcp"], "subscription refresh keeps the user's TURN transport");
+            if (type == "qwdtt") check(merged["mode"].toString() == "raw", "subscription refresh keeps the user's qWDTT mode");
+            auto automatic = old; automatic["hash_source"] = "auto"; automatic["auto_hash_count"] = 2; automatic["workers"] = 54;
+            const auto autoMerged = Subscription::PreserveRelaySettings(type, incoming, {automatic});
+            check(autoMerged["hash_source"].toString() == "auto" && autoMerged["auto_hash_count"].toInt() == 2 && autoMerged["workers"].toInt() == 54,
+                  "subscription refresh keeps automatic hashes from the VK binding and their workers");
+        }
         const auto hy = parse(R"({"remarks":"HY2","outbounds":[{"protocol":"freedom","tag":"direct"},{"protocol":"hysteria","tag":"hy","settings":{"address":"hy.example","port":443}}],"routing":{"balancers":[{"tag":"auto","selector":["hy"]}],"rules":[{"balancerTag":"auto"}]}})");
         check(hy.size() == 1 && hy.first()->outbound->DisplayType() == "Hysteria" && hy.first()->outbound->DisplayAddress() == "hy.example:443", "JSON Hysteria2 retains its protocol and address despite embedded balancers");
         for (const auto &protocol : QStringList{"vless", "vmess", "trojan", "shadowsocks", "socks", "http", "wireguard"}) {
@@ -494,7 +512,7 @@ int TestQwdttImport() {
         check(cs && cs->hashes.size() == 6 && cs->hashes.first() == "abcdefghijklmnop1" && cs->hashes.last() == "abcdefghijklmnop6", "CSQTT retains first six hashes in order");
     }
     Configs::qwdtt defaults;
-    check(defaults.mode == "raw" && defaults.turnTCP, "new profiles default to RAW TCP");
+    check(defaults.mode == "wg" && defaults.turnTCP, "new profiles default to the original app's WG over TURN TCP");
     check(defaults.ParseFromLink(QString::fromUtf8(android)) && defaults.turnTCP, "Android links default to TCP");
     check(defaults.ParseFromLink(QString::fromUtf8(android) + "&turn_tcp=0") && !defaults.turnTCP, "explicit UDP is preserved");
     check(defaults.ParseFromLink(QString::fromUtf8(android) + "&vk_anon_path=legacy&captcha_mode=wv"), "captcha mode import");
@@ -712,6 +730,70 @@ int TestQwdttImport() {
                   "OpenFlux helper listener requires per-launch credentials");
         }
     }
+    {
+        // Links of the dnst:// specification (net2share/dnst-url-spec EXAMPLES.md) and of the apps that predate it.
+        const QString key = "a5d214d305ad581b00b53d1887f99d8d3093ff5a680762c6ca8e81aaaa69ad08";
+        const auto read = [&parse](const QString &link) -> std::shared_ptr<Configs::Profile> {
+            const auto profiles = parse(link.toUtf8());
+            return profiles.size() == 1 ? profiles.first() : nullptr;
+        };
+        const auto tunnel = [](const std::shared_ptr<Configs::Profile> &profile) {
+            return profile ? dynamic_cast<Configs::dnstunnel *>(profile->outbound.get()) : nullptr;
+        };
+        const auto dnstt = read("dnst://t.example.com/dnstt/ssh?pubkey=" + key + "&user=tunnel&password=secret#my-tunnel");
+        check(dnstt && dnstt->type == "dnstt" && tunnel(dnstt)->name == "my-tunnel" && tunnel(dnstt)->data["backend"].toObject()["type"].toString() == "ssh"
+              && tunnel(dnstt)->data["backend"].toObject()["user"].toString() == "tunnel", "DNSTT dnst:// link with SSH backend");
+        const auto vaydns = read("dnst://t.example.com/vaydns/socks?pubkey=" + key + "&record-type=txt&clientid-size=2&keepalive=10s&idle-timeout=60s#my-tunnel");
+        check(vaydns && vaydns->type == "vaydns" && tunnel(vaydns)->data["clientid_size"].toInt() == 2 && tunnel(vaydns)->data["idle_timeout"].toString() == "60s",
+              "VayDNS dnst:// link takes the VayDNS profile type");
+        const auto compat = read("dnst://t.example.com/vaydns/socks?pubkey=" + key + "&dnstt-compat=true");
+        check(compat && tunnel(compat)->data["dnstt_compat"].toBool(), "VayDNS DNSTT compatibility flag");
+        const auto slip = read("dnst://a.example.com/slipstream/shadowsocks?cert=MIIBkTCB&method=aes-256-gcm&password=secret#my-tunnel");
+        check(slip && slip->type == "slipstream" && tunnel(slip)->data["cert"].toString() == "MIIBkTCB", "SlipStream dnst:// link");
+        const auto master = read("dnst://v.example.com/masterdns/socks?mkey=abcdef1234&encryption=5#my-tunnel");
+        check(master && master->type == "masterdns" && tunnel(master)->data["encryption"].toInt() == 5 && tunnel(master)->data["mkey"].toString() == "abcdef1234",
+              "MasterDNS dnst:// link");
+        const auto json = read("dnst://eyJ0YWciOiJteS10dW5uZWwiLCJ0cmFuc3BvcnQiOnsidHlwZSI6InNsaXBzdHJlYW0iLCJkb21haW4iOiJhLmV4YW1wbGUuY29tIiwiY2VydCI6Ii0tLS0tQkVHSU4gQ0VSVElGSUNBVEUtLS0tLVxuTUlJQmtUQ0IuLi5cbi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0ifSwiYmFja2VuZCI6eyJ0eXBlIjoic2hhZG93c29ja3MiLCJtZXRob2QiOiJhZXMtMjU2LWdjbSIsInBhc3N3b3JkIjoic2VjcmV0In19");
+        check(json && json->type == "slipstream" && tunnel(json)->name == "my-tunnel" && tunnel(json)->data["cert"].toString().startsWith("-----BEGIN CERTIFICATE-----")
+              && tunnel(json)->data["backend"].toObject()["method"].toString() == "aes-256-gcm", "dnst:// base64 JSON form");
+        check(!read("dnst://t.example.com/dnstt/socks?pubkey=ab3f...c8") && !read("dnst://t.example.com/dnstt/ssh?pubkey=" + key)
+              && !read("dnst://t.example.com/smoke-signals/socks?pubkey=" + key), "invalid DNS tunnel profiles are rejected");
+        const auto slipnet = [](const QStringList &fields) { return "slipnet://" + QString::fromLatin1(fields.join('|').toUtf8().toBase64()); };
+        const auto home = read(slipnet({"28", "dnstt", "Home", "t.example.com", "8.8.8.8:53:0,1.1.1.1:53:0", "0", "5000", "bbr", "1080", "127.0.0.1", "0", key, "proxyuser", "proxypass"}));
+        check(home && home->type == "dnstt" && tunnel(home)->name == "Home" && tunnel(home)->data["resolvers"].toArray() == QJsonArray{"8.8.8.8:53", "1.1.1.1:53"}
+              && tunnel(home)->data["backend"].toObject()["user"].toString() == "proxyuser", "SlipNet DNSTT export");
+        QStringList fields(50);
+        const QStringList head{"28", "ss", "Slip", "s.example.com", "9.9.9.9:53:1", "1", "400", "dcubic", "1080", "127.0.0.1", "0"};
+        for (int i = 0; i < head.size(); ++i) fields[i] = head[i];
+        const auto slipnetSlip = read(slipnet(fields));
+        check(slipnetSlip && slipnetSlip->type == "slipstream" && tunnel(slipnetSlip)->data["authoritative"].toBool()
+              && tunnel(slipnetSlip)->data["congestion_control"].toString() == "dcubic", "SlipNet SlipStream export");
+        const QByteArray white = R"({"schema":"whitedns.profile","version":1,"profile":{"name":"Iran","server":{"domain":"v.example.com","encryption_key":"k3y","encryption_method":2}}})";
+        const auto whiteDns = read("masterdns://" + QString::fromLatin1(white.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)));
+        check(whiteDns && whiteDns->type == "masterdns" && tunnel(whiteDns)->name == "Iran" && tunnel(whiteDns)->data["encryption"].toInt() == 2, "WhiteDNS MasterDNS link");
+        for (const auto &link : {QString("dnst://t.example.com/vaydns/ssh?pubkey=" + key + "&record-type=cname&user=tunnel&password=secret#Мой туннель"),
+                                 QString("dnst://v.example.com/masterdns/socks?mkey=abcdef1234&encryption=3"), QString("dnst://a.example.com/slipstream/socks?cert=MIIBkTCB")}) {
+            const auto first = read(link);
+            const auto again = first ? read(tunnel(first)->ExportToLink()) : nullptr;
+            check(again && again->type == first->type && tunnel(again)->ExportToJson() == tunnel(first)->ExportToJson(), "DNS tunnel exported link reads back");
+        }
+        if (dnstt && tunnel(dnstt)->Prepare().isEmpty()) {
+            const auto prepared = QJsonDocument::fromJson(tunnel(dnstt)->extraCoreConf.toUtf8()).object();
+            check(prepared["backend"].toString() == "dnstt" && prepared["tunnel_backend"].toObject()["type"].toString() == "ssh"
+                  && !prepared["socks_user"].toString().isEmpty() && tunnel(dnstt)->Build().object["network"].toString() == "tcp",
+                  "DNS tunnel helper gets its transport, service and per-launch credentials");
+        }
+        const QByteArray s3 = R"({"log":{"loglevel":"info"},"inbounds":[{"tag":"socks-in","listen":"127.0.0.1","port":10808,"protocol":"socks","settings":{"auth":"noauth","udp":true}}],
+            "outbounds":[{"tag":"proxy","protocol":"fedarisha","settings":{"storage":{"type":"s3","bucket":"vlt-alpha","endpoint":"https://storage.example.ru","region":"ru-msk",
+            "prefix":"fedarisha/4/","sessionsDir":"sessions","accessKey":"AK","secretKey":"SK"},"tuning":{"idleTimeoutSec":300,"pollIntervalMs":100,"writeIntervalMs":20,"maxFileSizeBytes":2097152}}},
+            {"tag":"direct","protocol":"freedom","settings":{}}]})";
+        const auto s3profiles = parse(s3);
+        auto *bypass = s3profiles.size() == 1 ? dynamic_cast<Configs::s3bypass *>(s3profiles.first()->outbound.get()) : nullptr;
+        check(bypass && s3profiles.first()->type == "s3bypass" && bypass->storage["bucket"].toString() == "vlt-alpha" && bypass->tuning["pollIntervalMs"].toInt() == 100
+              && bypass->DisplayAddress() == "storage.example.ru/vlt-alpha", "S3 Bypass Xray configuration of the original app");
+        Configs::s3bypass empty;
+        check(!empty.ParseFromJson(QJsonObject{{"type", "s3bypass"}}), "S3 Bypass without storage is rejected");
+    }
     if (!testProfiles.isEmpty()) {
         const auto &settings = Configs::dataManager->settingsRepo;
         const bool oldTun = settings->spmode_vpn;
@@ -754,7 +836,7 @@ int TestQwdttImport() {
         check(profile != nullptr, "profile factory");
         if (!profile) continue;
         check(profile->name == "Main (demo)" && profile->password == "a+b &%", "form encoding");
-        check(profile->mode == "raw" && profile->hashes.size() == 2, "RAW default and hashes");
+        check(profile->mode == "wg" && profile->hashes.size() == 2, "WG default and hashes");
         const auto roundTrip = parse(profiles.first()->outbound->ExportToLink().toUtf8());
         check(roundTrip.size() == 1 && roundTrip.first()->outbound->ExportIdentity() == profiles.first()->outbound->ExportIdentity(), "share link round trip");
     }
@@ -766,7 +848,7 @@ int TestQwdttImport() {
         if (profiles.size() != 1) continue;
         const auto *profile = dynamic_cast<Configs::qwdtt *>(profiles.first()->outbound.get());
         check(profile && profile->hashes == QStringList{"hash1", "hash2", "hash3", "hash4"}, "first four hashes in order");
-        check(profile && profile->workers == 9 && profile->mode == "raw", "normalize worker count and preserve RAW default");
+        check(profile && profile->workers == 9 && profile->mode == "wg", "normalize worker count and keep the WG default");
         const auto roundTrip = parse(profiles.first()->outbound->ExportToLink().toUtf8());
         check(roundTrip.size() == 1 && roundTrip.first()->outbound->ExportIdentity() == profiles.first()->outbound->ExportIdentity(), "normalized import round trip");
     }
@@ -775,7 +857,7 @@ int TestQwdttImport() {
         const auto profiles = parse(body);
         check(profiles.size() == 2, "Android subscription");
         if (profiles.size() != 2) continue;
-        check(profiles.first()->outbound->DisplayType() == "qWDTT (RAW)" && profiles.last()->outbound->DisplayType() == "qWDTT (WG)", "subscription modes and ordering");
+        check(profiles.first()->outbound->DisplayType() == "qWDTT (WG)" && profiles.last()->outbound->DisplayType() == "qWDTT (WG)", "subscription modes and ordering");
     }
     check(parse(android + "\n" + android).size() == 2, "text subscription");
     check(parse("qwdtt://config?peer=203.0.113.10%3Ainvalid&pass=test").isEmpty(), "invalid server port");

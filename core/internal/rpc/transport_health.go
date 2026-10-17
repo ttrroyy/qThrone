@@ -32,6 +32,9 @@ type transportHealth struct {
 
 var activeWorkers = regexp.MustCompile(`(?i)(?:Активных:\s*|\bactive=)([0-9]+)`)
 
+// A solved check is progress: the original apps count only a failed solve.
+var captchaSolved = regexp.MustCompile(`(?i)Smart Captcha решена|решила капчу|решил капчу|Капча решена|solve succeeded`)
+
 func newTransportHealth(statsClient bool, clock func() time.Time) *transportHealth {
 	if clock == nil {
 		clock = time.Now
@@ -77,8 +80,10 @@ func (h *transportHealth) accept(line string) {
 			h.wrapTimeouts++
 		}
 	}
-	lower := strings.ToLower(line)
-	if strings.Contains(lower, "captcha") || strings.Contains(lower, "капч") {
+	// A pending check pauses the watchdog; a solved one does not hold it any longer.
+	if captchaSolved.MatchString(line) {
+		h.captchaAt = time.Time{}
+	} else if lower := strings.ToLower(line); strings.Contains(lower, "captcha") || strings.Contains(lower, "капч") {
 		h.captchaAt = now
 	}
 	if strings.Contains(line, "[READY]") || strings.Contains(line, "[CSQTT diagnostic] READY") || strings.Contains(line, "[CSQTT] SOCKS bridge ready") {

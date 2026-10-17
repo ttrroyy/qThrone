@@ -219,3 +219,5 @@ require (
 replace github.com/sagernet/cronet-go/lib/darwin_amd64 => github.com/throneproj/cronet-go/lib/darwin_amd64 v0.0.0-20260923015522-0dc5a60c5c47
 
 replace github.com/sagernet/cronet-go/lib/darwin_arm64 => github.com/throneproj/cronet-go/lib/darwin_arm64 v0.0.0-20260923015522-0dc5a60c5c47
+
+replace github.com/xchacha20-poly1305/sing-trusttunnel => ./third_party/sing-trusttunnel

@@ -27,7 +27,9 @@ QString peerString(const QString &host, int port) {
     return (host.contains(':') ? "[" + host + "]" : host) + ":" + QString::number(port);
 }
 QString normalizedMode(const QString &m) {
-    if (m.isEmpty() || m == "raw" || m == "rawtun") return "raw";
+    // The original app connects in its VPN (WireGuard) mode unless RAW is chosen.
+    if (m.isEmpty()) return "wg";
+    if (m == "raw" || m == "rawtun") return "raw";
     return m == "wg" || m == "vpn" || m == "socks" ? "wg" : m;
 }
 }

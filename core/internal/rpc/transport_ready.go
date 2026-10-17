@@ -26,8 +26,8 @@ func waitTransportReady(ctx context.Context, config string, done <-chan struct{}
 	}
 	// VK authorization may include captcha checks; rooms and documents answer quickly or not at all.
 	budget := 5 * time.Minute
-	if c.Backend == "openflux" || c.Backend == "olcrtc" {
-		budget = 2 * time.Minute
+	if kind, known := transportKinds[c.Backend]; known {
+		budget = kind.connectStartup
 	}
 	ctx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()

@@ -1,5 +1,6 @@
 #include "include/configs/outbounds/csqtt.h"
 #include "include/global/Configs.hpp"
+#include "include/ui/setting/dialog_vk_relay.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -12,7 +13,11 @@
 #include <QUrlQuery>
 
 namespace Configs {
-csqtt::csqtt() { server_port = 46000; socksPort = 0; deviceID = RelayDeviceID(); }
+csqtt::csqtt() {
+    server_port = 46000; socksPort = 0; deviceID = RelayDeviceID();
+    // New profiles follow the default hash source of the VK binding, as qWDTT profiles do.
+    if (dataManager) { const auto *settings = dataManager->settingsRepo.get(); hashSource = settings->vk_relay_linked ? settings->qwdtt_hash_source : "manual"; autoHashCount = qBound(1, settings->qwdtt_auto_hash_count, 4); }
+}
 QStringList csqtt::NormalizeHashes(const QStringList &input) {
     QStringList result;
     for (auto hash : input) {
@@ -28,10 +33,13 @@ bool csqtt::ParseFromJson(const QJsonObject &object) {
     if (object["type"].toString() != "csqtt") return false;
     outbound::ParseFromJson(object);
     password = object["password"].toString();
+    hashSource = object["hash_source"].toString("manual");
+    if (hashSource != "auto" && hashSource != "manual") return false;
+    autoHashCount = qBound(1, object["auto_hash_count"].toInt(1), 4);
     hashes.clear();
     for (const auto &hash : object["hashes"].toArray()) hashes.append(hash.toString());
     hashes = NormalizeHashes(hashes.mid(0,6));
-    workers = NormalizeWorkers(object["workers"].toInt(18),hashes.size());
+    workers = NormalizeWorkers(object["workers"].toInt(18),hashSource == "auto" ? autoHashCount : hashes.size());
     turnTCP = object["turn_tcp"].toBool(false);
     obfs = object["obfs"].toString("audio");
     vkAnonPath = object["vk_anon_path"].toString("vkcalls");
@@ -98,7 +106,8 @@ bool csqtt::ParseFromLink(const QString &link) {
 QJsonObject csqtt::ExportToJson() {
     return {{"type","csqtt"},{"tag",name},{"server",server},{"server_port",server_port},
         {"password",password},{"hashes",QJsonArray::fromStringList(hashes)},{"workers",workers},
-        {"turn_tcp",turnTCP},{"obfs",obfs},{"vk_anon_path",vkAnonPath},{"captcha_mode",captchaMode},{"device_id",deviceID}};
+        {"turn_tcp",turnTCP},{"obfs",obfs},{"vk_anon_path",vkAnonPath},{"captcha_mode",captchaMode},{"device_id",deviceID},
+        {"hash_source",hashSource},{"auto_hash_count",autoHashCount}};
 }
 QJsonObject csqtt::ExportIdentity() { auto object = ExportToJson(); object.remove("tag"); object.remove("device_id"); object.remove("hashes"); object.remove("workers"); return object; }
 QString csqtt::ExportToLink() {
@@ -110,12 +119,19 @@ QString csqtt::ExportToLink() {
     return result;
 }
 QString csqtt::Prepare() {
-    hashes = NormalizeHashes(hashes); workers = NormalizeWorkers(workers,hashes.size());
+    hashes = NormalizeHashes(hashes);
+    QStringList effectiveHashes = hashes;
+    if (hashSource == "auto") {
+        // The calls come from the qWDTT binding; the helper joins them without a VK login.
+        QString error; effectiveHashes = NormalizeHashes(RelayAccountHashes(autoHashCount, &error));
+        if (!error.isEmpty()) return error;
+    }
+    workers = NormalizeWorkers(workers,effectiveHashes.size());
     if (server.isEmpty() || server_port < 1 || server_port > 65535) return QObject::tr("CSQTT: invalid server address or port");
     if (password.isEmpty() || (password+deviceID).contains(QRegularExpression("[|\\r\\n]"))) return QObject::tr("CSQTT: invalid connection credentials");
-    if (hashes.isEmpty() || hashes.size() > 6) return QObject::tr("CSQTT: enter one to six VK call hashes");
+    if (effectiveHashes.isEmpty() || effectiveHashes.size() > 6) return QObject::tr("CSQTT: enter one to six VK call hashes");
     QSet<QString> seen;
-    for (const auto &hash : hashes) {
+    for (const auto &hash : effectiveHashes) {
         if (hash.size() < 16 || hash.contains(QRegularExpression("[,|\\s]")) || seen.contains(hash)) return QObject::tr("CSQTT: invalid or duplicate VK hash");
         seen.insert(hash);
     }
@@ -132,6 +148,8 @@ QString csqtt::Prepare() {
     socksAddress = "127.0.0.1"; socksPort = tcp.serverPort(); bridgeAuth = QUuid::createUuid().toString(QUuid::WithoutBraces);
     const auto endpoint = [](const QString &host, int port) { return (host.contains(':') ? "["+host+"]" : host)+":"+QString::number(port); };
     auto config = ExportToJson();
+    config["hashes"] = QJsonArray::fromStringList(effectiveHashes);
+    config.remove("hash_source"); config.remove("auto_hash_count");
     config["backend"] = "csqtt"; config["peer"] = endpoint(server,server_port);
     config["listen"] = endpoint("127.0.0.1",udp.localPort()); config["socks"] = endpoint(socksAddress,socksPort);
     config["socks_user"] = bridgeAuth; config["socks_pass"] = bridgeAuth;

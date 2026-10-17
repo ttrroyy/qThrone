@@ -39,7 +39,7 @@ var extraSessions []*extraSession
 
 func isTunnelHelper(path string) bool {
 	name := strings.TrimSuffix(strings.ToLower(filepath.Base(path)), ".exe")
-	return name == "qwdtt" || name == "openflux" || name == "olcrtc"
+	return tunnelHelpers[name]
 }
 
 func transportBackend(config string) string {

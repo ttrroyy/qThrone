@@ -1,4 +1,5 @@
 #include "include/scanner/ScanProfiles.h"
+#include "include/configs/outbounds/native.h"
 
 #include <QObject>
 
@@ -71,8 +72,8 @@ namespace Scanner {
     } // namespace
 
     bool IsScanBaseType(const QString &type) {
-        return !type.isEmpty() && type != QLatin1String("custom") && type != QLatin1String("extracore") && type != QLatin1String("qwdtt") &&
-               type != QLatin1String("csqtt") && type != QLatin1String("openflux") && type != QLatin1String("olcrtc") && type != QLatin1String("tailscale") && type != QLatin1String("autoselector") && type != QLatin1String("direct");
+        return !type.isEmpty() && type != QLatin1String("custom") && type != QLatin1String("extracore") && !Configs::IsNativeTransport(type) &&
+               type != QLatin1String("tailscale") && type != QLatin1String("autoselector") && type != QLatin1String("direct");
     }
 
     QString WarpTransportOf(const QString &mode) {

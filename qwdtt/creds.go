@@ -717,6 +717,8 @@ func requestWebViewCaptcha(streamID int, captchaErr *VkCaptchaError, mode string
 			return "", fmt.Errorf("VK captcha data is missing")
 		}
 		visible := mode != "auto"
+		// The solver gives the hidden attempt its 10 s from the loaded page; this
+		// outer budget also covers starting the browser.
 		if !visible && timeout < 30*time.Second {
 			timeout = 30 * time.Second
 		}

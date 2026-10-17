@@ -8,6 +8,10 @@ class csqtt : public extracore {
 public:
     csqtt();
     QString password;
+    // "auto" takes call hashes from the qWDTT VK binding; CSQTT still joins those calls
+    // anonymously. CSQTT's own account login is never used: it gets VK accounts banned.
+    QString hashSource = "manual";
+    int autoHashCount = 1;
     QStringList hashes;
     int workers = 18;
     bool turnTCP = false;

@@ -111,14 +111,12 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	if json.Unmarshal([]byte(config), &c) != nil {
 		return nil, errors.New("invalid qWDTT test config")
 	}
+	kind, known := transportKinds[c.Backend]
+	if !known {
+		return nil, errors.New("unknown probe transport")
+	}
 	// Include queue waits in the startup budget; manual captcha gets time for user input.
-	budget := 5 * time.Minute
-	if c.Backend == "openflux" || c.Backend == "olcrtc" {
-		budget = 15 * time.Second
-	}
-	if c.Backend == "olcrtc" {
-		budget = 30 * time.Second
-	}
+	budget := kind.probeStartup
 	ctx, cancelProbe := context.WithTimeout(ctx, budget)
 	defer cancelProbe()
 	host, port, err := net.SplitHostPort(c.SOCKS)
@@ -138,17 +136,13 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	if activeOpenFluxCarrier(config) {
 		return nil, errors.New("skipped: the connected OpenFlux profile uses this exit")
 	}
-	queueBudget := 5 * time.Minute
-	if c.Backend == "openflux" || c.Backend == "olcrtc" {
-		queueBudget = 15 * time.Second
-	}
-	queueCtx, cancelQueue := context.WithTimeout(ctx, queueBudget)
+	queueCtx, cancelQueue := context.WithTimeout(ctx, kind.probeStartup)
 	defer cancelQueue()
 	release, err := acquireQWDTTProbe(queueCtx, key)
 	if err != nil {
 		return nil, err
 	}
-	if c.Backend == "" || c.Backend == "csqtt" {
+	if kind.vk {
 		slotRelease, slotErr := acquireTransportProbeSlot(queueCtx)
 		if slotErr != nil {
 			release()
@@ -176,10 +170,7 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 		release()
 		return nil, err
 	}
-	name := "qwdtt"
-	if c.Backend == "openflux" || c.Backend == "olcrtc" {
-		name = c.Backend
-	}
+	name := kind.executable
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}
@@ -193,20 +184,7 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 		release()
 		return nil, err
 	}
-	argument := "-config"
-	if c.Backend == "csqtt" {
-		argument = "-csqtt-config"
-	} else if c.Backend == "openflux" || c.Backend == "olcrtc" {
-		argument = "--qthrone-config"
-	} else if c.Backend != "" {
-		release()
-		os.RemoveAll(folder)
-		return nil, errors.New("unknown probe transport")
-	}
-	child := process.NewProcess(filepath.Join(filepath.Dir(executable), name), []string{argument, path}, false)
-	if c.Backend == "openflux" || c.Backend == "olcrtc" {
-		child = process.NewProcess(filepath.Join(filepath.Dir(executable), name), []string{argument, path}, true)
-	}
+	child := process.NewProcess(filepath.Join(filepath.Dir(executable), name), []string{kind.flag, path}, kind.quiet)
 	child.SetBackgroundProbe()
 	child.SetCleanupPath(folder)
 	child.EnableStdinShutdown("STOP")
@@ -236,14 +214,7 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	cleanup := deferredProbeCleanup(child.Stop, release)
 	readyCtx, cancel := context.WithTimeout(ctx, budget)
 	defer cancel()
-	startupBudget := 5 * time.Minute
-	if c.Backend == "openflux" || c.Backend == "olcrtc" {
-		startupBudget = 15 * time.Second
-	}
-	if c.Backend == "olcrtc" {
-		startupBudget = 30 * time.Second
-	}
-	startupTimer := time.NewTimer(startupBudget)
+	startupTimer := time.NewTimer(kind.probeStartup)
 	defer startupTimer.Stop()
 	for {
 		conn, e := (&net.Dialer{Timeout: 100 * time.Millisecond}).DialContext(readyCtx, "tcp", c.SOCKS)

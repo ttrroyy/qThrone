@@ -309,12 +309,14 @@ func scanCSQTTOutput(ctx context.Context, c *bridgeConfig, reader io.Reader, con
 			solvers.Add(1)
 			go func(redirect string, visible bool) {
 				defer solvers.Done()
-				solveCtx := ctx
+				// The CSQTT client itself waits 10 s for a hidden attempt, as the original app
+				// does: answer before it gives up. The visible window closes itself after a minute.
+				budget := captchaManualWebViewTimeout
 				if !visible {
-					var cancel context.CancelFunc
-					solveCtx, cancel = context.WithTimeout(ctx, 9*time.Second)
-					defer cancel()
+					budget = 9 * time.Second
 				}
+				solveCtx, cancel := context.WithTimeout(ctx, budget)
+				defer cancel()
 				token, err := desktopCaptchaSolver(solveCtx, redirect, visible)
 				if err != nil {
 					token = "error:cancelled"

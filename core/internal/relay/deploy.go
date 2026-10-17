@@ -360,7 +360,7 @@ func (p *protocol) deploy(r Request) error {
 		}
 		query := url.Values{"peer": {net.JoinHostPort(s["host"], s["peerPort"])}, "pass": {s["password"]}, "device_id": {s["deviceId"]}, "name": {s["name"]}}
 		if s["kind"] == "qwdtt" {
-			query.Set("mode", "raw")
+			// No tunnel mode, as in the original app: the client's default (WG) applies.
 			query.Set("raw_port", s["rawPort"])
 			p.emit("config", "", "qwdtt://config?"+query.Encode())
 		} else {

@@ -149,23 +149,18 @@ func solveDesktopCaptchaMode(parent context.Context, redirect string, visible bo
 			}()
 		}
 	})
-	if err := chromedp.Run(page, network.Enable(), chromedp.Navigate(redirect)); err != nil {
+	if err := chromedp.Run(page, network.Enable(), chromedp.ActionFunc(installCaptchaIntercept), chromedp.Navigate(redirect)); err != nil {
 		if ctx.Err() != nil {
 			return "", ctx.Err()
 		}
 		// Navigation errors may contain the secret captcha URL; don't log them.
 		return "", fmt.Errorf("cannot load VK captcha in the private browser")
 	}
-	select {
-	case value := <-token:
-		return value, nil
-	case <-page.Done():
-		if parent.Err() != nil {
-			return "", parent.Err()
-		}
-		if ctx.Err() != nil {
-			return "", ctx.Err()
-		}
-		return "", errCaptchaWindowClosed
+	// The hidden attempt gets the original's 10 s from the loaded page; starting the
+	// browser is not part of that budget.
+	value, err := watchCaptchaPage(ctx, page, visible, captchaAutoWebViewTimeout, token)
+	if err != nil && parent.Err() != nil {
+		return "", parent.Err()
 	}
+	return value, err
 }

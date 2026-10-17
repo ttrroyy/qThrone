@@ -3,6 +3,8 @@
 #include "include/configs/outbounds/csqtt.h"
 #include "include/configs/outbounds/openflux.h"
 #include "include/configs/outbounds/olcrtc.h"
+#include "include/configs/outbounds/native.h"
+#include "include/configs/common/OutboundFactory.h"
 #include "include/api/RPC.h"
 #include "include/configs/AutoSelectorPlan.h"
 #include "include/configs/sub/ProviderRouting.h"
@@ -375,6 +377,13 @@ namespace Configs {
             name += ".exe";
 #endif
             add(QFileInfo(QCoreApplication::applicationDirPath() + "/" + name).canonicalFilePath());
+            for (const auto *helper : {"dnstun", "masterdns", "s3bypass", "slipstream-client"}) {
+                name = QString::fromLatin1(helper);
+#ifdef Q_OS_WIN
+                name += ".exe";
+#endif
+                add(QFileInfo(QCoreApplication::applicationDirPath() + "/" + name).canonicalFilePath());
+            }
             return paths;
         }
 
@@ -718,7 +727,7 @@ namespace Configs {
                     ctx.error = "The routing profile is referencing outbounds that no longer exist, consider revising your settings";
                     return;
                 }
-                const bool routedTransport = neededEnt->type == "qwdtt" || neededEnt->type == "csqtt" || neededEnt->type == "openflux" || neededEnt->type == "olcrtc";
+                const bool routedTransport = IsNativeTransport(neededEnt->type);
                 if ((neededEnt->outbound != nullptr && neededEnt->outbound->IsExtraCore() && !routedTransport) || isCustomFullConfig(neededEnt) || isXrayFullConfig(neededEnt)) {
                     ctx.error = "Outbounds used in routing profile cannot use an extra core or be a custom full config";
                     return;
@@ -878,7 +887,7 @@ namespace Configs {
             for (const auto &group : preReqs.routing.routeOutboundGroups) {
                 if (group.hopIDs.size() != 1) continue;
                 auto routed = getProfile(group.hopIDs.first());
-                if (routed == nullptr || (routed->type != "qwdtt" && routed->type != "csqtt" && routed->type != "openflux" && routed->type != "olcrtc")) continue;
+                if (routed == nullptr || !IsNativeTransport(routed->type)) continue;
                 if (mainExtraCore != nullptr && routed->id == mainExtraCore->id) continue;
                 extraCoreProfiles.append(routed);
             }
@@ -891,18 +900,7 @@ namespace Configs {
                     ctx.error = "failed to cast to extracore, type is: " + extraCoreEnt->type;
                     return;
                 }
-                if (auto *q = dynamic_cast<qwdtt *>(outbound)) {
-                    if (auto error = q->Prepare(); !error.isEmpty()) { ctx.error = error; return; }
-                }
-                if (auto *c = dynamic_cast<csqtt *>(outbound)) {
-                    if (auto error = c->Prepare(); !error.isEmpty()) { ctx.error = error; return; }
-                }
-                if (auto *rtc = dynamic_cast<olcrtc *>(outbound)) {
-                    if (auto error = rtc->Prepare(); !error.isEmpty()) { ctx.error = error; return; }
-                }
-                if (auto *o = dynamic_cast<openflux *>(outbound)) {
-                    if (auto error = o->Prepare(); !error.isEmpty()) { ctx.error = error; return; }
-                }
+                if (auto error = PrepareNativeTransport(outbound); !error.isEmpty()) { ctx.error = error; return; }
                 ExtraCoreData extraCoreData;
                 extraCoreData.path = QFileInfo(outbound->extraCorePath).canonicalFilePath();
                 extraCoreData.args = outbound->extraCoreArgs;
@@ -915,7 +913,7 @@ namespace Configs {
                     extraCoreData.outboundTag = preReqs.routing.outboundMap.at(extraCoreEnt->id);
                     ctx.result->routedExtraCores.append(extraCoreData);
                 }
-                if (extraCoreEnt->type == "qwdtt" || extraCoreEnt->type == "csqtt" || extraCoreEnt->type == "openflux" || extraCoreEnt->type == "olcrtc") ctx.ipv4TransportTags.insert(extraCoreData.outboundTag);
+                if (IsNativeTransport(extraCoreEnt->type)) ctx.ipv4TransportTags.insert(extraCoreData.outboundTag);
             }
             // A transport's address family must not disable IPv6 for other exits.
             ctx.qwdttIPv4Only = ctx.ipv4TransportTags.contains(tags::proxy) && preReqs.routing.routeOutboundGroups.isEmpty();
@@ -1057,7 +1055,7 @@ namespace Configs {
                 if (ctx.proxyUsesXray && ( remoteDnsObj.value("type").toString() == "udp" || remoteDnsObj.value("type").toString() == "quic" )) {
                     remoteDnsObj = buildDnsObj(ctx, upgradeUdpDnsToDoH(remoteDnsObj.value("server").toString()));
                 }
-                if (ctx.ent->type == "olcrtc" && (remoteDnsObj["type"].toString() == "udp" || remoteDnsObj["type"].toString() == "quic")) remoteDnsObj["type"] = "tcp";
+                if (IsTcpOnlyTransport(ctx.ent->type) && (remoteDnsObj["type"].toString() == "udp" || remoteDnsObj["type"].toString() == "quic")) remoteDnsObj["type"] = "tcp";
                 remoteDnsObj["tag"] = tags::dnsRemote;
                 remoteDnsObj["domain_resolver"] = tags::dnsLocal;
                 remoteDnsObj["detour"] = tags::proxy;
@@ -2924,16 +2922,13 @@ namespace Configs {
 
         for (const auto& item : profiles)
         {
-            if (item->type == "qwdtt" || item->type == "csqtt" || item->type == "openflux" || item->type == "olcrtc") {
+            if (IsNativeTransport(item->type)) {
                 // Clone runtime fields so probing cannot replace live SOCKS credentials.
-                std::unique_ptr<extracore> holder;
-                if (item->type == "csqtt") holder = std::make_unique<csqtt>();
-                else if (item->type == "olcrtc") holder = std::make_unique<olcrtc>();
-                else if (item->type == "openflux") holder = std::make_unique<openflux>();
-                else holder = std::make_unique<qwdtt>();
+                std::unique_ptr<extracore> holder(dynamic_cast<extracore *>(NewOutboundByType(item->type)));
+                if (!holder) { item->SetLatency(-1); continue; }
                 auto &outbound = *holder;
                 if (!outbound.ParseFromJson(item->outbound->ExportToJson())) { item->SetLatency(-1); continue; }
-                const auto prepareError = item->type == "csqtt" ? static_cast<csqtt &>(outbound).Prepare() : item->type == "olcrtc" ? static_cast<olcrtc &>(outbound).Prepare() : item->type == "openflux" ? static_cast<openflux &>(outbound).Prepare() : static_cast<qwdtt &>(outbound).Prepare();
+                const auto prepareError = PrepareNativeTransport(&outbound);
                 if (!prepareError.isEmpty()) { MW_show_log(prepareError); item->SetLatency(-1); continue; }
                 auto built = outbound.Build();
                 if (!built.error.isEmpty()) { MW_show_log(built.error); item->SetLatency(-1); continue; }

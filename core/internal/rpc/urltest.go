@@ -65,7 +65,7 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 		}
 		_ = json.Unmarshal([]byte(in.GetQwdttConfig()), &transport)
 		var coldAllowance time.Duration
-		if twice && !env.live && (transport.Backend == "" || transport.Backend == "csqtt" || transport.Backend == "openflux" || transport.Backend == "olcrtc") {
+		if _, native := transportKinds[transport.Backend]; twice && !env.live && native {
 			// SOCKS hides the userspace tunnel from the ordinary VPN startup allowance.
 			// Warm it once; the measured request still uses the configured timeout.
 			coldAllowance = probe.TunnelStartupTimeout

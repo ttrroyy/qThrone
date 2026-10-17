@@ -13,7 +13,7 @@ namespace Configs {
         [[nodiscard]] QString NativePingConfig(const QString &transportConfig) const;
         QString hashSource = "manual";
         int autoHashCount = 1;
-        QString mode = "raw";
+        QString mode = "wg";
         QString password;
         QStringList hashes;
         int rawPort = 56003;

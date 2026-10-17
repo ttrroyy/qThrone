@@ -46,8 +46,8 @@ def main():
         raise RuntimeError("Invalid source commit")
     subprocess.run(["git", "fetch", "origin", sha, "--depth=1"], check=True)
     changed = git("diff", "--name-only", sha, "HEAD").splitlines()
-    protected = ("core/", "qwdtt/", "updater/", "3rdparty/", "script/openflux/", "script/olcrtc/")
-    exact = {"script/build_go.sh", "script/build_openflux.sh", "script/build_olcrtc.sh", "script/fetch_pinned_source.py", "transport-sources.lock.json", ".gitmodules", ".gitattributes", ".github/workflows/qwdtt-tests.yml"}
+    protected = ("core/", "qwdtt/", "updater/", "3rdparty/", "script/openflux/", "script/olcrtc/", "script/dnstun/", "script/masterdns/", "script/s3bypass/")
+    exact = {"script/build_go.sh", "script/build_openflux.sh", "script/build_olcrtc.sh", "script/build_dnstunnels.sh", "script/fetch_pinned_source.py", "transport-sources.lock.json", ".gitmodules", ".gitattributes", ".github/workflows/qwdtt-tests.yml"}
     if any(path.startswith(protected) or path in exact for path in changed):
         raise RuntimeError("Go sources or build inputs changed; rebuild them first")
     if "version.json" in changed:

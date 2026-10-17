@@ -79,6 +79,14 @@ func TestWatchdogRestartsStalledQWDTT(t *testing.T) {
 	if captcha.needsRestart() {
 		t.Fatal("restarted while a check was pending")
 	}
+	solved := newTransportHealth(true, clock.time)
+	solved.accept("[СТАТИСТИКА] Активных: 0 | Трафик: 0.00 МБ")
+	solved.accept("[КАПЧА] Требуется решение капчи")
+	solved.accept("[STREAM 1] [КАПЧА] AUTO: ручной WebView решил капчу")
+	clock.advance(91 * time.Second)
+	if !solved.needsRestart() {
+		t.Fatal("a solved check kept the watchdog paused")
+	}
 }
 
 func TestWatchdogFollowsCSQTTEvents(t *testing.T) {
