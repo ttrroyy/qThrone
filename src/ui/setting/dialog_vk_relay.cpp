@@ -227,7 +227,9 @@ QJsonObject freshServer(const QString &kind) {
             {"webPort", "46002"},
             {"dns1", "1.1.1.1"},
             {"dns2", "1.0.0.1"},
-            {"deviceId", QUuid::createUuid().toString(QUuid::WithoutBraces)},
+            // The server is bound to this computer, like the original apps bind it to the phone:
+            // the deployment link names no device and new profiles take this ID.
+            {"deviceId", Configs::RelayDeviceID()},
             {"adminToken", QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-') +
                                QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-')}};
 }

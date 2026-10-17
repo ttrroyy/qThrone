@@ -358,15 +358,7 @@ func (p *protocol) deploy(r Request) error {
 		if !strings.Contains(output, marker) {
 			return fmt.Errorf("Установщик не подтвердил запуск сервиса")
 		}
-		query := url.Values{"peer": {net.JoinHostPort(s["host"], s["peerPort"])}, "pass": {s["password"]}, "device_id": {s["deviceId"]}, "name": {s["name"]}}
-		if s["kind"] == "qwdtt" {
-			// No tunnel mode, as in the original app: the client's default (WG) applies.
-			query.Set("raw_port", s["rawPort"])
-			p.emit("config", "", "qwdtt://config?"+query.Encode())
-		} else {
-			query = url.Values{"v": {"2"}, "host": {s["host"]}, "peer": {s["peerPort"]}, "password": {s["password"]}, "device_id": {s["deviceId"]}}
-			p.emit("config", "", "csqtt://connect?"+query.Encode())
-		}
+		p.emit("config", "", deploymentLink(s))
 	} else {
 		p.emit("config", "", "")
 	}
@@ -421,4 +413,37 @@ func (w *deployWriter) flush() {
 		w.p.emit("log", w.pending, nil)
 		w.pending = ""
 	}
+}
+
+// deploymentLink is the link the original apps give for a deployed server. qWDTT:
+// the admin tab's qwdtt://config (name, peer, hashes, workers=18, port=9000, pass;
+// no tunnel mode, so the client's default WG applies). CSQTT: the web panel's
+// csqtt://connect?v=2. Neither names a device: the server is bound to this
+// computer's device ID, the one new profiles take.
+func deploymentLink(s map[string]string) string {
+	if s["kind"] == "qwdtt" {
+		name := s["name"]
+		if name == "" {
+			name = s["password"]
+		}
+		// URLEncoder.encode of the original app.
+		return "qwdtt://config?name=" + url.QueryEscape(name) +
+			"&peer=" + url.QueryEscape(net.JoinHostPort(s["host"], s["peerPort"])) +
+			"&hashes=&workers=18&port=9000&pass=" + url.QueryEscape(s["password"])
+	}
+	return "csqtt://connect?v=2&host=" + encodeURIComponent(s["host"]) +
+		"&peer=" + encodeURIComponent(s["peerPort"]) + "&password=" + encodeURIComponent(s["password"])
+}
+
+// encodeURIComponent of the CSQTT web panel.
+func encodeURIComponent(value string) string {
+	var b strings.Builder
+	for _, c := range []byte(value) {
+		if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' || '0' <= c && c <= '9' || strings.IndexByte("-_.!~*'()", c) >= 0 {
+			b.WriteByte(c)
+		} else {
+			fmt.Fprintf(&b, "%%%02X", c)
+		}
+	}
+	return b.String()
 }

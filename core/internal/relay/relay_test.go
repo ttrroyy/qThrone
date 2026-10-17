@@ -424,3 +424,14 @@ func TestHostVerificationBeforePassword(t *testing.T) {
 		})
 	}
 }
+
+func TestDeploymentLinksMatchTheOriginalApps(t *testing.T) {
+	qwdtt := deploymentLink(map[string]string{"kind": "qwdtt", "name": "My VPS", "host": "203.0.113.5", "peerPort": "56000", "password": "p@ss word", "deviceId": "device"})
+	if qwdtt != "qwdtt://config?name=My+VPS&peer=203.0.113.5%3A56000&hashes=&workers=18&port=9000&pass=p%40ss+word" {
+		t.Fatalf("qWDTT link %s", qwdtt)
+	}
+	csqtt := deploymentLink(map[string]string{"kind": "csqtt", "name": "My VPS", "host": "203.0.113.5", "peerPort": "46000", "password": "p@ss word", "deviceId": "device"})
+	if csqtt != "csqtt://connect?v=2&host=203.0.113.5&peer=46000&password=p%40ss%20word" {
+		t.Fatalf("CSQTT link %s", csqtt)
+	}
+}
