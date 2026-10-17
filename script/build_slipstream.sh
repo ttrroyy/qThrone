@@ -50,6 +50,10 @@ if [ "$RUNNER_OS" = Windows ]; then
     done < "$picoquic_env"
 else
     features=(--features openssl-vendored,picoquic-minimal-build)
+    # pkg-config would hand picotls the runner's own brotli (Homebrew's is arm64 only): the
+    # binary would need it on the user's machine too. Build without it, as the Android client does.
+    mkdir -p "$PWD/slipstream-no-pkgconfig"
+    export PKG_CONFIG_LIBDIR="$PWD/slipstream-no-pkgconfig" PKG_CONFIG_PATH=
     if [ "$RUNNER_OS" = macOS ]; then
         # picoquic's minimal build needs bash 4 (${var,,}); macOS ships 3.2. The project's own
         # macOS release builds the full library too.
