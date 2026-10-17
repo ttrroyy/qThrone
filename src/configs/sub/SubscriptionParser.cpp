@@ -269,6 +269,47 @@ namespace Subscription {
             return ent;
         }
 
+        // MasterDnsVPN's own client configuration: its client_config.toml, or the same keys as JSON.
+        QJsonObject masterDnsProfile(const QString &domains, const QString &key, int method, const QString &label) {
+            QStringList list;
+            for (auto domain : domains.split(QRegularExpression(R"([,\s"\[\]]+)"), Qt::SkipEmptyParts)) list << domain;
+            if (list.isEmpty() || key.trimmed().isEmpty()) return {};
+            return QJsonObject{{"type", "masterdns"}, {"name", label}, {"domain", list.join(',')}, {"mkey", key.trimmed()}, {"encryption", method}};
+        }
+
+        QJsonObject masterDnsToml(std::string_view text) {
+            QMap<QString, QString> values;
+            scan::forEachLine(text, [&](std::string_view raw) {
+                const auto line = QString::fromUtf8(raw.data(), static_cast<qsizetype>(raw.size())).section('#', 0, 0).trimmed();
+                const auto equals = line.indexOf('=');
+                if (equals > 0) values[line.left(equals).trimmed().toUpper()] = line.mid(equals + 1).trimmed();
+                return true;
+            });
+            if (!values.contains("DOMAINS") || !values.contains("ENCRYPTION_KEY")) return {};
+            auto key = values["ENCRYPTION_KEY"];
+            if (key.size() >= 2 && (key.startsWith('"') || key.startsWith('\'')) && key.back() == key.front()) key = key.mid(1, key.size() - 2);
+            bool ok = false;
+            const int method = values.value("DATA_ENCRYPTION_METHOD", "1").toInt(&ok);
+            return masterDnsProfile(values["DOMAINS"], key, ok ? method : 1, {});
+        }
+
+        // WhiteDNS's profile file (the JSON a masterdns:// link carries) or MasterDnsVPN's JSON config.
+        QJsonObject masterDnsJson(const QJsonObject &object) {
+            if (object["schema"].toString() == "whitedns.profile") {
+                const auto profile = object["profile"].toObject();
+                const auto server = profile["server"].toObject();
+                return masterDnsProfile(server["domain"].toString(), server["encryption_key"].toString(),
+                                        server["encryption_method"].toInt(1), profile["name"].toString());
+            }
+            if (object.contains("DOMAINS") && object.contains("ENCRYPTION_KEY")) {
+                QStringList domains;
+                for (const auto &domain : object["DOMAINS"].toArray()) domains << domain.toString();
+                if (object["DOMAINS"].isString()) domains << object["DOMAINS"].toString();
+                return masterDnsProfile(domains.join(','), object["ENCRYPTION_KEY"].toString(), object["DATA_ENCRYPTION_METHOD"].toInt(1), {});
+            }
+            return {};
+        }
+
         bool looksLikeOvpnConfig(std::string_view text) {
             bool hasRemote = false;
             bool hasClientMarker = false;
@@ -402,6 +443,15 @@ namespace Subscription {
                 return;
             }
 
+            if (text.find("ENCRYPTION_KEY") != npos && text.find("DOMAINS") != npos) {
+                if (const auto config = masterDnsToml(text); !config.isEmpty()) {
+                    auto ent = Configs::ProfilesRepo::NewProfile("masterdns");
+                    if (ent->outbound->ParseFromJson(config)) produce(ent);
+                    else log("Invalid MasterDnsVPN configuration");
+                    return;
+                }
+            }
+
             if (looksLikeOvpnConfig(text)) {
                 openVpnFile(text);
                 return;
@@ -463,6 +513,12 @@ namespace Subscription {
                     else log("Invalid " + nativeType + " JSON profile");
                     return;
                 }
+            }
+            if (const auto config = masterDnsJson(object); !config.isEmpty()) {
+                auto ent = Configs::ProfilesRepo::NewProfile("masterdns");
+                if (ent->outbound->ParseFromJson(config)) produce(ent);
+                else log("Invalid MasterDNS profile");
+                return;
             }
             if (Configs::s3bypass::IsXrayConfig(object)) {
                 auto ent = Configs::ProfilesRepo::NewProfile("s3bypass");

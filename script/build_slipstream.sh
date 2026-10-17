@@ -35,6 +35,12 @@ if [ "$RUNNER_OS" = Windows ]; then
     done
     export OPENSSL_ROOT_DIR="$openssl_root" OPENSSL_INCLUDE_DIR="$openssl_root\\include" OPENSSL_LIB_DIR="$openssl_root\\lib" \
         PKG_CONFIG_PATH="$openssl_root\\lib\\pkgconfig" OPENSSL_STATIC=1
+    # The project's script names Visual Studio 2022; use the one this runner has.
+    vswhere="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
+    vs_major=$("$vswhere" -latest -property installationVersion | cut -d. -f1)
+    vs_year=$("$vswhere" -latest -property catalog_productLineVersion | tr -d '\r')
+    sed -i "s/\"Visual Studio 17 2022\"/\"Visual Studio $vs_major $vs_year\"/" slipstream-source/scripts/build_picoquic_windows.ps1
+    grep -q "Visual Studio $vs_major $vs_year" slipstream-source/scripts/build_picoquic_windows.ps1
     # The script hands its picoquic paths to the next build step through GITHUB_ENV.
     picoquic_env="$(mktemp)"
     (cd slipstream-source && GITHUB_ENV="$(cygpath -w "$picoquic_env")" pwsh -NoProfile -File scripts/build_picoquic_windows.ps1 -Platform "$platform")
@@ -45,6 +51,9 @@ if [ "$RUNNER_OS" = Windows ]; then
 else
     features=(--features openssl-vendored,picoquic-minimal-build)
     if [ "$RUNNER_OS" = macOS ]; then
+        # picoquic's minimal build needs bash 4 (${var,,}); macOS ships 3.2. The project's own
+        # macOS release builds the full library too.
+        features=(--features openssl-vendored)
         export MACOSX_DEPLOYMENT_TARGET=10.15 CMAKE_OSX_ARCHITECTURES="${target%%-*}"
         [ "$CMAKE_OSX_ARCHITECTURES" = aarch64 ] && export CMAKE_OSX_ARCHITECTURES=arm64
     fi

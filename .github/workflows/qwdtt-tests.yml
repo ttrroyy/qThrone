@@ -1,7 +1,7 @@
 name: qWDTT tests
 on:
   push:
-    branches: [qthrone]
+    branches: [dev, stable]
     paths: ['qwdtt/**', 'updater/**', '.github/workflows/qwdtt-tests.yml']
   pull_request:
     paths: ['qwdtt/**', 'updater/**', '.github/workflows/qwdtt-tests.yml']

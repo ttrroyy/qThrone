@@ -1,7 +1,7 @@
 name: Database preservation
 on:
   push:
-    branches: [security/data-preservation, qthrone]
+    branches: [dev, stable]
     paths: ['include/database/PreserveDatabaseFiles.h', 'src/database/DatabaseManager.cpp', 'script/test_database_preservation.cpp', 'script/fetch_pinned_source.py', 'transport-sources.lock.json', '.github/workflows/data-preservation.yml']
   workflow_dispatch:
 permissions:

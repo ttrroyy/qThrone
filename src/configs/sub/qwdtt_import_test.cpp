@@ -426,6 +426,18 @@ int TestQwdttImport() {
             check(autoMerged["hash_source"].toString() == "auto" && autoMerged["auto_hash_count"].toInt() == 2 && autoMerged["workers"].toInt() == 54,
                   "subscription refresh keeps automatic hashes from the VK binding and their workers");
         }
+        for (const auto &type : {QString("qwdtt"), QString("csqtt")}) {
+            // The subscription gave one hash and the user added three: a refresh keeps all four.
+            const QJsonObject user{{"_type", type}, {"tag", "Slots"}, {"server", "example.org"}, {"server_port", 443}, {"password", "secret"},
+                                   {"hash_source", "manual"}, {"hashes", QJsonArray{"sub-1", "mine-2", "mine-3", "mine-4"}}};
+            QJsonObject refresh{{"tag", "Slots"}, {"server", "example.org"}, {"server_port", 443}, {"password", "secret"}, {"hashes", QJsonArray{"sub-1"}}};
+            check(Subscription::PreserveRelaySettings(type, refresh, {user})["hashes"] == QJsonArray{"sub-1", "mine-2", "mine-3", "mine-4"},
+                  "a refresh keeps the hashes the user added after the subscription's");
+            // The subscription now gives two hashes: they take the first two slots, the user's later ones stay.
+            refresh["hashes"] = QJsonArray{"sub-1-new", "sub-2-new"};
+            check(Subscription::PreserveRelaySettings(type, refresh, {user})["hashes"] == QJsonArray{"sub-1-new", "sub-2-new", "mine-3", "mine-4"},
+                  "subscription hashes replace their slots and the user's hashes after them stay");
+        }
         const auto hy = parse(R"({"remarks":"HY2","outbounds":[{"protocol":"freedom","tag":"direct"},{"protocol":"hysteria","tag":"hy","settings":{"address":"hy.example","port":443}}],"routing":{"balancers":[{"tag":"auto","selector":["hy"]}],"rules":[{"balancerTag":"auto"}]}})");
         check(hy.size() == 1 && hy.first()->outbound->DisplayType() == "Hysteria" && hy.first()->outbound->DisplayAddress() == "hy.example:443", "JSON Hysteria2 retains its protocol and address despite embedded balancers");
         for (const auto &protocol : QStringList{"vless", "vmess", "trojan", "shadowsocks", "socks", "http", "wireguard"}) {
@@ -793,6 +805,12 @@ int TestQwdttImport() {
               && bypass->DisplayAddress() == "storage.example.ru/vlt-alpha", "S3 Bypass Xray configuration of the original app");
         Configs::s3bypass empty;
         check(!empty.ParseFromJson(QJsonObject{{"type", "s3bypass"}}), "S3 Bypass without storage is rejected");
+        // Files the original apps keep: MasterDnsVPN's client_config.toml and WhiteDNS's profile JSON.
+        const auto toml = parse("# MasterDnsVPN client\nDOMAINS = [\"v.example.com\"]\nDATA_ENCRYPTION_METHOD = 3\nENCRYPTION_KEY = \"k3y-value\"\nPROTOCOL_TYPE = \"SOCKS5\"\nLISTEN_PORT = 18000\n");
+        check(toml.size() == 1 && toml.first()->type == "masterdns" && tunnel(toml.first())->data["mkey"].toString() == "k3y-value"
+              && tunnel(toml.first())->data["encryption"].toInt() == 3 && tunnel(toml.first())->data["domain"].toString() == "v.example.com", "MasterDnsVPN client_config.toml file");
+        const auto whiteFile = parse(white);
+        check(whiteFile.size() == 1 && whiteFile.first()->type == "masterdns" && tunnel(whiteFile.first())->name == "Iran", "WhiteDNS profile file");
     }
     if (!testProfiles.isEmpty()) {
         const auto &settings = Configs::dataManager->settingsRepo;

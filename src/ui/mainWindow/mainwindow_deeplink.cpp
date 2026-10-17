@@ -348,11 +348,10 @@ void MainWindow::dialog_message_impl(MwMessage cmd, const QStringList &args) {
         if (changed(MwArg::NeedRestart)) {
             suggestRestartProxy = false;
         }
-        if (changed(MwArg::Vpn) && settings->spmode_vpn) {
-            MessageBoxWarning(tr("Tun Settings changed"), tr("Restart Tun to take effect."));
-        }
-        if (changed(MwArg::ChoosePort) || suggestRestartProxy) {
-            noteRestartNeeded(changed(MwArg::Route) ? tr("Routing") : tr("Settings"));
+        // TUN changes go to the same Restart/Ignore notice as every other change, no separate dialog.
+        const bool tunChanged = changed(MwArg::Vpn) && settings->spmode_vpn;
+        if (changed(MwArg::ChoosePort) || suggestRestartProxy || tunChanged) {
+            noteRestartNeeded(changed(MwArg::Route) ? tr("Routing") : tunChanged ? QStringLiteral("TUN") : tr("Settings"));
         }
         refresh_status();
         if (changed(MwArg::NeedRestart) &&

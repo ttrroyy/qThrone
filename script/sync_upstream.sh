@@ -12,4 +12,4 @@ if ! git merge --no-edit FETCH_HEAD; then
     echo "Resolve the conflicts on $branch, or run git merge --abort." >&2
     exit 1
 fi
-echo "Upstream merged locally into $branch. Run tests/builds before merging it into your default branch."
+echo "Upstream merged locally into $branch. Run tests/builds before merging it into dev."
