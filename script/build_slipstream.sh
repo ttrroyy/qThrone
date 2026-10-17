@@ -38,7 +38,8 @@ if [ "$RUNNER_OS" = Windows ]; then
     # The project's script names Visual Studio 2022; use the one this runner has.
     vswhere="/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"
     vs_major=$("$vswhere" -latest -property installationVersion | cut -d. -f1)
-    vs_year=$("$vswhere" -latest -property catalog_productLineVersion | tr -d '\r')
+    # CMake names Visual Studio generators by version and year.
+    case "$vs_major" in 17) vs_year=2022 ;; 18) vs_year=2026 ;; *) echo "Unknown Visual Studio $vs_major" >&2; exit 1 ;; esac
     sed -i "s/\"Visual Studio 17 2022\"/\"Visual Studio $vs_major $vs_year\"/" slipstream-source/scripts/build_picoquic_windows.ps1
     grep -q "Visual Studio $vs_major $vs_year" slipstream-source/scripts/build_picoquic_windows.ps1
     # The script hands its picoquic paths to the next build step through GITHUB_ENV.

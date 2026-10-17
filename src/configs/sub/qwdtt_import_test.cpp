@@ -431,11 +431,11 @@ int TestQwdttImport() {
             const QJsonObject user{{"_type", type}, {"tag", "Slots"}, {"server", "example.org"}, {"server_port", 443}, {"password", "secret"},
                                    {"hash_source", "manual"}, {"hashes", QJsonArray{"sub-1", "mine-2", "mine-3", "mine-4"}}};
             QJsonObject refresh{{"tag", "Slots"}, {"server", "example.org"}, {"server_port", 443}, {"password", "secret"}, {"hashes", QJsonArray{"sub-1"}}};
-            check(Subscription::PreserveRelaySettings(type, refresh, {user})["hashes"] == QJsonArray{"sub-1", "mine-2", "mine-3", "mine-4"},
+            check(Subscription::PreserveRelaySettings(type, refresh, {user}).value("hashes").toArray() == QJsonArray{"sub-1", "mine-2", "mine-3", "mine-4"},
                   "a refresh keeps the hashes the user added after the subscription's");
             // The subscription now gives two hashes: they take the first two slots, the user's later ones stay.
             refresh["hashes"] = QJsonArray{"sub-1-new", "sub-2-new"};
-            check(Subscription::PreserveRelaySettings(type, refresh, {user})["hashes"] == QJsonArray{"sub-1-new", "sub-2-new", "mine-3", "mine-4"},
+            check(Subscription::PreserveRelaySettings(type, refresh, {user}).value("hashes").toArray() == QJsonArray{"sub-1-new", "sub-2-new", "mine-3", "mine-4"},
                   "subscription hashes replace their slots and the user's hashes after them stay");
         }
         const auto hy = parse(R"({"remarks":"HY2","outbounds":[{"protocol":"freedom","tag":"direct"},{"protocol":"hysteria","tag":"hy","settings":{"address":"hy.example","port":443}}],"routing":{"balancers":[{"tag":"auto","selector":["hy"]}],"rules":[{"balancerTag":"auto"}]}})");
