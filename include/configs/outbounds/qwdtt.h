@@ -37,6 +37,9 @@ namespace Configs {
         bool SupportsCredentialStrip() const override { return true; }
         void StripCredentials() override { password.clear(); hashes.clear(); deviceID.clear(); }
         static QStringList NormalizeHashes(const QStringList &input);
+        // A call hash from what the user pastes: the hash itself or a VK call link, as stripVkUrlStatic
+        // of the original qWDTT and CSQTT apps reads it.
+        static QString StripVkCallLink(const QString &input);
     private:
         QString bridgeAuth;
     };

@@ -47,15 +47,25 @@ qwdtt::qwdtt() {
     server_port = 56000; socksPort = 0; deviceID = RelayDeviceID();
     if (dataManager) { const auto *settings = dataManager->settingsRepo.get(); hashSource = settings->vk_relay_linked ? settings->qwdtt_hash_source : "manual"; autoHashCount = qBound(1, settings->qwdtt_auto_hash_count, 4); }
 }
+QString qwdtt::StripVkCallLink(const QString &input) {
+    auto s = input.trimmed();
+    for (const auto *prefix : {"https://vk.com/call/join/", "http://vk.com/call/join/", "https://m.vk.com/call/join/", "http://m.vk.com/call/join/",
+                               "https://vk.ru/call/join/", "http://vk.ru/call/join/", "https://m.vk.ru/call/join/", "http://m.vk.ru/call/join/",
+                               "m.vk.com/call/join/", "vk.com/call/join/", "m.vk.ru/call/join/", "vk.ru/call/join/"}) {
+        if (s.startsWith(QLatin1String(prefix), Qt::CaseInsensitive)) { s = s.mid(int(qstrlen(prefix))); break; }
+    }
+    s = s.section('?', 0, 0).section('#', 0, 0);
+    while (s.endsWith('/')) s.chop(1);
+    // Any other web link (a redirect, a short form) still names the call last.
+    if (s.startsWith("https://", Qt::CaseInsensitive) || s.startsWith("http://", Qt::CaseInsensitive)) s = QUrl(s).path().section('/', -1);
+    return s;
+}
+
 QStringList qwdtt::NormalizeHashes(const QStringList &input) {
     QStringList out;
     for (const auto &item : input) {
         for (auto h : item.split(QRegularExpression("[,\\s]+"), Qt::SkipEmptyParts)) {
-            h = h.trimmed();
-            if (h.startsWith("https://") || h.startsWith("http://")) {
-                QUrl u(h);
-                h = u.path().section('/', -1);
-            }
+            h = StripVkCallLink(h);
             if (!h.isEmpty() && !out.contains(h)) out.append(h);
         }
     }

@@ -523,6 +523,14 @@ int TestQwdttImport() {
         auto *cs = dynamic_cast<Configs::csqtt *>(excessCSQTT.first()->outbound.get());
         check(cs && cs->hashes.size() == 6 && cs->hashes.first() == "abcdefghijklmnop1" && cs->hashes.last() == "abcdefghijklmnop6", "CSQTT retains first six hashes in order");
     }
+    {
+        // A pasted VK call link is read as its hash, as stripVkUrlStatic of both original apps does.
+        const QStringList pasted{"https://vk.com/call/join/AbCdEfGhIjKlMnOp1?from=chat", "vk.ru/call/join/AbCdEfGhIjKlMnOp2/",
+                                 "M.VK.COM/call/join/AbCdEfGhIjKlMnOp3#x", "http://m.vk.ru/call/join/AbCdEfGhIjKlMnOp4", "AbCdEfGhIjKlMnOp5"};
+        const QStringList expected{"AbCdEfGhIjKlMnOp1", "AbCdEfGhIjKlMnOp2", "AbCdEfGhIjKlMnOp3", "AbCdEfGhIjKlMnOp4", "AbCdEfGhIjKlMnOp5"};
+        check(Configs::qwdtt::NormalizeHashes(pasted) == expected, "qWDTT reads pasted VK call links as hashes");
+        check(Configs::csqtt::NormalizeHashes(pasted) == expected, "CSQTT reads pasted VK call links as hashes");
+    }
     Configs::qwdtt defaults;
     check(defaults.mode == "wg" && defaults.turnTCP, "new profiles default to the original app's WG over TURN TCP");
     check(defaults.ParseFromLink(QString::fromUtf8(android)) && defaults.turnTCP, "Android links default to TCP");

@@ -1,4 +1,5 @@
 #include "include/configs/outbounds/csqtt.h"
+#include "include/configs/outbounds/qwdtt.h"
 #include "include/global/Configs.hpp"
 #include "include/ui/setting/dialog_vk_relay.h"
 #include <QCoreApplication>
@@ -20,11 +21,9 @@ csqtt::csqtt() {
 }
 QStringList csqtt::NormalizeHashes(const QStringList &input) {
     QStringList result;
-    for (auto hash : input) {
-        hash = hash.trimmed();
-        hash.remove(QRegularExpression("^(?:https?://)?(?:m\\.)?vk\\.(?:com|ru)/call/join/",QRegularExpression::CaseInsensitiveOption));
-        hash = hash.section('?',0,0).section('#',0,0);
-        while (hash.endsWith('/')) hash.chop(1);
+    for (const auto &item : input) {
+        // The original app reads a pasted call link the same way as qWDTT.
+        const auto hash = qwdtt::StripVkCallLink(item);
         if (!hash.isEmpty()) result.append(hash);
     }
     return result;
