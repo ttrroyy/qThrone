@@ -87,9 +87,16 @@ CMakeLists.txt.user*
 out
 /libs
 srslist.h
-.claude
+# Local Claude Code state stays ignored; shared project config is tracked.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/skills/
 
 # Generated only while rebuilding the approved seasonal artwork.
 script/seasonal_sources/__pycache__/
 script/seasonal_hd/__pycache__/
 script/seasonal_hd/sources/__pycache__/
+
+# Graphify knowledge graph (rebuilt locally by .claude/hooks/session-start.sh)
+graphify-out/

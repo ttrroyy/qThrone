@@ -1,0 +1,25 @@
+# Graphify: code-only graph of the project's own sources.
+# .gitignore is honored too; this adds what git tracks but the graph must skip.
+
+# Vendored dependencies
+3rdparty/
+
+# Resources, packaging and generated output
+res/
+aur/
+build/
+cmake-build-*/
+graphify-out/
+
+# Caches
+.cache/
+__pycache__/
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
