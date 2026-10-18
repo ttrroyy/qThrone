@@ -390,7 +390,9 @@ echo WDTT_ROLLBACK=ok`
 }
 
 // wdttPlusBackupStatus is the WDTT_UPDATE_BACKUP_STATUS a probe printed, "" when it printed none.
-func wdttPlusBackupStatus(output string) string { return wdttPlusMarker(output, "WDTT_UPDATE_BACKUP_STATUS") }
+func wdttPlusBackupStatus(output string) string {
+	return wdttPlusMarker(output, "WDTT_UPDATE_BACKUP_STATUS")
+}
 
 // wdttPlusMarker is the value of the first NAME=value line, as markerValue in WDTT Plus.
 func wdttPlusMarker(output, name string) string {

@@ -122,6 +122,14 @@ func TestWdttPlusScenariosPassDeployScript(t *testing.T) {
 			wdttPlusWrite(t, root, "etc/wdtt/.android-deploy-preserved", "Preserved by WDTT Plus Android deploy\n", 0o600)
 		}, wdttPlusPreservedData},
 		{"kept after deploy.sh uninstall", wdttPlusKeptData, wdttPlusPreservedData},
+		// What qThrone 1.5 and 1.5.1 left: deploy.sh uninstall keeps the server's log and other files.
+		{"kept after qThrone 1.5.1 removal", func(t *testing.T, root string) {
+			wdttPlusKeptData(t, root)
+			wdttPlusWrite(t, root, "etc/wdtt/server.log", "log\n", 0o644)
+			wdttPlusWrite(t, root, "etc/wdtt/passwords.json.previous", wdttPlusTestDB, 0o644)
+			_ = os.Chmod(filepath.Join(root, "etc/wdtt"), 0o755)
+			_ = os.Chmod(filepath.Join(root, "etc/wdtt/wg-keys.dat"), 0o644)
+		}, wdttPlusUninstalledData},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			root := t.TempDir()
@@ -137,11 +145,18 @@ func TestWdttPlusScenariosPassDeployScript(t *testing.T) {
 			}
 			if preserve {
 				prepare := wdttPlusClearStaleMarker + " && echo WDTT_PRESERVED_MARKER=cleared"
-				if ownership == wdttPlusPreservedData {
-					prepare = wdttPlusMarkPreserved
+				if ownership == wdttPlusPreservedData || ownership == wdttPlusUninstalledData {
+					prepare = wdttPlusMarkFor(ownership)
 				}
 				if got := wdttPlusRoot(t, root, prepare); !strings.Contains(got, "WDTT_PRESERVED_MARKER=") {
 					t.Fatalf("preparation failed: %s", got)
+				}
+				if ownership == wdttPlusUninstalledData {
+					// Adopted data is then exactly what WDTT Plus itself keeps after a removal.
+					out, _ := wdttPlusShell(t, wdttPlusOwnershipProbe(root))
+					if again, _ := wdttPlusOwnershipFrom(out); again != wdttPlusPreservedData {
+						t.Fatalf("adopted data is %v\n%s", again, out)
+					}
 				}
 			}
 			if out, err := wdttPlusDeployMode(t, root, preserve); err != nil || !strings.Contains(out, "MODE_OK") {
@@ -182,8 +197,14 @@ func TestWdttPlusRefusedOwners(t *testing.T) {
 			wdttPlusWrite(t, root, "etc/wdtt/passwords.json", wdttPlusTestDB, 0o600)
 			_ = os.Chmod(filepath.Join(root, "etc/wdtt"), 0o700)
 		}, wdttPlusIncomplete, false},
-		{"foreign files", func(t *testing.T, root string) {
+		{"kept data with a link inside", func(t *testing.T, root string) {
 			wdttPlusKeptData(t, root)
+			if err := os.Symlink("/etc/passwd", filepath.Join(root, "etc/wdtt/server.log")); err != nil {
+				t.Fatal(err)
+			}
+		}, wdttPlusUnknown, false},
+		{"foreign files without keys", func(t *testing.T, root string) {
+			wdttPlusWrite(t, root, "etc/wdtt/passwords.json", wdttPlusTestDB, 0o600)
 			wdttPlusWrite(t, root, "etc/wdtt/other.conf", "x", 0o600)
 		}, wdttPlusUnknown, false},
 		{"clean server", func(*testing.T, string) {}, wdttPlusNoInstall, true},
@@ -208,7 +229,8 @@ func TestWdttPlusRefusedOwners(t *testing.T) {
 	if _, err := wdttPlusOwnershipFrom("WDTT_STANDALONE_MANAGED=0\n"); err == nil {
 		t.Fatal("an incomplete probe answer accepted")
 	}
-	if wdttPlusMayUninstall(wdttPlusLegacyDeploy) == nil || wdttPlusMayUninstall(wdttPlusPreservedData) != nil {
+	if wdttPlusMayUninstall(wdttPlusLegacyDeploy) == nil || wdttPlusMayUninstall(wdttPlusPreservedData) != nil ||
+		wdttPlusMayUninstall(wdttPlusUninstalledData) != nil || !strings.Contains(wdttPlusMarkFor(wdttPlusUninstalledData), "chmod 600") {
 		t.Fatal("removal rules")
 	}
 }
@@ -499,13 +521,21 @@ func TestWdttPlusLostClientsFailTheUpdate(t *testing.T) {
 	now := time.Unix(1_800_000_000, 0)
 	before := wdttPlusTestDatabase(t, wdttPlusClientsDB)
 	for name, change := range map[string]func(db wdttPlusDB){
-		"lost client":     func(db wdttPlusDB) { delete(db["passwords"].(map[string]any), "client-one") },
-		"counter":         func(db wdttPlusDB) { db["passwords"].(map[string]any)["client-one"].(map[string]any)["down_bytes"] = json.Number("1") },
-		"label":           func(db wdttPlusDB) { db["passwords"].(map[string]any)["client-one"].(map[string]any)["label"] = "Other" },
-		"binding":         func(db wdttPlusDB) { db["passwords"].(map[string]any)["client-one"].(map[string]any)["device_id"] = "" },
-		"traffic history": func(db wdttPlusDB) { db["passwords"].(map[string]any)["client-one"].(map[string]any)["traffic"] = []any{} },
-		"bind history":    func(db wdttPlusDB) { db["passwords"].(map[string]any)["client-one"].(map[string]any)["bind_history"] = []any{} },
-		"owner traffic":   func(db wdttPlusDB) { db["admin_down_bytes"] = json.Number("0") },
+		"lost client": func(db wdttPlusDB) { delete(db["passwords"].(map[string]any), "client-one") },
+		"counter": func(db wdttPlusDB) {
+			db["passwords"].(map[string]any)["client-one"].(map[string]any)["down_bytes"] = json.Number("1")
+		},
+		"label": func(db wdttPlusDB) {
+			db["passwords"].(map[string]any)["client-one"].(map[string]any)["label"] = "Other"
+		},
+		"binding": func(db wdttPlusDB) { db["passwords"].(map[string]any)["client-one"].(map[string]any)["device_id"] = "" },
+		"traffic history": func(db wdttPlusDB) {
+			db["passwords"].(map[string]any)["client-one"].(map[string]any)["traffic"] = []any{}
+		},
+		"bind history": func(db wdttPlusDB) {
+			db["passwords"].(map[string]any)["client-one"].(map[string]any)["bind_history"] = []any{}
+		},
+		"owner traffic": func(db wdttPlusDB) { db["admin_down_bytes"] = json.Number("0") },
 	} {
 		after := wdttPlusTestDatabase(t, wdttPlusClientsDB)
 		change(after)

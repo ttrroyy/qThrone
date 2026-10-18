@@ -435,7 +435,9 @@ func wdttPlusValidatePreserved(before, after wdttPlusDB, now time.Time) error {
 		if r := []rune(pass); len(r) > 4 {
 			short = string(r[:4])
 		}
-		fail := func(what string) error { return fmt.Errorf("после обновления %s у клиента %s…", what, short) }
+		fail := func(what string) error {
+			return fmt.Errorf("после обновления %s у клиента %s…", what, short)
+		}
 		updated, ok := afterPasswords[pass].(map[string]any)
 		if !ok {
 			return fmt.Errorf("после обновления пропал действующий клиент %s…", short)

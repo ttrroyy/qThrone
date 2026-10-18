@@ -129,6 +129,21 @@ if [ -f "$unit" ] || [ -f "$binary" ] || [ -d "$config" ] ||
   printf 'WDTT_INSTALL_TRACE=1\n'
 else
   printf 'WDTT_INSTALL_TRACE=0\n'
+fi
+# Not in the original: data deploy.sh uninstall keeps (qThrone 1.5 and 1.5.1 removed the service
+# so): no unit, server or installer, both data files regular and non-empty, no marker, no links.
+# The original calls it an unknown install and refuses to deploy again.
+if [ ! -e "$ownership" ] && [ ! -L "$ownership" ] &&
+   [ ! -e "$unit" ] && [ ! -L "$unit" ] &&
+   [ ! -e "$binary" ] && [ ! -L "$binary" ] &&
+   [ -d "$config" ] && [ ! -L "$config" ] &&
+   [ -f "$passwords" ] && [ ! -L "$passwords" ] && [ -s "$passwords" ] &&
+   [ -f "$wg_keys" ] && [ ! -L "$wg_keys" ] && [ -s "$wg_keys" ] &&
+   [ ! -e "$preserved_marker" ] && [ ! -L "$preserved_marker" ] &&
+   [ -z "$(find "$config" -mindepth 1 ! -type f ! -type d -print -quit 2>/dev/null || echo unreadable)" ]; then
+  printf 'WDTT_UNINSTALLED_DATA=1\n'
+else
+  printf 'WDTT_UNINSTALLED_DATA=0\n'
 fi`
 }
 
@@ -142,6 +157,7 @@ const (
 	wdttPlusPreservedData
 	wdttPlusIncomplete
 	wdttPlusUnknown
+	wdttPlusUninstalledData // left by deploy.sh uninstall; adopted with wdttPlusAdoptKept
 )
 
 // wdttPlusOwnershipFrom is deploymentOwnershipFromProbe: an incomplete answer stops the operation.
@@ -161,6 +177,9 @@ func wdttPlusOwnershipFrom(output string) (wdttPlusOwnership, error) {
 	if wdttPlusMarker(output, "WDTT_INSTALL_TRACE") == "0" {
 		return wdttPlusNoInstall, nil
 	}
+	if wdttPlusMarker(output, "WDTT_UNINSTALLED_DATA") == "1" {
+		return wdttPlusUninstalledData, nil
+	}
 	return wdttPlusUnknown, nil
 }
 
@@ -173,7 +192,7 @@ func wdttPlusMayInstall(ownership wdttPlusOwnership) (preserve bool, e error) {
 	switch ownership {
 	case wdttPlusNoInstall:
 		return false, nil
-	case wdttPlusAndroidDeploy, wdttPlusLegacyDeploy, wdttPlusPreservedData:
+	case wdttPlusAndroidDeploy, wdttPlusLegacyDeploy, wdttPlusPreservedData, wdttPlusUninstalledData:
 		return true, nil
 	case wdttPlusStandalone:
 		return false, fmt.Errorf(wdttPlusStandaloneRefusal)
@@ -187,7 +206,7 @@ func wdttPlusMayInstall(ownership wdttPlusOwnership) (preserve bool, e error) {
 // wdttPlusMayUninstall is assertAndroidDeployMayManageServer for removal.
 func wdttPlusMayUninstall(ownership wdttPlusOwnership) error {
 	switch ownership {
-	case wdttPlusAndroidDeploy, wdttPlusPreservedData:
+	case wdttPlusAndroidDeploy, wdttPlusPreservedData, wdttPlusUninstalledData:
 		return nil
 	case wdttPlusStandalone:
 		return fmt.Errorf(wdttPlusStandaloneRefusal)
@@ -208,6 +227,20 @@ const wdttPlusMarkPreserved = "set -e; " +
 	"chmod 600 /etc/wdtt/.android-deploy-preserved.new; " +
 	"mv -f /etc/wdtt/.android-deploy-preserved.new /etc/wdtt/.android-deploy-preserved; " +
 	"echo WDTT_PRESERVED_MARKER=ready"
+
+// wdttPlusAdoptKept secures the data deploy.sh uninstall kept as WDTT Plus keeps its own
+// (700 and 600) and marks it, so it is then the original's preserved data.
+const wdttPlusAdoptKept = "{ [ -d /etc/wdtt ] && [ ! -L /etc/wdtt ]; } || exit 1; chmod 700 /etc/wdtt; " +
+	"{ [ -f /etc/wdtt/passwords.json ] && [ ! -L /etc/wdtt/passwords.json ]; } || exit 1; chmod 600 /etc/wdtt/passwords.json; " +
+	"{ [ -f /etc/wdtt/wg-keys.dat ] && [ ! -L /etc/wdtt/wg-keys.dat ]; } || exit 1; chmod 600 /etc/wdtt/wg-keys.dat; " + wdttPlusMarkPreserved
+
+// wdttPlusMarkFor marks the kept data of an ownership before deploy.sh or the removal runs.
+func wdttPlusMarkFor(ownership wdttPlusOwnership) string {
+	if ownership == wdttPlusUninstalledData {
+		return wdttPlusAdoptKept
+	}
+	return wdttPlusMarkPreserved
+}
 
 // wdttPlusClearStaleMarker runs before updating a live install. deploy.sh drops the marker only
 // once the service starts and refuses it next to a unit, so after a failed start (or an
@@ -346,8 +379,8 @@ func (p *protocol) deployWdttPlus(client *ssh.Client, s map[string]string, insta
 		if before, e = p.wdttPlusReadBefore(quiet, s); e != nil {
 			return e
 		}
-		if ownership == wdttPlusPreservedData {
-			if out, e := exec(asRoot(wdttPlusMarkPreserved)); e != nil || wdttPlusMarker(out, "WDTT_PRESERVED_MARKER") != "ready" {
+		if ownership == wdttPlusPreservedData || ownership == wdttPlusUninstalledData {
+			if out, e := exec(asRoot(wdttPlusMarkFor(ownership))); e != nil || wdttPlusMarker(out, "WDTT_PRESERVED_MARKER") != "ready" {
 				return fmt.Errorf("Не удалось подготовить сохранённые данные WDTT Plus на сервере (нужны /etc/wdtt/passwords.json и wg-keys.dat)")
 			}
 		}
@@ -386,7 +419,7 @@ func (p *protocol) deployWdttPlus(client *ssh.Client, s map[string]string, insta
 	command := wdttPlusCommand(s, staging, preserve)
 	if preserve {
 		p.emit("progress", "Обновление с сохранением данных", 45)
-		if ownership != wdttPlusPreservedData {
+		if ownership == wdttPlusAndroidDeploy || ownership == wdttPlusLegacyDeploy {
 			command = wdttPlusClearStaleMarker + "\n" + command
 		}
 		command = wdttPlusServerPaths.guarded(command, attempt)
@@ -458,7 +491,9 @@ func (p *protocol) wdttPlusRecover(client *ssh.Client, s map[string]string, atte
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	recovery := &protocol{output: json.NewEncoder(io.Discard), ctx: ctx}
-	run := func(command string) (string, error) { return recovery.run(client, s, asRoot(command), 4*time.Minute, false) }
+	run := func(command string) (string, error) {
+		return recovery.run(client, s, asRoot(command), 4*time.Minute, false)
+	}
 	owned, e := "", fmt.Errorf("stopped")
 	if p.ctx.Err() == nil {
 		owned, e = run(wdttPlusServerPaths.owned(attempt))
@@ -564,7 +599,7 @@ func (p *protocol) uninstallWdttPlus(s map[string]string, ownership wdttPlusOwne
 		return e
 	}
 	p.emit("progress", "Защита сохраняемых данных", 15)
-	if out, e := exec(asRoot(wdttPlusMarkPreserved)); e != nil || wdttPlusMarker(out, "WDTT_PRESERVED_MARKER") != "ready" {
+	if out, e := exec(asRoot(wdttPlusMarkFor(ownership))); e != nil || wdttPlusMarker(out, "WDTT_PRESERVED_MARKER") != "ready" {
 		if p.ctx.Err() != nil {
 			return p.ctx.Err()
 		}
