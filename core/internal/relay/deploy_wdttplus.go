@@ -31,6 +31,21 @@ const wdttPlusMarkPreserved = "set -e; " +
 	"mv -f /etc/wdtt/.android-deploy-preserved.new /etc/wdtt/.android-deploy-preserved; " +
 	"echo WDTT_PRESERVED_MARKER=ready"
 
+// wdttPlusPreparation is what a preserving update runs first, by the probe: kept data without the
+// service gets the marker; a full install loses a stale one, since deploy.sh drops it only once the
+// service starts and refuses it next to a live unit; half an install is left to the user.
+func wdttPlusPreparation(probe string) (string, error) {
+	switch {
+	case strings.Contains(probe, "WDTT_SERVICE=none"):
+		return wdttPlusMarkPreserved, nil
+	case strings.Contains(probe, "WDTT_SERVICE=installed"):
+		return "rm -f /etc/wdtt/.android-deploy-preserved && echo WDTT_PRESERVED_MARKER=cleared", nil
+	case strings.Contains(probe, "WDTT_SERVICE=partial"):
+		return "", fmt.Errorf("На сервере неполная установка WDTT Plus: есть только служба или только сервер. Сначала удалите сервис, данные сохранятся")
+	}
+	return "", fmt.Errorf("Не удалось проверить установку WDTT Plus на сервере")
+}
+
 // deployWdttPlus deploys as WDTT Plus's app does: the pinned official APK's deploy.sh and
 // server go to a private staging folder (mktemp, 700); a new server also gets passwords.json
 // with the main password, an existing one is updated in place and keeps its data.
@@ -64,10 +79,14 @@ func (p *protocol) deployWdttPlus(client *ssh.Client, s map[string]string, insta
 	existing := strings.Contains(existingOut, "WDTT_DB=1")
 	// deploy.sh uninstall keeps /etc/wdtt without the service: as WDTT Plus's app does, mark that
 	// data preserved, otherwise deploy.sh refuses the preserving update.
-	if install && existing && strings.Contains(existingOut, "WDTT_SERVICE=none") {
-		marked, e := exec(asRoot(wdttPlusMarkPreserved))
-		if e != nil || !strings.Contains(marked, "WDTT_PRESERVED_MARKER=ready") {
-			return fmt.Errorf("Не удалось отметить сохранённые данные WDTT Plus на сервере (нужны /etc/wdtt/passwords.json и wg-keys.dat)")
+	if install && existing {
+		prepare, e := wdttPlusPreparation(existingOut)
+		if e != nil {
+			return e
+		}
+		prepared, e := exec(asRoot(prepare))
+		if e != nil || !strings.Contains(prepared, "WDTT_PRESERVED_MARKER=") {
+			return fmt.Errorf("Не удалось подготовить сохранённые данные WDTT Plus на сервере (нужны /etc/wdtt/passwords.json и wg-keys.dat)")
 		}
 	}
 	p.emit("progress", "Передача файлов на VPS", 30)

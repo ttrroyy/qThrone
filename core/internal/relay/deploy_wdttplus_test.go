@@ -275,3 +275,31 @@ func TestWdttPlusMarksKeptDataAsWdttPlusDoes(t *testing.T) {
 		}
 	}
 }
+
+func TestWdttPlusPreparationFollowsTheProbe(t *testing.T) {
+	if got, err := wdttPlusPreparation("WDTT_DB=1\nWDTT_SERVICE=none\n"); err != nil || got != wdttPlusMarkPreserved {
+		t.Fatalf("kept data must be marked: %q %v", got, err)
+	}
+	for _, probe := range []string{"WDTT_DB=1\nWDTT_SERVICE=partial\n", "WDTT_DB=1\n", ""} {
+		if _, err := wdttPlusPreparation(probe); err == nil {
+			t.Fatalf("updated past %q", probe)
+		}
+	}
+	// A failed start leaves the marker next to the installed service; the next update must drop it.
+	root := t.TempDir()
+	wdttPlusFiles(t, root, "etc/wdtt/passwords.json", "etc/wdtt/wg-keys.dat", "etc/wdtt/.android-deploy-preserved",
+		"etc/systemd/system/wdtt.service", "usr/local/bin/wdtt-server")
+	clear, err := wdttPlusPreparation(wdttPlusRoot(t, root, wdttPlusProbe))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := wdttPlusRoot(t, root, clear); !strings.Contains(out, "WDTT_PRESERVED_MARKER=cleared") {
+		t.Fatalf("stale marker kept: %s", out)
+	}
+	if _, err := os.Stat(filepath.Join(root, "etc/wdtt/.android-deploy-preserved")); !os.IsNotExist(err) {
+		t.Fatal("stale marker still on the server")
+	}
+	if _, err := os.Stat(filepath.Join(root, "etc/wdtt/passwords.json")); err != nil {
+		t.Fatal("the access database was touched")
+	}
+}
