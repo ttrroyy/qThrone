@@ -342,6 +342,8 @@ func (p *protocol) dial(s map[string]string, trustNew bool) (*ssh.Client, error)
 			return fmt.Errorf("SSH-ключ сервера не подтверждён")
 		}
 		p.emit("host-key", fingerprint, nil)
+		// A rollback after a failed WDTT Plus update reconnects with the key just trusted.
+		s["hostKey"] = fingerprint
 		return nil
 	}}
 	address := net.JoinHostPort(strings.Trim(s["host"], "[]"), s["sshPort"])
