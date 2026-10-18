@@ -27,6 +27,7 @@ var addressPattern = regexp.MustCompile(`^[A-Za-z0-9.:_-]+$`)
 var userPattern = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 var panelPattern = regexp.MustCompile(`^[A-Za-z0-9]+$`)
 var adminPinPattern = regexp.MustCompile(`WDTT_ADMIN_PIN\|(sha256/[A-Za-z0-9+/=]+)`)
+var dnsListPattern = regexp.MustCompile(`^[0-9a-fA-F:.,]{1,255}$`)
 
 func uploadFile(files *sftp.Client, path string, data []byte) error {
 	f, e := files.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
@@ -53,16 +54,19 @@ func port(s map[string]string, key string) (string, error) {
 	return strconv.Itoa(n), nil
 }
 func validateServer(s map[string]string, install bool) error {
-	if s["kind"] != "qwdtt" && s["kind"] != "csqtt" {
+	if s["kind"] != "qwdtt" && s["kind"] != "csqtt" && s["kind"] != "wdttplus" {
 		return fmt.Errorf("Неизвестный протокол")
 	}
 	if !addressPattern.MatchString(s["host"]) || !userPattern.MatchString(s["user"]) {
 		return fmt.Errorf("Укажите IP/домен и логин SSH")
 	}
 	keys := []string{"sshPort", "peerPort"}
-	if s["kind"] == "qwdtt" {
+	switch s["kind"] {
+	case "qwdtt":
 		keys = append(keys, "wgPort", "rawPort", "adminPort", "directPort")
-	} else {
+	case "wdttplus":
+		keys = append(keys, "wgPort", "localPort")
+	default:
 		keys = append(keys, "webPort")
 	}
 	for _, k := range keys {
@@ -88,7 +92,15 @@ func validateServer(s map[string]string, install bool) error {
 			return fmt.Errorf("Некорректное значение: %s", k)
 		}
 	}
-	if s["kind"] == "csqtt" {
+	if s["kind"] == "wdttplus" {
+		// The main password of WDTT Plus's own deploy form.
+		if n := len([]rune(s["password"])); n < 8 || n > 256 {
+			return fmt.Errorf("Главный пароль: от 8 до 256 символов")
+		}
+		if s["dns"] != "" && !dnsListPattern.MatchString(s["dns"]) {
+			return fmt.Errorf("DNS: адреса через запятую")
+		}
+	} else if s["kind"] == "csqtt" {
 		if !panelPattern.MatchString(s["webUser"]) || !panelPattern.MatchString(s["webPassword"]) {
 			return fmt.Errorf("Логин и пароль панели: латиница и цифры")
 		}
@@ -109,6 +121,9 @@ func artifact(ctx context.Context, kind string) (*zip.Reader, error) {
 	if kind == "csqtt" {
 		source = "https://github.com/amurcanov/csqtt/releases/download/v2.1.9/CSQTT-universal.apk"
 		digest = "49771d60a53d731452f3301e53dbe6bdee9142876e6b295dbf88f59f0b5aaf82"
+	} else if kind == "wdttplus" {
+		source = "https://github.com/Ivan4537/WDTT-Plus/releases/download/v20/WDTT-Plus-v20-arm64-v8a-release.apk"
+		digest = "918cc7ab477247ebdaca030c13c0d689ca1a9f59152217f8edf0484a943da0e3"
 	}
 	client := &http.Client{Timeout: 5 * time.Minute}
 	request, e := http.NewRequestWithContext(ctx, http.MethodGet, source, nil)
@@ -158,108 +173,21 @@ func (p *protocol) deploy(r Request) error {
 	for _, k := range []string{"sshPassword", "key", "keyPassword", "sudoPassword", "password", "webPassword", "botToken", "adminToken"} {
 		p.secrets = append(p.secrets, s[k])
 	}
-	var auth ssh.AuthMethod
-	if s["auth"] == "key" {
-		var signer ssh.Signer
-		var e error
-		if s["keyPassword"] != "" {
-			signer, e = ssh.ParsePrivateKeyWithPassphrase([]byte(s["key"]), []byte(s["keyPassword"]))
-		} else {
-			signer, e = ssh.ParsePrivateKey([]byte(s["key"]))
-		}
-		if e != nil {
-			return fmt.Errorf("Не удалось прочитать SSH-ключ")
-		}
-		auth = ssh.PublicKeys(signer)
-	} else {
-		auth = ssh.Password(s["sshPassword"])
-	}
-	cfg := &ssh.ClientConfig{User: s["user"], Auth: []ssh.AuthMethod{auth}, Timeout: 30 * time.Second, HostKeyCallback: func(host string, remote net.Addr, key ssh.PublicKey) error {
-		fingerprint := ssh.FingerprintSHA256(key)
-		if s["hostKey"] != "" {
-			if fingerprint != s["hostKey"] {
-				return fmt.Errorf("SSH-ключ сервера изменился")
-			}
-			return nil
-		}
-		p.emit("trust", fingerprint, nil)
-		var answer string
-		select {
-		case answer = <-p.commands:
-		case <-p.ctx.Done():
-			return p.ctx.Err()
-		case <-time.After(2 * time.Minute):
-			return fmt.Errorf("SSH-ключ не подтверждён")
-		}
-		if answer != "approve" {
-			return fmt.Errorf("SSH-ключ сервера не подтверждён")
-		}
-		p.emit("host-key", fingerprint, nil)
-		return nil
-	}}
 	p.emit("progress", "Подключение к VPS", 5)
-	address := net.JoinHostPort(strings.Trim(s["host"], "[]"), s["sshPort"])
-	connection, e := (&net.Dialer{Timeout: 30 * time.Second}).DialContext(p.ctx, "tcp", address)
+	client, e := p.dial(s, true)
 	if e != nil {
 		return e
 	}
-	_ = connection.SetDeadline(time.Now().Add(150 * time.Second))
-	sshConnection, channels, requests, e := ssh.NewClientConn(connection, address, cfg)
-	if e != nil {
-		connection.Close()
-		return e
-	}
-	_ = connection.SetDeadline(time.Time{})
-	client := ssh.NewClient(sshConnection, channels, requests)
 	defer client.Close()
-	go func() { <-p.ctx.Done(); _ = client.Close() }()
-	exec := func(command string) (string, error) {
-		session, e := client.NewSession()
-		if e != nil {
-			return "", e
-		}
-		defer session.Close()
-		stdin, e := session.StdinPipe()
-		if e != nil {
-			return "", e
-		}
-		var output bytes.Buffer
-		writer := &deployWriter{p: p, buffer: &output, kind: s["kind"]}
-		session.Stdout = writer
-		session.Stderr = writer
-		if e = session.Start(command); e != nil {
-			return "", e
-		}
-		go func() {
-			password := s["sudoPassword"]
-			if password == "" {
-				password = s["sshPassword"]
-			}
-			_, _ = io.WriteString(stdin, password+"\n")
-			_ = stdin.Close()
-		}()
-		done := make(chan error, 1)
-		go func() { done <- session.Wait() }()
-		select {
-		case e = <-done:
-		case <-time.After(30 * time.Minute):
-			_ = session.Close()
-			e = fmt.Errorf("Превышено время установки")
-		case <-p.ctx.Done():
-			_ = session.Close()
-			e = p.ctx.Err()
-		}
-		writer.flush()
-		writer.mu.Lock()
-		result := output.String()
-		writer.mu.Unlock()
-		return result, e
-	}
+	exec := func(command string) (string, error) { return p.run(client, s, command, 30*time.Minute, true) }
 	machine, e := exec("uname -m")
 	if e != nil {
 		return e
 	}
 	machine = strings.TrimSpace(machine)
+	if s["kind"] == "wdttplus" {
+		return p.deployWdttPlus(client, s, install, machine, exec)
+	}
 	binary := "assets/server"
 	if s["kind"] == "qwdtt" && machine != "x86_64" && install {
 		return fmt.Errorf("Официальный сервер qWDTT поддерживает x86_64")
@@ -338,8 +266,7 @@ func (p *protocol) deploy(r Request) error {
 	if !install {
 		action = "uninstall"
 	}
-	command := "env " + env + " bash /tmp/deploy.sh " + action
-	root := "if [ \"$(id -u)\" = 0 ]; then bash -c " + quote(command) + "; else sudo -S -p '' bash -c " + quote(command) + "; fi"
+	root := asRoot("env " + env + " bash /tmp/deploy.sh " + action)
 	p.emit("progress", "Выполнение установщика", 45)
 	output, e := exec(root)
 	if e != nil {
@@ -364,6 +291,167 @@ func (p *protocol) deploy(r Request) error {
 	}
 	p.emit("progress", "Готово", 100)
 	return nil
+}
+
+// sshAuth reads the server's SSH login: a key (with its passphrase) or a password.
+func sshAuth(s map[string]string) (ssh.AuthMethod, error) {
+	if s["auth"] != "key" {
+		return ssh.Password(s["sshPassword"]), nil
+	}
+	var signer ssh.Signer
+	var e error
+	if s["keyPassword"] != "" {
+		signer, e = ssh.ParsePrivateKeyWithPassphrase([]byte(s["key"]), []byte(s["keyPassword"]))
+	} else {
+		signer, e = ssh.ParsePrivateKey([]byte(s["key"]))
+	}
+	if e != nil {
+		return nil, fmt.Errorf("Не удалось прочитать SSH-ключ")
+	}
+	return ssh.PublicKeys(signer), nil
+}
+
+// dial opens SSH to the server. The host key remembered at the first deploy is the only one
+// accepted; only a deploy (trustNew) may ask the user to trust a server seen for the first time.
+func (p *protocol) dial(s map[string]string, trustNew bool) (*ssh.Client, error) {
+	if !trustNew && s["hostKey"] == "" {
+		return nil, fmt.Errorf("Ключ SSH сервера не сохранён: сначала выполните деплой")
+	}
+	auth, e := sshAuth(s)
+	if e != nil {
+		return nil, e
+	}
+	cfg := &ssh.ClientConfig{User: s["user"], Auth: []ssh.AuthMethod{auth}, Timeout: 30 * time.Second, HostKeyCallback: func(host string, remote net.Addr, key ssh.PublicKey) error {
+		fingerprint := ssh.FingerprintSHA256(key)
+		if s["hostKey"] != "" {
+			if fingerprint != s["hostKey"] {
+				return fmt.Errorf("SSH-ключ сервера изменился")
+			}
+			return nil
+		}
+		p.emit("trust", fingerprint, nil)
+		var answer string
+		select {
+		case answer = <-p.commands:
+		case <-p.ctx.Done():
+			return p.ctx.Err()
+		case <-time.After(2 * time.Minute):
+			return fmt.Errorf("SSH-ключ не подтверждён")
+		}
+		if answer != "approve" {
+			return fmt.Errorf("SSH-ключ сервера не подтверждён")
+		}
+		p.emit("host-key", fingerprint, nil)
+		return nil
+	}}
+	address := net.JoinHostPort(strings.Trim(s["host"], "[]"), s["sshPort"])
+	connection, e := (&net.Dialer{Timeout: 30 * time.Second}).DialContext(p.ctx, "tcp", address)
+	if e != nil {
+		return nil, e
+	}
+	_ = connection.SetDeadline(time.Now().Add(150 * time.Second))
+	sshConnection, channels, requests, e := ssh.NewClientConn(connection, address, cfg)
+	if e != nil {
+		connection.Close()
+		return nil, e
+	}
+	_ = connection.SetDeadline(time.Time{})
+	client := ssh.NewClient(sshConnection, channels, requests)
+	go func() { <-p.ctx.Done(); _ = client.Close() }()
+	return client, nil
+}
+
+// run executes one command with the sudo password on its stdin. A logged run streams the
+// output (secrets redacted) to the deploy console; a quiet one only returns it.
+func (p *protocol) run(client *ssh.Client, s map[string]string, command string, timeout time.Duration, logged bool, stdinLines ...string) (string, error) {
+	password := s["sudoPassword"]
+	if password == "" {
+		password = s["sshPassword"]
+	}
+	input := password + "\n"
+	for _, line := range stdinLines {
+		input += line + "\n"
+	}
+	var console *deployWriter
+	if logged {
+		console = &deployWriter{p: p, buffer: &bytes.Buffer{}, kind: s["kind"]}
+	}
+	return p.execute(client, command, input, timeout, console)
+}
+
+// runInput executes one command quietly with exactly the given stdin.
+func (p *protocol) runInput(client *ssh.Client, command, input string, timeout time.Duration) (string, error) {
+	return p.execute(client, command, input, timeout, nil)
+}
+
+func (p *protocol) execute(client *ssh.Client, command, input string, timeout time.Duration, console *deployWriter) (string, error) {
+	session, e := client.NewSession()
+	if e != nil {
+		return "", e
+	}
+	defer session.Close()
+	stdin, e := session.StdinPipe()
+	if e != nil {
+		return "", e
+	}
+	var output *bytes.Buffer
+	var writer io.Writer
+	if console != nil {
+		output = console.buffer
+		writer = console
+	} else {
+		output = &bytes.Buffer{}
+		writer = &limitedBuffer{buffer: output}
+	}
+	session.Stdout = writer
+	session.Stderr = writer
+	if e = session.Start(command); e != nil {
+		return "", e
+	}
+	go func() {
+		_, _ = io.WriteString(stdin, input)
+		_ = stdin.Close()
+	}()
+	done := make(chan error, 1)
+	go func() { done <- session.Wait() }()
+	select {
+	case e = <-done:
+	case <-time.After(timeout):
+		_ = session.Close()
+		e = fmt.Errorf("Превышено время выполнения команды на VPS")
+	case <-p.ctx.Done():
+		_ = session.Close()
+		e = p.ctx.Err()
+	}
+	if console != nil {
+		console.flush()
+		console.mu.Lock()
+		defer console.mu.Unlock()
+	} else {
+		writer.(*limitedBuffer).mu.Lock()
+		defer writer.(*limitedBuffer).mu.Unlock()
+	}
+	return output.String(), e
+}
+
+// limitedBuffer keeps a quiet command's output without letting a server fill memory.
+type limitedBuffer struct {
+	mu     sync.Mutex
+	buffer *bytes.Buffer
+}
+
+func (w *limitedBuffer) Write(b []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.buffer.Len() < 8*1024*1024 {
+		w.buffer.Write(b)
+	}
+	return len(b), nil
+}
+
+// asRoot runs a command as root: directly for root, through sudo (password on stdin) otherwise.
+func asRoot(command string) string {
+	return "if [ \"$(id -u)\" = 0 ]; then bash -c " + quote(command) + "; else sudo -S -p '' bash -c " + quote(command) + "; fi"
 }
 
 type deployWriter struct {

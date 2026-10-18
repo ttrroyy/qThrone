@@ -5,6 +5,8 @@
 #include "include/global/Utils.hpp"
 #include "include/ui/profile/edit_qwdtt.h"
 #include "include/ui/setting/ThemeManager.hpp"
+#include "include/ui/utils/ShareBlocks.h"
+#include "include/ui/setting/dialog_servers.h"
 #include <QApplication>
 #include <QCheckBox>
 #include <QClipboard>
@@ -41,6 +43,9 @@
 namespace {
 // Like the original app, a deployment's qWDTT link names no tunnel mode: the client's
 // default (WG) applies. Links stored by earlier versions said RAW; they read the same now.
+QString kindTitle(const QString &kind) {
+    return kind == "qwdtt" ? QStringLiteral("qWDTT") : kind == "csqtt" ? QStringLiteral("CSQTT") : QStringLiteral("WDTT Plus");
+}
 QString withoutTunnelMode(QString link) {
     if (!link.startsWith("qwdtt://config", Qt::CaseInsensitive)) return link;
     static const QRegularExpression mode(R"(([?&])mode=[^&#]*&?)");
@@ -219,8 +224,10 @@ QJsonObject freshServer(const QString &kind) {
             {"user", "root"},
             {"auth", "password"},
             {"sshPort", "22"},
-            {"peerPort", kind == "qwdtt" ? "56000" : "46000"},
+            {"peerPort", kind == "csqtt" ? "46000" : "56000"},
             {"wgPort", "56001"},
+            {"localPort", "9000"},
+            {"dns", ""},
             {"directPort", "56002"},
             {"rawPort", "56003"},
             {"adminPort", "56002"},
@@ -249,7 +256,22 @@ class ServerEditor : public QDialog {
     QPushButton *stopButton;
     QPushButton *saveButton;
     QPushButton *copyButton;
+    QWidget *shareArea;
     bool busy = false;
+    // The QR code of the deploy link and, for qWDTT, its legacy wdtt:// form, from the server's fields.
+    void refreshShare() {
+        for (auto *child : shareArea->findChildren<QWidget *>(Qt::FindDirectChildrenOnly))
+            delete child;
+        const auto link = configuration->toPlainText();
+        if (link.isEmpty())
+            return;
+        shareArea->layout()->addWidget(ShareBlocks::Qr(shareArea, "QR-код ссылки", link));
+        if (server["kind"] == "qwdtt")
+            shareArea->layout()->addWidget(ShareBlocks::Text(shareArea, "Ссылка WDTT (легаси)",
+                "wdtt://" + server["host"].toString() + ":" + server["peerPort"].toString() + ":" +
+                (server["wgPort"].toString().isEmpty() ? QStringLiteral("56001") : server["wgPort"].toString()) +
+                ":9000:" + server["password"].toString() + ":"));
+    }
     void setBusy(bool active) {
         busy = active;
         for (auto *widget : controls)
@@ -270,6 +292,7 @@ class ServerEditor : public QDialog {
     void applyConfiguration(const QJsonValue &value) {
         server["config"] = withoutTunnelMode(value.toString());
         configuration->setPlainText(server["config"].toString());
+        refreshShare();
         rememberConsole();
     }
     QList<QWidget *> controls;
@@ -305,7 +328,7 @@ class ServerEditor : public QDialog {
     }
     void secrets() {
         QDialog dialog(this);
-        dialog.setWindowTitle(server["kind"] == "qwdtt" ? "Секреты (бот, пароли)" : "Авторизация");
+        dialog.setWindowTitle(server["kind"] == "qwdtt" ? "Секреты (бот, пароли)" : server["kind"] == "wdttplus" ? "Главный пароль" : "Авторизация");
         dialog.resize(640, 240);
         dialog.setMinimumSize(560, 210);
         auto *layout = new QVBoxLayout(&dialog);
@@ -313,8 +336,10 @@ class ServerEditor : public QDialog {
         form->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
         layout->addLayout(form);
         QMap<QString, QLineEdit *> edits;
-        QList<QPair<QString, QString>> keys{{"password", "Пароль туннеля"}};
-        if (server["kind"] == "qwdtt")
+        QList<QPair<QString, QString>> keys{{"password", server["kind"] == "wdttplus" ? "Главный пароль (8–256 символов)" : "Пароль туннеля"}};
+        if (server["kind"] == "wdttplus")
+            keys += {{"dns", "DNS сервера (необязательно, через запятую)"}};
+        else if (server["kind"] == "qwdtt")
             keys += {{"botToken", "Токен Telegram-бота (необязательно)"},
                      {"adminId", "Telegram ID администратора (необязательно)"}};
         else
@@ -351,7 +376,7 @@ class ServerEditor : public QDialog {
             return;
         if (!manual->isChecked()) {
             const auto defaults = freshServer(server["kind"].toString());
-            for (const auto &key : {"peerPort", "wgPort", "rawPort", "directPort", "adminPort", "webPort"})
+            for (const auto &key : {"peerPort", "wgPort", "rawPort", "directPort", "adminPort", "webPort", "localPort"})
                 server[key] = defaults[key];
         }
         console->clear();
@@ -418,7 +443,7 @@ class ServerEditor : public QDialog {
     ServerEditor(QJsonObject value, std::function<void(QJsonObject)> callback, QWidget *parent,
                  std::function<void(QJsonObject)> consoleCallback = {})
         : QDialog(parent), server(std::move(value)), save(std::move(callback)), checkpoint(std::move(consoleCallback)) {
-        setWindowTitle("Управление сервером — " + server["kind"].toString());
+        setWindowTitle("Управление сервером — " + kindTitle(server["kind"].toString()));
         resize(760, 760);
         task = new RelayTask(this);
         auto *outer = new QVBoxLayout(this);
@@ -429,7 +454,7 @@ class ServerEditor : public QDialog {
         scroll->setWidget(body);
         auto *layout = new QVBoxLayout(body);
         auto *secretsButton =
-            new QPushButton(server["kind"] == "qwdtt" ? "Секреты (бот, пароли)" : "Авторизация", body);
+            new QPushButton(server["kind"] == "qwdtt" ? "Секреты (бот, пароли)" : server["kind"] == "wdttplus" ? "Главный пароль" : "Авторизация", body);
         secretsButton->setObjectName("relaySecrets");
         layout->addWidget(secretsButton);
         controls.append(secretsButton);
@@ -510,10 +535,13 @@ class ServerEditor : public QDialog {
         manual->setChecked(server["manualPorts"] == "true");
         form->addRow(manual);
         QStringList ports{"peerPort"};
-        QStringList labels{server["kind"] == "qwdtt" ? "Порт DTLS" : "Порт туннеля"};
+        QStringList labels{server["kind"] == "csqtt" ? "Порт туннеля" : "Порт DTLS"};
         if (server["kind"] == "qwdtt") {
             ports += {"wgPort", "directPort", "rawPort"};
             labels += {"Порт WireGuard", "Прямой порт", "Порт RAW"};
+        } else if (server["kind"] == "wdttplus") {
+            ports += {"wgPort", "localPort"};
+            labels += {"Порт WG", "Локальный порт"};
         } else {
             ports.append("webPort");
             labels.append("Порт веб-панели");
@@ -531,16 +559,6 @@ class ServerEditor : public QDialog {
             docker = new QCheckBox("Установить в Docker", group);
             docker->setChecked(server["docker"] == "true");
             form->addRow(docker);
-            auto *web = new QPushButton("Открыть веб-панель", body);
-            layout->addWidget(web);
-            connect(web, &QPushButton::clicked, this, [this] {
-                capture();
-                QUrl url;
-                url.setScheme("https");
-                url.setHost(server["host"].toString());
-                url.setPort(server["webPort"].toString().toInt());
-                QDesktopServices::openUrl(url);
-            });
         }
         auto *consoleGroup = new QGroupBox("Консоль", body);
         layout->addWidget(consoleGroup);
@@ -562,20 +580,26 @@ class ServerEditor : public QDialog {
         stopButton->setEnabled(false);
         consoleLayout->addWidget(stopButton);
         connect(stopButton, &QPushButton::clicked, task, &RelayTask::cancel);
-        auto *configGroup = new QGroupBox(server["kind"].toString() + " конфиг", body);
+        auto *configGroup = new QGroupBox("Ссылка " + kindTitle(server["kind"].toString()), body);
         layout->addWidget(configGroup);
         auto *configLayout = new QVBoxLayout(configGroup);
         configuration = new QPlainTextEdit(withoutTunnelMode(server["config"].toString()), configGroup);
         configuration->setReadOnly(true);
-        configuration->setPlaceholderText("Конфиг появится после успешной установки");
+        configuration->setPlaceholderText("Ссылка появится после успешной установки");
+        configuration->setMaximumHeight(90);
         configLayout->addWidget(configuration);
-        copyButton = new QPushButton("Копировать конфиг", configGroup);
+        copyButton = new QPushButton("Копировать", configGroup);
         copyButton->setEnabled(!configuration->toPlainText().isEmpty());
         configLayout->addWidget(copyButton);
         connect(configuration, &QPlainTextEdit::textChanged, this,
                 [this] { copyButton->setEnabled(!configuration->toPlainText().isEmpty()); });
         connect(copyButton, &QPushButton::clicked, this,
                 [this] { QApplication::clipboard()->setText(configuration->toPlainText()); });
+        shareArea = new QWidget(configGroup);
+        new QVBoxLayout(shareArea);
+        shareArea->layout()->setContentsMargins(0, 0, 0, 0);
+        configLayout->addWidget(shareArea);
+        refreshShare();
         auto *buttons = new QHBoxLayout;
         buttons->addStretch();
         saveButton = new QPushButton("Сохранить", this);
@@ -925,11 +949,11 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
             return;
         }
     };
-    for (const auto &kind : {QString("qwdtt"), QString("csqtt")}) {
+    for (const auto &kind : {QString("qwdtt"), QString("csqtt"), QString("wdttplus")}) {
         auto *page = new QWidget(tabs);
         page->setEnabled(false);
         pages->append(page);
-        tabs->addTab(page, kind == "qwdtt" ? "Деплой qWDTT" : "Деплой CSQTT");
+        tabs->addTab(page, "Деплой " + kindTitle(kind));
         auto *pageLayout = new QVBoxLayout(page);
         auto *group = new QGroupBox("VPS для деплоя", page);
         pageLayout->addWidget(group);
@@ -943,12 +967,16 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
             editor->setWindowModality(Qt::WindowModal);
             editor->show();
         };
-        connect(list, &QListWidget::itemDoubleClicked, this, [=](QListWidgetItem *item) {
-            for (const auto &entry : *servers)
-                if (entry.toObject()["id"] == item->data(Qt::UserRole).toJsonValue()) {
-                    open(entry.toObject());
-                    break;
-                }
+        // A saved server opens its menu; "Управление сервером" there is this deploy editor.
+        connect(list, &QListWidget::itemDoubleClicked, this, [=, this](QListWidgetItem *item) {
+            const auto id = item->data(Qt::UserRole).toJsonValue();
+            const auto current = [servers, id] {
+                for (const auto &entry : *servers)
+                    if (entry.toObject()["id"] == id) return entry.toObject();
+                return QJsonObject();
+            };
+            if (current().isEmpty()) return;
+            OpenServerMenu(this, current, [=] { if (const auto s = current(); !s.isEmpty()) open(s); });
         });
         auto *buttons = new QHBoxLayout;
         pageLayout->addLayout(buttons);

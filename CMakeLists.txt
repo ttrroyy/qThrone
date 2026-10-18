@@ -311,6 +311,12 @@ set(PROJECT_SOURCES
         src/configs/outbounds/qwdtt.cpp
         src/configs/outbounds/csqtt.cpp
         src/configs/outbounds/wdttplus.cpp
+        src/ui/utils/ShareBlocks.cpp
+        include/ui/utils/ShareBlocks.h
+        src/ui/setting/dialog_servers.cpp
+        include/ui/setting/dialog_servers.h
+        src/ui/setting/dialog_wdttplus_exit.cpp
+        include/ui/setting/dialog_wdttplus_exit.h
         src/configs/outbounds/openflux.cpp
         src/configs/outbounds/olcrtc.cpp
         src/configs/outbounds/dnstunnel.cpp

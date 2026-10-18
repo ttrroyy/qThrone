@@ -18,10 +18,10 @@
 #include <QUuid>
 
 namespace {
-bool validPort(int p) { return p >= 1 && p <= 65535; }
-QString endpoint(const QString &host, int port) { return (host.contains(':') ? "[" + host + "]" : host) + ":" + QString::number(port); }
-QString encode(const QString &value) { return QString::fromLatin1(QUrl::toPercentEncoding(value)); }
-QString decode(const QString &value) { return QUrl::fromPercentEncoding(value.toUtf8()); }
+bool wdttValidPort(int p) { return p >= 1 && p <= 65535; }
+QString wdttEndpoint(const QString &host, int port) { return (host.contains(':') ? "[" + host + "]" : host) + ":" + QString::number(port); }
+QString wdttEncode(const QString &value) { return QString::fromLatin1(QUrl::toPercentEncoding(value)); }
+QString wdttDecode(const QString &value) { return QUrl::fromPercentEncoding(value.toUtf8()); }
 }
 
 namespace Configs {
@@ -69,7 +69,7 @@ bool wdttplus::ParseFromJson(const QJsonObject &object) {
     workers = NormalizeWorkers(object["workers"].toInt(18), maxWorkers);
     captchaMode = object["captcha_mode"].toString("auto");
     if (!object["device_id"].toString().isEmpty()) deviceID = object["device_id"].toString();
-    return !server.isEmpty() && validPort(server_port) && validPort(wgPort) && validPort(localPort)
+    return !server.isEmpty() && wdttValidPort(server_port) && wdttValidPort(wgPort) && wdttValidPort(localPort)
         && (captchaMode == "auto" || captchaMode == "wv" || captchaMode == "rjs");
 }
 
@@ -80,29 +80,29 @@ bool wdttplus::ParseFromLink(const QString &link) {
     if (!value.startsWith("connect?", Qt::CaseInsensitive)) {
         // wdtt://<server>:<dtls>:<wg>:<local>:<password>[:<hashes>][#name], the original WDTT form.
         QString label;
-        if (const int fragment = value.indexOf('#'); fragment >= 0) { label = decode(value.mid(fragment + 1)); value.truncate(fragment); }
+        if (const int fragment = value.indexOf('#'); fragment >= 0) { label = wdttDecode(value.mid(fragment + 1)); value.truncate(fragment); }
         const auto parts = value.split(':');
         if (parts.size() < 5 || parts.size() > 6) return false;
         bool dtlsOK, wgOK, localOK;
         const int dtls = parts[1].toInt(&dtlsOK), wg = parts[2].toInt(&wgOK), local = parts[3].toInt(&localOK);
         if (!dtlsOK || !wgOK || !localOK || parts[0].isEmpty() || parts[4].isEmpty()) return false;
         return ParseFromJson({{"type", "wdttplus"}, {"legacy", true}, {"server", parts[0]}, {"server_port", dtls}, {"wg_port", wg},
-            {"local_port", local}, {"password", decode(parts[4])}, {"hashes", parts.size() == 6 ? decode(parts[5]) : QString()}, {"tag", label}});
+            {"local_port", local}, {"password", wdttDecode(parts[4])}, {"hashes", parts.size() == 6 ? wdttDecode(parts[5]) : QString()}, {"tag", label}});
     }
     // wdtt://connect?v=1&host&dtls&wg&local&password&hashes[&name][&max_workers], as its TransferCodec builds it.
     QString label;
     auto query = value.mid(8);
-    if (const int fragment = query.indexOf('#'); fragment >= 0) { label = decode(query.mid(fragment + 1)); query.truncate(fragment); }
+    if (const int fragment = query.indexOf('#'); fragment >= 0) { label = wdttDecode(query.mid(fragment + 1)); query.truncate(fragment); }
     QMap<QString, QString> q;
     for (const auto &part : query.split('&', Qt::SkipEmptyParts)) {
         const int at = part.indexOf('=');
         // Form encoding: '+' is a space unless escaped as %2B.
-        if (at > 0) q[part.left(at).toLower()] = decode(QString(part.mid(at + 1)).replace('+', ' '));
+        if (at > 0) q[part.left(at).toLower()] = wdttDecode(QString(part.mid(at + 1)).replace('+', ' '));
     }
     if (q.value("v") != "1") return false;
     bool dtlsOK, wgOK, localOK;
     const int dtls = q.value("dtls").toInt(&dtlsOK), wg = q.value("wg").toInt(&wgOK), local = q.value("local").toInt(&localOK);
-    if (q.value("host").trimmed().isEmpty() || !dtlsOK || !validPort(dtls) || !wgOK || !localOK) return false;
+    if (q.value("host").trimmed().isEmpty() || !dtlsOK || !wdttValidPort(dtls) || !wgOK || !localOK) return false;
     QJsonObject object{{"type", "wdttplus"}, {"server", q.value("host").trimmed()}, {"server_port", dtls}, {"wg_port", wg},
         {"local_port", local}, {"password", q.value("password")}, {"hashes", q.value("hashes")},
         {"tag", q.contains("name") ? q.value("name") : label}};
@@ -131,10 +131,10 @@ QJsonObject wdttplus::ExportIdentity() { auto object = ExportToJson(); object.re
 QString wdttplus::ExportToLink() {
     // The device id is per installation and never travels in a link.
     if (legacy) return "wdtt://" + server + ":" + QString::number(server_port) + ":" + QString::number(wgPort) + ":" + QString::number(localPort)
-        + ":" + password + ":" + hashes.join(',') + (name.isEmpty() ? QString() : "#" + encode(name));
-    QString result = "wdtt://connect?v=1&host=" + encode(server) + "&dtls=" + QString::number(server_port) + "&wg=" + QString::number(wgPort)
-        + "&local=" + QString::number(localPort) + "&password=" + encode(password) + "&hashes=" + encode(hashes.join(','));
-    if (!name.isEmpty()) result += "&name=" + encode(name);
+        + ":" + password + ":" + hashes.join(',') + (name.isEmpty() ? QString() : "#" + wdttEncode(name));
+    QString result = "wdtt://connect?v=1&host=" + wdttEncode(server) + "&dtls=" + QString::number(server_port) + "&wg=" + QString::number(wgPort)
+        + "&local=" + QString::number(localPort) + "&password=" + wdttEncode(password) + "&hashes=" + wdttEncode(hashes.join(','));
+    if (!name.isEmpty()) result += "&name=" + wdttEncode(name);
     if (maxWorkers >= 9 && maxWorkers <= 108) result += "&max_workers=" + QString::number(maxWorkers);
     return result;
 }
@@ -148,7 +148,7 @@ QString wdttplus::Prepare() {
         if (!error.isEmpty()) return error;
     }
     workers = NormalizeWorkers(workers, maxWorkers);
-    if (server.isEmpty() || !validPort(server_port)) return QStringLiteral("WDTT Plus: неверный адрес или порт сервера");
+    if (server.isEmpty() || !wdttValidPort(server_port)) return QStringLiteral("WDTT Plus: неверный адрес или порт сервера");
     if (password.isEmpty() || (password + deviceID).contains(QRegularExpression("[\\r\\n]"))) return QStringLiteral("WDTT Plus: неверный пароль подключения");
     if (effectiveHashes.isEmpty() || effectiveHashes.size() > 4) return QStringLiteral("WDTT Plus: укажите от одного до четырёх хешей звонков VK");
     const QRegularExpression valid("^[A-Za-z0-9_-]{16,512}$");
@@ -166,10 +166,10 @@ QString wdttplus::Prepare() {
     // A new login and password for every launch; the client takes them on stdin.
     socksAddress = "127.0.0.1"; socksPort = tcp.serverPort();
     bridgeUser = QUuid::createUuid().toString(QUuid::Id128); bridgePass = QUuid::createUuid().toString(QUuid::Id128);
-    const QJsonObject config{{"backend", "wdttplus"}, {"peer", endpoint(server, server_port)}, {"password", password},
+    const QJsonObject config{{"backend", "wdttplus"}, {"peer", wdttEndpoint(server, server_port)}, {"password", password},
         {"hashes", QJsonArray::fromStringList(effectiveHashes)}, {"workers", workers}, {"captcha_mode", captchaMode},
-        {"device_id", deviceID}, {"device_info", DeviceInfo()}, {"listen", endpoint("127.0.0.1", udp.localPort())},
-        {"socks", endpoint(socksAddress, socksPort)}, {"socks_user", bridgeUser}, {"socks_pass", bridgePass}};
+        {"device_id", deviceID}, {"device_info", DeviceInfo()}, {"listen", wdttEndpoint("127.0.0.1", udp.localPort())},
+        {"socks", wdttEndpoint(socksAddress, socksPort)}, {"socks_user", bridgeUser}, {"socks_pass", bridgePass}};
     extraCoreConf = QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact)); extraCoreArgs = "-wdttplus-config %s";
     return {};
 }
