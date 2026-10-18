@@ -27,6 +27,7 @@
 #include "include/configs/outbounds/extracore.h"
 #include "include/configs/outbounds/qwdtt.h"
 #include "include/configs/outbounds/csqtt.h"
+#include "include/configs/outbounds/wdttplus.h"
 #include "include/configs/outbounds/openflux.h"
 #include "include/configs/outbounds/olcrtc.h"
 #include "include/configs/outbounds/dnstunnel.h"
@@ -40,6 +41,7 @@ namespace Configs
     {
         if (type == "qwdtt" || type == "wdtt") return new qwdtt();
         if (type == "csqtt") return new csqtt();
+        if (type == "wdttplus") return new wdttplus();
         if (type == "openflux") return new openflux();
         if (type == "olcrtc") return new olcrtc();
         if (type == "dnstt" || type == "vaydns" || type == "slipstream" || type == "masterdns") return new dnstunnel(type);

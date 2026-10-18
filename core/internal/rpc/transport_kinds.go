@@ -21,6 +21,8 @@ type transportKind struct {
 var transportKinds = map[string]transportKind{
 	"":         {executable: "qwdtt", flag: "-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
 	"csqtt":    {executable: "qwdtt", flag: "-csqtt-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
+	// WDTT Plus runs its own client behind the qwdtt helper, which answers its captcha.
+	"wdttplus": {executable: "qwdtt", flag: "-wdttplus-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
 	"openflux": {executable: "openflux", flag: "--qthrone-config", probeStartup: 15 * time.Second, connectStartup: 2 * time.Minute, quiet: true},
 	"olcrtc":   {executable: "olcrtc", flag: "--qthrone-config", probeStartup: 30 * time.Second, connectStartup: 2 * time.Minute, quiet: true},
 	// DNS tunnels measure MTU and handshake query by query; S3 Bypass waits for the bucket.

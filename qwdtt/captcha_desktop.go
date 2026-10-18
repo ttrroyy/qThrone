@@ -76,6 +76,15 @@ func solveDesktopCaptcha(parent context.Context, redirect string) (string, error
 }
 
 func solveDesktopCaptchaMode(parent context.Context, redirect string, visible bool) (string, error) {
+	return solveCaptchaBrowser(parent, redirect, visible, false)
+}
+
+// wdttPlusCaptchaSolver answers WDTT Plus's own requests, with its own page behaviour.
+var wdttPlusCaptchaSolver = func(parent context.Context, redirect string, visible bool) (string, error) {
+	return solveCaptchaBrowser(parent, redirect, visible, true)
+}
+
+func solveCaptchaBrowser(parent context.Context, redirect string, visible, wdttPlus bool) (string, error) {
 	if err := parent.Err(); err != nil {
 		return "", err
 	}
@@ -158,7 +167,12 @@ func solveDesktopCaptchaMode(parent context.Context, redirect string, visible bo
 	}
 	// The hidden attempt gets the original's 10 s from the loaded page; starting the
 	// browser is not part of that budget.
-	value, err := watchCaptchaPage(ctx, page, visible, captchaAutoWebViewTimeout, token)
+	var value string
+	if wdttPlus {
+		value, err = watchWdttPlusCaptchaPage(ctx, page, visible, token)
+	} else {
+		value, err = watchCaptchaPage(ctx, page, visible, captchaAutoWebViewTimeout, token)
+	}
 	if err != nil && parent.Err() != nil {
 		return "", parent.Err()
 	}

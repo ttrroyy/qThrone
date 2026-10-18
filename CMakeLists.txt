@@ -310,6 +310,7 @@ set(PROJECT_SOURCES
         include/ui/profile/edit_socks.h
         src/configs/outbounds/qwdtt.cpp
         src/configs/outbounds/csqtt.cpp
+        src/configs/outbounds/wdttplus.cpp
         src/configs/outbounds/openflux.cpp
         src/configs/outbounds/olcrtc.cpp
         src/configs/outbounds/dnstunnel.cpp
@@ -331,6 +332,9 @@ set(PROJECT_SOURCES
         include/configs/outbounds/csqtt.h
         src/ui/profile/edit_csqtt.cpp
         include/ui/profile/edit_csqtt.h
+        include/configs/outbounds/wdttplus.h
+        src/ui/profile/edit_wdttplus.cpp
+        include/ui/profile/edit_wdttplus.h
         src/configs/sub/qwdtt_import_test.cpp
         src/global/core_startup_test.cpp
         include/configs/outbounds/qwdtt.h

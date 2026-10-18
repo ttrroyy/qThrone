@@ -9,6 +9,7 @@
 #include <QStandardItemModel>
 #include "include/configs/outbounds/qwdtt.h"
 #include "include/configs/outbounds/csqtt.h"
+#include "include/configs/outbounds/wdttplus.h"
 #include "include/configs/outbounds/openflux.h"
 #include "include/configs/outbounds/olcrtc.h"
 #include "include/configs/outbounds/dnstunnel.h"
@@ -36,6 +37,7 @@
 #include "include/ui/setting/dialog_vk_relay.h"
 #include <QStandardItemModel>
 #include "include/ui/profile/edit_csqtt.h"
+#include "include/ui/profile/edit_wdttplus.h"
 #include "include/ui/setting/RouteItem.h"
 #include <QDialogButtonBox>
 #include <QListWidget>
@@ -530,6 +532,64 @@ int TestQwdttImport() {
         const QStringList expected{"AbCdEfGhIjKlMnOp1", "AbCdEfGhIjKlMnOp2", "AbCdEfGhIjKlMnOp3", "AbCdEfGhIjKlMnOp4", "AbCdEfGhIjKlMnOp5"};
         check(Configs::qwdtt::NormalizeHashes(pasted) == expected, "qWDTT reads pasted VK call links as hashes");
         check(Configs::csqtt::NormalizeHashes(pasted) == expected, "CSQTT reads pasted VK call links as hashes");
+    }
+    {
+        // WDTT Plus links, as its TransferCodec builds them, and plain links of the original WDTT.
+        const QString hash = "abcDEF123_-xyz789";
+        const auto plus = parse(("wdtt://connect?v=1&host=192.0.2.5&dtls=56000&wg=56001&local=9000&password=p%40ss&hashes=" + hash + "&name=Home&max_workers=36").toUtf8());
+        check(plus.size() == 1 && plus.first()->type == "wdttplus", "wdtt://connect imports a WDTT Plus profile");
+        if (plus.size() == 1) {
+            auto *o = dynamic_cast<Configs::wdttplus *>(plus.first()->outbound.get());
+            check(o && o->DisplayType() == "WDTT Plus" && o->server == "192.0.2.5" && o->server_port == 56000 && o->wgPort == 56001
+                  && o->localPort == 9000 && o->password == "p@ss" && o->hashes == QStringList{hash} && o->name == "Home"
+                  && o->maxWorkers == 36 && o->workers == 36, "WDTT Plus link fields");
+            if (o) {
+                check(!o->ExportToLink().contains("device") && !o->ExportToLink().contains(o->deviceID), "the device id never travels in a WDTT Plus link");
+                Configs::wdttplus again;
+                auto a = o->ExportToJson(), b = QJsonObject();
+                check(again.ParseFromLink(o->ExportToLink()), "WDTT Plus link round trip parses");
+                b = again.ExportToJson(); a.remove("device_id"); b.remove("device_id");
+                check(a == b, "WDTT Plus link round trip keeps every field");
+                EditWdttPlus editor;
+                editor.onStart(plus.first());
+                auto *workers = editor.findChild<QComboBox *>("wdttPlusWorkers");
+                check(workers && workers->count() == 4 && workers->itemData(3).toInt() == 36, "the server's max_workers caps the WDTT Plus worker choice");
+            }
+        }
+        const auto legacy = parse(("WDTT://192.0.2.6:56000:56001:9000:secret:" + hash).toUtf8());
+        check(legacy.size() == 1 && legacy.first()->type == "wdttplus", "a plain wdtt:// link opens as WDTT, not qWDTT, whatever the scheme's case");
+        if (legacy.size() == 1) {
+            auto *o = dynamic_cast<Configs::wdttplus *>(legacy.first()->outbound.get());
+            check(o && o->DisplayType() == "WDTT" && o->wgPort == 56001 && o->workers == 18, "plain WDTT link fields and default workers");
+            if (o) check(o->ExportToLink() == "wdtt://192.0.2.6:56000:56001:9000:secret:" + hash, "a WDTT profile is shared in its own plain form");
+        }
+        Configs::qwdtt notQwdtt;
+        check(!notQwdtt.ParseFromLink("wdtt://192.0.2.6:56000:56001:9000:secret:" + hash), "qWDTT no longer reads wdtt:// links");
+        for (const auto *bad : {"wdtt://connect?v=2&host=192.0.2.5&dtls=56000&wg=56001&local=9000&password=p",
+                                "wdtt://connect?v=1&host=192.0.2.5&dtls=56000&wg=56001&local=9000&password=p&max_workers=40",
+                                "wdtt://connect?v=1&host=&dtls=56000&wg=56001&local=9000&password=p",
+                                "wdtt://192.0.2.6:56000:9000:secret"}) {
+            Configs::wdttplus rejected;
+            check(!rejected.ParseFromLink(bad), "malformed WDTT Plus links are rejected");
+        }
+        check(Configs::wdttplus::NormalizeWorkers(20, 0) == 18 && Configs::wdttplus::NormalizeWorkers(500, 0) == 108
+              && Configs::wdttplus::NormalizeWorkers(1, 0) == 9 && Configs::wdttplus::NormalizeWorkers(108, 45) == 45,
+              "WDTT Plus workers go in groups of 9 up to 108 or the server's limit");
+        Configs::wdttplus fresh;
+        Configs::qwdtt sibling;
+        check(fresh.workers == 18 && fresh.server_port == 56000 && fresh.wgPort == 56001 && fresh.localPort == 9000 && fresh.deviceID == sibling.deviceID,
+              "new WDTT Plus profiles follow the app's defaults and this computer's device id");
+        check(EditWdttPlus::HashVerdict("ok") == QStringLiteral("TURN доступен") && EditWdttPlus::HashVerdict("Weird").contains(QStringLiteral("Диагностика")),
+              "WDTT Plus hash verdicts are shown as fixed texts");
+        // A refresh keeps the user's hashes after the subscription's, and their workers within the server's limit.
+        const QJsonObject user{{"_type", "wdttplus"}, {"tag", "Plus"}, {"server", "example.org"}, {"server_port", 56000}, {"password", "secret"},
+                               {"hash_source", "manual"}, {"hashes", QJsonArray{"sub-1", "mine-2"}}, {"workers", 54}, {"device_id", "kept"}};
+        const QJsonObject refresh{{"tag", "Plus"}, {"server", "example.org"}, {"server_port", 56000}, {"password", "secret"}, {"hashes", QJsonArray{"sub-1-new"}}, {"workers", 18}};
+        const auto merged = Subscription::PreserveRelaySettings("wdttplus", refresh, {user});
+        check(merged.value("hashes").toArray() == QJsonArray{"sub-1-new", "mine-2"} && merged["workers"].toInt() == 54 && merged["device_id"] == "kept",
+              "a WDTT Plus refresh keeps the user's hashes, workers and device");
+        auto limited = refresh; limited["max_workers"] = 27;
+        check(Subscription::PreserveRelaySettings("wdttplus", limited, {user})["workers"].toInt() == 27, "a WDTT Plus refresh respects a new server limit");
     }
     Configs::qwdtt defaults;
     check(defaults.mode == "wg" && defaults.turnTCP, "new profiles default to the original app's WG over TURN TCP");

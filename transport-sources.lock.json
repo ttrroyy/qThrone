@@ -33,5 +33,10 @@
     "revision": "7de506b222c83ae97a19a618e33fe26899af1bd5",
     "sha256": "419a0d5d3d58551fb3a822c219e22dfbc6c37e9faa3b8a446ab98686c9510996",
     "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.4.0/slipstream-rust-7de506b222c8.bundle"
+  },
+  "https://github.com/Ivan4537/WDTT-Plus.git": {
+    "revision": "f706ccd373685bbde20cae33b2b7f400e8335ecc",
+    "sha256": "c1bcfa30f63c9a6b74e3c9aab10beb684a24910b3bb8e15c883565f3b2d24929",
+    "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.5/wdttplus-f706ccd37368.bundle"
   }
 }

@@ -136,7 +136,7 @@ jobs:
         uses: actions/cache@v6.1.0
         with:
           path: artifacts.tgz
-          key: CommonCache-${{ matrix.cross_os }}-${{ matrix.cross_arch }}-${{ hashFiles('script/build_go.sh', 'script/build_openflux.sh', 'script/openflux/**', 'script/build_olcrtc.sh', 'script/olcrtc/**', 'script/build_dnstunnels.sh', 'script/dnstun/**', 'script/masterdns/**', 'script/s3bypass/**', 'script/fetch_pinned_source.py', 'transport-sources.lock.json', 'core/**', 'qwdtt/**') }}-${{ matrix.go_version }}
+          key: CommonCache-${{ matrix.cross_os }}-${{ matrix.cross_arch }}-${{ hashFiles('script/build_go.sh', 'script/build_openflux.sh', 'script/openflux/**', 'script/build_olcrtc.sh', 'script/olcrtc/**', 'script/build_dnstunnels.sh', 'script/build_wdttplus.sh', 'script/dnstun/**', 'script/masterdns/**', 'script/s3bypass/**', 'script/fetch_pinned_source.py', 'transport-sources.lock.json', 'core/**', 'qwdtt/**') }}-${{ matrix.go_version }}
       - name: Install Golang
         if: steps.cache-common.outputs.cache-hit != 'true'
         uses: actions/setup-go@v7.0.0
@@ -580,7 +580,7 @@ jobs:
           pacman -U --noconfirm ./*.pkg.tar.zst
           namcap ./*.pkg.tar.zst > namcap.log
           desktop-file-validate /usr/share/applications/qThrone.desktop
-          for binary in qThrone qThroneCore qThroneUpdater qwdtt olcrtc openflux csqtt-transport dnstun masterdns s3bypass slipstream-client; do
+          for binary in qThrone qThroneCore qThroneUpdater qwdtt olcrtc openflux csqtt-transport dnstun masterdns s3bypass slipstream-client wdttplus-client; do
             ldd "/usr/lib/qthrone/$binary" >> dependencies.log 2>&1 || true
           done
           find /usr/lib/qthrone/usr/plugins -name '*.so' -exec ldd '{}' \; >> dependencies.log 2>&1

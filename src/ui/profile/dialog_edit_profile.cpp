@@ -11,6 +11,7 @@
 #include "include/ui/profile/edit_extra_core.h"
 #include "include/ui/profile/edit_qwdtt.h"
 #include "include/ui/profile/edit_csqtt.h"
+#include "include/ui/profile/edit_wdttplus.h"
 #include "include/ui/profile/edit_openflux.h"
 #include "include/ui/profile/edit_olcrtc.h"
 #include "include/ui/profile/edit_dnstunnel.h"
@@ -61,6 +62,7 @@ EditorFactory editorFactory(const QString &type) {
     static const QHash<QString, EditorFactory> factories = {
         {"qwdtt", makeEditor<EditQWDTT>},
         {"csqtt", makeEditor<EditCSQTT>},
+        {"wdttplus", makeEditor<EditWdttPlus>},
         {"openflux", makeEditor<EditOpenFlux>},
         {"olcrtc", makeEditor<EditOLCRTC>},
         {"dnstt", makeEditor<EditDnsTunnel>},
@@ -218,9 +220,9 @@ DialogEditProfile::~DialogEditProfile() {
 
 void DialogEditProfile::setupTypeList() {
     const auto addType = [this](const QString &t) {
-        ui->type->addItem(t == "qwdtt" ? QStringLiteral("qWDTT") : t == "csqtt" ? QStringLiteral("CSQTT") : Configs::dataManager->profilesRepo->NewProfile(t)->outbound->DisplayType(), t);
+        ui->type->addItem(t == "qwdtt" ? QStringLiteral("qWDTT") : t == "csqtt" ? QStringLiteral("CSQTT") : t == "wdttplus" ? QStringLiteral("WDTT Plus") : Configs::dataManager->profilesRepo->NewProfile(t)->outbound->DisplayType(), t);
     };
-    for (const auto *t: {"qwdtt", "csqtt", "openflux", "olcrtc", "masterdns", "vaydns", "dnstt", "slipstream", "s3bypass", "autoselector", "socks", "http", "shadowsocks", "trojan", "vmess", "vless", "xrayvless",
+    for (const auto *t: {"qwdtt", "csqtt", "wdttplus", "openflux", "olcrtc", "masterdns", "vaydns", "dnstt", "slipstream", "s3bypass", "autoselector", "socks", "http", "shadowsocks", "trojan", "vmess", "vless", "xrayvless",
                          "hysteria", "tuic", "juicity", "naive", "trusttunnel", "anytls", "mieru", "snell",
                          "shadowtls", "wireguard", "masque", "openvpn", "openconnect", "tailscale", "ssh", "direct"}) {
         addType(t);

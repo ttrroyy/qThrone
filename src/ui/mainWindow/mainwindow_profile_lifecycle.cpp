@@ -7,7 +7,6 @@
 #include "include/stats/autoselector/AutoSelectorMonitor.hpp"
 #include "include/configs/AutoSelectorPlan.h"
 #include "include/api/RPC.h"
-#include "include/ui/utils/RestartPrompt.h"
 #include "include/ui/stats/dialog_endpoint_details.h"
 
 #include <QPushButton>
@@ -244,7 +243,7 @@ void MainWindow::profile_start(const StartRequest &request) {
         if (!resolved.interactive && !error.isEmpty()) MW_show_log(error);
         runOnUiThread([=, this] { emit start_finished(resolved.serial, resolved.profileId, outcome, error); });
     };
-    auto profile_start_stage2 = [=, this](const QPointer<RestartPrompt> &restartPrompt) {
+    auto profile_start_stage2 = [=, this]() {
         libcore::LoadConfigReq req;
         req.core_config = QJsonObject2QString(result->coreConfig, true).toStdString();
         req.tun_ipv4_cidr = result->tunIPv4CIDR.toStdString();
@@ -267,8 +266,8 @@ void MainWindow::profile_start(const StartRequest &request) {
         for (const auto &extraCore : extraCores)
         {
             QStringList transportPaths{extraCore.path};
-            if (extraCore.args.startsWith("-csqtt-config")) {
-                QString nativeName = "csqtt-transport";
+            if (extraCore.args.startsWith("-csqtt-config") || extraCore.args.startsWith("-wdttplus-config")) {
+                QString nativeName = extraCore.args.startsWith("-csqtt-config") ? "csqtt-transport" : "wdttplus-client";
 #ifdef Q_OS_WIN
                 nativeName += ".exe";
 #endif
@@ -276,7 +275,6 @@ void MainWindow::profile_start(const StartRequest &request) {
             }
             for (const auto &transportPath : transportPaths) {
                 if (transportPath.isEmpty() || !Sys::KillSwitch::instance()->permitExtraCore(transportPath)) {
-                    runOnUiThread([restartPrompt] { if (restartPrompt) restartPrompt->dismiss(); });
                     MW_show_log(tr("[Kill switch] The extra core %1 could not be allowed through the kill switch.").arg(transportPath));
                     finish(StartOutcome::ExtraCoreBlocked, {});
                     if (!resolved.interactive) return false;
@@ -309,8 +307,6 @@ void MainWindow::profile_start(const StartRequest &request) {
         }
         bool rpcOK;
         const QString error = defaultClient->Start(&rpcOK, req);
-        // Queued ahead of every dialog below, so none of them can be shown over the prompt.
-        runOnUiThread([restartPrompt] { if (restartPrompt) restartPrompt->dismiss(); });
         if (!rpcOK) {
             finish(StartOutcome::CoreUnavailable, {});
             return false;
@@ -447,10 +443,6 @@ void MainWindow::profile_start(const StartRequest &request) {
         return;
     }
 
-    const QPointer<RestartPrompt> restartPrompt = resolved.interactive
-        ? new RestartPrompt(this, tr("If there is no response for a long time, it is recommended to restart the software."), 10000)
-        : nullptr;
-
     runOnUiThread([this] {
         m_profileConnecting = true;
         refresh_startstop_button();
@@ -463,12 +455,11 @@ void MainWindow::profile_start(const StartRequest &request) {
             mu_stopping.unlock();
         }
         MW_show_log(">>>>>>>> " + tr("Starting profile %1").arg(ent->outbound->DisplayTypeAndName()));
-        if (!profile_start_stage2(restartPrompt)) {
+        if (!profile_start_stage2()) {
             MW_show_log("<<<<<<<< " + tr("Failed to start profile %1").arg(ent->outbound->DisplayTypeAndName()));
         }
         mu_starting.unlock();
         runOnUiThread([=, this] {
-            if (restartPrompt) restartPrompt->dismiss();
             m_profileConnecting = false;
             refresh_startstop_button();
         });
@@ -481,7 +472,7 @@ void MainWindow::profile_stop(bool crash, bool block, bool manual, bool interact
     }
     const auto id = running->id;
 
-    auto profile_stop_stage2 = [=,this](const QPointer<RestartPrompt> &restartPrompt) {
+    auto profile_stop_stage2 = [=,this]() {
         if (running && running->type == "qwdtt" && testRunner->isRunning()) {
             // Batch URL tests can own qWDTT sidecars even when testingCurrent is false.
             testRunner->stop();
@@ -493,7 +484,6 @@ void MainWindow::profile_stop(bool crash, bool block, bool manual, bool interact
         if (!crash) {
             bool rpcOK;
             const QString error = defaultClient->Stop(&rpcOK);
-            runOnUiThread([restartPrompt] { if (restartPrompt) restartPrompt->dismiss(); });
             if (rpcOK && !error.isEmpty()) {
                 if (interactive) {
                     runOnUiThread([=,this] { MessageBoxWarning(tr("Stop return error"), error); });
@@ -533,20 +523,12 @@ void MainWindow::profile_stop(bool crash, bool block, bool manual, bool interact
         Stats::trafficLooper->PersistTraffic();
         Stats::trafficStatsManager->Flush();
 
-        // runOnUiThread is a no-op before qApp exists, so the teardown must not chase this.
-        QPointer<RestartPrompt> restartPrompt;
-        if (interactive) {
-            runOnUiThread([this, &restartPrompt] {
-                restartPrompt = new RestartPrompt(this, tr("If there is no response for a long time, it is recommended to restart the software."), 5000);
-            }, true);
-        }
-
         // Snapshot: `running` is cleared below and a racing start can reassign it.
         const auto stopping = running;
         if (stopping != nullptr) {
             MW_show_log(">>>>>>>> " + tr("Stopping profile %1").arg(stopping->outbound->DisplayTypeAndName()));
         }
-        if (!profile_stop_stage2(restartPrompt)) {
+        if (!profile_stop_stage2()) {
             MW_show_log("<<<<<<<< " + tr("Failed to stop, please restart the program."));
         }
 
@@ -555,9 +537,7 @@ void MainWindow::profile_stop(bool crash, bool block, bool manual, bool interact
         Configs::ClearRunningProfiles();
         running = nullptr;
 
-        runOnUiThread([=, this, &restartPrompt] {
-            if (restartPrompt) restartPrompt->dismiss();
-
+        runOnUiThread([=, this] {
             m_profileDisconnecting = false;
             clearRestartNeeded();
             // profile_start() stops the old run first, so only a stop outside a restart is the user's.

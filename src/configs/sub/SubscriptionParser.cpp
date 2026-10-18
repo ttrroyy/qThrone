@@ -51,7 +51,9 @@ namespace Subscription {
         };
 
         constexpr Protocol kProtocols[] = {
-            {"qwdtt", {"qwdtt://", "qwdtt:config", "wdtt://"}, {"qwdtt", "wdtt"}, {}},
+            {"qwdtt", {"qwdtt://", "qwdtt:config"}, {"qwdtt", "wdtt"}, {}},
+            // wdtt://connect is WDTT Plus; a plain wdtt:// link of the original WDTT opens there too.
+            {"wdttplus", {"wdtt://"}, {"wdttplus"}, {}},
             {"csqtt", {"csqtt://"}, {"csqtt"}, {}},
             {"openflux", {"openflux://"}, {"openflux"}, {}},
             {"olcrtc", {"olcrtc://"}, {"olcrtc"}, {}},
@@ -84,7 +86,7 @@ namespace Subscription {
         const char *typeForScheme(std::string_view link) {
             for (const auto &p : kProtocols) {
                 for (const char *scheme : p.schemes) {
-                    if (scheme != nullptr && ((std::string_view(p.type) == "qwdtt" || std::string_view(p.type) == "csqtt")
+                    if (scheme != nullptr && ((std::string_view(p.type) == "qwdtt" || std::string_view(p.type) == "csqtt" || std::string_view(p.type) == "wdttplus")
                         ? scan::startsWithNoCase(link, scheme) : link.starts_with(scheme))) return p.type;
                 }
             }

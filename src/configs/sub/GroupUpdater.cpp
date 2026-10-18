@@ -8,6 +8,7 @@
 #include "include/configs/sub/SubscriptionScan.hpp"
 #include "include/database/GroupsRepo.h"
 #include "include/database/ProfilesRepo.h"
+#include "include/configs/outbounds/wdttplus.h"
 #include "include/global/HTTPRequestHelper.hpp"
 #include "include/global/Utils.hpp"
 
@@ -420,7 +421,7 @@ namespace Subscription {
     }
 
     QJsonObject PreserveRelaySettings(const QString &type, QJsonObject incoming, const QList<QJsonObject> &previous) {
-        if (type != "qwdtt" && type != "csqtt") return incoming;
+        if (type != "qwdtt" && type != "csqtt" && type != "wdttplus") return incoming;
         QList<QJsonObject> named, matching;
         QSet<QString> relatedIDs;
         for (const auto &old : previous) {
@@ -456,11 +457,14 @@ namespace Subscription {
             if (old.contains("turn_tcp")) incoming["turn_tcp"] = old.value("turn_tcp");
             const int count = incoming.value("hash_source").toString() == "auto"
                 ? incoming.value("auto_hash_count").toInt(1) : incoming.value("hashes").toArray().size();
-            const int maximum = qMin(type == "csqtt" ? 126 : 108, qBound(1, count, type == "csqtt" ? 6 : 4) * 27);
             const int oldCount = old.value("hash_source").toString() == "auto"
                 ? old.value("auto_hash_count").toInt(1) : old.value("hashes").toArray().size();
-            const int oldMaximum = qMin(type == "csqtt" ? 126 : 108, qBound(1, oldCount, type == "csqtt" ? 6 : 4) * 27);
-            const int requested = old.value("workers").toInt(type == "csqtt" ? 18 : 9);
+            // WDTT Plus groups 9 workers each up to 108 or the server's own limit, whatever the hash count.
+            const int maximum = type == "wdttplus" ? Configs::wdttplus::WorkerLimit(incoming.value("max_workers").toInt())
+                : qMin(type == "csqtt" ? 126 : 108, qBound(1, count, type == "csqtt" ? 6 : 4) * 27);
+            const int oldMaximum = type == "wdttplus" ? Configs::wdttplus::WorkerLimit(old.value("max_workers").toInt())
+                : qMin(type == "csqtt" ? 126 : 108, qBound(1, oldCount, type == "csqtt" ? 6 : 4) * 27);
+            const int requested = old.value("workers").toInt(type == "qwdtt" ? 9 : 18);
             incoming["workers"] = requested >= oldMaximum ? maximum : qBound(9, requested, maximum) / 9 * 9;
             if (!candidates.first().value("device_id").toString().isEmpty()) incoming["device_id"] = candidates.first().value("device_id");
         } else if (relatedIDs.size() == 1) incoming["device_id"] = *relatedIDs.begin();
@@ -835,7 +839,7 @@ namespace Subscription {
 
         QList<QJsonObject> previousHashes;
         forEachProfile(group->Profiles(), [&](const std::shared_ptr<Configs::Profile> &ent) {
-            if (ent->type == "qwdtt" || ent->type == "csqtt") {
+            if (ent->type == "qwdtt" || ent->type == "csqtt" || ent->type == "wdttplus") {
                 profilesRepo->RestoreTransportIdentity(ent.get());
                 auto previous = ent->outbound->ExportToJson();
                 previous["_type"] = ent->type;
@@ -937,7 +941,7 @@ namespace Subscription {
         MW_show_log(">>>>>>>> " + QObject::tr("Processing subscription data..."));
         auto parseSink = sinkFor(sink);
         parseSink.profile = [&sink, previousHashes](std::shared_ptr<Configs::Profile> ent) {
-            if (ent->type == "qwdtt" || ent->type == "csqtt") {
+            if (ent->type == "qwdtt" || ent->type == "csqtt" || ent->type == "wdttplus") {
                 ent->outbound->ParseFromJson(PreserveRelaySettings(ent->type, ent->outbound->ExportToJson(), previousHashes));
             }
             sink.add(std::move(ent));

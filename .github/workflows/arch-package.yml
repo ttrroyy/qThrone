@@ -31,7 +31,7 @@ jobs:
       - name: Check runtime and graphical launch
         run: |
           cd aur/qthrone-bin
-          for binary in qThrone qThroneCore qThroneUpdater qwdtt olcrtc openflux csqtt-transport dnstun masterdns s3bypass slipstream-client; do
+          for binary in qThrone qThroneCore qThroneUpdater qwdtt olcrtc openflux csqtt-transport dnstun masterdns s3bypass slipstream-client wdttplus-client; do
             ldd "/usr/lib/qthrone/$binary" >> dependencies.log 2>&1 || true
           done
           find /usr/lib/qthrone/usr/plugins -name '*.so' -exec ldd '{}' \; >> dependencies.log 2>&1

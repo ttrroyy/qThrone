@@ -284,7 +284,7 @@ Keywords=proxy;vpn;network;privacy;
             install(tmpdir / "Version", APPDIR / "Version", 0o644)
 
             y = message(scr, y, f"Installing binaries to {APPDIR}")
-            for name in ("qThroneCore", "qThrone", "qwdtt", "csqtt-transport", "openflux", "olcrtc", "dnstun", "masterdns", "s3bypass", "slipstream-client", "qThroneUpdater"):
+            for name in ("qThroneCore", "qThrone", "qwdtt", "csqtt-transport", "openflux", "olcrtc", "dnstun", "masterdns", "s3bypass", "slipstream-client", "wdttplus-client", "qThroneUpdater"):
                 install(tmpdir / "qThrone" / name, APPDIR / name, 0o755)
             usr_src = tmpdir / "qThrone/usr"
             for f in usr_src.rglob("*"):
