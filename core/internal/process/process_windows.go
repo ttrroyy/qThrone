@@ -37,7 +37,10 @@ func startChild(path string, args []string, noOut bool, input *os.File, observer
 	}
 	defer tok.Close()
 
-	if source == "restricted self token" {
+	switch source {
+	case ownTokenSource:
+		return startCmd(newCmd(path, args, noOut, input, observers...))
+	case "restricted self token":
 		return startRestrictedSelf(path, args, noOut, tok, input, observers...)
 	}
 	return startWithToken(path, args, noOut, tok, input, observers...)
@@ -273,12 +276,44 @@ type tokenSource struct {
 	get  func(windows.Token) (windows.Token, error)
 }
 
-// Ordered best-first: the linked token is exactly what the user would run with without UAC, the session/shell tokens cover a Core running as SYSTEM, and the restricted self token always works because it needs nothing outside this process.
+const ownTokenSource = "own token (UAC is off)"
+
+// Ordered best-first: the linked token is exactly what the user would run with without UAC, the session/shell tokens cover a Core running as SYSTEM.
+// With UAC off the user has no unprivileged token and every program of theirs runs with full rights; a restricted token there
+// can leave the child unable to start (0xc0000142), so it keeps ours. The restricted self token is the last resort for SYSTEM.
 var tokenSources = []tokenSource{
 	{"linked token", linkedToken},
 	{"session token", sessionToken},
 	{"shell token", shellToken},
+	{ownTokenSource, ownTokenWithoutUAC},
 	{"restricted self token", restrictedSelfToken},
+}
+
+const (
+	tokenElevationTypeDefault = 1 // no split token: UAC is off, or the built-in Administrator
+	tokenElevationTypeFull    = 2
+	tokenElevationTypeLimited = 3
+)
+
+// keepsOwnToken: only a user's own token without a UAC split; SYSTEM still hands its child a user's or a restricted token.
+func keepsOwnToken(elevationType uint32, system bool) bool {
+	return elevationType == tokenElevationTypeDefault && !system
+}
+
+func ownTokenWithoutUAC(self windows.Token) (windows.Token, error) {
+	var elevationType uint32
+	var size uint32
+	if err := windows.GetTokenInformation(self, windows.TokenElevationType, (*byte)(unsafe.Pointer(&elevationType)), uint32(unsafe.Sizeof(elevationType)), &size); err != nil {
+		return 0, err
+	}
+	user, err := self.GetTokenUser()
+	if err != nil {
+		return 0, err
+	}
+	if !keepsOwnToken(elevationType, user.User.Sid.IsWellKnown(windows.WinLocalSystemSid)) {
+		return 0, fmt.Errorf("token elevation type %d keeps privilege dropping", elevationType)
+	}
+	return primaryToken(self)
 }
 
 func unprivilegedToken(self windows.Token) (windows.Token, string, error) {

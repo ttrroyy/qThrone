@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
@@ -138,5 +139,65 @@ func TestRestrictedStartFallbackOnlyOnMissingPrivilege(t *testing.T) {
 	_, err := startRestrictedWithFallback(func() (running, error) { return nil, syscall.Errno(1314) }, func() (running, error) { return nil, os.ErrPermission })
 	if !errors.Is(err, windows.ERROR_PRIVILEGE_NOT_HELD) || !errors.Is(err, os.ErrPermission) {
 		t.Fatalf("missing startup diagnostics: %v", err)
+	}
+}
+
+func TestOwnTokenOnlyWithoutUACSplit(t *testing.T) {
+	for _, tc := range []struct {
+		elevationType uint32
+		system, keep  bool
+	}{
+		{tokenElevationTypeDefault, false, true},
+		{tokenElevationTypeDefault, true, false},
+		{tokenElevationTypeFull, false, false},
+		{tokenElevationTypeLimited, false, false},
+		{0, false, false},
+	} {
+		if got := keepsOwnToken(tc.elevationType, tc.system); got != tc.keep {
+			t.Errorf("type %d system=%v: keep=%v, want %v", tc.elevationType, tc.system, got, tc.keep)
+		}
+	}
+	if ownTokenSource == "restricted self token" {
+		t.Fatal("own token source must not reach the restricted start")
+	}
+	var order []string
+	for _, source := range tokenSources {
+		order = append(order, source.name)
+	}
+	if got := strings.Join(order, ","); got != "linked token,session token,shell token,"+ownTokenSource+",restricted self token" {
+		t.Fatalf("token sources %s: a split token and a user's session must still win over our own", got)
+	}
+}
+
+// Regression: with UAC off (no linked token) an elevated qThrone used the restricted self token, and qwdtt.exe died with 0xc0000142.
+func TestElevatedWithoutUACKeepsOwnToken(t *testing.T) {
+	self, err := selfToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer self.Close()
+	var elevationType, size uint32
+	if err := windows.GetTokenInformation(self, windows.TokenElevationType, (*byte)(unsafe.Pointer(&elevationType)), 4, &size); err != nil {
+		t.Fatal(err)
+	}
+	user, err := self.GetTokenUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tok, err := ownTokenWithoutUAC(self)
+	if keepsOwnToken(elevationType, user.User.Sid.IsWellKnown(windows.WinLocalSystemSid)) {
+		if err != nil {
+			t.Fatalf("UAC is off here, the own token must be kept: %v", err)
+		}
+		tok.Close()
+		if !self.IsElevated() {
+			t.Skip("own token kept; the start path needs an elevated test run")
+		}
+		if _, source, err := unprivilegedToken(self); err != nil || source == "restricted self token" {
+			t.Fatalf("UAC off still drops to the restricted token: %s %v", source, err)
+		}
+	} else if err == nil {
+		tok.Close()
+		t.Fatalf("elevation type %d must keep dropping privileges", elevationType)
 	}
 }
