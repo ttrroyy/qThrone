@@ -7,6 +7,10 @@ import (
 	"encoding/json"
 	"io"
 	"net"
+	"os"
+	osexec "os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -185,5 +189,89 @@ func TestDialNeedsTheRememberedHostKey(t *testing.T) {
 	out, err := p.run(client, s, "true", 10*time.Second, false)
 	if err != nil || out != "ok\n" {
 		t.Fatalf("run %q %v", out, err)
+	}
+}
+
+// wdttPlusRoot runs a server-side script against a fake root folder instead of /.
+func wdttPlusRoot(t *testing.T, root, script string) string {
+	t.Helper()
+	bash, err := osexec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash is not available")
+	}
+	root = filepath.ToSlash(root)
+	script = strings.NewReplacer("/etc/", root+"/etc/", "/usr/local/bin/", root+"/usr/local/bin/").Replace(script)
+	out, _ := osexec.Command(bash, "-c", script).CombinedOutput()
+	return string(out)
+}
+
+func wdttPlusFiles(t *testing.T, root string, files ...string) {
+	t.Helper()
+	for _, name := range files {
+		path := filepath.Join(root, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("{}"), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// Regression: after deploy.sh uninstall only /etc/wdtt is left, and the preserving update
+// stopped with "признаки Android-установки изменились после проверки" until the data was marked.
+func TestWdttPlusProbeTellsKeptDataFromInstalledService(t *testing.T) {
+	data := []string{"etc/wdtt/passwords.json", "etc/wdtt/wg-keys.dat"}
+	for _, c := range []struct {
+		files []string
+		want  string
+	}{
+		{nil, "WDTT_DB=0\nWDTT_SERVICE=none\n"},
+		{data, "WDTT_DB=1\nWDTT_SERVICE=none\n"},
+		{append(data, "etc/systemd/system/wdtt.service", "usr/local/bin/wdtt-server"), "WDTT_DB=1\nWDTT_SERVICE=installed\n"},
+		{append(data, "etc/systemd/system/wdtt.service"), "WDTT_DB=1\nWDTT_SERVICE=partial\n"},
+	} {
+		root := t.TempDir()
+		wdttPlusFiles(t, root, c.files...)
+		if got := wdttPlusRoot(t, root, wdttPlusProbe); got != c.want {
+			t.Fatalf("%v: %q, want %q", c.files, got, c.want)
+		}
+	}
+}
+
+func TestWdttPlusMarksKeptDataAsWdttPlusDoes(t *testing.T) {
+	root := t.TempDir()
+	wdttPlusFiles(t, root, "etc/wdtt/passwords.json", "etc/wdtt/wg-keys.dat")
+	if out := wdttPlusRoot(t, root, wdttPlusMarkPreserved); !strings.Contains(out, "WDTT_PRESERVED_MARKER=ready") {
+		t.Fatalf("marker not written: %s", out)
+	}
+	marker := filepath.Join(root, "etc/wdtt/.android-deploy-preserved")
+	if data, err := os.ReadFile(marker); err != nil || string(data) != "Preserved by WDTT Plus Android deploy\n" {
+		t.Fatalf("marker %q %v", data, err)
+	}
+	if _, err := os.Stat(marker + ".new"); !os.IsNotExist(err) {
+		t.Fatal("temporary marker left behind")
+	}
+	if info, _ := os.Stat(marker); runtime.GOOS != "windows" && info.Mode().Perm() != 0o600 {
+		t.Fatalf("marker mode %v", info.Mode())
+	}
+
+	missingKeys := t.TempDir()
+	wdttPlusFiles(t, missingKeys, "etc/wdtt/passwords.json")
+	if out := wdttPlusRoot(t, missingKeys, wdttPlusMarkPreserved); strings.Contains(out, "ready") {
+		t.Fatal("marked data without WireGuard keys")
+	}
+	if _, err := os.Stat(filepath.Join(missingKeys, "etc/wdtt/.android-deploy-preserved")); !os.IsNotExist(err) {
+		t.Fatal("marker written for incomplete data")
+	}
+	if runtime.GOOS != "windows" {
+		linked := t.TempDir()
+		wdttPlusFiles(t, linked, "etc/wdtt/wg-keys.dat", "elsewhere.json")
+		if err := os.Symlink(filepath.Join(linked, "elsewhere.json"), filepath.Join(linked, "etc/wdtt/passwords.json")); err != nil {
+			t.Fatal(err)
+		}
+		if out := wdttPlusRoot(t, linked, wdttPlusMarkPreserved); strings.Contains(out, "ready") {
+			t.Fatal("marked a symlinked database")
+		}
 	}
 }

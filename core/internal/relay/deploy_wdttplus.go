@@ -13,6 +13,24 @@ import (
 var wdttPlusStaging = regexp.MustCompile(`^/tmp/wdtt-plus-deploy\.[A-Za-z0-9]+$`)
 var wdttPlusSuccess = regexp.MustCompile(`(?m)^WDTT_INSTALL_RESULT=success\s*$`)
 
+// wdttPlusProbe reports the access database and whether the service is installed (both unit and
+// binary), only one of them, or none.
+const wdttPlusProbe = `[ -s /etc/wdtt/passwords.json ] && echo WDTT_DB=1 || echo WDTT_DB=0; ` +
+	`unit=0; binary=0; [ -e /etc/systemd/system/wdtt.service ] && unit=1; [ -e /usr/local/bin/wdtt-server ] && binary=1; ` +
+	`case "$unit$binary" in 00) echo WDTT_SERVICE=none ;; 11) echo WDTT_SERVICE=installed ;; *) echo WDTT_SERVICE=partial ;; esac`
+
+// wdttPlusMarkPreserved is WDTT Plus's markPreservedAndroidData: the marker deploy.sh accepts for
+// data kept after the service was removed. Each check exits on its own: set -e ignores a failure
+// on the left of &&, which lets the original mark data without its files.
+const wdttPlusMarkPreserved = "set -e; " +
+	"{ [ -d /etc/wdtt ] && [ ! -L /etc/wdtt ]; } || exit 1; " +
+	"{ [ -f /etc/wdtt/passwords.json ] && [ ! -L /etc/wdtt/passwords.json ]; } || exit 1; " +
+	"{ [ -f /etc/wdtt/wg-keys.dat ] && [ ! -L /etc/wdtt/wg-keys.dat ]; } || exit 1; " +
+	"printf '%s\\n' 'Preserved by WDTT Plus Android deploy' > /etc/wdtt/.android-deploy-preserved.new; " +
+	"chmod 600 /etc/wdtt/.android-deploy-preserved.new; " +
+	"mv -f /etc/wdtt/.android-deploy-preserved.new /etc/wdtt/.android-deploy-preserved; " +
+	"echo WDTT_PRESERVED_MARKER=ready"
+
 // deployWdttPlus deploys as WDTT Plus's app does: the pinned official APK's deploy.sh and
 // server go to a private staging folder (mktemp, 700); a new server also gets passwords.json
 // with the main password, an existing one is updated in place and keeps its data.
@@ -39,11 +57,19 @@ func (p *protocol) deployWdttPlus(client *ssh.Client, s map[string]string, insta
 	if _, e = exec("chmod 700 " + quote(staging)); e != nil {
 		return e
 	}
-	existingOut, e := exec(asRoot("[ -s /etc/wdtt/passwords.json ] && echo WDTT_DB=1 || echo WDTT_DB=0"))
+	existingOut, e := exec(asRoot(wdttPlusProbe))
 	if e != nil {
 		return e
 	}
 	existing := strings.Contains(existingOut, "WDTT_DB=1")
+	// deploy.sh uninstall keeps /etc/wdtt without the service: as WDTT Plus's app does, mark that
+	// data preserved, otherwise deploy.sh refuses the preserving update.
+	if install && existing && strings.Contains(existingOut, "WDTT_SERVICE=none") {
+		marked, e := exec(asRoot(wdttPlusMarkPreserved))
+		if e != nil || !strings.Contains(marked, "WDTT_PRESERVED_MARKER=ready") {
+			return fmt.Errorf("Не удалось отметить сохранённые данные WDTT Plus на сервере (нужны /etc/wdtt/passwords.json и wg-keys.dat)")
+		}
+	}
 	p.emit("progress", "Передача файлов на VPS", 30)
 	script, e := zipEntry(apk, "assets/deploy.sh")
 	if e != nil {

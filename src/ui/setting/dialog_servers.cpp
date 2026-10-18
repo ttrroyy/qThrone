@@ -23,6 +23,7 @@
 #include <QJsonDocument>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMouseEvent>
 #include <QMenu>
 #include <QMessageBox>
 #include <QProgressBar>
@@ -103,14 +104,31 @@ QTableWidgetItem *cell(const QString &text, const QVariant &key = {}) {
     return item;
 }
 
+// A click on the empty part of a table drops its selection and current row.
+class ClearOnEmptyClick : public QObject {
+public:
+    using QObject::QObject;
+    bool eventFilter(QObject *, QEvent *event) override {
+        if (event->type() == QEvent::MouseButtonPress) {
+            auto *view = static_cast<QTableWidget *>(parent());
+            if (!view->indexAt(static_cast<QMouseEvent *>(event)->position().toPoint()).isValid()) {
+                view->clearSelection();
+                view->setCurrentIndex({});
+            }
+        }
+        return false;
+    }
+};
+
 QTableWidget *table(QWidget *parent, const QStringList &headers) {
     auto *view = new QTableWidget(0, int(headers.size()), parent);
     view->setHorizontalHeaderLabels(headers);
     view->setSelectionBehavior(QAbstractItemView::SelectRows);
     view->setSelectionMode(QAbstractItemView::SingleSelection);
     view->verticalHeader()->setVisible(false);
-    view->horizontalHeader()->setStretchLastSection(true);
+    view->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     view->setAlternatingRowColors(true);
+    view->viewport()->installEventFilter(new ClearOnEmptyClick(view));
     return view;
 }
 
@@ -277,7 +295,6 @@ class QwdttAccess : public ServerScreen {
             view->setItem(row, 4, cell(bytesText(o["up_bytes"].toDouble() + o["down_bytes"].toDouble())));
             view->setItem(row, 5, cell(state));
         }
-        view->resizeColumnsToContents();
     }
 
     // Create or edit: name, up to four VK hashes (sent comma-joined), days and devices.
@@ -308,7 +325,7 @@ class QwdttAccess : public ServerScreen {
         if (daysOK) values["days"] = QString::number(dayCount);
         if (fresh) {
             if (values["label"].toString().isEmpty()) values.remove("label");
-            admin("/admin/passwords", values, [this](const QJsonObject &created) { refresh(); details(created); });
+            admin("/admin/passwords", values, [this](const QJsonObject &) { refresh(); });
         } else {
             values["password"] = existing["password"];
             admin("/admin/passwords/update", values, [this](const QJsonObject &updated) { refresh(); details(updated); });
@@ -466,7 +483,6 @@ class WdttPlusClients : public ServerScreen {
             view->setItem(row, 5, cell(state == "deactivated" ? QStringLiteral("выключен") : state.startsWith("expired") ? QStringLiteral("истёк")
                                        : !o["device_id"].toString().isEmpty() ? QStringLiteral("привязан") : QString()));
         }
-        view->resizeColumnsToContents();
         if (items.isEmpty()) status->setText(QStringLiteral("Клиентов пока нет. Создайте первого кнопкой «Новый клиент»."));
     }
 
@@ -706,7 +722,6 @@ class WdttPlusBackups : public ServerScreen {
             view->setItem(row, 3, cell(bytesText(b["size_bytes"].toDouble())));
             view->setItem(row, 4, cell(b["valid"].toBool() ? QStringLiteral("в порядке") : QStringLiteral("повреждена: ") + b["error"].toString()));
         }
-        view->resizeColumnsToContents();
         if (info["backups"].toArray().isEmpty()) status->setText(QStringLiteral("Копий пока нет"));
     }
 
