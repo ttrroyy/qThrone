@@ -15,7 +15,8 @@ QImage QrImage(const QString &text, int side) {
     if (text.isEmpty()) return {};
     try {
         const auto qr = qrcodegen::QrCode::encodeText(text.toUtf8().constData(), qrcodegen::QrCode::Ecc::MEDIUM);
-        constexpr int padding = 2;
+        // The standard quiet zone of four modules, so phones and quirc read it reliably.
+        constexpr int padding = 4;
         const int size = qr.getSize();
         QImage image(size + padding * 2, size + padding * 2, QImage::Format_RGB32);
         image.fill(qRgb(255, 255, 255));

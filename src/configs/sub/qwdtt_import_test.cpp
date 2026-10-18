@@ -38,6 +38,8 @@
 #include <QStandardItemModel>
 #include "include/ui/profile/edit_csqtt.h"
 #include "include/ui/profile/edit_wdttplus.h"
+#include "include/ui/utils/ShareBlocks.h"
+#include "3rdparty/QrDecoder.h"
 #include "include/ui/setting/RouteItem.h"
 #include <QDialogButtonBox>
 #include <QListWidget>
@@ -588,6 +590,16 @@ int TestQwdttImport() {
         const auto merged = Subscription::PreserveRelaySettings("wdttplus", refresh, {user});
         check(merged.value("hashes").toArray() == QJsonArray{"sub-1-new", "mine-2"} && merged["workers"].toInt() == 54 && merged["device_id"] == "kept",
               "a WDTT Plus refresh keeps the user's hashes, workers and device");
+        // A file of links and a QR picture reach the same parser: WDTT and WDTT Plus are recognised both ways.
+        const auto file = parse(("wdtt://192.0.2.6:56000:56001:9000:secret:" + hash + "\ncsqtt://connect?v=2&host=203.0.113.7&peer=46000&password=s").toUtf8());
+        check(file.size() == 2 && file[0]->type == "wdttplus" && file[1]->type == "csqtt", "a file with a WDTT link and a CSQTT link imports both");
+        const auto shared = "wdtt://connect?v=1&host=192.0.2.5&dtls=56000&wg=56001&local=9000&password=p&hashes=" + hash + "&name=QR";
+        const auto decoded = QrDecoder().decode(ShareBlocks::QrImage(shared).convertToFormat(QImage::Format_Grayscale8));
+        check(decoded.size() == 1 && decoded.first() == shared, "the QR code of a WDTT Plus link decodes back to the link");
+        if (decoded.size() == 1) {
+            const auto fromQr = parse(decoded.first().toUtf8());
+            check(fromQr.size() == 1 && fromQr.first()->type == "wdttplus" && fromQr.first()->outbound->name == "QR", "a WDTT Plus QR picture imports as WDTT Plus");
+        }
         auto limited = refresh; limited["max_workers"] = 27;
         check(Subscription::PreserveRelaySettings("wdttplus", limited, {user})["workers"].toInt() == 27, "a WDTT Plus refresh respects a new server limit");
     }

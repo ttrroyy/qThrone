@@ -659,7 +659,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 script/release_notes.py > "$RUNNER_TEMP/release-notes.md"
-          RELEASE_GIT_TAG=$(python3 -c 'import re,sys; m=re.fullmatch(r"(\d+)\.(\d+)(?:\.(\d+))?(.*)",sys.argv[1]); assert m; print("v"+m[1]+"."+m[2]+"."+(m[3] or "0")+m[4])' "$RELEASE_TAG")
+          RELEASE_GIT_TAG=$(python3 -c 'import re,sys; assert re.fullmatch(r"\d+\.\d+(?:\.\d+)?(?:-(?:alpha|beta|rc)\.\d+)?",sys.argv[1]); print("v"+sys.argv[1])' "$RELEASE_TAG")
           args=()
           if [[ "$RELEASE_KIND" == p ]]; then args+=(--prerelease); fi
           title="$RELEASE_TAG"
