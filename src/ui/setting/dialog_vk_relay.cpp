@@ -260,7 +260,7 @@ class ServerEditor : public QDialog {
     bool busy = false;
     // The QR code of the deploy link and, for qWDTT, its legacy wdtt:// form, from the server's fields.
     void refreshShare() {
-        for (auto *child : shareArea->findChildren<QWidget *>(Qt::FindDirectChildrenOnly))
+        for (auto *child : shareArea->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly))
             delete child;
         const auto link = configuration->toPlainText();
         if (link.isEmpty())
