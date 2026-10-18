@@ -146,6 +146,8 @@ func TestTransportHelperProcess(t *testing.T) {
 	}
 	var c struct {
 		SOCKS  string `json:"socks"`
+		User   string `json:"socks_user"`
+		Pass   string `json:"socks_pass"`
 		Folder string `json:"helper_folder"`
 	}
 	if json.Unmarshal(data, &c) != nil {
@@ -167,7 +169,30 @@ func TestTransportHelperProcess(t *testing.T) {
 			if err != nil {
 				return
 			}
-			conn.Close()
+			// The SOCKS5 login of this launch, as every bundled helper asks for it.
+			go func(conn net.Conn) {
+				defer conn.Close()
+				head := make([]byte, 3)
+				if _, err := io.ReadFull(conn, head); err != nil {
+					return
+				}
+				conn.Write([]byte{5, 2})
+				b := make([]byte, 2)
+				if _, err := io.ReadFull(conn, b); err != nil {
+					return
+				}
+				user := make([]byte, b[1])
+				io.ReadFull(conn, user)
+				l := make([]byte, 1)
+				io.ReadFull(conn, l)
+				pass := make([]byte, l[0])
+				io.ReadFull(conn, pass)
+				if string(user) == c.User && string(pass) == c.Pass {
+					conn.Write([]byte{1, 0})
+				} else {
+					conn.Write([]byte{1, 1})
+				}
+			}(conn)
 		}
 	}()
 	stop := make(chan struct{})
@@ -213,7 +238,7 @@ func TestWatchdogReconnectsADroppedTransport(t *testing.T) {
 	socks := ln.Addr().String()
 	ln.Close()
 	encoded, _ := json.Marshal(map[string]string{"backend": "olcrtc", "peer": "jitsi:room", "device_id": "watchdog-test",
-		"socks": socks, "helper_folder": folder})
+		"socks": socks, "socks_user": "watchdog-user", "socks_pass": "watchdog-pass", "helper_folder": folder})
 	in := &gen.LoadConfigReq{RoutedExtraProcesses: []*gen.RoutedExtraProcess{{Path: To(helper),
 		Args: To("-test.run=^TestTransportHelperProcess$ qthrone-transport-helper %s"), Config: To(string(encoded)), OutboundTag: To("route-0"), NoOut: To(true)}}}
 	lifecycleMu.Lock()
