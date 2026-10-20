@@ -75,4 +75,3 @@
 | <img src="https://img.shields.io/badge/USDT%20%2F%20BNB-BEP--20-F0B90B?style=flat-square&logo=bnbchain&logoColor=white" alt="USDT / BNB BEP-20"> | `0x0B7e9f024e92f7333AB9146c0351732B959D4e9A` |
 | <img src="https://img.shields.io/badge/BTC-Bitcoin-F7931A?style=flat-square&logo=bitcoin&logoColor=white" alt="Bitcoin"> | `bc1qw5larutup50tdk4vuskdzep5r9ydyzt4g0c6dm` |
 | <img src="https://img.shields.io/badge/TON-Toncoin-0098EA?style=flat-square&logo=ton&logoColor=white" alt="Toncoin"> | `UQBFy4FDUovKADmWYNumVFsfgKNvI3uuzPy34fHd3sEI1R86` |
-| <a href="https://boosty.to/ttrroyy/donate"><img src="https://img.shields.io/badge/Boosty-donate-F15F2C?style=flat-square&logo=boosty&logoColor=white" alt="Boosty"></a> | [boosty.to/ttrroyy/donate](https://boosty.to/ttrroyy/donate) |
