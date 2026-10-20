@@ -51,9 +51,9 @@ namespace Subscription {
         };
 
         constexpr Protocol kProtocols[] = {
-            {"qwdtt", {"qwdtt://", "qwdtt:config"}, {"qwdtt", "wdtt"}, {}},
-            // wdtt://connect is WDTT Plus; a plain wdtt:// link of the original WDTT opens there too.
-            {"wdttplus", {"wdtt://"}, {"wdttplus"}, {}},
+            // wdtt://connect is WDTT Plus; the plain wdtt://host:dtls:wg:local:pass link is qWDTT, as before 1.5.
+            {"wdttplus", {"wdtt://connect"}, {"wdttplus"}, {}},
+            {"qwdtt", {"qwdtt://", "qwdtt:config", "wdtt://"}, {"qwdtt", "wdtt"}, {}},
             {"csqtt", {"csqtt://"}, {"csqtt"}, {}},
             {"openflux", {"openflux://"}, {"openflux"}, {}},
             {"olcrtc", {"olcrtc://"}, {"olcrtc"}, {}},

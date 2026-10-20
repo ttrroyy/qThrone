@@ -50,6 +50,15 @@ QString wdttplus::DeviceInfo() {
     return QString::fromUtf8(QJsonDocument(info).toJson(QJsonDocument::Compact));
 }
 
+QJsonObject wdttplus::LegacyToQwdtt(const QJsonObject &object) {
+    if (object["type"].toString() != "wdttplus" || !object["legacy"].toBool(false)) return {};
+    auto copy = object;
+    copy["type"] = "qwdtt";
+    for (const auto *key : {"legacy", "wg_port", "local_port", "max_workers", "workers"}) copy.remove(key);
+    qwdtt profile;
+    return profile.ParseFromJson(copy) ? profile.ExportToJson() : QJsonObject{};
+}
+
 bool wdttplus::ParseFromJson(const QJsonObject &object) {
     if (object["type"].toString() != "wdttplus") return false;
     outbound::ParseFromJson(object);

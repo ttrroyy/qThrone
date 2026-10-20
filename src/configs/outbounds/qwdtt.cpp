@@ -127,8 +127,21 @@ bool qwdtt::ParseFromLink(const QString &link) {
         }
         return ParseFromJson(o);
     }
-    // wdtt:// links belong to WDTT Plus (and the original WDTT), not to qWDTT.
-    return false;
+    // wdtt://<server>:<dtls>:<wg>:<local>:<password>[:<hashes>][#name], as a qWDTT server shares it; wdtt://connect is WDTT Plus.
+    if (!value.startsWith("wdtt://", Qt::CaseInsensitive) || value.startsWith("wdtt://connect?", Qt::CaseInsensitive)) return false;
+    value.remove(0, 7);
+    const int fragment = value.indexOf('#');
+    QString label;
+    if (fragment >= 0) { label = QUrl::fromPercentEncoding(value.mid(fragment + 1).toUtf8()); value.truncate(fragment); }
+    const auto parts = value.split(':');
+    if (parts.size() < 5 || parts.size() > 6) return false;
+    bool ok;
+    const int p = parts[1].toInt(&ok);
+    if (!ok || !validPort(p)) return false;
+    QJsonObject o{{"type", "qwdtt"}, {"peer", peerString(parts[0], p)},
+                  {"name", label}, {"password", QUrl::fromPercentEncoding(parts[4].toUtf8())}};
+    if (parts.size() == 6) o["hashes"] = QUrl::fromPercentEncoding(parts[5].toUtf8());
+    return ParseFromJson(o);
 }
 
 QJsonObject qwdtt::ExportToJson() {

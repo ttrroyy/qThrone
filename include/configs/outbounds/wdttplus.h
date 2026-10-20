@@ -1,5 +1,6 @@
 #pragma once
 #include "include/configs/outbounds/extracore.h"
+#include <QJsonObject>
 #include <QStringList>
 
 namespace Configs {
@@ -26,6 +27,8 @@ public:
     static int WorkerLimit(int profileMaxWorkers);
     // buildDeviceInfoJson of WDTT Plus, filled with this computer's details.
     static QString DeviceInfo();
+    // A plain wdtt:// profile that 1.5 and 1.5.1 stored as WDTT Plus, as the qWDTT profile it was before; empty otherwise.
+    static QJsonObject LegacyToQwdtt(const QJsonObject &object);
     bool ParseFromLink(const QString &) override;
     bool ParseFromJson(const QJsonObject &) override;
     QJsonObject ExportToJson() override;
