@@ -21,6 +21,14 @@ public:
     int localPort = 9000;
     bool legacy = false;
     QString captchaMode = "auto";
+    bool tcpOnly = false;
+    bool rtMasque = false;
+    bool rtMasqueServerBootstrap = false;
+    bool vkCallsPreflight = true;
+    QString turnSni;
+    QString fingerprint = "firefox";
+    QString clientIds = "6287487,8202606";
+    static bool ValidTurnSni(const QString &value);
     QString deviceID;
     // normalizeTunnelWorkerCount of WDTT Plus: groups of 9, up to 108 or the profile's own limit.
     static int NormalizeWorkers(int requested, int profileMaxWorkers);

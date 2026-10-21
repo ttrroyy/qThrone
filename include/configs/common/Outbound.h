@@ -59,6 +59,7 @@ namespace Configs
         bool invalid = false;
         // Owning profile, stamped by ProfilesRepo; not part of the serialised outbound.
         int profile_id = -1;
+        bool manualRelayHashes = false;
         std::shared_ptr<DialFields> dialFields = std::make_shared<DialFields>();
 
         void ResolveDomainToIP(const std::function<void()> &onFinished) {

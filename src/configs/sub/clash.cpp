@@ -251,6 +251,8 @@ void from_node(const fkyaml::node& node, Proxies& p) {
     load_opt(node, "public-key", p.public_key);
     load_opt(node, "pre-shared-key", p.pre_shared_key);
     load_opt(node, "private-key", p.private_key);
+    load_opt(node, "persistent-keepalive", p.persistent_keepalive);
+    if (node.contains("amnezia-wg-option")) p.amnezia_wg_option = node["amnezia-wg-option"];
     load_opt(node, "private-key-passphrase", p.private_key_passphrase);
     if (node.is_mapping() && node.contains("host-key")) {
         if (node["host-key"].is_string()) {

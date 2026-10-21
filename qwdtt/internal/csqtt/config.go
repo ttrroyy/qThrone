@@ -126,11 +126,10 @@ func stripHashURL(hash string) string {
 }
 
 func NormalizeWorkers(requested, hashCount int, redistribute bool) int {
-	requested = max(9, min(requested, 126)) / 9 * 9
-	if !redistribute {
-		requested = min(requested, max(1, min(hashCount, 6))*27)
+	if requested <= 5 {
+		return 5
 	}
-	return requested
+	return max(5, min(requested, 100)/10*10)
 }
 
 type TunnelConfig struct {
@@ -145,6 +144,13 @@ func ParseTunnelConfig(raw string) (TunnelConfig, error) {
 	var c TunnelConfig
 	invalid := errors.New("invalid CSQTT IP tunnel configuration")
 	parts := strings.Split(raw, ":")
+	if len(parts) == 6 && strings.HasPrefix(parts[5], "workers=") {
+		workers, err := strconv.Atoi(strings.TrimPrefix(parts[5], "workers="))
+		if err != nil || workers < 0 || workers > 100 {
+			return c, invalid
+		}
+		parts = parts[:5]
+	}
 	if len(parts) != 5 || parts[0] != "TUNCONF" {
 		return c, invalid
 	}

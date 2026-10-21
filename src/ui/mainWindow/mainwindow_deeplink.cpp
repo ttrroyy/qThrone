@@ -15,6 +15,7 @@
 #include "3rdparty/QrDecoder.h"
 #include "include/api/remote/Server.hpp"
 #include "include/configs/sub/GroupUpdater.hpp"
+#include "include/configs/sub/SubscriptionParser.hpp"
 #include "include/configs/sub/RouteUpdater.hpp"
 #include "include/database/GroupsRepo.h"
 #include "include/database/RoutesRepo.h"
@@ -256,17 +257,10 @@ void MainWindow::import_or_handle_deeplink(const QString &text) {
 }
 
 void MainWindow::import_text(const QString &text) {
-    const auto content = text.trimmed();
-    const QRegularExpression providerAdd(QStringLiteral("^(happ|incy)://(?:add|import)/(.*)$"), QRegularExpression::CaseInsensitiveOption);
-    if (const auto match = providerAdd.match(content); match.hasMatch()) {
-        auto data = match.captured(2);
-        if (!data.contains("://")) data = QUrl::fromPercentEncoding(data.toUtf8());
-        const QUrl url(data);
-        if (url.isValid() && (url.scheme() == "http" || url.scheme() == "https")) {
-            Subscription::updater()->SubscribeUrl(data);
-            return;
-        }
-        Subscription::updater()->ImportText(data);
+    const auto content = Subscription::UnwrapProviderLink(text);
+    if (content.isEmpty()) { MessageBoxWarning(tr("Import"), tr("Invalid subscription wrapper.")); return; }
+    if (content != text.trimmed() && (content.startsWith("http://") || content.startsWith("https://"))) {
+        Subscription::updater()->SubscribeUrl(content);
         return;
     }
     if (content.startsWith("http://") || content.startsWith("https://")) {

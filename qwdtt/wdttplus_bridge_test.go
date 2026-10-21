@@ -47,6 +47,29 @@ func TestWdttPlusArgsMatchItsTunnelManager(t *testing.T) {
 	}
 }
 
+func TestWdttPlusOriginalAdvancedModes(t *testing.T) {
+	c := validWdttPlusConfig()
+	c.TCPOnly = true
+	c.TurnSNI = "turn.example.org"
+	c.RTMasque = true
+	c.Fingerprint = "chrome"
+	c.ClientIDs = "8202606"
+	no := false
+	c.VKCallsPreflight = &no
+	args := strings.Join(wdttPlusArgs(&c), " ")
+	for _, flag := range []string{"-turn-stream-first=true", "-turn-sni turn.example.org", "-rt-masque=true", "-vkcalls-preflight=false", "-fingerprint chrome", "-client-ids 8202606"} {
+		if !strings.Contains(args, flag) {
+			t.Fatalf("missing %s", flag)
+		}
+	}
+	for _, bad := range []string{"https://turn.example.org", "127.0.0.1", "bad..example", "-bad.example", "good.example\n"} {
+		c.TurnSNI = bad
+		if _, err := readWdttPlusConfig(writeWdttPlusConfig(t, c)); err == nil {
+			t.Fatal("invalid external TURN SNI accepted")
+		}
+	}
+}
+
 func TestWdttPlusStartConfigCarriesTheSecrets(t *testing.T) {
 	line := wdttPlusStartLine([]string{testHash, "ZyXwVuTsRqPoNmLkJiHg"}, "pw", "user", "pass")
 	if !strings.HasPrefix(line, "START_CONFIG|") || strings.ContainsAny(line, "\n=+/") {

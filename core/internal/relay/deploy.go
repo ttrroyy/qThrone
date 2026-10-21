@@ -119,8 +119,8 @@ func validateServer(s map[string]string, install bool) error {
 func artifact(ctx context.Context, kind string) (*zip.Reader, error) {
 	source, digest := "https://github.com/makriq-org/qwdtt/releases/download/v1.4.4/qWDTT_v1.4.4.apk", "ff5b2d1f265b0c4253cdf54ebf1f8a5d64afd1424086aa8b8be754b5c14df6a7"
 	if kind == "csqtt" {
-		source = "https://github.com/amurcanov/csqtt/releases/download/v2.1.9/CSQTT-universal.apk"
-		digest = "49771d60a53d731452f3301e53dbe6bdee9142876e6b295dbf88f59f0b5aaf82"
+		source = "https://github.com/ttrroyy/csqtt-rebirth/releases/download/v2.5.0-legacy/CSQTT-universal.apk"
+		digest = "bbc261eff2fce56b0ee774271416b0764b34ee16349e9e250ce3c8d45d660d0f"
 	} else if kind == "wdttplus" {
 		source = "https://github.com/Ivan4537/WDTT-Plus/releases/download/v20/WDTT-Plus-v20-arm64-v8a-release.apk"
 		digest = "918cc7ab477247ebdaca030c13c0d689ca1a9f59152217f8edf0484a943da0e3"

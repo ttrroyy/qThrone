@@ -41,6 +41,15 @@ func TestQWDTTDeviceSessionsAreKeyedByServer(t *testing.T) {
 	}
 }
 
+func TestCSQTTLegacyPasswordOwnsSessionAcrossDevices(t *testing.T) {
+	first, ok := qwdttSessionKey(`{"backend":"csqtt","peer":"Server.example:46000","device_id":"first","password":"shared"}`)
+	same, valid := qwdttSessionKey(`{"backend":"csqtt","peer":"server.example:46000","device_id":"other","password":"shared"}`)
+	other, _ := qwdttSessionKey(`{"backend":"csqtt","peer":"server.example:46000","device_id":"first","password":"another"}`)
+	if !ok || !valid || first != same || first == other {
+		t.Fatal("Legacy probe would replace an active password session")
+	}
+}
+
 func TestQWDTTPingBackendSelection(t *testing.T) {
 	for _, c := range []string{`{"peer":"server:1"}`, `{"backend":""}`} {
 		if !nativeQWDTTPing(c) {

@@ -12,6 +12,7 @@ class QProcess;
 class QPushButton;
 class QTemporaryDir;
 class QTimer;
+class QCheckBox;
 
 class EditWdttPlus : public QWidget, public ProfileEditor {
     Q_OBJECT
@@ -48,6 +49,13 @@ private:
     void updateWorkers(int requested = -1);
     void updateSource();
     QComboBox *captcha;
+    QCheckBox *tcpOnly;
+    QCheckBox *rtMasque;
+    QCheckBox *serverBootstrap;
+    QCheckBox *preflight;
+    QLineEdit *turnSni;
+    QComboBox *fingerprint;
+    QLineEdit *clientIds;
     QSpinBox *wgPort;
     QSpinBox *localPort;
     QLineEdit *device;

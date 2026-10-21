@@ -122,6 +122,7 @@ namespace Configs {
     bool outbound::ParseFromJson(const QJsonObject& object)
     {
         if (object.isEmpty()) return false;
+        manualRelayHashes = object["manual_hashes_override"].toBool(false);
         if (object.contains("tag")) name = object["tag"].toString();
         if (object.contains("server")) server = toAceHost(object["server"].toString());
         if (object.contains("server_port")) server_port = object["server_port"].toInt();

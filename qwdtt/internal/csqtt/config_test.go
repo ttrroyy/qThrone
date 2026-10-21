@@ -45,13 +45,12 @@ func TestExcessHashesKeepFirstSix(t *testing.T) {
 }
 
 func TestWorkerLimits(t *testing.T) {
-	for hashes, want := range []int{27, 27, 54, 81, 108, 126, 126} {
-		if got := NormalizeWorkers(200, hashes, false); got != want {
-			t.Fatalf("hashes %d: got %d want %d", hashes, got, want)
+	for _, pair := range [][2]int{{1, 5}, {5, 5}, {9, 5}, {10, 10}, {18, 10}, {99, 90}, {100, 100}, {126, 100}} {
+		for hashes := 0; hashes <= 6; hashes++ {
+			if got := NormalizeWorkers(pair[0], hashes, false); got != pair[1] {
+				t.Fatalf("workers %d with %d hashes: %d", pair[0], hashes, got)
+			}
 		}
-	}
-	if NormalizeWorkers(16, 1, false) != 9 || NormalizeWorkers(126, 1, true) != 126 {
-		t.Fatal("worker normalization")
 	}
 }
 

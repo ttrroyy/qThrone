@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-revision=71712b07dbabe16fa43f5a248dc69e1ab9f3a270
-python3 script/fetch_pinned_source.py https://github.com/amurcanov/csqtt.git "$revision" csqtt-source
+revision=2066156119a5afe7d63e104aefdc8e0849999d03
+python3 script/fetch_pinned_source.py https://github.com/ttrroyy/csqtt-rebirth.git "$revision" csqtt-source
 python3 script/prepare_csqtt.py csqtt-source
 rustup toolchain install 1.97.1 --profile minimal
 
@@ -30,5 +30,5 @@ extension=''
 if [ "$RUNNER_OS" = Windows ]; then extension=.exe; fi
 cp "csqtt-source/rust-client/target/$target/release/client$extension" "csqtt-artifact/csqtt-transport$extension"
 cp csqtt-source/LICENSE csqtt-artifact/CSQTT-LICENSE
-printf '%s\n' 'Original source: https://github.com/amurcanov/csqtt' "Revision: $revision" 'Desktop changes: script/prepare_csqtt.py in qThrone' > csqtt-artifact/CSQTT-SOURCE
+printf '%s\n' 'Original source: https://github.com/ttrroyy/csqtt-rebirth' "Revision: $revision" 'Desktop changes: script/prepare_csqtt.py in qThrone' > csqtt-artifact/CSQTT-SOURCE
 tar -czf csqtt-artifact/csqtt-source.tar.gz --exclude=target --exclude=.git -C csqtt-source rust-client shared LICENSE

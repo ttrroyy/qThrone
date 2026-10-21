@@ -4,11 +4,14 @@
 
 #include <QByteArray>
 #include <QString>
+#include <QStringList>
 
 #include <functional>
 #include <memory>
 
 namespace Subscription {
+    QString UnwrapProviderLink(const QString &text);
+    QStringList CsqttSubscriptionLinks(const QByteArray &body);
     struct ParseSink {
         std::function<void(std::shared_ptr<Configs::Profile>)> profile;
         std::function<void(const QString &)> log;

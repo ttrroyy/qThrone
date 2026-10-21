@@ -1,11 +1,71 @@
 #include "include/configs/outbounds/masque.h"
 
 #include <QJsonArray>
+#include <QHostAddress>
+#include <QRegularExpression>
+#include <QSet>
+#include <QUrlQuery>
 #include <include/global/Utils.hpp>
 
 #include "include/configs/common/utils.h"
 
 namespace Configs {
+    bool masque::ParseFromLink(const QString& link)
+    {
+        const QUrl url(link.trimmed());
+        if (!url.isValid() || url.scheme() != "masque" || url.host().isEmpty() ||
+            url.port(443) < 1 || url.port(443) > 65535 || !url.password().isEmpty() ||
+            (!url.path().isEmpty() && url.path() != "/")) return false;
+        const QUrlQuery query(url);
+        QSet<QString> seen;
+        for (const auto& item : query.queryItems()) {
+            if (seen.contains(item.first)) return false;
+            seen.insert(item.first);
+        }
+        const auto value = [&](const char* key) { return query.queryItemValue(key, QUrl::FullyDecoded); };
+        const QRegularExpression keyPattern("^[A-Za-z0-9+/_=-]{1,8192}$");
+        private_key = url.userName(QUrl::FullyDecoded);
+        peer_public_key = value("publickey");
+        if (!keyPattern.match(private_key).hasMatch() ||
+            (!peer_public_key.isEmpty() && !keyPattern.match(peer_public_key).hasMatch())) return false;
+        address.clear();
+        for (auto raw : value("address").split(',')) {
+            raw = raw.trimmed();
+            const QHostAddress ip(raw.section('/', 0, 0));
+            if (ip.isNull()) return false;
+            const int bits = ip.protocol() == QAbstractSocket::IPv6Protocol ? 128 : 32;
+            if (raw.contains('/')) {
+                bool ok;
+                const int prefix = raw.section('/', 1).toInt(&ok);
+                if (!ok || prefix < 0 || prefix > bits) return false;
+            } else raw += "/" + QString::number(bits);
+            address << raw;
+        }
+        mtu = 1280;
+        if (query.hasQueryItem("mtu")) {
+            bool ok; mtu = value("mtu").toInt(&ok);
+            if (!ok || mtu < 576 || mtu > 65535) return false;
+        }
+        http_version = 0;
+        if (query.hasQueryItem("http_version")) {
+            bool ok; http_version = value("http_version").toInt(&ok);
+            if (!ok) return false;
+        } else if (value("network") == "h2") http_version = 2;
+        else if (value("network") == "h3") http_version = 3;
+        else if (!value("network").isEmpty()) return false;
+        if (http_version != 0 && http_version != 2 && http_version != 3) return false;
+        disable_version_fallback = http_version == 3;
+        if (query.hasQueryItem("disable_version_fallback")) {
+            const auto flag = value("disable_version_fallback");
+            if (flag != "true" && flag != "false" && flag != "1" && flag != "0") return false;
+            disable_version_fallback = flag == "true" || flag == "1";
+        }
+        outbound::ParseFromLink(link);
+        server_port = url.port(443);
+        tls->ParseFromLink(link); tls->enabled = true;
+        quic->ParseFromLink(link);
+        return true;
+    }
     static QString withPrefix(const std::string& address, const char* prefix)
     {
         auto result = QString::fromStdString(address).trimmed();
@@ -65,7 +125,19 @@ namespace Configs {
 
     QString masque::ExportToLink()
     {
-        return {};
+        QUrl url; QUrlQuery query;
+        url.setScheme("masque"); url.setHost(server); url.setPort(server_port);
+        url.setUserName(private_key); url.setFragment(name);
+        if (!peer_public_key.isEmpty()) query.addQueryItem("publickey", peer_public_key);
+        query.addQueryItem("address", address.join(','));
+        query.addQueryItem("mtu", QString::number(mtu));
+        query.addQueryItem("http_version", QString::number(http_version));
+        query.addQueryItem("disable_version_fallback", disable_version_fallback ? "true" : "false");
+        mergeUrlQuery(query, outbound::ExportToLink());
+        mergeUrlQuery(query, tls->ExportToLink());
+        mergeUrlQuery(query, quic->ExportToLink());
+        url.setQuery(query);
+        return url.toString(QUrl::FullyEncoded).replace('+', "%2B");
     }
 
     QJsonObject masque::ExportToJson()

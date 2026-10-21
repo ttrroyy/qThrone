@@ -27,6 +27,7 @@ class RelayTask : public QObject {
 };
 
 QStringList RelayAccountHashes(int count, QString *error);
+QString RelayAccountToken(QString *error);
 bool ResetQWDTTHashSources();
 bool SaveVKRelayPreviews(const QString &directory);
 

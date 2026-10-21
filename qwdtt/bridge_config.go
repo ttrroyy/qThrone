@@ -16,6 +16,10 @@ import (
 
 // Secrets travel in Throne's private, temporary extra-core config, never argv.
 type bridgeConfig struct {
+	HashSource         string   `json:"hash_source"`
+	VKAccessToken      string   `json:"vk_access_token"`
+	TurnTransport      string   `json:"turn_transport"`
+	SRTPMode           string   `json:"srtp_mode"`
 	PingTimeoutMS      int      `json:"ping_timeout_ms"`
 	LatencyProbe       bool     `json:"latency_probe"`
 	ProbeOnly          bool     `json:"probe_only"`

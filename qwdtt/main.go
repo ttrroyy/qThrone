@@ -114,6 +114,12 @@ func sanitizeHashCheckMessage(message string) string {
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+	if len(os.Args) == 2 && (os.Args[1] == "-csqtt-share-decode" || os.Args[1] == "-csqtt-share-encode") {
+		if err := csqttShare(os.Args[1] == "-csqtt-share-encode"); err != nil {
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) == 3 && (os.Args[1] == "-wdttplus-config" || os.Args[1] == "-wdttplus-check") {
 		run := runWdttPlusBridge
 		if os.Args[1] == "-wdttplus-check" {

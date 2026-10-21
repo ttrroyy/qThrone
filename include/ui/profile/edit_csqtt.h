@@ -48,5 +48,10 @@ private:
     QComboBox *obfs;
     QComboBox *authorization;
     QComboBox *captcha;
+    QComboBox *srtp;
+    QComboBox *fingerprint;
+    QLineEdit *clientIds;
+    QLineEdit *customTurnIps;
+    QLineEdit *token;
     QLineEdit *device;
 };

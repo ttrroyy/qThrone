@@ -19,6 +19,7 @@ import (
 	"sync"
 	"syscall"
 	"time"
+	"unicode"
 
 	"wg-turn-client/internal/csqtt"
 )
@@ -40,7 +41,9 @@ func readCSQTTConfig(path string) (*bridgeConfig, error) {
 	if c.Password == "" || strings.ContainsAny(c.Password+c.DeviceID, "|\r\n") || c.DeviceID == "" {
 		return nil, errors.New("invalid CSQTT credentials")
 	}
-	if len(c.Hashes) < 1 || len(c.Hashes) > 6 {
+	automaticJS := c.HashSource == "auto_js" && c.VKAccessToken != "" && len(c.VKAccessToken) <= 4096 &&
+		strings.IndexFunc(c.VKAccessToken, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) }) < 0
+	if (!automaticJS && len(c.Hashes) < 1) || len(c.Hashes) > 6 || (c.HashSource == "auto_js" && !automaticJS) {
 		return nil, errors.New("CSQTT needs one to six VK hashes")
 	}
 	for _, hash := range c.Hashes {
@@ -59,14 +62,20 @@ func readCSQTTConfig(path string) (*bridgeConfig, error) {
 	if c.SOCKSUser == "" || c.SOCKSPass == "" {
 		return nil, errors.New("CSQTT SOCKS credentials required")
 	}
-	if c.Obfs != "audio" && c.Obfs != "video" {
+	if c.Obfs != "audio" && c.Obfs != "video" && c.Obfs != "unified" {
 		return nil, errors.New("invalid CSQTT obfuscation")
 	}
-	if c.VKAnonPath != "vkcalls" && c.VKAnonPath != "legacy" {
+	if c.VKAnonPath != "vkcalls" && c.VKAnonPath != "legacy" && !(automaticJS && c.VKAnonPath == "auto_js") {
 		return nil, errors.New("invalid CSQTT authorization")
 	}
 	if c.CaptchaMode != "auto" && c.CaptchaMode != "wv" && c.CaptchaMode != "rjs" {
 		return nil, errors.New("invalid CSQTT captcha mode")
+	}
+	if c.TurnTransport != "" && c.TurnTransport != "udp" && c.TurnTransport != "tcp" && c.TurnTransport != "tcp_tls" {
+		return nil, errors.New("invalid CSQTT TURN transport")
+	}
+	if c.SRTPMode != "" && c.SRTPMode != "auto" && c.SRTPMode != "wrap" && c.SRTPMode != "dtls" {
+		return nil, errors.New("invalid CSQTT SRTP mode")
 	}
 	return &c, nil
 }
@@ -105,7 +114,9 @@ func runCSQTTBridge(path string) error {
 	if err != nil {
 		return err
 	}
-	key := sha256.Sum256([]byte(c.DeviceID))
+	// Legacy owns sessions by server/password, including profiles with different local device IDs.
+	peerHost, _, _ := net.SplitHostPort(c.Peer)
+	key := sha256.Sum256([]byte(strings.ToLower(peerHost) + "\x00" + c.Password))
 	command.Dir = filepath.Join(cache, "qThrone", "csqtt", fmt.Sprintf("%x", key[:16]))
 	if err := os.MkdirAll(command.Dir, 0700); err != nil {
 		return err

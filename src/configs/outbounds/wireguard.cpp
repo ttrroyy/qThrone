@@ -244,6 +244,35 @@ namespace Configs {
         return !(private_key.isEmpty() || peer->public_key.isEmpty() || server.isEmpty());
     }
 
+    bool wireguard::ParseFromClash(const clash::Proxies& object) {
+        if (object.type != "wireguard") return false;
+        outbound::ParseFromClash(object);
+        private_key = QString::fromStdString(object.private_key);
+        peer = std::make_shared<Peer>();
+        peer->address = server; peer->port = server_port;
+        peer->public_key = QString::fromStdString(object.public_key);
+        peer->pre_shared_key = QString::fromStdString(object.pre_shared_key);
+        peer->persistent_keepalive = QString::fromStdString(object.persistent_keepalive);
+        if (object.reserved) for (const auto value : object.reserved->value) peer->reserved << value;
+        address.clear();
+        for (const auto& ip : {object.ip, object.ipv6}) if (!ip.empty()) address << QString::fromStdString(ip);
+        if (object.mtu > 0) mtu = object.mtu;
+        QJsonObject options;
+        if (object.amnezia_wg_option.is_mapping()) for (const auto& entry : object.amnezia_wg_option.as_map()) {
+            auto key = QString::fromStdString(entry.first.get_value<std::string>()).replace('-', '_');
+            const auto& value = entry.second;
+            if (value.is_boolean()) options[key] = value.get_value<bool>();
+            else if (value.is_integer()) {
+                const auto integer = value.get_value<long long>();
+                options[key] = key.startsWith('h') ? QJsonValue(QString::number(integer)) : QJsonValue(qint64(integer));
+            } else if (value.is_string()) options[key] = QString::fromStdString(value.get_value<std::string>());
+        }
+        AmneziaFromJson(options);
+        FixAddress();
+        return !private_key.isEmpty() && !peer->public_key.isEmpty() && !peer->address.isEmpty() &&
+            peer->port > 0 && peer->port <= 65535 && !address.isEmpty();
+    }
+
     bool wireguard::ParseFromJson(const QJsonObject& object) {
         if (object.isEmpty() || object["type"].toString() != "wireguard") return false;
         outbound::ParseFromJson(object);

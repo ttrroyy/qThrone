@@ -9,6 +9,7 @@
 #include "include/database/GroupsRepo.h"
 #include "include/database/ProfilesRepo.h"
 #include "include/configs/outbounds/wdttplus.h"
+#include "include/configs/outbounds/csqtt.h"
 #include "include/global/HTTPRequestHelper.hpp"
 #include "include/global/Utils.hpp"
 
@@ -433,7 +434,9 @@ namespace Subscription {
         const auto candidates = named.size() == 1 ? named : matching;
         if (candidates.size() == 1) {
             const auto &old = candidates.first();
-            if (old.value("hash_source").toString("manual") == "manual") {
+            if (old.value("hash_source").toString("manual") == "manual" && old.value("manual_hashes_override").toBool()) {
+                incoming["hashes"] = old.value("hashes");
+            } else if (old.value("hash_source").toString("manual") == "manual") {
                 const int limit = type == "csqtt" ? 6 : 4;
                 const auto prefix = incoming.value("hashes").toArray();
                 const auto previousSlots = old.value("hashes").toArray();
@@ -451,21 +454,30 @@ namespace Subscription {
             }
             // Where the hashes come from is the user's choice in both clients (CSQTT reads the qWDTT binding).
             if (old.contains("hash_source")) incoming["hash_source"] = old.value("hash_source");
+            if (old.contains("manual_hashes_override")) incoming["manual_hashes_override"] = old.value("manual_hashes_override");
             if (old.contains("auto_hash_count")) incoming["auto_hash_count"] = old.value("auto_hash_count");
             // The tunnel mode is the user's choice, like the hashes and workers.
             if (type == "qwdtt" && old.contains("mode")) incoming["mode"] = old.value("mode");
             if (old.contains("turn_tcp")) incoming["turn_tcp"] = old.value("turn_tcp");
+            if (type == "qwdtt") for (const auto *key : {"raw_port", "obfs", "vk_anon_path", "captcha_mode", "go_dns"})
+                if (old.contains(key)) incoming[key] = old.value(key);
+            if (type == "csqtt") {
+                for (const auto *key : {"turn_transport", "srtp_mode", "obfs", "vk_anon_path", "captcha_mode", "fingerprint", "client_ids", "custom_turn_ips"})
+                    if (old.contains(key)) incoming[key] = old.value(key);
+                // An updated token in the subscription wins; a locally entered token survives an absent one.
+                if (incoming.value("vk_access_token").toString().isEmpty() && old.contains("vk_access_token"))
+                    incoming["vk_access_token"] = old.value("vk_access_token");
+            }
+            if (type == "wdttplus") for (const auto *key : {"tcp_only", "turn_sni", "rt_masque", "rt_masque_server_bootstrap", "fingerprint", "client_ids", "vkcalls_preflight", "captcha_mode"})
+                if (old.contains(key)) incoming[key] = old.value(key);
             const int count = incoming.value("hash_source").toString() == "auto"
                 ? incoming.value("auto_hash_count").toInt(1) : incoming.value("hashes").toArray().size();
-            const int oldCount = old.value("hash_source").toString() == "auto"
-                ? old.value("auto_hash_count").toInt(1) : old.value("hashes").toArray().size();
             // WDTT Plus groups 9 workers each up to 108 or the server's own limit, whatever the hash count.
             const int maximum = type == "wdttplus" ? Configs::wdttplus::WorkerLimit(incoming.value("max_workers").toInt())
-                : qMin(type == "csqtt" ? 126 : 108, qBound(1, count, type == "csqtt" ? 6 : 4) * 27);
-            const int oldMaximum = type == "wdttplus" ? Configs::wdttplus::WorkerLimit(old.value("max_workers").toInt())
-                : qMin(type == "csqtt" ? 126 : 108, qBound(1, oldCount, type == "csqtt" ? 6 : 4) * 27);
+                : type == "csqtt" ? 100 : qBound(1, count, 4) * 27;
             const int requested = old.value("workers").toInt(type == "qwdtt" ? 9 : 18);
-            incoming["workers"] = requested >= oldMaximum ? maximum : qBound(9, requested, maximum) / 9 * 9;
+            incoming["workers"] = type == "csqtt" ? Configs::csqtt::NormalizeWorkers(requested, count)
+                : qBound(9, requested, maximum) / 9 * 9;
             if (!candidates.first().value("device_id").toString().isEmpty()) incoming["device_id"] = candidates.first().value("device_id");
         } else if (relatedIDs.size() == 1) incoming["device_id"] = *relatedIDs.begin();
         return incoming;
@@ -549,7 +561,8 @@ namespace Subscription {
     }
 
     void GroupUpdater::SubscribeUrl(const QString &url, const Finish &finish) {
-        const auto content = url.trimmed();
+        const auto content = UnwrapProviderLink(url);
+        if (content.isEmpty()) { if (finish) finish(); return; }
         enqueue({-1, false, [=, this] {
             auto group = Configs::GroupsRepo::NewGroup();
             group->name = QUrl(content).host();
@@ -563,7 +576,8 @@ namespace Subscription {
     }
 
     void GroupUpdater::ImportUrl(const QString &url, const Finish &finish) {
-        const auto content = url.trimmed();
+        const auto content = UnwrapProviderLink(url);
+        if (content.isEmpty()) { if (finish) finish(); return; }
         enqueue({-1, false, [=, this] {
             QByteArray body;
             Configs::SubUserInfo subInfo;
@@ -662,7 +676,9 @@ namespace Subscription {
         options.headers = identityHeaders(identity);
         options.tlsProtocol = tlsProtocolOf(identity.tlsVersion);
         options.http2 = identity.httpVersion != Configs::subHttpVersion::http11;
-        auto resp = NetworkRequestHelper::HttpGet(url, options);
+        const auto target = UnwrapProviderLink(url);
+        if (target.isEmpty()) { MW_show_log(QObject::tr("Invalid subscription wrapper.")); return false; }
+        auto resp = NetworkRequestHelper::HttpGet(target, options);
         if (!resp.error.isEmpty()) {
             MW_show_log("<<<<<<<< " + QObject::tr("Requesting subscription %1 error: %2").arg(name, resp.error + "\n" + resp.data));
             return false;

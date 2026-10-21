@@ -31,6 +31,7 @@ func qwdttSessionKey(config string) ([32]byte, bool) {
 		Peer     string `json:"peer"`
 		Backend  string `json:"backend"`
 		DeviceID string `json:"device_id"`
+		Password string `json:"password"`
 	}
 	if json.Unmarshal([]byte(config), &c) != nil || c.Peer == "" || c.DeviceID == "" {
 		return [32]byte{}, false
@@ -42,7 +43,12 @@ func qwdttSessionKey(config string) ([32]byte, bool) {
 			peer = strings.ToLower(host)
 		}
 	}
-	return sha256.Sum256([]byte(c.Backend + "\x00" + peer + "\x00" + c.DeviceID)), true
+	identity := c.DeviceID
+	// Legacy binds the remote epoch to the password; different local device IDs still collide.
+	if c.Backend == "csqtt" && c.Password != "" {
+		identity = c.Password
+	}
+	return sha256.Sum256([]byte(c.Backend + "\x00" + peer + "\x00" + identity)), true
 }
 
 // Separate devices/servers can run together. Duplicate profiles must not share

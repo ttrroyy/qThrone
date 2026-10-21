@@ -9,11 +9,6 @@
     "sha256": "3ea49db7d2309cf230e2b432d7d762a51a57d0f5a9bd4bf900093e37c4614294",
     "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.3.6/openflux-edcf77a1848a.bundle"
   },
-  "https://github.com/amurcanov/csqtt.git": {
-    "revision": "71712b07dbabe16fa43f5a248dc69e1ab9f3a270",
-    "sha256": "45f0106e0b183d51f35f0b20c5cd4b5ced7f825f680d8493ed56be095b0ea1d6",
-    "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.1.2/csqtt-71712b07dbab.bundle"
-  },
   "https://github.com/net2share/vaydns.git": {
     "revision": "a0ff70110d5e96686ab8f4c8e1c44cd09be07a75",
     "sha256": "8f32eb2eeec7137fa99f508f1ef5219a12ae98df86749045e8a98582ea7d01d6",
@@ -38,5 +33,8 @@
     "revision": "f706ccd373685bbde20cae33b2b7f400e8335ecc",
     "sha256": "eba4455fdc3e531d89a00d3f713f9e1ef1ace2cc134aceb529f9828877d4e431",
     "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.5/wdttplus-f706ccd37368.bundle"
+  },
+  "https://github.com/ttrroyy/csqtt-rebirth.git": {
+    "revision": "2066156119a5afe7d63e104aefdc8e0849999d03"
   }
 }

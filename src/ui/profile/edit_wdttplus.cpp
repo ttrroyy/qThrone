@@ -4,6 +4,7 @@
 #include "include/global/Configs.hpp"
 #include "include/ui/setting/dialog_vk_relay.h"
 #include <QCoreApplication>
+#include <QCheckBox>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -78,6 +79,14 @@ EditWdttPlus::EditWdttPlus(QWidget *parent) : QWidget(parent) {
     captcha->addItem(tr("Browser window"), "wv");
     captcha->addItem(tr("Automatic"), "rjs");
     form->addRow(tr("Captcha handling"), captcha);
+    tcpOnly = new QCheckBox(QStringLiteral("Только TURN/TLS, TCP и MASQUE HTTP/2"), this); form->addRow(tcpOnly);
+    turnSni = new QLineEdit(this); form->addRow(QStringLiteral("Внешний SNI TURN/TLS"), turnSni);
+    rtMasque = new QCheckBox(QStringLiteral("Резерв WARP MASQUE (принимаю условия Cloudflare)"), this); form->addRow(rtMasque);
+    serverBootstrap = new QCheckBox(QStringLiteral("Первая регистрация MASQUE через сохранённый VPS"), this); form->addRow(serverBootstrap);
+    preflight = new QCheckBox(QStringLiteral("Предварительная проверка VK Calls"), this); form->addRow(preflight);
+    fingerprint = new QComboBox(this); fingerprint->addItems({"firefox","chrome","safari","ios","android","random"});
+    form->addRow(QStringLiteral("TLS-отпечаток"), fingerprint);
+    clientIds = new QLineEdit(this); form->addRow(QStringLiteral("ID клиентов VK"), clientIds);
     wgPort = new QSpinBox(this);
     wgPort->setRange(1, 65535);
     form->addRow(QStringLiteral("Порт WG"), wgPort);
@@ -215,6 +224,9 @@ void EditWdttPlus::onStart(std::shared_ptr<Configs::Profile> profile) {
     maxWorkers = o->maxWorkers;
     updateWorkers(o->workers);
     captcha->setCurrentIndex(qMax(0, captcha->findData(o->captchaMode)));
+    tcpOnly->setChecked(o->tcpOnly); turnSni->setText(o->turnSni);
+    rtMasque->setChecked(o->rtMasque); serverBootstrap->setChecked(o->rtMasqueServerBootstrap);
+    preflight->setChecked(o->vkCallsPreflight); fingerprint->setCurrentText(o->fingerprint); clientIds->setText(o->clientIds);
     wgPort->setValue(o->wgPort);
     localPort->setValue(o->localPort);
     device->setText(o->deviceID);
@@ -238,12 +250,19 @@ bool EditWdttPlus::onEnd() {
     for (const auto &hash : values)
         if (!valid.match(hash).hasMatch()) return invalid(tr("Enter valid, distinct VK call hashes."));
     if (device->text().trimmed().isEmpty() || device->text().contains('\n')) return invalid(tr("Enter a valid device ID."));
+    if (!Configs::wdttplus::ValidTurnSni(turnSni->text().trimmed().toLower())) return invalid(QStringLiteral("Введите домен для SNI TURN/TLS."));
+    if (!QRegularExpression("^[0-9]+(?:,[0-9]+){0,15}$").match(clientIds->text()).hasMatch()) return invalid(QStringLiteral("ID клиентов VK — числа через запятую."));
     o->password = password->text();
+    const auto previousHashSource = o->hashSource;
     o->hashSource = hashSource->currentData().toString();
     o->autoHashCount = autoHashCount->value();
+    if (!automatic && (values != o->hashes || previousHashSource != "manual")) o->manualRelayHashes = true;
     o->hashes = values;
     o->workers = workers->currentData().toInt();
     o->captchaMode = captcha->currentData().toString();
+    o->tcpOnly = tcpOnly->isChecked(); o->turnSni = turnSni->text().trimmed().toLower();
+    o->rtMasque = rtMasque->isChecked(); o->rtMasqueServerBootstrap = serverBootstrap->isChecked();
+    o->vkCallsPreflight = preflight->isChecked(); o->fingerprint = fingerprint->currentText(); o->clientIds = clientIds->text();
     o->wgPort = wgPort->value();
     o->localPort = localPort->value();
     o->deviceID = device->text().trimmed();

@@ -27,17 +27,22 @@ EditCSQTT::EditCSQTT(QWidget *parent) : QWidget(parent) {
     password = new QLineEdit(this);
     password->setEchoMode(QLineEdit::Normal);
     form->addRow(tr("Password"), password);
-    // "Авто" takes the calls of the qWDTT VK binding; CSQTT joins them anonymously, never with a VK login.
+    // Every account mode uses the shared qWDTT binding; a link may supply its own Auto JS token.
     hashSource = new QComboBox(this);
     hashSource->setObjectName("csqttHashSource");
     hashSource->addItem(QStringLiteral("Вручную"), "manual");
     hashSource->addItem(QStringLiteral("Авто"), "auto");
+    hashSource->addItem(QStringLiteral("Авто JS"), "auto_js");
     qobject_cast<QStandardItemModel *>(hashSource->model())->item(1)->setEnabled(Configs::dataManager->settingsRepo->vk_relay_linked);
-    hashSource->setToolTip(QStringLiteral("«Авто» берёт звонки из привязки аккаунта VK механизмом qWDTT. CSQTT подключается к ним анонимно и не входит в аккаунт VK."));
+    hashSource->setToolTip(QStringLiteral("«Авто» получает хеши через привязку qWDTT. «Авто JS» использует токен этой же привязки или токен из ссылки."));
     form->addRow(QStringLiteral("Источник хешей"), hashSource);
     autoHashCount = new QSpinBox(this);
-    autoHashCount->setRange(1, 4);
+    autoHashCount->setRange(1, 6);
     form->addRow(QStringLiteral("Количество хешей"), autoHashCount);
+    token = new QLineEdit(this);
+    token->setEchoMode(QLineEdit::Password);
+    token->setPlaceholderText(QStringLiteral("Пусто — токен привязанного аккаунта VK"));
+    form->addRow(QStringLiteral("Токен VK для Auto JS"), token);
     for (int i = 0; i < 6; ++i) {
         hashes[i] = new QLineEdit(this);
         hashes[i]->setObjectName(QString("csqttHash%1").arg(i + 1));
@@ -73,10 +78,12 @@ EditCSQTT::EditCSQTT(QWidget *parent) : QWidget(parent) {
     workers->setObjectName("csqttWorkers");
     connect(hashSource, &QComboBox::currentIndexChanged, this, [this] { updateSource(); });
     connect(autoHashCount, &QSpinBox::valueChanged, this, [this] { updateWorkers(); });
-    updateWorkers(18);
+    updateWorkers(10);
     form->addRow(tr("Workers"), workers);
     transport = new QComboBox(this);
-    transport->addItems({"UDP", "TCP"});
+    transport->addItem("UDP", "udp");
+    transport->addItem("TCP", "tcp");
+    transport->addItem("TCP/TLS", "tcp_tls");
     transport->setCurrentIndex(0);
     form->addRow(tr("TURN transport"), transport);
     authorization = new QComboBox(this);
@@ -91,19 +98,28 @@ EditCSQTT::EditCSQTT(QWidget *parent) : QWidget(parent) {
     captcha->addItem(tr("Automatic"), "rjs");
     form->addRow(tr("Captcha handling"), captcha);
     obfs = new QComboBox(this);
+    obfs->addItem(QStringLiteral("Унифицированная"), "unified");
     obfs->addItem(tr("Audio"), "audio");
     obfs->addItem(tr("Video"), "video");
     form->addRow(tr("Obfuscation"), obfs);
+    srtp = new QComboBox(this);
+    srtp->addItem(QStringLiteral("Авто"), "auto"); srtp->addItem("WRAP-SRTP", "wrap"); srtp->addItem("DTLS-SRTP", "dtls");
+    form->addRow("SRTP", srtp);
+    fingerprint = new QComboBox(this);
+    fingerprint->addItems({"firefox", "chrome", "safari", "ios", "android", "random"});
+    form->addRow(QStringLiteral("TLS-отпечаток"), fingerprint);
+    clientIds = new QLineEdit(this); form->addRow(QStringLiteral("ID клиентов VK"), clientIds);
+    customTurnIps = new QLineEdit(this); form->addRow(QStringLiteral("Собственные IP TURN"), customTurnIps);
     device = new QLineEdit(this);
     form->addRow(tr("Device ID"), device);
-    device->setToolTip(tr("Generated automatically. Keep it unchanged for passwords bound to a device."));
+    device->setToolTip(QStringLiteral("Локальный идентификатор профиля. В CSQTT 2.5.0 Legacy серверная сессия определяется паролем."));
     updateSource();
     auto *accountTask = new RelayTask(this);
     accountTask->start({{"operation", "vk-info"}}, [this](const QJsonObject &event) {
         if (event["type"] == "result") {
             const bool linked = event["value"].toObject()["linked"].toBool();
             qobject_cast<QStandardItemModel *>(hashSource->model())->item(1)->setEnabled(linked);
-            if (!linked) hashSource->setCurrentIndex(0);
+            if (!linked && hashSource->currentData() == "auto") hashSource->setCurrentIndex(0);
         }
     });
 }
@@ -117,15 +133,19 @@ EditCSQTT::~EditCSQTT() {
 }
 
 void EditCSQTT::updateSource() {
-    const bool automatic = hashSource->currentData() == "auto";
+    const bool automatic = hashSource->currentData() != "manual";
     stopHashCheck();
     for (int i = 0; i < 6; ++i) {
         hashRows[i]->setVisible(!automatic);
         form->labelForField(hashRows[i])->setVisible(!automatic);
     }
     checkHashes->setVisible(!automatic);
-    autoHashCount->setVisible(automatic);
-    form->labelForField(autoHashCount)->setVisible(automatic);
+    const bool api = hashSource->currentData() == "auto";
+    autoHashCount->setVisible(api);
+    form->labelForField(autoHashCount)->setVisible(api);
+    token->setVisible(hashSource->currentData() == "auto_js");
+    form->labelForField(token)->setVisible(hashSource->currentData() == "auto_js");
+    authorization->setEnabled(hashSource->currentData() != "auto_js");
     updateWorkers();
 }
 
@@ -214,14 +234,18 @@ void EditCSQTT::onStart(std::shared_ptr<Configs::Profile> profile) {
     if (!o) return;
     password->setText(o->password);
     autoHashCount->setValue(o->autoHashCount);
-    hashSource->setCurrentIndex(o->hashSource == "auto" ? 1 : 0);
+    hashSource->setCurrentIndex(hashSource->findData(o->hashSource));
+    token->setText(o->vkAccessToken);
     for (int i = 0; i < 6; ++i) hashes[i]->setText(i < o->hashes.size() ? o->hashes[i] : QString());
     updateSource();
     updateWorkers(o->workers);
-    transport->setCurrentIndex(o->turnTCP ? 1 : 0);
-    authorization->setCurrentIndex(authorization->findData(o->vkAnonPath));
+    transport->setCurrentIndex(transport->findData(o->turnTransport));
+    authorization->setCurrentIndex(qMax(0, authorization->findData(o->vkAnonPath)));
     captcha->setCurrentIndex(captcha->findData(o->captchaMode));
-    obfs->setCurrentIndex(o->obfs == "video" ? 1 : 0);
+    obfs->setCurrentIndex(obfs->findData(o->obfs));
+    srtp->setCurrentIndex(srtp->findData(o->srtpMode));
+    fingerprint->setCurrentText(o->fingerprint);
+    clientIds->setText(o->clientIds); customTurnIps->setText(o->customTurnIps);
     device->setText(o->deviceID);
 }
 
@@ -231,7 +255,7 @@ bool EditCSQTT::onEnd() {
     QStringList values;
     for (auto *field : hashes) values.append(field->text());
     values = Configs::csqtt::NormalizeHashes(values);
-    const bool automatic = hashSource->currentData() == "auto";
+    const bool automatic = hashSource->currentData() != "manual";
     const auto invalid = [this](const QString &message){ MessageBoxWarning("CSQTT", message); return false; };
     if (get_edit_text_serverAddress().trimmed().isEmpty()) return invalid(tr("Server address is required."));
     bool portOK;
@@ -245,15 +269,26 @@ bool EditCSQTT::onEnd() {
         seen.insert(hash);
     }
     if (device->text().trimmed().isEmpty() || device->text().contains('|')) return invalid(tr("Enter a valid device ID."));
+    if (token->text().size() > 4096 || token->text().contains(QRegularExpression("[\\s\\x00-\\x1f\\x7f]")))
+        return invalid(QStringLiteral("Некорректный токен VK."));
+    if (!QRegularExpression("^[0-9]+(?:,[0-9]+){0,15}$").match(clientIds->text()).hasMatch())
+        return invalid(QStringLiteral("ID клиентов VK — числа через запятую."));
     o->password = password->text();
+    const auto previousHashSource = o->hashSource;
     o->hashSource = hashSource->currentData().toString();
+    o->vkAccessToken = token->text();
     o->autoHashCount = autoHashCount->value();
+    if (!automatic && (values != o->hashes || previousHashSource != "manual")) o->manualRelayHashes = true;
     o->hashes = values;
     o->workers = workers->currentData().toInt();
-    o->turnTCP = transport->currentIndex() == 1;
-    o->vkAnonPath = authorization->currentData().toString();
+    o->turnTransport = transport->currentData().toString();
+    o->turnTCP = o->turnTransport != "udp";
+    o->vkAnonPath = o->hashSource == "auto_js" ? "auto_js" : authorization->currentData().toString();
     o->captchaMode = captcha->currentData().toString();
     o->obfs = obfs->currentData().toString();
+    o->srtpMode = srtp->currentData().toString();
+    o->fingerprint = fingerprint->currentText();
+    o->clientIds = clientIds->text(); o->customTurnIps = customTurnIps->text();
     o->deviceID = device->text().trimmed();
     return true;
 }
@@ -266,7 +301,8 @@ void EditCSQTT::updateWorkers(int requested) {
     const int selected = Configs::csqtt::NormalizeWorkers(requested, hashCount);
     const QSignalBlocker blocker(workers);
     workers->clear();
-    for (int count = 9; count <= Configs::csqtt::MaxWorkers(hashCount); count += 9)
+    workers->addItem("5", 5);
+    for (int count = 10; count <= 100; count += 10)
         workers->addItem(QString::number(count), count);
     workers->setCurrentIndex(workers->findData(selected));
 }

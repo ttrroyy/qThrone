@@ -67,6 +67,7 @@ namespace Configs
         bool random_trailers = false;
         bool disable_cookies = false;
 
+        bool ParseFromClash(const clash::Proxies& object) override;
         bool ParseFromLink(const QString& link) override;
         bool ParseFromJson(const QJsonObject& object) override;
         QString ExportToLink() override;

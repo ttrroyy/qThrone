@@ -587,8 +587,8 @@ func (p *protocol) confirmVKBrowser() error {
 }
 
 func (p *protocol) hashes(r Request) error {
-	if r.Count < 1 || r.Count > 4 {
-		return fmt.Errorf("Количество хешей: от 1 до 4")
+	if r.Count < 1 || r.Count > 6 {
+		return fmt.Errorf("Количество хешей: от 1 до 6")
 	}
 	unlock, e := vaultLock(p.ctx, "account")
 	if e != nil {
@@ -612,27 +612,11 @@ func (p *protocol) hashes(r Request) error {
 	if a.RetryAfter > time.Now().Unix() {
 		return fmt.Errorf("VK ограничил запросы. Повторите позже или используйте ручные хеши")
 	}
-	if e = refreshToken(p.ctx, &a); e != nil {
-		var limit vkError
-		if errors.As(e, &limit) && limit.Code == 6 {
-			a.RetryAfter = time.Now().Add(time.Hour).Unix()
-			_ = saveAccount(a)
-			return e
-		}
-		if e = p.confirmVKBrowser(); e != nil {
-			return e
-		}
-		if e = p.login(Request{Operation: "vk-token"}); e != nil {
-			return e
-		}
-		if a, e = readAccount(); e != nil {
-			return e
-		}
-		if a.Token == "" {
-			return fmt.Errorf("Не удалось получить доступ VK. Подтвердите вход повторно")
-		}
+	if e = p.tokenForCalls(&a); e != nil {
+		return e
 	}
 	created := 0
+	refreshed := false
 	for len(a.Hashes) < r.Count {
 		if created > 0 {
 			select {
@@ -652,6 +636,13 @@ func (p *protocol) hashes(r Request) error {
 					a.RetryAfter = time.Now().Add(time.Hour).Unix()
 				}
 				_ = saveAccount(a)
+				if (apiErr.Code == 4 || apiErr.Code == 5 || apiErr.Code == 27 || apiErr.Code == 28) && !refreshed {
+					refreshed = true
+					if e = p.tokenForCalls(&a); e != nil {
+						return e
+					}
+					continue
+				}
 			}
 			return e
 		}
@@ -677,5 +668,70 @@ func (p *protocol) hashes(r Request) error {
 		p.emit("progress", fmt.Sprintf("Создано хешей: %d/%d", len(a.Hashes), r.Count), nil)
 	}
 	p.emit("result", "", a.Hashes[:r.Count])
+	return nil
+}
+
+// The account binding stays qWDTT's cookie flow for every relay client.
+func obtainVKToken(a *account, now int64, refresh, browser func() error) error {
+	if a.Token != "" && a.Expires > now+120 {
+		return nil
+	}
+	err := refresh()
+	if err != nil {
+		var limit vkError
+		if errors.As(err, &limit) && limit.Code == 6 {
+			return err
+		}
+		if err = browser(); err != nil {
+			return err
+		}
+	}
+	if a.Token == "" {
+		return fmt.Errorf("Не удалось получить доступ VK. Подтвердите вход повторно")
+	}
+	return nil
+}
+
+func (p *protocol) tokenForCalls(a *account) error {
+	err := obtainVKToken(a, time.Now().Unix(), func() error { return refreshToken(p.ctx, a) }, func() error {
+		if err := p.confirmVKBrowser(); err != nil {
+			return err
+		}
+		if err := p.login(Request{Operation: "vk-token"}); err != nil {
+			return err
+		}
+		latest, err := readAccount()
+		if err == nil {
+			*a = latest
+		}
+		return err
+	})
+	var limit vkError
+	if errors.As(err, &limit) && limit.Code == 6 {
+		a.RetryAfter = time.Now().Add(time.Hour).Unix()
+	}
+	if saved := saveAccount(*a); err == nil {
+		err = saved
+	}
+	return err
+}
+
+func (p *protocol) callsToken() error {
+	unlock, err := vaultLock(p.ctx, "account")
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	a, err := readAccount()
+	if err != nil || !hasVKSession(a.Cookies) {
+		return fmt.Errorf("Сначала привяжите аккаунт VK")
+	}
+	if a.RetryAfter > time.Now().Unix() {
+		return fmt.Errorf("VK ограничил запросы. Повторите позже")
+	}
+	if err = p.tokenForCalls(&a); err != nil {
+		return err
+	}
+	p.emit("result", "", a.Token)
 	return nil
 }

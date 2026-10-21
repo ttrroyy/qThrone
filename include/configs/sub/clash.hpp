@@ -179,6 +179,8 @@ struct Proxies {
     std::string public_key;
     std::string pre_shared_key;
     std::string private_key;
+    std::string persistent_keepalive;
+    fkyaml::node amnezia_wg_option;
     std::string private_key_passphrase;
     std::vector<std::string> host_key;
     std::vector<std::string> host_key_algorithms;

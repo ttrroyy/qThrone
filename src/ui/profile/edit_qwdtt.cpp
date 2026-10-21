@@ -301,6 +301,7 @@ bool EditQWDTT::onEnd() {
         return invalid(tr("Enter a valid device ID."));
     o->mode = mode->currentData().toString();
     o->password = password->text();
+    if (hashSource->currentData() == "manual" && (values != o->hashes || o->hashSource != "manual")) o->manualRelayHashes = true;
     o->hashes = values;
     o->hashSource = hashSource->currentData().toString();
     o->autoHashCount = autoHashCount->value();

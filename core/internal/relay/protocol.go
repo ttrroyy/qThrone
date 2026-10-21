@@ -77,6 +77,9 @@ func Run(input io.Reader, output io.Writer) (err error) {
 				return
 			}
 		}
+		if r.Operation == "wdttplus-bootstrap" {
+			cancel()
+		}
 	}()
 	switch r.Operation {
 	case "vk-info":
@@ -134,6 +137,10 @@ func Run(input io.Reader, output io.Writer) (err error) {
 		err = p.login(r)
 	case "vk-hashes":
 		err = p.hashes(r)
+	case "vk-calls-token":
+		err = p.callsToken()
+	case "wdttplus-bootstrap":
+		err = p.wdttPlusBootstrap(r.Value)
 	default:
 		err = fmt.Errorf("Неизвестная операция")
 	}

@@ -8,31 +8,36 @@ class csqtt : public extracore {
 public:
     csqtt();
     QString password;
-    // "auto" takes call hashes from the qWDTT VK binding; CSQTT still joins those calls
-    // anonymously. CSQTT's own account login is never used: it gets VK accounts banned.
+    // Shared qWDTT account binding; auto_js uses a launch-only token unless the link provides one.
     QString hashSource = "manual";
+    QString vkAccessToken;
     int autoHashCount = 1;
     QStringList hashes;
-    int workers = 18;
+    int workers = 10;
     bool turnTCP = false;
-    QString obfs = "audio";
+    QString obfs = "unified";
+    QString turnTransport = "udp";
+    QString srtpMode = "auto";
+    QString fingerprint = "firefox";
+    QString clientIds = "8202606,6287487";
+    QString customTurnIps;
     QString vkAnonPath = "vkcalls";
     QString captchaMode = "auto";
     QString deviceID;
-    static int MaxWorkers(int count) { return qMin(126, qBound(1, count, 6)*27); }
-    static int NormalizeWorkers(int requested, int count) { return qBound(9, requested, MaxWorkers(count))/9*9; }
+    static int MaxWorkers(int count) { return 100; }
+    static int NormalizeWorkers(int requested, int count) { return requested <= 5 ? 5 : qMax(5, qMin(requested, 100)/10*10); }
     static QStringList NormalizeHashes(const QStringList &input);
     bool ParseFromLink(const QString &) override;
     bool ParseFromJson(const QJsonObject &) override;
     QJsonObject ExportToJson() override;
     QJsonObject ExportIdentity() override;
     QString ExportToLink() override;
-    QString DisplayType() override { return turnTCP ? "CSQTT (TCP)" : "CSQTT (UDP)"; }
-    SecurityInfo GetSecurity() override { return {"CSQTT WRAP", turnTCP ? "TURN TCP/TLS" : "TURN UDP", SecurityLevel::Secure}; }
+    QString DisplayType() override { return "CSQTT (" + turnTransport.toUpper() + ")"; }
+    SecurityInfo GetSecurity() override { return {"CSQTT " + srtpMode.toUpper(), "TURN " + turnTransport.toUpper(), SecurityLevel::Secure}; }
     QString Prepare();
     BuildResult Build() override;
     bool SupportsCredentialStrip() const override { return true; }
-    void StripCredentials() override { password.clear(); hashes.clear(); deviceID.clear(); }
+    void StripCredentials() override { password.clear(); hashes.clear(); deviceID.clear(); vkAccessToken.clear(); }
 private:
     QString bridgeAuth;
 };

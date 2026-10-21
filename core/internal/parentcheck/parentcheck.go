@@ -6,8 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strings"
 )
 
 func CheckParentProcess() {
@@ -27,14 +25,8 @@ func CheckParentProcess() {
 	parentDir := filepath.Dir(parentPath)
 	parentBase := filepath.Base(parentPath)
 
-	if runtime.GOOS == "windows" {
-		if !strings.EqualFold(parentDir, selfDir) || !strings.EqualFold(parentBase, "qThrone.exe") {
-			log.Fatalf("parent check failed: unexpected parent %q, selfPath is %q", parentPath, selfPath)
-		}
-		return
-	}
-
-	if parentDir != selfDir || parentBase != "qThrone" {
+	relay := len(os.Args) == 2 && os.Args[1] == "--relay"
+	if !allowedParent(parentDir, selfDir, parentBase, relay) {
 		log.Fatalf("parent check failed: unexpected parent %q, selfPath is %q", parentPath, selfPath)
 	}
 }

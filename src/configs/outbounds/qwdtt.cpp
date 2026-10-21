@@ -73,9 +73,9 @@ QStringList qwdtt::NormalizeHashes(const QStringList &input) {
 }
 
 bool qwdtt::ParseFromJson(const QJsonObject &o) {
-    hashSource = o["hash_source"].toString("manual");
+    hashSource = o["hash_source"].toString(hashSource);
     if (hashSource != "auto" && hashSource != "manual") return false;
-    autoHashCount = qBound(1, o["auto_hash_count"].toInt(1), 4);
+    autoHashCount = qBound(1, o["auto_hash_count"].toInt(autoHashCount), 4);
     const auto type = o["type"].toString();
     if (!type.isEmpty() && type != "qwdtt" && type != "wdtt") return false;
     outbound::ParseFromJson(o);
@@ -149,9 +149,9 @@ QJsonObject qwdtt::ExportToJson() {
             {"password", password}, {"hashes", QJsonArray::fromStringList(hashes)}, {"mode", mode},
             {"raw_port", rawPort}, {"workers", workers}, {"turn_tcp", turnTCP},
             {"obfs", obfs}, {"go_dns", goDNS}, {"device_id", deviceID},
-            {"vk_anon_path", vkAnonPath}, {"captcha_mode", captchaMode}, {"hash_source", hashSource}, {"auto_hash_count", autoHashCount}};
+            {"vk_anon_path", vkAnonPath}, {"captcha_mode", captchaMode}, {"manual_hashes_override", manualRelayHashes}, {"hash_source", hashSource}, {"auto_hash_count", autoHashCount}};
 }
-QJsonObject qwdtt::ExportIdentity() { auto o = ExportToJson(); o.remove("tag"); o.remove("device_id"); o.remove("hashes"); o.remove("workers"); return o; }
+QJsonObject qwdtt::ExportIdentity() { auto o = ExportToJson(); o.remove("tag"); o.remove("device_id"); o.remove("hashes"); o.remove("workers"); o.remove("manual_hashes_override"); return o; }
 QString qwdtt::ExportToLink() {
     QUrl u("qwdtt://config");
     QUrlQuery q;

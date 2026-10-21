@@ -41,6 +41,14 @@ int wdttplus::NormalizeWorkers(int requested, int profileMaxWorkers) {
     return qBound(9, rounded, WorkerLimit(profileMaxWorkers));
 }
 
+bool wdttplus::ValidTurnSni(const QString &value) {
+    if (value.isEmpty()) return true;
+    if (value.size() > 253 || !value.contains('.') || !QHostAddress(value).isNull()) return false;
+    const QRegularExpression label("^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$");
+    for (const auto &part : value.split('.')) if (!label.match(part).hasMatch()) return false;
+    return true;
+}
+
 QString wdttplus::DeviceInfo() {
     const QLocale locale;
     const QJsonObject info{{"name", QSysInfo::prettyProductName()}, {"manufacturer", ""}, {"brand", ""},
@@ -63,9 +71,9 @@ bool wdttplus::ParseFromJson(const QJsonObject &object) {
     if (object["type"].toString() != "wdttplus") return false;
     outbound::ParseFromJson(object);
     password = object["password"].toString();
-    hashSource = object["hash_source"].toString("manual");
+    hashSource = object["hash_source"].toString(hashSource);
     if (hashSource != "auto" && hashSource != "manual") return false;
-    autoHashCount = qBound(1, object["auto_hash_count"].toInt(1), 4);
+    autoHashCount = qBound(1, object["auto_hash_count"].toInt(autoHashCount), 4);
     QStringList values;
     const auto h = object["hashes"];
     if (h.isArray()) { for (const auto &v : h.toArray()) values.append(v.toString()); }
@@ -77,9 +85,17 @@ bool wdttplus::ParseFromJson(const QJsonObject &object) {
     legacy = object["legacy"].toBool(false);
     workers = NormalizeWorkers(object["workers"].toInt(18), maxWorkers);
     captchaMode = object["captcha_mode"].toString("auto");
+    tcpOnly = object["tcp_only"].toBool(); rtMasque = object["rt_masque"].toBool();
+    rtMasqueServerBootstrap = object["rt_masque_server_bootstrap"].toBool();
+    vkCallsPreflight = object["vkcalls_preflight"].toBool(true);
+    turnSni = object["turn_sni"].toString().trimmed().toLower();
+    fingerprint = object["fingerprint"].toString("firefox");
+    clientIds = object["client_ids"].toString("6287487,8202606");
     if (!object["device_id"].toString().isEmpty()) deviceID = object["device_id"].toString();
     return !server.isEmpty() && wdttValidPort(server_port) && wdttValidPort(wgPort) && wdttValidPort(localPort)
-        && (captchaMode == "auto" || captchaMode == "wv" || captchaMode == "rjs");
+        && (captchaMode == "auto" || captchaMode == "wv" || captchaMode == "rjs") && ValidTurnSni(turnSni)
+        && QStringList{"firefox","chrome","safari","ios","android","random"}.contains(fingerprint)
+        && QRegularExpression("^[0-9]+(?:,[0-9]+){0,15}$").match(clientIds).hasMatch();
 }
 
 bool wdttplus::ParseFromLink(const QString &link) {
@@ -129,13 +145,16 @@ QJsonObject wdttplus::ExportToJson() {
     QJsonObject object{{"type", "wdttplus"}, {"tag", name}, {"server", server}, {"server_port", server_port},
         {"wg_port", wgPort}, {"local_port", localPort}, {"password", password}, {"hashes", QJsonArray::fromStringList(hashes)},
         {"workers", workers}, {"captcha_mode", captchaMode}, {"device_id", deviceID},
-        {"hash_source", hashSource}, {"auto_hash_count", autoHashCount}};
+        {"manual_hashes_override", manualRelayHashes}, {"hash_source", hashSource}, {"auto_hash_count", autoHashCount}};
     if (maxWorkers > 0) object["max_workers"] = maxWorkers;
     if (legacy) object["legacy"] = true;
+    object["tcp_only"] = tcpOnly; object["turn_sni"] = turnSni;
+    object["rt_masque"] = rtMasque; object["rt_masque_server_bootstrap"] = rtMasqueServerBootstrap;
+    object["fingerprint"] = fingerprint; object["client_ids"] = clientIds; object["vkcalls_preflight"] = vkCallsPreflight;
     return object;
 }
 
-QJsonObject wdttplus::ExportIdentity() { auto object = ExportToJson(); object.remove("tag"); object.remove("device_id"); object.remove("hashes"); object.remove("workers"); return object; }
+QJsonObject wdttplus::ExportIdentity() { auto object = ExportToJson(); object.remove("tag"); object.remove("device_id"); object.remove("hashes"); object.remove("workers"); object.remove("manual_hashes_override"); return object; }
 
 QString wdttplus::ExportToLink() {
     // The device id is per installation and never travels in a link.
@@ -178,7 +197,9 @@ QString wdttplus::Prepare() {
     const QJsonObject config{{"backend", "wdttplus"}, {"peer", wdttEndpoint(server, server_port)}, {"password", password},
         {"hashes", QJsonArray::fromStringList(effectiveHashes)}, {"workers", workers}, {"captcha_mode", captchaMode},
         {"device_id", deviceID}, {"device_info", DeviceInfo()}, {"listen", wdttEndpoint("127.0.0.1", udp.localPort())},
-        {"socks", wdttEndpoint(socksAddress, socksPort)}, {"socks_user", bridgeUser}, {"socks_pass", bridgePass}};
+        {"socks", wdttEndpoint(socksAddress, socksPort)}, {"socks_user", bridgeUser}, {"socks_pass", bridgePass},
+        {"tcp_only",tcpOnly},{"turn_sni",turnSni},{"rt_masque",rtMasque},{"rt_masque_server_bootstrap",rtMasqueServerBootstrap},
+        {"fingerprint",fingerprint},{"client_ids",clientIds},{"vkcalls_preflight",vkCallsPreflight}};
     extraCoreConf = QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact)); extraCoreArgs = "-wdttplus-config %s";
     return {};
 }

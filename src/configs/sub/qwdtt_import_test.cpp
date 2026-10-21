@@ -409,10 +409,10 @@ int TestQwdttImport() {
             QJsonObject old{{"_type",type},{"tag","Workers"},{"hash_source","manual"},{"hashes",QJsonArray{"one"}},{"workers",27}};
             auto incoming=old; incoming["workers"]=9; incoming["hashes"]=QJsonArray{"one","two","three"};
             auto merged=Subscription::PreserveRelaySettings(type,incoming,{old});
-            check(merged["workers"].toInt()==81,"maximum worker preference follows a growing hash limit");
+            check(merged["workers"].toInt()==(type=="csqtt" ? 20 : 27),"subscription never increases the chosen worker count");
             old=merged; old["workers"]=108; incoming["hashes"]=QJsonArray{"same","same","same","same"};
             merged=Subscription::PreserveRelaySettings(type,incoming,{old});
-            check(merged["workers"].toInt()==27,"workers clamp to the final deduplicated hash limit instead of default 9");
+            check(merged["workers"].toInt()==(type=="csqtt" ? 100 : 27),"workers clamp only to the final protocol limit");
         }
         for (const auto &type : {QString("qwdtt"), QString("csqtt")}) {
             // The user's own choices survive a subscription refresh: hashes, workers, mode and TURN transport.
@@ -422,12 +422,12 @@ int TestQwdttImport() {
             const QJsonObject incoming{{"tag", "Choices"}, {"server", "example.org"}, {"server_port", 443}, {"password", "secret"},
                                        {"hashes", QJsonArray{}}, {"workers", 9}, {"mode", "wg"}, {"turn_tcp", type == "qwdtt"}};
             const auto merged = Subscription::PreserveRelaySettings(type, incoming, {old});
-            check(merged["hashes"] == old["hashes"] && merged["workers"].toInt() == 18, "subscription refresh keeps the user's hashes and workers");
+            check(merged["hashes"] == old["hashes"] && merged["workers"].toInt() == (type == "csqtt" ? 10 : 18), "subscription refresh keeps the user's hashes and workers");
             check(merged["turn_tcp"] == old["turn_tcp"], "subscription refresh keeps the user's TURN transport");
             if (type == "qwdtt") check(merged["mode"].toString() == "raw", "subscription refresh keeps the user's qWDTT mode");
             auto automatic = old; automatic["hash_source"] = "auto"; automatic["auto_hash_count"] = 2; automatic["workers"] = 54;
             const auto autoMerged = Subscription::PreserveRelaySettings(type, incoming, {automatic});
-            check(autoMerged["hash_source"].toString() == "auto" && autoMerged["auto_hash_count"].toInt() == 2 && autoMerged["workers"].toInt() == 54,
+            check(autoMerged["hash_source"].toString() == "auto" && autoMerged["auto_hash_count"].toInt() == 2 && autoMerged["workers"].toInt() == (type == "csqtt" ? 50 : 54),
                   "subscription refresh keeps automatic hashes from the VK binding and their workers");
         }
         for (const auto &type : {QString("qwdtt"), QString("csqtt")}) {
@@ -493,15 +493,122 @@ int TestQwdttImport() {
             }
         }
     }
+
+    {
+        const auto wrapped = QStringLiteral("https://ssconnect.app/?q=happ%3A%2F%2Fadd%2Fhttps%3A%2F%2Flink.flagman.click%2Fsub%2Fexample");
+        check(Subscription::UnwrapProviderLink(wrapped) == "https://link.flagman.click/sub/example", "SSConnect unwraps without fetching its HTML");
+        check(Subscription::UnwrapProviderLink(wrapped + "&q=second").isEmpty(), "duplicate wrapper payload rejected");
+        check(Subscription::UnwrapProviderLink("https://ssconnect.app:444/?q=secret").isEmpty(), "nonstandard wrapper port rejected");
+        const QByteArray masqueLink = "masque://MHcCAQEEKey%2BWith%2FSlash@162.159.198.2:443?publickey=Peer%2BPublic%2FKey&address=172.16.0.2%2C2001%3Adb8%3A%3A1&network=h2&sni=4pda.to#MASQUE%20h2";
+        const auto imported = parse(masqueLink);
+        check(imported.size() == 1, "MASQUE clipboard URI imports");
+        if (imported.size() == 1) {
+            const auto *m = imported.first()->Masque();
+            check(m && m->private_key == "MHcCAQEEKey+With/Slash" && m->peer_public_key == "Peer+Public/Key" &&
+                m->http_version == 2 && m->tls->server_name == "4pda.to" && m->address == QStringList{"172.16.0.2/32","2001:db8::1/128"}, "MASQUE preserves escaped keys, addresses, HTTP/2 and SNI");
+            Configs::masque roundtrip;
+            check(roundtrip.ParseFromLink(imported.first()->outbound->ExportToLink()) && roundtrip.ExportToJson() == imported.first()->outbound->ExportToJson(), "MASQUE URI round trip");
+        }
+        const auto yaml = parse(R"yaml(warp: &warp
+  type: wireguard
+  ip: 172.16.0.2
+  ipv6: 2001:db8::1
+  private-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+  public-key: BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=
+awg: &awg
+  amnezia-wg-option:
+    jc: 4
+    jmin: 40
+    jmax: 70
+    i1: <b 0x01020304>
+    content-padding-addition: 30-84
+    random-trailers: true
+msq: &msq
+  type: masque
+  private-key: MASQUEPrivateKey
+  public-key: MASQUEPublicKey
+  ip: 172.16.0.2
+  ipv6: 2001:db8::2
+proxies:
+- <<: [*warp, *awg]
+  name: AWG example
+  server: 192.0.2.1
+  port: 500
+- <<: *msq
+  name: MASQUE
+  server: 192.0.2.2
+  port: 443
+  sni: 4pda.to
+- <<: *msq
+  name: MASQUE h2
+  server: 192.0.2.2
+  port: 443
+  network: h2
+  sni: 4pda.to
+)yaml");
+        check(yaml.size() == 3, "Clash file and clipboard import resolve mapping and sequence merge aliases");
+        if (yaml.size() == 3) {
+            const auto *wg = yaml[0]->Wireguard();
+            check(wg && wg->enable_amnezia && wg->jc == 4 && wg->i1 == "<b 0x01020304>" &&
+                wg->content_padding_addition == "30-84" && wg->random_trailers && wg->peer->port == 500, "Clash WireGuard and AWG3 settings preserved");
+            check(yaml[1]->Masque() && yaml[1]->Masque()->http_version == 3 && yaml[1]->Masque()->disable_version_fallback &&
+                yaml[2]->Masque() && yaml[2]->Masque()->http_version == 2 && yaml[2]->Masque()->tls->server_name == "4pda.to", "Clash MASQUE templates retain HTTP version and SNI");
+        }
+        Configs::masque invalid;
+        check(!invalid.ParseFromLink("masque://key@192.0.2.1?address=not-ip") &&
+            !invalid.ParseFromLink("masque://key@192.0.2.1?address=172.16.0.2&address=::1"), "invalid and duplicate MASQUE addresses rejected");
+    }
+    {
+        for (const auto &type : QStringList{"qwdtt","csqtt","wdttplus"}) {
+            for (const auto &source : QStringList{"manual","auto","auto_js"}) {
+                if (source == "auto_js" && type != "csqtt") continue;
+                auto profile = Configs::ProfilesRepo::NewProfile(type);
+                QJsonObject saved{{"type",type},{"_type",type},{"tag","Persistent choices"},{"server","192.0.2.1"},{"server_port",46000},
+                    {"password","fixture"},{"device_id","persistent-device"},{"hash_source",source},{"auto_hash_count",2},
+                    {"manual_hashes_override",true},{"hashes",QJsonArray{"user_first_hash_123456","user_second_hash_123456"}},
+                    {"workers",type=="csqtt" ? 50 : 27},{"mode","raw"},{"turn_tcp",false},{"turn_transport","tcp_tls"},
+                    {"srtp_mode","dtls"},{"tcp_only",true},{"turn_sni","turn.example.org"},{"rt_masque",true},
+                    {"rt_masque_server_bootstrap",true},{"captcha_mode","wv"}};
+                check(profile->outbound->ParseFromJson(saved), "saved relay choices load");
+                for (int refresh = 0; refresh < 3; ++refresh) {
+                    saved = profile->outbound->ExportToJson(); saved["_type"] = type;
+                    QJsonObject incoming{{"type",type},{"tag","Persistent choices"},{"server",QString("192.0.2.%1").arg(refresh+10)},
+                        {"server_port",46000},{"password","fixture"},{"hashes",QJsonArray{"provider_replaced_hash_123456"}},
+                        {"hash_source","manual"},{"workers",type=="csqtt" ? 100 : 108}};
+                    const auto merged = Subscription::PreserveRelaySettings(type, incoming, {saved});
+                    check(merged["workers"] == saved["workers"] && merged["hash_source"] == saved["hash_source"] && merged["device_id"] == saved["device_id"], "repeated refresh preserves workers, hash source and device");
+                    if (source == "manual") check(merged["hashes"] == saved["hashes"], "even the first manually edited hash survives provider replacement");
+                    for (const auto *key : {"mode","turn_tcp","turn_transport","srtp_mode","tcp_only","turn_sni","rt_masque","rt_masque_server_bootstrap","captcha_mode"})
+                        if (saved.contains(key)) check(merged[key] == saved[key], "manual transport and captcha choices survive refresh");
+                    check(profile->outbound->ParseFromJson(merged), "preserved choices survive serialization and restart");
+                }
+            }
+        }
+    }
     const QByteArray csqttLink = "csqtt://connect?v=2&host=203.0.113.7&peer=46000&password=p%40ss&hashes=abcdefghijklmno%2Bp+abcdefghijklmnop2";
     const auto csProfiles = parse(csqttLink);
     check(csProfiles.size() == 1, "CSQTT subscription link imports one profile");
+    {
+        Configs::csqtt tokenLink;
+        check(tokenLink.ParseFromLink("csqtt://connect?v=2&host=192.0.2.1&peer=46000&password=fixture&token=vk1.private%2Btoken"), "CSQTT Legacy own-token link imports");
+        check(tokenLink.hashSource == "auto_js" && tokenLink.vkAnonPath == "auto_js" && tokenLink.vkAccessToken == "vk1.private+token", "link token selects original Auto JS and preserves plus");
+        const auto encrypted = tokenLink.ExportToLink();
+        const auto html = QByteArray("<!doctype html><html><input value=\"") + encrypted.toUtf8() + "\"><a href=\"" + encrypted.toUtf8() + "\">Connect</a></html>";
+        const auto subscription = parse(html);
+        check(!encrypted.isEmpty() && subscription.size() == 1, "Legacy QR HTML subscription imports its encrypted profile once");
+        if (subscription.size() == 1) {
+            const auto *cs = dynamic_cast<Configs::csqtt *>(subscription.first()->outbound.get());
+            check(cs && cs->password == tokenLink.password && cs->vkAccessToken == tokenLink.vkAccessToken, "Legacy subscription credentials survive decode");
+        }
+        auto automatic = tokenLink.ExportToJson(); automatic["hash_source"] = "auto";
+        check(tokenLink.ParseFromJson(automatic) && tokenLink.vkAnonPath == "vkcalls", "Auto API overrides a stale Auto JS authorization mode");
+    }
     if (csProfiles.size() == 1) {
         auto *cs = dynamic_cast<Configs::csqtt *>(csProfiles.first()->outbound.get());
         check(cs && cs->hashes.size() == 2 && cs->hashes.first() == "abcdefghijklmno+p", "CSQTT hash plus survives URL decoding");
         if (cs) {
             check(cs->DisplayType() == "CSQTT (UDP)", "CSQTT default transport label");
-            cs->turnTCP = true;
+            cs->turnTCP = true; cs->turnTransport = "tcp";
             check(cs->DisplayType() == "CSQTT (TCP)", "CSQTT TCP transport label");
             Configs::csqtt roundtrip;
             cs->name = QString::fromUtf8("РўРµСЃС‚ + # CSQTT");
@@ -518,7 +625,7 @@ int TestQwdttImport() {
             check(hash != nullptr, "CSQTT editor exposes six hash fields");
             if (hash) hash->setText(QString("abcdefghijklmnop%1").arg(count));
         }
-        check(csWorkers && csWorkers->count() == 14 && csWorkers->itemData(13).toInt() == 126, "CSQTT selector caps six hashes at 126 workers");
+        check(csWorkers && csWorkers->count() == 11 && csWorkers->itemData(10).toInt() == 100, "CSQTT Legacy selector offers 5 and 10..100 workers independent of hashes");
     }
     check(parse("csqtt://connect?v=3&host=203.0.113.7&peer=46000&password=secret").isEmpty(), "unknown CSQTT link version rejected");
     const auto excessCSQTT = parse("csqtt://connect?v=2&host=203.0.113.7&peer=46000&password=secret&hashes=abcdefghijklmnop1+abcdefghijklmnop2+abcdefghijklmnop3+abcdefghijklmnop4+abcdefghijklmnop5+abcdefghijklmnop6+ignored");
@@ -993,7 +1100,7 @@ int TestQwdttImport() {
         check(dynamic_cast<Configs::qwdtt *>(profile->outbound.get())->hashSource == "auto", "new qWDTT inherits selected default");
         Configs::qwdtt deployed;
         check(deployed.ParseFromLink("qwdtt://config?peer=203.0.113.10:56000&pass=test&device_id=deployment"), "deployment profile imports without manual hashes");
-        check(deployed.hashSource == "manual" && deployed.hashes.isEmpty(), "deployment profile preserves empty manual hashes");
+        check(deployed.hashSource == "auto" && deployed.hashes.isEmpty(), "deployment profile inherits shared automatic hashes without persisting account calls");
         Configs::dataManager->profilesRepo->AddProfile(profile, fixtureGroups.first());
         check(ResetQWDTTHashSources(), "unlink saves reset hash sources");
         check(dynamic_cast<Configs::qwdtt *>(profile->outbound.get())->hashSource == "manual", "unlink resets existing automatic profile");

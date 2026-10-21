@@ -1,5 +1,6 @@
 #include "include/ui/setting/dialog_vk_relay.h"
 #include "include/configs/outbounds/qwdtt.h"
+#include "include/configs/outbounds/csqtt.h"
 #include "include/database/ProfilesRepo.h"
 #include "include/global/Configs.hpp"
 #include "include/global/Utils.hpp"
@@ -32,6 +33,7 @@
 #include <QRegularExpression>
 #include <QRegularExpressionValidator>
 #include <QScrollArea>
+#include <QSet>
 #include <QSpinBox>
 #include <QStandardItemModel>
 #include <QTabWidget>
@@ -46,7 +48,15 @@ namespace {
 QString kindTitle(const QString &kind) {
     return kind == "qwdtt" ? QStringLiteral("qWDTT") : kind == "csqtt" ? QStringLiteral("CSQTT") : QStringLiteral("WDTT Plus");
 }
-QString withoutTunnelMode(QString link) {
+QString normalizedRelayLink(QString link) {
+    if (link.startsWith("csqtt://connect?", Qt::CaseInsensitive)) {
+        Configs::csqtt profile;
+        if (profile.ParseFromLink(link)) {
+            const auto encrypted = profile.ExportToLink();
+            if (!encrypted.isEmpty()) return encrypted;
+        }
+        return link;
+    }
     if (!link.startsWith("qwdtt://config", Qt::CaseInsensitive)) return link;
     static const QRegularExpression mode(R"(([?&])mode=[^&#]*&?)");
     static const QRegularExpression dangling(R"([?&](#|$))");
@@ -137,7 +147,7 @@ RelayTask::~RelayTask() {
     }
 }
 bool RelayTask::running() const { return process.state() != QProcess::NotRunning; }
-QStringList RelayAccountHashes(int count, QString *error) {
+static QJsonValue relayAccountValue(const QString &operation, int count, QString *error) {
     QProcess process;
     process.start(Configs::FindCoreRealPath(), {"--relay"});
     if (!process.waitForStarted(5000)) {
@@ -145,8 +155,8 @@ QStringList RelayAccountHashes(int count, QString *error) {
         return {};
     }
     process.write(
-        QJsonDocument(QJsonObject{{"operation", "vk-hashes"}, {"count", count}}).toJson(QJsonDocument::Compact) + '\n');
-    QStringList result;
+        QJsonDocument(QJsonObject{{"operation", operation}, {"count", count}}).toJson(QJsonDocument::Compact) + '\n');
+    QJsonValue result;
     QByteArray pending;
     QElapsedTimer elapsed;
     elapsed.start();
@@ -174,10 +184,7 @@ QStringList RelayAccountHashes(int count, QString *error) {
                 elapsed.restart();
             }
             if (event["type"] == "result") {
-                const auto value = event["value"];
-                const auto hashes = value.isObject() ? value.toObject()["hashes"].toArray() : value.toArray();
-                for (const auto &hash : hashes)
-                    result.append(hash.toString());
+                result = event["value"];
             }
             if (event["type"] == "error")
                 *error = event["text"].toString();
@@ -191,23 +198,36 @@ QStringList RelayAccountHashes(int count, QString *error) {
             return {};
         }
     }
-    if (result.isEmpty() && error->isEmpty())
+    if ((result.isNull() || result.isUndefined()) && error->isEmpty())
         *error = QStringLiteral("VK не вернул хеши");
     return result;
+}
+QStringList RelayAccountHashes(int count, QString *error) {
+    const auto value = relayAccountValue("vk-hashes", count, error);
+    const auto hashes = value.isObject() ? value.toObject()["hashes"].toArray() : value.toArray();
+    QStringList result;
+    for (const auto &hash : hashes) result << hash.toString();
+    if (error->isEmpty() && (result.size() != count || QSet<QString>(result.begin(), result.end()).size() != count))
+        *error = QStringLiteral("VK не вернул необходимые хеши звонков");
+    return result;
+}
+QString RelayAccountToken(QString *error) {
+    return relayAccountValue("vk-calls-token", 0, error).toString();
 }
 bool ResetQWDTTHashSources() {
     auto *settings = Configs::dataManager->settingsRepo.get();
     settings->vk_relay_linked = false;
     settings->qwdtt_hash_source = "manual";
     bool saved = settings->Save();
-    for (int id : Configs::dataManager->profilesRepo->GetProfileIdsByType("qwdtt")) {
+    for (const auto *type : {"qwdtt", "csqtt", "wdttplus"}) for (int id : Configs::dataManager->profilesRepo->GetProfileIdsByType(type)) {
         const auto profile = Configs::dataManager->profilesRepo->GetProfile(id);
-        if (profile)
-            if (auto *outbound = dynamic_cast<Configs::qwdtt *>(profile->outbound.get());
-                outbound && outbound->hashSource == "auto") {
-                outbound->hashSource = "manual";
-                saved = Configs::dataManager->profilesRepo->Save(profile) && saved;
-            }
+        if (!profile) continue;
+        auto config = profile->outbound->ExportToJson();
+        if (config["hash_source"] == "auto" || (config["hash_source"] == "auto_js" && config["vk_access_token"].toString().isEmpty())) {
+            config["hash_source"] = "manual";
+            if (config["vk_anon_path"] == "auto_js") config["vk_anon_path"] = "vkcalls";
+            saved = profile->outbound->ParseFromJson(config) && Configs::dataManager->profilesRepo->Save(profile) && saved;
+        }
     }
     return saved;
 }
@@ -290,7 +310,7 @@ class ServerEditor : public QDialog {
         saveButton->setEnabled(!busy && editableState() != savedState);
     }
     void applyConfiguration(const QJsonValue &value) {
-        server["config"] = withoutTunnelMode(value.toString());
+        server["config"] = normalizedRelayLink(value.toString());
         configuration->setPlainText(server["config"].toString());
         refreshShare();
         rememberConsole();
@@ -583,7 +603,7 @@ class ServerEditor : public QDialog {
         auto *configGroup = new QGroupBox("Ссылка " + kindTitle(server["kind"].toString()), body);
         layout->addWidget(configGroup);
         auto *configLayout = new QVBoxLayout(configGroup);
-        configuration = new QPlainTextEdit(withoutTunnelMode(server["config"].toString()), configGroup);
+        configuration = new QPlainTextEdit(normalizedRelayLink(server["config"].toString()), configGroup);
         configuration->setReadOnly(true);
         configuration->setPlaceholderText("Ссылка появится после успешной установки");
         configuration->setMaximumHeight(90);

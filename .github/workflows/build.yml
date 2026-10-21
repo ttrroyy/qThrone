@@ -76,10 +76,10 @@ jobs:
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
           protoc -I gen --go_out=gen --go-grpc_out=gen gen/libcore.proto
-          go test -race ./internal/process ./internal/rpc ./internal/probe ./internal/relay ./internal/providergeo
+          go test -race ./internal/process ./internal/rpc ./internal/probe ./internal/relay ./internal/parentcheck ./internal/providergeo
           # TrustTunnel races QUIC against its HTTP/2 fallback like the official client.
           CGO_ENABLED=0 go test -tags with_quic,with_utls,with_purego github.com/xchacha20-poly1305/sing-trusttunnel
-          go vet ./internal/process ./internal/rpc ./internal/relay ./internal/providergeo
+          go vet ./internal/process ./internal/rpc ./internal/relay ./internal/parentcheck ./internal/providergeo
   build-go:
     if: inputs.common_run_id == ''
     needs: test-qwdtt

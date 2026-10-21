@@ -15,13 +15,46 @@
 #include <QRegularExpression>
 #include <QSet>
 #include <QUrl>
+#include <QUrlQuery>
 #include <QtEndian>
 
 #include <algorithm>
 #include <initializer_list>
 #include <string_view>
+#include <stdexcept>
 
 namespace Subscription {
+    QStringList CsqttSubscriptionLinks(const QByteArray &body) {
+        const QRegularExpression pattern(R"re(<(?:a|input)\b[^<>]*?\b(?:href|value)\s*=\s*["'](csqtt://[^"'<>\s]+)["'][^<>]*>)re", QRegularExpression::CaseInsensitiveOption);
+        QStringList result;
+        QSet<QString> seen;
+        auto matches = pattern.globalMatch(QString::fromUtf8(body));
+        while (matches.hasNext() && result.size() < 10000) {
+            const auto link = matches.next().captured(1).replace("&amp;", "&");
+            if (link.size() <= 65536 && !seen.contains(link)) { result << link; seen.insert(link); }
+        }
+        return result;
+    }
+    QString UnwrapProviderLink(const QString &text) {
+        auto content = text.trimmed();
+        if (content.size() > 1024 * 1024) return {};
+        const QRegularExpression add("^(happ|incy)://(?:add|import)/(.*)$", QRegularExpression::CaseInsensitiveOption);
+        for (int depth = 0; depth < 8; ++depth) {
+            const QUrl url(content);
+            if (url.scheme() == "https" && (url.host() == "ssconnect.app" || url.host() == "www.ssconnect.app")) {
+                if (!url.userInfo().isEmpty() || url.port(443) != 443) return {};
+                const QUrlQuery query(url);
+                const auto values = query.allQueryItemValues("q", QUrl::FullyDecoded);
+                if (values.size() != 1 || values.first().trimmed().isEmpty()) return {};
+                content = values.first().trimmed();
+            } else if (const auto match = add.match(content); match.hasMatch()) {
+                content = match.captured(2);
+                if (!content.contains("://")) content = QUrl::fromPercentEncoding(content.toUtf8());
+                content = content.trimmed();
+            } else return content;
+        }
+        return {};
+    }
     namespace {
         using ProfilePtr = std::shared_ptr<Configs::Profile>;
 
@@ -77,8 +110,8 @@ namespace Subscription {
             {"juicity", {"juicity://"}, {"juicity"}, {}},
             {"trusttunnel", {"tt://"}, {"trusttunnel"}, {}},
             {"shadowtls", {"shadowtls://"}, {"shadowtls"}, {}},
-            {"wireguard", {"awg://", "wg://", "wireguard://"}, {"wireguard"}, {}},
-            {"masque", {}, {"masque"}, {"masque"}},
+            {"wireguard", {"awg://", "wg://", "wireguard://"}, {"wireguard"}, {"wireguard"}},
+            {"masque", {"masque://"}, {"masque"}, {"masque"}},
             {"ssh", {"ssh://"}, {"ssh"}, {"ssh"}},
             {"naive", {"naive+https://", "naive+quic://"}, {"naive"}, {}},
         };
@@ -377,6 +410,34 @@ namespace Subscription {
             return normalized.toStdString();
         }
 
+        fkyaml::node resolveClashNode(const fkyaml::node &node, int depth, int &remaining) {
+            if (depth > 50 || --remaining < 0) throw std::runtime_error("Clash YAML nesting/alias limit exceeded");
+            if (node.is_sequence()) {
+                auto result = fkyaml::node::sequence();
+                for (const auto &item : node) result.as_seq().push_back(resolveClashNode(item, depth + 1, remaining));
+                return result;
+            }
+            if (!node.is_mapping()) return node;
+            auto result = fkyaml::node::mapping();
+            const auto merge = [&](const fkyaml::node &base) {
+                const auto resolved = resolveClashNode(base, depth + 1, remaining);
+                if (!resolved.is_mapping()) throw std::runtime_error("Clash YAML merge must contain mappings");
+                for (const auto &entry : resolved.as_map())
+                    if (!result.contains(entry.first)) result[entry.first] = entry.second;
+            };
+            if (node.contains("<<")) {
+                const auto &base = node["<<"];
+                if (base.is_sequence()) for (const auto &item : base) merge(item);
+                else merge(base);
+            }
+            for (const auto &entry : node.as_map()) {
+                if (!entry.first.is_string()) throw std::runtime_error("Clash YAML keys must be strings");
+                if (entry.first.get_value<std::string>() != "<<")
+                    result[entry.first] = resolveClashNode(entry.second, depth + 1, remaining);
+            }
+            return result;
+        }
+
         class Parser {
         public:
             explicit Parser(const ParseSink &sink) : sink(sink) {}
@@ -418,6 +479,11 @@ namespace Subscription {
             if (depth > kMaxDepth) return;
             const auto text = scan::trim(raw);
             if (text.empty()) return;
+            if (scan::startsWithNoCase(text, "<!doctype html") || scan::startsWithNoCase(text, "<html")) {
+                for (const auto &item : CsqttSubscriptionLinks(QByteArray(text.data(), qsizetype(text.size()))))
+                    link(scan::view(item.toUtf8()), depth + 1, overrideName);
+                return;
+            }
 
             if (allowBase64 && scan::looksLikeBase64(text)) {
                 if (const auto decoded = scan::decodeBase64(text); !decoded.isEmpty()) {
@@ -647,8 +713,9 @@ namespace Subscription {
                 if (!proxies.is_sequence()) return;
 
                 // One entry at a time: clash::Proxies is several KB even when empty.
+                int remaining = 200000;
                 for (const auto &node : proxies) {
-                    const auto out = node.get_value<clash::Proxies>();
+                    const auto out = resolveClashNode(node, 0, remaining).get_value<clash::Proxies>();
                     const char *profileType = typeForClash(out.type);
                     if (profileType == nullptr) continue;
                     ProfilePtr ent;

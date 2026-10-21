@@ -23,6 +23,8 @@ def fetch(repository, revision, destination, snapshot_only=False):
     if not fetched:
         entry = lock[repository]
         assert entry['revision'] == revision, 'No verified source snapshot for this revision'
+        if 'url' not in entry or 'sha256' not in entry:
+            raise RuntimeError('Pinned upstream source is unavailable; no verified fallback snapshot')
         with urllib.request.urlopen(entry['url'], timeout=60) as response:
             payload = response.read()
         assert hashlib.sha256(payload).hexdigest() == entry['sha256'], 'Source snapshot checksum mismatch'

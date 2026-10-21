@@ -2,7 +2,7 @@
 
 Клиент для Windows, Linux и macOS на ядрах [sing-box](https://github.com/SagerNet/sing-box) и [Xray](https://github.com/XTLS/Xray-core). Форк [Throne](https://github.com/throneproj/Throne).
 
-Помимо стандартных протоколов sing-box и Xray поддерживает qWDTT, CSQTT, olcRTC, OpenFlux, DNSTT, VayDNS, SlipStream, MasterDNS и S3 Bypass - с подписками, тестом пинга и раздельной маршрутизацией.
+Помимо стандартных протоколов sing-box и Xray поддерживает qWDTT, WDTT Plus, CSQTT 2.5.0 Legacy, olcRTC, OpenFlux, DNSTT, VayDNS, SlipStream, MasterDNS и S3 Bypass - с подписками, тестом пинга и раздельной маршрутизацией.
 
 <p align="center">
   <img src="docs/screenshots/screenshot-main.png" width="800" alt="Главное окно qThrone с профилями разных протоколов">
@@ -20,11 +20,11 @@
 
 ## Особенности
 
-**Новые протоколы.** qWDTT, CSQTT, olcRTC, OpenFlux, DNS-туннели и S3 Bypass запускаются через оригинальные клиенты этих проектов. Работают как обычные профили: с маршрутизацией, цепочками, TUN-режимом и тестом пинга. Тест пинга не рвёт текущее подключение.
+**Новые протоколы.** qWDTT, WDTT Plus, CSQTT 2.5.0 Legacy, olcRTC, OpenFlux, DNS-туннели и S3 Bypass запускаются через оригинальные клиенты этих проектов. Работают как обычные профили: с маршрутизацией, цепочками, TUN-режимом и тестом пинга. Тест пинга не рвёт текущее подключение.
 
-**Привязка аккаунта VK.** Хеши звонков для qWDTT можно получать автоматически, CSQTT в режиме «Авто» берёт их из той же привязки. В поле хешей можно вставить и сам хеш, и полную ссылку на звонок VK.
+**Привязка аккаунта VK.** Хеши звонков для qWDTT, WDTT Plus и CSQTT можно получать автоматически из общей привязки qWDTT. CSQTT Auto JS также получает токен этой привязки без обязательного ручного ввода. В поле хешей можно вставить и сам хеш, и полную ссылку на звонок VK.
 
-**Деплой сервера.** Сервер qWDTT или CSQTT можно развернуть на VPS по SSH прямо из клиента и сразу получить ссылку на профиль - в том же формате, что и у оригинальных деплоев.
+**Деплой сервера.** Сервер qWDTT, WDTT Plus или CSQTT 2.5.0 Legacy можно развернуть на VPS по SSH прямо из клиента и сразу получить ссылку на профиль - в том же формате, что и у оригинальных деплоев.
 
 ## Протоколы
 
@@ -34,7 +34,7 @@
 | QUIC | Hysteria, Hysteria2, TUIC, MASQUE |
 | VPN | WireGuard, AmneziaWG, OpenVPN, OpenConnect |
 | Другие прокси | ShadowTLS, NaïveProxy, AnyTLS, Mieru, Snell, Juicity, TrustTunnel |
-| VK и WebRTC | qWDTT, CSQTT, olcRTC, OpenFlux |
+| VK и WebRTC | qWDTT, WDTT Plus, CSQTT 2.5.0 Legacy, olcRTC, OpenFlux |
 | DNS-туннели | DNSTT, VayDNS, SlipStream, MasterDNS |
 | S3-хранилище | S3 Bypass |
 
@@ -56,7 +56,7 @@
 
 - Ядра: [SagerNet/sing-box](https://github.com/SagerNet/sing-box), [XTLS/Xray-core](https://github.com/XTLS/Xray-core)
 - Основа клиента: [Throne](https://github.com/throneproj/Throne), [NekoRay](https://github.com/MatsuriDayo/nekoray)
-- VK и WebRTC: [proxy-turn-vk-android](https://github.com/SpaceNeuroX/proxy-turn-vk-android) (qWDTT), [amurcanov/csqtt](https://github.com/amurcanov/csqtt), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [OpenFlux](https://github.com/p1neappleXpress/OpenFlux)
+- VK и WebRTC: [proxy-turn-vk-android](https://github.com/SpaceNeuroX/proxy-turn-vk-android) (qWDTT), [CSQTT 2.5.0 Legacy](https://github.com/ttrroyy/csqtt-rebirth/releases/tag/v2.5.0-legacy), [WDTT Plus](https://github.com/Ivan4537/WDTT-Plus), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [OpenFlux](https://github.com/p1neappleXpress/OpenFlux)
 - DNS-туннели: [dnstt](https://www.bamsoftware.com/software/dnstt/), [VayDNS](https://github.com/net2share/vaydns), [slipstream-rust](https://github.com/Mygod/slipstream-rust), [MasterDnsVPN](https://github.com/masterking32/MasterDnsVPN), [dnst-url-spec](https://github.com/net2share/dnst-url-spec), [SlipNet](https://github.com/anonvector/SlipNet), [WhiteDNS](https://github.com/WhiteDNS/WhiteDNS-Android)
 - S3 Bypass и TrustTunnel: [s3-bypass](https://github.com/SpaceNeuroX/s3-bypass), [Xray-core-fedarisha](https://github.com/Fedarisha/Xray-core-fedarisha), [sing-trusttunnel](https://github.com/xchacha20-poly1305/sing-trusttunnel), [TrustTunnelClient](https://github.com/TrustTunnel/TrustTunnelClient)
 - Прочее: [routeprofiles](https://github.com/throneproj/routeprofiles), [sing-box-dashboard](https://github.com/SagerNet/sing-box-dashboard)

@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,6 +30,13 @@ import (
 // SOCKS5 itself; this bridge answers its numbered captcha requests and keeps its raw
 // output, which carries hashes and captcha tokens, out of qThrone's log.
 type wdttPlusConfig struct {
+	TCPOnly            bool     `json:"tcp_only"`
+	TurnSNI            string   `json:"turn_sni"`
+	RTMasque           bool     `json:"rt_masque"`
+	ServerBootstrap    bool     `json:"rt_masque_server_bootstrap"`
+	Fingerprint        string   `json:"fingerprint"`
+	ClientIDs          string   `json:"client_ids"`
+	VKCallsPreflight   *bool    `json:"vkcalls_preflight"`
 	Peer               string   `json:"peer"`
 	Password           string   `json:"password"`
 	Hashes             []string `json:"hashes"`
@@ -92,25 +100,64 @@ func readWdttPlusConfig(path string) (*wdttPlusConfig, error) {
 	if c.SOCKSUser == "" || c.SOCKSPass == "" {
 		return nil, errors.New("WDTT Plus SOCKS credentials required")
 	}
+	if c.Fingerprint == "" {
+		c.Fingerprint = "firefox"
+	}
+	if c.ClientIDs == "" {
+		c.ClientIDs = "6287487,8202606"
+	}
+	if !regexp.MustCompile(`^[0-9]+(?:,[0-9]+){0,15}$`).MatchString(c.ClientIDs) {
+		return nil, errors.New("invalid WDTT Plus client IDs")
+	}
+	if !slices.Contains([]string{"firefox", "chrome", "safari", "ios", "android", "random"}, c.Fingerprint) || !wdttPlusValidSNI(c.TurnSNI) {
+		return nil, errors.New("invalid WDTT Plus TLS profile")
+	}
 	return &c, nil
 }
 
 // wdttPlusArgs are the flags of WDTT Plus's TunnelManager; Go boolean flags only as -flag=value.
 func wdttPlusArgs(c *wdttPlusConfig) []string {
+	fingerprint, ids := c.Fingerprint, c.ClientIDs
+	if fingerprint == "" {
+		fingerprint = "firefox"
+	}
+	if ids == "" {
+		ids = "6287487,8202606"
+	}
+	preflight := c.VKCallsPreflight == nil || *c.VKCallsPreflight
 	args := []string{
 		"-peer", c.Peer, "-startup-config-stdin=true",
 		"-n", strconv.Itoa(c.Workers), "-listen", c.Listen,
 		"-transport-experiment", "auto", "-mode", "socks5",
 		"-socks-listen", c.SOCKS, "-socks-udp=true", "-socks-auth=true",
-		"-fingerprint", "firefox", "-client-ids", "6287487,8202606",
-		"-vkcalls-preflight=true", "-turn-stream-first=false", "-connection-udp-backoff=0", "-rt-masque=false",
+		"-fingerprint", fingerprint, "-client-ids", ids,
+		"-vkcalls-preflight=" + strconv.FormatBool(preflight), "-turn-stream-first=" + strconv.FormatBool(c.TCPOnly), "-connection-udp-backoff=0", "-rt-masque=" + strconv.FormatBool(c.RTMasque),
 		"-device-id", c.DeviceID, "-device-info", c.DeviceInfo,
 		"-config-first-start=true",
+	}
+	if c.TurnSNI != "" {
+		args = append(args, "-turn-sni", c.TurnSNI)
 	}
 	if len(c.Hashes) > 1 {
 		args = append(args, "-hash-fallback=true")
 	}
 	return append(args, "-captcha-mode", c.CaptchaMode)
+}
+
+func wdttPlusValidSNI(host string) bool {
+	if host == "" {
+		return true
+	}
+	if len(host) > 253 || !strings.Contains(host, ".") || net.ParseIP(host) != nil {
+		return false
+	}
+	label := regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$`)
+	for _, part := range strings.Split(host, ".") {
+		if !label.MatchString(part) {
+			return false
+		}
+	}
+	return true
 }
 
 // wdttPlusStartLine is START_CONFIG|<base64url JSON>, as the app hands its secrets over.
@@ -262,7 +309,28 @@ func runWdttPlusBridge(path string) error {
 			}
 		}
 	}()
-	child, err := startWdttPlusChild(wdttPlusArgs(c), c.DeviceID, wdttPlusStartLine(c.Hashes, c.Password, c.SOCKSUser, c.SOCKSPass))
+	args := wdttPlusArgs(c)
+	if c.RTMasque {
+		cache, err := os.UserCacheDir()
+		if err != nil {
+			return err
+		}
+		key := sha256.Sum256([]byte(c.DeviceID))
+		directory := filepath.Join(cache, "qThrone", "wdttplus", fmt.Sprintf("%x", key[:16]))
+		if err := os.MkdirAll(directory, 0700); err != nil {
+			return err
+		}
+		config := filepath.Join(directory, "rt-masque-v1.json")
+		args = append(args, "-rt-masque-config", config, "-rt-masque-accept-tos=true")
+		if _, err := os.Stat(config); os.IsNotExist(err) && c.ServerBootstrap {
+			address, stop := startWdttPlusBootstrap(ctx, c.Peer)
+			defer stop()
+			if address != "" {
+				args = append(args, "-warp-api-relay", address)
+			}
+		}
+	}
+	child, err := startWdttPlusChild(args, c.DeviceID, wdttPlusStartLine(c.Hashes, c.Password, c.SOCKSUser, c.SOCKSPass))
 	if err != nil {
 		return err
 	}
