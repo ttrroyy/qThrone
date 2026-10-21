@@ -35,6 +35,8 @@
     "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.5/wdttplus-f706ccd37368.bundle"
   },
   "https://github.com/ttrroyy/csqtt-rebirth.git": {
-    "revision": "2066156119a5afe7d63e104aefdc8e0849999d03"
+    "revision": "2066156119a5afe7d63e104aefdc8e0849999d03",
+    "sha256": "befe3020df58ac17ecf03f360820593a62de1464a0db289946176c49911dd3ae",
+    "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.5/csqtt-2066156119a5.bundle"
   }
 }
