@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest, macos-15-intel]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7.0.1
@@ -107,23 +107,23 @@ jobs:
           - cross_os: darwin
             cross_arch: amd64
             go_version: "1.27.0"
-            runner: macos-latest
+            runner: macos-15-intel
           - cross_os: darwin
             cross_arch: arm64
             go_version: "1.27.0"
-            runner: macos-latest
+            runner: macos-15-intel
           - cross_os: darwinlegacy
             cross_arch: amd64
             go_version: "1.27.0"
-            runner: macos-latest
+            runner: macos-15-intel
           - cross_os: windowslegacy
             cross_arch: amd64
             go_version: "1.27.0"
-            runner: macos-latest
+            runner: macos-15-intel
           - cross_os: windowslegacy
             cross_arch: 386
             go_version: "1.27.0"
-            runner: macos-latest
+            runner: macos-15-intel
       fail-fast: false
     runs-on: ${{ matrix.runner }}
     env:
@@ -284,19 +284,19 @@ jobs:
             dest_suffix: linux-arm64-system-qt
             common: linux-arm64
             launcher: ccache
-          - platform: macos-latest
+          - platform: macos-15-intel
             qt_version: "6.11.2"
             target: x86_64
             dest_suffix: darwin-amd64
             common: darwin-amd64
             launcher: ccache
-          - platform: macos-latest
+          - platform: macos-15-intel
             qt_version: "6.11.2"
             target: arm64
             dest_suffix: darwin-arm64
             common: darwin-arm64
             launcher: ccache
-          - platform: macos-15
+          - platform: macos-15-intel
             qt_version: "6.4.3"
             target: x86_64
             dest_suffix: darwinlegacy-amd64
