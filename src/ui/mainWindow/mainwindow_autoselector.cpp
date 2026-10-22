@@ -23,7 +23,7 @@ void MainWindow::rank_auto_selector(const std::shared_ptr<Configs::Profile>& ent
     MW_show_log(tr("[Auto selector] Measuring %1 not-yet-tested profiles...").arg(needed.size()));
     // Wait on the sweep's completion signal, not the session lock: this thread already holds it.
     QSemaphore sweepDone;
-    testRunner->runUrlTests(needed, [&sweepDone] { sweepDone.release(); });
+    testRunner->queueUrlTests(needed, [&sweepDone] { sweepDone.release(); });
     sweepDone.acquire();
 
     const auto ranked = Configs::RerankAutoSelectorPool(ent);

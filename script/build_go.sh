@@ -45,6 +45,14 @@ CGO_ENABLED=0 $GOCMD build -trimpath -ldflags="-s -w" -o "$DEST/qwdtt$([[ "$GOOS
 cp LICENSE "$DEST/qwdtt-LICENSE"
 popd
 
+#### SSTP: the same userspace PPP/TLS/SOCKS client as qThroneMobile ####
+pushd sstp
+CGO_ENABLED=0 $GOCMD build -mod=readonly -trimpath -ldflags="-s -w" -o "$DEST/sstp-client$([[ "$GOOS" == "windows" ]] && echo ".exe")" .
+cp LICENSE "$DEST/SSTP-LICENSE"
+cp SOURCE "$DEST/SSTP-SOURCE"
+tar -czf "$DEST/sstp-source.tar.gz" --exclude=target --exclude=.git --exclude=*.exe .
+popd
+
 #### Go: core ####
 source script/build_openflux.sh
 source script/build_olcrtc.sh

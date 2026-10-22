@@ -102,6 +102,17 @@ void MainWindow::setDownloadReport(const DownloadProgressReport& report, bool sh
     dataViewHtmlGenerator_.setDownloadReport(report, show);
 }
 
+void MainWindow::showNotice(const QString &message, int durationMs) {
+    runOnUiThread([this, message, durationMs] {
+        if (auto *old = ui->centralwidget->findChild<QTextBrowser *>("transientNotice")) delete old;
+        auto *notice = new RestartNotice(ui->centralwidget);
+        notice->setObjectName("transientNotice");
+        notice->setFont(ui->data_view->font());
+        notice->present(message.toHtmlEscaped());
+        QTimer::singleShot(durationMs, notice, &QObject::deleteLater);
+    });
+}
+
 void MainWindow::refresh_auto_selector_view()
 {
     const auto view = Stats::autoSelectorMonitor->Snapshot();

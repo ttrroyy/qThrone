@@ -3,6 +3,7 @@
 #include "include/global/Configs.hpp"
 #include "include/global/HTTPRequestHelper.hpp"
 #include "include/global/Utils.hpp"
+#include "include/ui/mainwindow.h"
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
@@ -126,6 +127,7 @@ QString download(const QJsonObject &doc, const QString &kind, QString &path, boo
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly) || file.write(response.data) != response.data.size() || !file.commit())
         return QObject::tr("Could not save Geo file: %1").arg(path);
+    if (auto *window = GetMainWindow()) window->showNotice(QObject::tr("Geo data downloaded: %1").arg(kind));
     return {};
 }
 } // namespace

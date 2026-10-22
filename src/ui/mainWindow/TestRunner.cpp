@@ -23,7 +23,6 @@ using namespace API;
 
 namespace {
     constexpr int kTestBatchSize = 100;
-    constexpr int kLatencyPollIntervalMs = 200;
     constexpr int kSpeedPollIntervalMs = 100;
 
     QList<int> withoutAutoSelectors(const QList<int>& profileIDs) {
@@ -107,13 +106,11 @@ namespace {
 }
 
 bool TestRunner::isRunning() {
-    if (!session_.tryLock()) return true;
-    session_.unlock();
-    return false;
+    return gate_.running();
 }
 
 void TestRunner::stop() {
-    stopRequested_.store(true);
+    gate_.stopRequested.store(true);
     runOnNewThread([] {
         bool ok = false;
         defaultClient->StopTests(&ok);
@@ -165,7 +162,7 @@ void TestRunner::applyIpResult(const std::shared_ptr<Configs::Profile>& ent, con
 }
 
 void TestRunner::runUrlProbe(const Target& target) {
-    if (stopRequested_.load()) {
+    if (gate_.stopRequested.load()) {
         MW_show_log(MainWindow::tr("Profile test aborted"));
         return;
     }
@@ -188,36 +185,12 @@ void TestRunner::runUrlProbe(const Target& target) {
     QString coreError;
     libcore::TestResp result;
     {
-        ResultPoller poller([this, gen = sessionGen_.load(), tag2entID = target.tag2entID, privateResult = !target.qwdttConfig.isEmpty()] {
-            if (privateResult || staleGen(gen)) return;
-            bool ok = false;
-            const auto resp = defaultClient->QueryURLTest(&ok);
-            // Checked again: this poll can sit in the RPC while its batch ends and the tags are reused.
-            if (staleGen(gen)) return;
-            if (!ok || resp.results.empty()) return;
-
-            QList<int> updated;
-            for (const auto& res : resp.results) {
-                mw_->dataViewHtmlGenerator_.addTestProgress();
-                mw_->UpdateDataView();
-                const int entid = resolveEntID(tag2entID, res.outbound_tag.value(), -1);
-                if (entid == -1) continue;
-                auto ent = Configs::dataManager->profilesRepo->GetProfile(entid);
-                if (ent == nullptr) continue;
-                applyUrlResult(ent, res);
-                updated << entid;
-            }
-            if (updated.isEmpty()) return;
-            mw_->UpdateDataView(true);
-            runOnUiThread([=, this] { mw_->refresh_proxy_list(updated); });
-        }, kLatencyPollIntervalMs);
-
         result = defaultClient->Test(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 2) + (target.qwdttConfig.isEmpty() ? 0 : 330000));
     }
 
     if (!rpcOK || result.results.empty()) {
         if (!rpcOK) mw_->handleXrayGeoAssetError(coreError, contextName(target.entID));
-        const auto error = stopRequested_.load() ? QStringLiteral("test aborted") :
+        const auto error = gate_.stopRequested.load() ? QStringLiteral("test aborted") :
             (coreError.isEmpty() ? QStringLiteral("HTTP test returned no result or exceeded its deadline") : coreError);
         for (auto it = target.tag2entID.cbegin(); it != target.tag2entID.cend(); ++it) {
             if (auto ent = Configs::dataManager->profilesRepo->GetProfile(it.value())) {
@@ -247,7 +220,7 @@ void TestRunner::runUrlProbe(const Target& target) {
             continue;
         }
         applyUrlResult(ent, res, &vpnConnected);
-        if (!target.qwdttConfig.isEmpty()) {
+        {
             mw_->dataViewHtmlGenerator_.addTestProgress();
             mw_->UpdateDataView(true);
             runOnUiThread([this, entid] { mw_->refresh_proxy_list({entid}); });
@@ -256,7 +229,7 @@ void TestRunner::runUrlProbe(const Target& target) {
 }
 
 void TestRunner::runIpProbe(const Target& target) {
-    if (stopRequested_.load()) {
+    if (gate_.stopRequested.load()) {
         MW_show_log(MainWindow::tr("Profile test aborted"));
         return;
     }
@@ -271,30 +244,6 @@ void TestRunner::runIpProbe(const Target& target) {
     QString coreError;
     libcore::IPTestResp result;
     {
-        ResultPoller poller([this, gen = sessionGen_.load(), tag2entID = target.tag2entID, privateResult = !target.qwdttConfig.isEmpty()] {
-            if (privateResult) return;
-            if (staleGen(gen)) return;
-            bool ok = false;
-            const auto resp = defaultClient->QueryIPTest(&ok);
-            if (staleGen(gen)) return;
-            if (!ok || resp.results.empty()) return;
-
-            QList<int> updated;
-            for (const auto& res : resp.results) {
-                mw_->dataViewHtmlGenerator_.addTestProgress();
-                mw_->UpdateDataView();
-                const int entid = resolveEntID(tag2entID, res.outbound_tag.value(), -1);
-                if (entid == -1) continue;
-                auto ent = Configs::dataManager->profilesRepo->GetProfile(entid);
-                if (ent == nullptr) continue;
-                applyIpResult(ent, res);
-                updated << entid;
-            }
-            if (updated.isEmpty()) return;
-            mw_->UpdateDataView(true);
-            runOnUiThread([=, this] { mw_->refresh_proxy_list(updated); });
-        }, kLatencyPollIntervalMs);
-
         result = defaultClient->IPTest(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 1) + (target.qwdttConfig.isEmpty() ? 0 : 330000));
     }
 
@@ -315,7 +264,7 @@ void TestRunner::runIpProbe(const Target& target) {
             continue;
         }
         applyIpResult(ent, res);
-        if (!target.qwdttConfig.isEmpty()) {
+        {
             mw_->dataViewHtmlGenerator_.addTestProgress();
             mw_->UpdateDataView(true);
             runOnUiThread([this, entid] { mw_->refresh_proxy_list({entid}); });
@@ -343,26 +292,18 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
     // Must fire on every exit path — a caller may be blocked on it.
     const auto finish = [onFinished] { if (onFinished) onFinished(); };
 
-    const auto profileIDs = withoutAutoSelectors(requestedIDs);
-    if (profileIDs.isEmpty()) {
+    auto profileIDs = withoutAutoSelectors(requestedIDs);
+    if (profileIDs.isEmpty()) { finish(); return false; }
+    const auto started = gate_.beginLatency(profileIDs, waitForSession);
+    if (started != TestSessionGate::Start::Started) {
+        if (started == TestSessionGate::Start::Busy) {
+            const auto text = MainWindow::tr("The last test did not finish completely, please wait. If it persists, please restart the program.");
+            if (interactive && QThread::currentThread() == mw_->thread()) MessageBoxWarning(software_name, text);
+            else MW_show_log(text);
+        }
         finish();
         return false;
     }
-    if (waitForSession) {
-        session_.lock();
-    } else if (!session_.tryLock()) {
-        const auto text = isUrl
-            ? MainWindow::tr("The last url test did not exit completely, please wait. If it persists, please restart the program.")
-            : MainWindow::tr("The last test did not exit completely, please wait. If it persists, please restart the program.");
-        // Auto-selector ranking calls in from a worker thread, where no widget may be created.
-        if (interactive && QThread::currentThread() == mw_->thread()) MessageBoxWarning(software_name, text);
-        else MW_show_log(text);
-        finish();
-        return false;
-    }
-    sessionGen_.fetch_add(1);
-    // Reset here, not on the worker: a stop() that lands before the worker runs must still count.
-    stopRequested_.store(false);
 
     if (isUrl) runOnUiThread([this, profileIDs] { mw_->profilesTableModel->setTestState(profileIDs, 1); });
 
@@ -371,8 +312,6 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
         mw_->UpdateDataView(true);
 
         auto runBatch = [this, isUrl](const QList<std::shared_ptr<Configs::Profile>>& profileSlice, const QList<int>& ids) {
-            // Per batch, not per probe: a batch's probes drain each other's results, and tags restart each batch.
-            sessionGen_.fetch_add(1);
             auto buildObject = Configs::BuildTestConfig(profileSlice);
             if (!buildObject->error.isEmpty()) {
                 MW_show_log(MainWindow::tr("Failed to build test config for batch: ") + buildObject->error);
@@ -438,7 +377,7 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
 
         std::shared_ptr<Configs::Group> currentGroup;
         for (int i = 0; i < profileIDs.length(); i += kTestBatchSize) {
-            if (stopRequested_.load()) break;
+            if (gate_.stopRequested.load()) break;
             const auto profileIDsSlice = profileIDs.mid(i, kTestBatchSize);
             auto profiles = Configs::dataManager->profilesRepo->GetProfileBatch(profileIDsSlice);
             if (isUrl && !currentGroup && !profiles.isEmpty()) {
@@ -447,11 +386,9 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
             runBatch(profiles, profileIDsSlice);
         }
 
-        sessionGen_.fetch_add(1);
-        mw_->dataViewHtmlGenerator_.clearTestSections();
-        mw_->UpdateDataView(true);
         runOnUiThread([this, profileIDs] { mw_->profilesTableModel->setTestState(profileIDs, 0); }, true);
-        session_.unlock();
+        if (gate_.finishLatency(profileIDs)) mw_->dataViewHtmlGenerator_.clearTestSections();
+        mw_->UpdateDataView(true);
         finish();
 
         if (currentGroup != nullptr && currentGroup->auto_clear_unavailable) {
@@ -475,7 +412,7 @@ bool TestRunner::runSpeedTests(const QList<int>& requestedIDs, bool testCurrent,
         finish();
         return false;
     }
-    if (!session_.tryLock()) {
+    if (!gate_.beginSpeed()) {
         const auto text = MainWindow::tr("The last test did not finish completely, please wait. If it persists, please restart the program.");
         if (interactive) MessageBoxWarning(software_name, text);
         else MW_show_log(text);
@@ -483,7 +420,7 @@ bool TestRunner::runSpeedTests(const QList<int>& requestedIDs, bool testCurrent,
         return false;
     }
     sessionGen_.fetch_add(1);
-    stopRequested_.store(false);
+    gate_.stopRequested.store(false);
 
     testingCurrent_.store(testCurrent);
     const QList<int> speedIDs = testCurrent && mw_->running ? QList<int>{mw_->running->id} : profileIDs;
@@ -526,7 +463,7 @@ bool TestRunner::runSpeedTests(const QList<int>& requestedIDs, bool testCurrent,
             };
             const int stepSize = Configs::dataManager->settingsRepo->speed_test_mode == Configs::TestConfig::COUNTRY ? kTestBatchSize : 1;
             for (int i = 0; i < profileIDs.length(); i += stepSize) {
-                if (stopRequested_.load()) break;
+                if (gate_.stopRequested.load()) break;
                 const auto profileIDsSlice = profileIDs.mid(i, stepSize);
                 auto profiles = Configs::dataManager->profilesRepo->GetProfileBatch(profileIDsSlice);
                 runBatch(profiles);
@@ -543,7 +480,7 @@ bool TestRunner::runSpeedTests(const QList<int>& requestedIDs, bool testCurrent,
         mw_->dataViewHtmlGenerator_.clearTestSections();
         mw_->UpdateDataView(true);
         runOnUiThread([this, speedIDs] { mw_->profilesTableModel->setTestState(speedIDs, 0); }, true);
-        session_.unlock();
+        gate_.finishSpeed();
         finish();
         runOnUiThread([=,this]{
             mw_->refresh_proxy_list(profileIDs);
@@ -650,7 +587,7 @@ void TestRunner::pollCountryTest(const QMap<QString, int>& tag2entID, bool testC
 
 void TestRunner::runSpeedProbe(const Target& target)
 {
-    if (stopRequested_.load()) {
+    if (gate_.stopRequested.load()) {
         MW_show_log(MainWindow::tr("Profile speed test aborted"));
         return;
     }

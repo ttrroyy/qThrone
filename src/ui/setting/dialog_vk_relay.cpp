@@ -1,6 +1,7 @@
 #include "include/ui/setting/dialog_vk_relay.h"
 #include "include/configs/outbounds/qwdtt.h"
 #include "include/configs/outbounds/csqtt.h"
+#include "include/configs/outbounds/wdttplus.h"
 #include "include/database/ProfilesRepo.h"
 #include "include/global/Configs.hpp"
 #include "include/global/Utils.hpp"
@@ -224,9 +225,13 @@ bool ResetQWDTTHashSources() {
         if (!profile) continue;
         auto config = profile->outbound->ExportToJson();
         if (config["hash_source"] == "auto" || (config["hash_source"] == "auto_js" && config["vk_access_token"].toString().isEmpty())) {
-            config["hash_source"] = "manual";
-            if (config["vk_anon_path"] == "auto_js") config["vk_anon_path"] = "vkcalls";
-            saved = profile->outbound->ParseFromJson(config) && Configs::dataManager->profilesRepo->Save(profile) && saved;
+            if (auto *relay = dynamic_cast<Configs::qwdtt *>(profile->outbound.get())) relay->hashSource = "manual";
+            if (auto *relay = dynamic_cast<Configs::wdttplus *>(profile->outbound.get())) relay->hashSource = "manual";
+            if (auto *relay = dynamic_cast<Configs::csqtt *>(profile->outbound.get())) {
+                relay->hashSource = "manual";
+                if (relay->vkAnonPath == "auto_js") relay->vkAnonPath = "vkcalls";
+            }
+            saved = Configs::dataManager->profilesRepo->Save(profile) && saved;
         }
     }
     return saved;

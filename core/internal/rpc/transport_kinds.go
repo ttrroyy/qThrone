@@ -19,8 +19,9 @@ type transportKind struct {
 }
 
 var transportKinds = map[string]transportKind{
-	"":         {executable: "qwdtt", flag: "-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
-	"csqtt":    {executable: "qwdtt", flag: "-csqtt-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
+	"sstp":  {executable: "sstp-client", flag: "--qthrone-config", probeStartup: 45 * time.Second, connectStartup: 45 * time.Second, quiet: true},
+	"":      {executable: "qwdtt", flag: "-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
+	"csqtt": {executable: "qwdtt", flag: "-csqtt-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
 	// WDTT Plus runs its own client behind the qwdtt helper, which answers its captcha.
 	"wdttplus": {executable: "qwdtt", flag: "-wdttplus-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
 	"openflux": {executable: "openflux", flag: "--qthrone-config", probeStartup: 15 * time.Second, connectStartup: 2 * time.Minute, quiet: true},
@@ -34,4 +35,4 @@ var transportKinds = map[string]transportKind{
 }
 
 // tunnelHelpers are the bundled executables that may run as routed transports.
-var tunnelHelpers = map[string]bool{"qwdtt": true, "openflux": true, "olcrtc": true, "dnstun": true, "masterdns": true, "s3bypass": true}
+var tunnelHelpers = map[string]bool{"qwdtt": true, "openflux": true, "olcrtc": true, "dnstun": true, "masterdns": true, "s3bypass": true, "sstp-client": true}

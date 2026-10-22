@@ -51,6 +51,7 @@
 #include "ui_mainwindow.h"
 #include "include/ui/widget/SeasonalDecoration.hpp"
 #include "include/ui/setting/dialog_basic_settings.h"
+#include "include/configs/outbounds/sstp.h"
 
 int TestQwdttImport() {
     qInstallMessageHandler(nullptr);
@@ -219,6 +220,24 @@ int TestQwdttImport() {
         Subscription::ParseDocument(body, sink);
         return profiles;
     };
+    {
+        const auto link = QStringLiteral("sstp://user%40example:p%3A%2B%2F%40ss@[2001:db8::1]:444?sni=vpn.example.org&insecure=1#SSTP%20test");
+        Configs::sstp profile, restored;
+        check(profile.ParseFromLink(link) && profile.server == "2001:db8::1" && profile.server_port == 444 &&
+              profile.username == "user@example" && profile.password == "p:+/@ss" && profile.allowInsecure, "SSTP imports escaped credentials, IPv6, SNI and TLS options");
+        check(restored.ParseFromLink(profile.ExportToLink()) && restored.ExportToJson() == profile.ExportToJson(), "SSTP URI round trip");
+        check(restored.ParseFromJson(profile.ExportToJson()) && restored.ExportIdentity() == profile.ExportIdentity(), "SSTP JSON round trip");
+        check(parse(link.toUtf8()).size() == 1 && parse(QJsonDocument(profile.ExportToJson()).toJson()).size() == 1, "SSTP clipboard/file and subscription dispatch");
+        check(!restored.ParseFromLink("sstp://user:pass@vpn.example.org:0") && !restored.ParseFromLink("sstp://user@vpn.example.org"), "SSTP rejects invalid ports and missing credentials");
+        const auto challenge = QByteArray("{\"outbounds\":[{\"server\":\"127.0.0.1\",\"tag\":\"HWID missing\"}]}");
+        check(Subscription::RequiresHwid(challenge) && Subscription::RequiresHwid(challenge.toBase64()), "HWID-required placeholder is recognized before import");
+        const auto encodedChallenge = QByteArray("vless://00000000-0000-0000-0000-000000000001@127.0.0.1:1#") + QUrl::toPercentEncoding(QStringLiteral("Не получен HWID устройства"));
+        check(Subscription::RequiresHwid(encodedChallenge) && Subscription::RequiresHwid(encodedChallenge.toBase64()), "HWID challenge in an encoded profile name is recognized");
+        check(!Subscription::RequiresHwid("{\"server\":\"192.0.2.1\",\"tag\":\"HWID enabled\"}"), "valid HWID-enabled profiles are not treated as challenges");
+        Configs::Group disabled;
+        disabled.sub_options.send_hwid = Configs::sendHwid::off;
+        check(!Subscription::ResolveIdentity(&disabled).allowHwidRetry, "explicit per-subscription HWID opt-out is preserved");
+    }
     {
         namespace PR = Subscription::ProviderRouting;
         const QJsonObject document{{"Name", "Provider route"}, {"GlobalProxy", false}, {"LastUpdated", 10}, {"RouteOrder", "direct-proxy-block"}, {"DirectSites", QJsonArray{"full:example.org", "geosite:WHITELIST"}}, {"ProxyIp", QJsonArray{"192.0.2.1"}}, {"UnknownProviderField", "preserved"}};
@@ -1102,8 +1121,20 @@ proxies:
         check(deployed.ParseFromLink("qwdtt://config?peer=203.0.113.10:56000&pass=test&device_id=deployment"), "deployment profile imports without manual hashes");
         check(deployed.hashSource == "auto" && deployed.hashes.isEmpty(), "deployment profile inherits shared automatic hashes without persisting account calls");
         Configs::dataManager->profilesRepo->AddProfile(profile, fixtureGroups.first());
+        auto plusProfile = Configs::ProfilesRepo::NewProfile("wdttplus");
+        auto csProfile = Configs::ProfilesRepo::NewProfile("csqtt");
+        auto ownTokenProfile = Configs::ProfilesRepo::NewProfile("csqtt");
+        auto *plus = dynamic_cast<Configs::wdttplus *>(plusProfile->outbound.get());
+        auto *cs = dynamic_cast<Configs::csqtt *>(csProfile->outbound.get());
+        auto *ownToken = dynamic_cast<Configs::csqtt *>(ownTokenProfile->outbound.get());
+        plus->hashSource = "auto";
+        cs->hashSource = "auto_js"; cs->vkAnonPath = "auto_js";
+        ownToken->hashSource = "auto_js"; ownToken->vkAccessToken = "profile-token";
+        for (const auto &item : {plusProfile, csProfile, ownTokenProfile}) Configs::dataManager->profilesRepo->AddProfile(item, fixtureGroups.first());
         check(ResetQWDTTHashSources(), "unlink saves reset hash sources");
         check(dynamic_cast<Configs::qwdtt *>(profile->outbound.get())->hashSource == "manual", "unlink resets existing automatic profile");
+        check(plus->hashSource == "manual" && cs->hashSource == "manual" && cs->vkAnonPath == "vkcalls", "unlink resets all shared relay modes even in incomplete editable profiles");
+        check(ownToken->hashSource == "auto_js" && ownToken->vkAccessToken == "profile-token", "unlink preserves a profile's own JS token");
         check(settings->qwdtt_hash_source == "manual" && !settings->vk_relay_linked, "unlink resets global default");
     }
     check(ReleaseVersion::IsNewer("1.0-beta.2", "1.0-beta.1"), "next beta update");

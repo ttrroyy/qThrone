@@ -73,8 +73,8 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 		results = probe.BatchURLTestTo(testCtx, env.box, env.tags, in.GetUrl(),
 			int(in.GetMaxConcurrency()), twice, time.Duration(in.GetTestTimeoutMs())*time.Millisecond, func(*probe.URLTestResult) {}, coldAllowance)
 	} else {
-		results = probe.BatchURLTest(testCtx, env.box, env.tags, in.GetUrl(),
-			int(in.GetMaxConcurrency()), twice, time.Duration(in.GetTestTimeoutMs())*time.Millisecond)
+		results = probe.BatchURLTestTo(testCtx, env.box, env.tags, in.GetUrl(),
+			int(in.GetMaxConcurrency()), twice, time.Duration(in.GetTestTimeoutMs())*time.Millisecond, func(*probe.URLTestResult) {})
 	}
 
 	res := make([]*gen.URLTestResp, 0, len(results))
@@ -168,8 +168,8 @@ func (s *server) IPTest(ctx context.Context, in *gen.IPTestRequest) (*gen.IPTest
 		results = probe.BatchIPTestTo(env.ctx, env.box, env.tags,
 			int(in.GetMaxConcurrency()), !env.live, timeout, func(*probe.IPTestResult) {})
 	} else {
-		results = probe.BatchIPTest(env.ctx, env.box, env.tags,
-			int(in.GetMaxConcurrency()), !env.live, timeout)
+		results = probe.BatchIPTestTo(env.ctx, env.box, env.tags,
+			int(in.GetMaxConcurrency()), !env.live, timeout, func(*probe.IPTestResult) {})
 	}
 
 	res := make([]*gen.IPTestRes, 0, len(results))

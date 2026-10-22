@@ -281,7 +281,7 @@ func TestVKLoginMatchesOriginalCompletion(t *testing.T) {
 	if !vkLoginComplete("https://m.vk.ru/feed", cookies) {
 		t.Fatal("completed session rejected")
 	}
-	for _, location := range []string{"https://id.vk.ru/auth", "https://id.vk.com/authorize", "about:blank", "https://vk.ru.evil.example/feed"} {
+	for _, location := range []string{"https://m.vk.ru/login", "https://vk.com/login.php", "https://vk.ru/?act=login", "https://id.vk.ru/auth", "https://id.vk.com/authorize", "about:blank", "https://vk.ru.evil.example/feed"} {
 		if vkLoginComplete(location, cookies) {
 			t.Fatalf("login ended too early on %s", location)
 		}

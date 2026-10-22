@@ -161,7 +161,7 @@ namespace Configs {
         bool sub_respect_server_interval = false;
         bool sub_clear = false;
         bool sub_show_change_popup = true;
-        bool sub_send_hwid = false;
+        bool sub_send_hwid = true;
         QString sub_custom_hwid_params = "";
         bool allow_stopping_active_profile = false;
 

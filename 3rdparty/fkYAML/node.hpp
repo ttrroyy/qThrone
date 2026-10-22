@@ -8465,7 +8465,6 @@ private:
                 detail::node_attr_bits::set_anchor_offset(anchor_counts - 1, node.m_attrs);
 
                 apply_directive_set(node);
-                apply_node_properties(node);
 
                 deserialize_scalar(lexer, std::move(node), indent, line, token);
 
@@ -8492,7 +8491,6 @@ private:
 
                 basic_node_type node = scalar_parser_type(line, indent).parse_flow(token.type, tag_type, token.str);
                 apply_directive_set(node);
-                apply_node_properties(node);
 
                 deserialize_scalar(lexer, std::move(node), indent, line, token);
                 continue;
@@ -8508,7 +8506,6 @@ private:
                     scalar_parser_type(line, indent)
                         .parse_block(token.type, tag_type, token.str, lexer.get_block_scalar_header());
                 apply_directive_set(node);
-                apply_node_properties(node);
 
                 deserialize_scalar(lexer, std::move(node), indent, line, token);
                 continue;
@@ -8566,6 +8563,7 @@ private:
                 }
 
                 m_anchor_name = token.str;
+                m_anchor_line = lexer.get_lines_processed();
                 m_needs_anchor_impl = true;
 
                 if (!m_needs_tag_impl) {
@@ -8704,6 +8702,18 @@ private:
     void deserialize_scalar(
         lexer_type& lexer, basic_node_type&& node, uint32_t& indent, uint32_t& line, lexical_token& token) {
         token = lexer.get_next_token();
+        // An anchor on the preceding line belongs to the block mapping, not its first key.
+        if (m_needs_anchor_impl && m_anchor_line < line && m_flow_context_depth == 0 &&
+            token.type == lexical_token_t::KEY_SEPARATOR && line == lexer.get_lines_processed() &&
+            mp_current_node->is_scalar()) {
+            *mp_current_node = basic_node_type::mapping();
+            apply_directive_set(*mp_current_node);
+            apply_node_properties(*mp_current_node);
+            m_context_stack.emplace_back(line, indent, context_state_t::BLOCK_MAPPING, mp_current_node);
+        }
+        else {
+            apply_node_properties(node);
+        }
         if (mp_current_node->is_mapping()) {
             const bool is_key_sep_followed =
                 (token.type == lexical_token_t::KEY_SEPARATOR) && (line == lexer.get_lines_processed());
@@ -8958,6 +8968,7 @@ private:
     flow_token_state_t m_flow_token_state {flow_token_state_t::NEEDS_VALUE_OR_SUFFIX};
     /// The last YAML anchor name.
     str_view m_anchor_name;
+    uint32_t m_anchor_line {0};
     /// The last tag name.
     str_view m_tag_name;
     /// The root YAML anchor name. (maybe empty and unused)

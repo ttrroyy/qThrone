@@ -18,6 +18,7 @@
 #endif
 
 #include "include/database/entities/Profile.h"
+#include "TestSessionGate.h"
 
 class MainWindow;
 
@@ -34,7 +35,7 @@ public:
     // The run* calls return whether a session started; onFinished fires either way, on a refusal before they return.
     bool runUrlTests(const QList<int>& profileIDs, const std::function<void()>& onFinished = {}, bool interactive = true);
 
-    // Waits out a running session instead of refusing it; returns at once and is safe from any thread.
+    // Waits for speed tests or overlapping profile IDs; safe from any thread.
     void queueUrlTests(const QList<int>& profileIDs, const std::function<void()>& onFinished);
 
     bool runIpTests(const QList<int>& profileIDs, const std::function<void()>& onFinished = {}, bool interactive = true);
@@ -49,7 +50,7 @@ public:
     bool isTestingCurrent() const { return testingCurrent_.load(); }
 
     // Whether stop() was called since the latest session started.
-    bool stopRequested() const { return stopRequested_.load(); }
+    bool stopRequested() const { return gate_.stopRequested.load(); }
 
 private:
     enum class LatencyKind { Url, Ip };
@@ -95,11 +96,10 @@ private:
 
     MainWindow* mw_;
 
-    // Held for a whole sweep, so it must never double as a per-batch latch.
-    QMutex session_;
+    // Multiple latency sweeps share ownership; speed tests remain exclusive.
+    TestSessionGate gate_;
     // A poll thread is not joined, so a late tick must not drain the next batch.
     std::atomic<quint64> sessionGen_ = 0;
-    std::atomic<bool> stopRequested_ = false;
     std::atomic<bool> testingCurrent_ = false;
 
     // Tests bypass the clash tracker, so their bytes are counted only here, diffed per tag.

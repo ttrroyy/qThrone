@@ -66,6 +66,8 @@ namespace Subscription {
         QList<QPair<QByteArray, QByteArray>> identityHeaders(const RequestIdentity &identity) {
             QList<QPair<QByteArray, QByteArray>> headers;
             if (!identity.sendHwid) return headers;
+            if (identity.hwidCookie && usableHeaderValue(identity.device.hwid))
+                headers.append({"Cookie", "hwid=" + QUrl::toPercentEncoding(identity.device.hwid)});
             const auto add = [&headers](const char *name, const QString &value) {
                 if (usableHeaderValue(value)) headers.append({name, value.toUtf8()});
             };
@@ -393,6 +395,15 @@ namespace Subscription {
         return {static_cast<qint64>(settings->sub_auto_update) * 60, AutoUpdatePlan::Source::global};
     }
 
+    bool RequiresHwid(const QByteArray &body) {
+        auto text = body.left(65536).trimmed();
+        if (const auto decoded = DecodeB64IfValid(text); !decoded.isEmpty()) text = decoded;
+        const auto message = QUrl::fromPercentEncoding(text).toLower();
+        return message.contains("hwid") && (message.contains("127.0.0.1") || message.contains("localhost")) &&
+            (message.contains(QStringLiteral("не получен")) || message.contains(QStringLiteral("не найден")) ||
+             message.contains("missing") || message.contains("not received") || message.contains("requires hwid") || message.contains(QStringLiteral("требует hwid")));
+    }
+
     RequestIdentity ResolveIdentity(const Configs::Group *group) {
         const auto &settings = Configs::dataManager->settingsRepo;
         RequestIdentity identity;
@@ -407,6 +418,7 @@ namespace Subscription {
         if (group == nullptr) return identity;
 
         const auto &options = group->sub_options;
+        identity.allowHwidRetry = options.send_hwid != Configs::sendHwid::off;
         if (usableHeaderValue(options.user_agent)) identity.userAgent = options.user_agent;
         identity.tlsVersion = options.tls_version.value_or(identity.tlsVersion);
         identity.httpVersion = options.http_version.value_or(identity.httpVersion);
@@ -679,6 +691,16 @@ namespace Subscription {
         const auto target = UnwrapProviderLink(url);
         if (target.isEmpty()) { MW_show_log(QObject::tr("Invalid subscription wrapper.")); return false; }
         auto resp = NetworkRequestHelper::HttpGet(target, options);
+        if (RequiresHwid(resp.data)) {
+            if (identity.allowHwidRetry && (!identity.sendHwid || !identity.hwidCookie)) {
+                auto retry = identity;
+                retry.sendHwid = true;
+                retry.hwidCookie = true;
+                return fetch(url, name, retry, body, subInfo, routing);
+            }
+            MW_show_log(QObject::tr("The subscription provider rejected the device HWID. Check the device binding or enable HWID for this subscription."));
+            return false;
+        }
         if (!resp.error.isEmpty()) {
             MW_show_log("<<<<<<<< " + QObject::tr("Requesting subscription %1 error: %2").arg(name, resp.error + "\n" + resp.data));
             return false;

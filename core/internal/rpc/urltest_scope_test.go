@@ -5,12 +5,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"qThroneCore/gen"
+	"qThroneCore/internal/probe"
 	"sync/atomic"
 	"testing"
 	"time"
 )
 
 func TestURLRPCDeadlineDoesNotCancelSiblingOrNextTest(t *testing.T) {
+	probe.URLReporter.Results()
 	var calls atomic.Int32
 	endpoint := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
@@ -48,6 +50,9 @@ func TestURLRPCDeadlineDoesNotCancelSiblingOrNextTest(t *testing.T) {
 		if err != nil || len(result.Results) != 1 || result.Results[0].GetError() != "" {
 			t.Fatalf("sibling/next RPC failed: %v %v", result, err)
 		}
+	}
+	if results := probe.URLReporter.Results(); len(results) != 0 {
+		t.Fatal("parallel RPC results escaped into the shared result queue")
 	}
 	select {
 	case <-finished:

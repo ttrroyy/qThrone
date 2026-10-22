@@ -4,7 +4,7 @@
 
 Клиент для Windows, Linux и macOS на ядрах [sing-box](https://github.com/SagerNet/sing-box) и [Xray](https://github.com/XTLS/Xray-core). Форк [Throne](https://github.com/throneproj/Throne).
 
-Помимо стандартных протоколов sing-box и Xray поддерживает qWDTT, WDTT Plus, CSQTT 2.5.0 Legacy, olcRTC, OpenFlux, DNSTT, VayDNS, SlipStream, MasterDNS и S3 Bypass - с подписками, тестом пинга и раздельной маршрутизацией.
+Помимо стандартных протоколов sing-box и Xray поддерживает qWDTT, WDTT Plus, CSQTT 2.5.0 Legacy, SSTP, olcRTC, OpenFlux, DNSTT, VayDNS, SlipStream, MasterDNS и S3 Bypass - с подписками, тестом пинга и раздельной маршрутизацией.
 
 <p align="center">
   <img src="docs/screenshots/screenshot-main.png" width="800" alt="Главное окно qThrone с профилями разных протоколов">
@@ -34,7 +34,7 @@
 |---|---|
 | Стандартные | VLESS, VMess, Trojan, Shadowsocks, SOCKS, HTTP(S), SSH |
 | QUIC | Hysteria, Hysteria2, TUIC, MASQUE |
-| VPN | WireGuard, AmneziaWG, OpenVPN, OpenConnect |
+| VPN | WireGuard, AmneziaWG, OpenVPN, OpenConnect, SSTP |
 | Другие прокси | ShadowTLS, NaïveProxy, AnyTLS, Mieru, Snell, Juicity, TrustTunnel |
 | VK и WebRTC | qWDTT, WDTT Plus, CSQTT 2.5.0 Legacy, olcRTC, OpenFlux |
 | DNS-туннели | DNSTT, VayDNS, SlipStream, MasterDNS |

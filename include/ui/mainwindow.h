@@ -223,6 +223,7 @@ public:
     class DialogAutoSelector *m_autoSelectorDialog = nullptr;
 
     void setDownloadReport(const DownloadProgressReport& report, bool show);
+    void showNotice(const QString &message, int durationMs = 5000);
 
     void showIpListsDialog(int selectListId = -1);
 

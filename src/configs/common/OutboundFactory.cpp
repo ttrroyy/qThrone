@@ -32,6 +32,7 @@
 #include "include/configs/outbounds/olcrtc.h"
 #include "include/configs/outbounds/dnstunnel.h"
 #include "include/configs/outbounds/s3bypass.h"
+#include "include/configs/outbounds/sstp.h"
 #include "include/configs/outbounds/naive.h"
 #include "include/configs/outbounds/direct.h"
 
@@ -46,6 +47,7 @@ namespace Configs
         if (type == "olcrtc") return new olcrtc();
         if (type == "dnstt" || type == "vaydns" || type == "slipstream" || type == "masterdns") return new dnstunnel(type);
         if (type == "s3bypass") return new s3bypass();
+        if (type == "sstp") return new sstp();
         if (type == "socks") return new socks();
         if (type == "http") return new http();
         if (type == "shadowsocks") return new shadowsocks();

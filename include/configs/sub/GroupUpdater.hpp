@@ -17,6 +17,8 @@ namespace Subscription {
     struct RequestIdentity {
         QString userAgent;
         bool sendHwid = false;
+        bool hwidCookie = false;
+        bool allowHwidRetry = true;
         DeviceDetails device;
         Configs::subTlsVersion tlsVersion = Configs::subTlsVersion::automatic;
         Configs::subHttpVersion httpVersion = Configs::subHttpVersion::automatic;
@@ -24,6 +26,7 @@ namespace Subscription {
 
     // The global subscription settings under the group's overrides; nullptr resolves the globals alone.
     RequestIdentity ResolveIdentity(const Configs::Group *group);
+    bool RequiresHwid(const QByteArray &body);
     QJsonObject PreserveRelaySettings(const QString &type, QJsonObject incoming, const QList<QJsonObject> &previous);
 
     // Jobs run one at a time on a background worker, in FIFO order.

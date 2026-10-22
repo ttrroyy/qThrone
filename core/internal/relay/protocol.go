@@ -24,12 +24,13 @@ type Event struct {
 	Value any    `json:"value,omitempty"`
 }
 type protocol struct {
-	input    *bufio.Scanner
-	output   *json.Encoder
-	mu       sync.Mutex
-	secrets  []string
-	ctx      context.Context
-	commands chan string
+	vkBrowserUsed bool
+	input         *bufio.Scanner
+	output        *json.Encoder
+	mu            sync.Mutex
+	secrets       []string
+	ctx           context.Context
+	commands      chan string
 }
 
 func (p *protocol) emit(kind, text string, value any) {

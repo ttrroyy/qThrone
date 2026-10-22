@@ -16,6 +16,7 @@
 #include "include/ui/profile/edit_olcrtc.h"
 #include "include/ui/profile/edit_dnstunnel.h"
 #include "include/ui/profile/edit_s3bypass.h"
+#include "include/ui/profile/edit_sstp.h"
 #include "include/configs/outbounds/native.h"
 #include "include/ui/profile/edit_http.h"
 #include "include/ui/profile/edit_hysteria.h"
@@ -70,6 +71,7 @@ EditorFactory editorFactory(const QString &type) {
         {"slipstream", makeEditor<EditDnsTunnel>},
         {"masterdns", makeEditor<EditDnsTunnel>},
         {"s3bypass", makeEditor<EditS3Bypass>},
+        {"sstp", makeEditor<EditSSTP>},
         {"socks", makeEditor<EditSocks>},
         {"http", makeEditor<EditHttp>},
         {"shadowsocks", makeEditor<EditShadowSocks>},
@@ -222,7 +224,7 @@ void DialogEditProfile::setupTypeList() {
     const auto addType = [this](const QString &t) {
         ui->type->addItem(t == "qwdtt" ? QStringLiteral("qWDTT") : t == "csqtt" ? QStringLiteral("CSQTT") : t == "wdttplus" ? QStringLiteral("WDTT Plus") : Configs::dataManager->profilesRepo->NewProfile(t)->outbound->DisplayType(), t);
     };
-    for (const auto *t: {"qwdtt", "csqtt", "wdttplus", "openflux", "olcrtc", "masterdns", "vaydns", "dnstt", "slipstream", "s3bypass", "autoselector", "socks", "http", "shadowsocks", "trojan", "vmess", "vless", "xrayvless",
+    for (const auto *t: {"qwdtt", "csqtt", "wdttplus", "openflux", "olcrtc", "masterdns", "vaydns", "dnstt", "slipstream", "s3bypass", "sstp", "autoselector", "socks", "http", "shadowsocks", "trojan", "vmess", "vless", "xrayvless",
                          "hysteria", "tuic", "juicity", "naive", "trusttunnel", "anytls", "mieru", "snell",
                          "shadowtls", "wireguard", "masque", "openvpn", "openconnect", "tailscale", "ssh", "direct"}) {
         addType(t);

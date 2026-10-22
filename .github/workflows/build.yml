@@ -51,6 +51,19 @@ jobs:
         run: |
           go test -race ./...
           go vet ./...
+      - name: Test SSTP userspace client
+        shell: bash
+        working-directory: sstp
+        run: |
+          go test -race ./...
+          go vet ./...
+      - name: Test YAML anchors and concurrent-test ownership
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          c++ -std=c++20 -I. script/test_yaml_anchors.cpp -o "$RUNNER_TEMP/test-yaml-anchors"
+          "$RUNNER_TEMP/test-yaml-anchors"
+          c++ -std=c++20 -pthread -I. script/test_test_session_gate.cpp -o "$RUNNER_TEMP/test-session-gate"
+          "$RUNNER_TEMP/test-session-gate"
       - name: Test updater archive validation
         shell: bash
         working-directory: updater
@@ -136,7 +149,7 @@ jobs:
         uses: actions/cache@v6.1.0
         with:
           path: artifacts.tgz
-          key: CommonCache-${{ matrix.cross_os }}-${{ matrix.cross_arch }}-${{ hashFiles('script/build_go.sh', 'script/build_openflux.sh', 'script/openflux/**', 'script/build_olcrtc.sh', 'script/olcrtc/**', 'script/build_dnstunnels.sh', 'script/build_wdttplus.sh', 'script/dnstun/**', 'script/masterdns/**', 'script/s3bypass/**', 'script/fetch_pinned_source.py', 'transport-sources.lock.json', 'core/**', 'qwdtt/**') }}-${{ matrix.go_version }}
+          key: CommonCache-${{ matrix.cross_os }}-${{ matrix.cross_arch }}-${{ hashFiles('script/build_go.sh', 'script/build_openflux.sh', 'script/openflux/**', 'script/build_olcrtc.sh', 'script/olcrtc/**', 'script/build_dnstunnels.sh', 'script/build_wdttplus.sh', 'script/dnstun/**', 'script/masterdns/**', 'script/s3bypass/**', 'script/fetch_pinned_source.py', 'transport-sources.lock.json', 'core/**', 'qwdtt/**', 'sstp/**') }}-${{ matrix.go_version }}
       - name: Install Golang
         if: steps.cache-common.outputs.cache-hit != 'true'
         uses: actions/setup-go@v7.0.0
@@ -580,7 +593,7 @@ jobs:
           pacman -U --noconfirm ./*.pkg.tar.zst
           namcap ./*.pkg.tar.zst > namcap.log
           desktop-file-validate /usr/share/applications/qThrone.desktop
-          for binary in qThrone qThroneCore qThroneUpdater qwdtt olcrtc openflux csqtt-transport dnstun masterdns s3bypass slipstream-client wdttplus-client; do
+          for binary in qThrone qThroneCore qThroneUpdater qwdtt olcrtc openflux csqtt-transport dnstun masterdns s3bypass slipstream-client wdttplus-client sstp-client; do
             ldd "/usr/lib/qthrone/$binary" >> dependencies.log 2>&1 || true
           done
           find /usr/lib/qthrone/usr/plugins -name '*.so' -exec ldd '{}' \; >> dependencies.log 2>&1
@@ -648,6 +661,14 @@ jobs:
           name: Deployment-${{ github.sha }}
           path: deployment
           compression-level: 0
+      - name: Promote verified release commit to stable
+        if: github.event.inputs.publish == 'r'
+        run: |
+          set -euo pipefail
+          if [ "$(git rev-parse --is-shallow-repository)" = true ]; then git fetch --unshallow origin; else git fetch origin; fi
+          test "$(git rev-parse origin/dev)" = "$GITHUB_SHA" || { echo "dev advanced during this build; refusing to promote untested changes"; exit 1; }
+          git merge-base --is-ancestor origin/stable "$GITHUB_SHA"
+          git push origin "$GITHUB_SHA:refs/heads/stable"
       - name: Publish release
         if: github.event.inputs.publish == 'p' || github.event.inputs.publish == 'r'
         env:

@@ -1,0 +1,3 @@
+SSTP client copied from ttrroyy/qThroneMobile
+Commit: a54e3e66638db3a087c3a46696c65be387f86d2e
+Desktop integration: src/configs/outbounds/sstp.cpp

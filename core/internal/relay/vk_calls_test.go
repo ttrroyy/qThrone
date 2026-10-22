@@ -2,6 +2,7 @@ package relay
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"github.com/zalando/go-keyring"
 	"io"
@@ -11,6 +12,19 @@ import (
 	"testing"
 	"time"
 )
+
+func TestVKTokenDoesNotOpenBrowserAgainAfterConfirmation(t *testing.T) {
+	keyring.MockInit()
+	dir := t.TempDir()
+	t.Setenv("APPDATA", dir)
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("HOME", dir)
+	p := &protocol{ctx: context.Background(), vkBrowserUsed: true}
+	a := account{}
+	if err := p.tokenForCalls(&a); err == nil || !strings.Contains(err.Error(), "Повторное окно") {
+		t.Fatalf("expected a bounded authorization error, got %v", err)
+	}
+}
 
 func TestCallsTokenReuseAndHTTPFallback(t *testing.T) {
 	now := time.Now().Unix()

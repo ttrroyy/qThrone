@@ -321,6 +321,10 @@ set(PROJECT_SOURCES
         src/configs/outbounds/olcrtc.cpp
         src/configs/outbounds/dnstunnel.cpp
         include/configs/outbounds/dnstunnel.h
+        src/configs/outbounds/sstp.cpp
+        include/configs/outbounds/sstp.h
+        src/ui/profile/edit_sstp.cpp
+        include/ui/profile/edit_sstp.h
         src/configs/outbounds/s3bypass.cpp
         include/configs/outbounds/s3bypass.h
         src/configs/outbounds/native.cpp

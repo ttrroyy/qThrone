@@ -28,6 +28,11 @@ private:
         const int width=qMax(120,qMin(360,parentWidget()->width()-24));
         document()->setTextWidth(width-28);
         const int height=qCeil(document()->size().height())+28;
-        setGeometry(parentWidget()->width()-width-12,qMax(12,parentWidget()->height()-height-12),width,height);
+        int bottom = 12;
+        if (objectName() != "restartNotice") {
+            const auto *restart = parentWidget()->findChild<QTextBrowser *>("restartNotice");
+            if (restart && restart->isVisible()) bottom += restart->height() + 8;
+        }
+        setGeometry(parentWidget()->width()-width-12,qMax(12,parentWidget()->height()-height-bottom),width,height);
     }
 };

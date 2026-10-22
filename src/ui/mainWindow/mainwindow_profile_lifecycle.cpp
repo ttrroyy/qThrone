@@ -137,9 +137,7 @@ bool MainWindow::handleXrayGeoAssetError(const QString& error, const QString& co
                         MessageBoxWarning(tr("Geo asset download failed"), dlErr);
                     } else {
                         MW_show_log(tr("Downloaded Xray geo asset files."));
-                        QMessageBox::information(this, tr("Geo assets installed"),
-                            tr("Geo data files were downloaded successfully.\n\n"
-                               "Please try again."));
+                        showNotice(tr("Geo data files were downloaded successfully. Please try again."));
                     }
                 });
             });

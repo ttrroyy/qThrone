@@ -65,6 +65,7 @@ void DataViewHtmlGenerator::setSpeedtestProgress(const QString &profileName, con
 
 void DataViewHtmlGenerator::seedLatencyTest(LatencyTestPanelState::Kind kind, int totalProfiles) {
     QMutexLocker lk(&mu_);
+    if (latencyTest_.visible) { latencyTest_.totalProfiles += totalProfiles; return; }
     testProgress.store(0);
     latencyTest_.visible = true;
     latencyTest_.kind = kind;

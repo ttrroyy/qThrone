@@ -96,6 +96,7 @@ namespace Subscription {
             {"slipstream", {}, {"slipstream"}, {}},
             {"masterdns", {}, {"masterdns"}, {}},
             {"s3bypass", {}, {"s3bypass"}, {}},
+            {"sstp", {"sstp://"}, {"sstp"}, {}},
             {"socks", {"socks5://", "socks4://", "socks4a://", "socks://"}, {"socks"}, {"socks5"}},
             {"http", {"http://", "https://"}, {"http"}, {"http"}},
             {"shadowsocks", {"ss://"}, {"shadowsocks"}, {"ss"}},

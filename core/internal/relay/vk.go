@@ -173,6 +173,10 @@ func vkLoginComplete(location string, cookies []browserCookie) bool {
 		return false
 	}
 	address, _ := url.Parse(location)
+	path := strings.ToLower(address.Path)
+	if path == "/login" || path == "/login.php" || path == "/auth" || path == "/authorize" || address.Query().Get("act") == "login" {
+		return false
+	}
 	text := strings.ToLower(location)
 	if (address.Hostname() == "id.vk.com" || address.Hostname() == "id.vk.ru") && (strings.Contains(text, "authorize") || strings.Contains(text, "login") || strings.Contains(text, "auth")) {
 		return false
@@ -694,6 +698,10 @@ func obtainVKToken(a *account, now int64, refresh, browser func() error) error {
 
 func (p *protocol) tokenForCalls(a *account) error {
 	err := obtainVKToken(a, time.Now().Unix(), func() error { return refreshToken(p.ctx, a) }, func() error {
+		if p.vkBrowserUsed {
+			return fmt.Errorf("VK отклонил доступ после подтверждения. Повторное окно входа не открыто; проверьте доступ аккаунта или используйте ручные хеши")
+		}
+		p.vkBrowserUsed = true
 		if err := p.confirmVKBrowser(); err != nil {
 			return err
 		}

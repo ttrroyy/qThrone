@@ -3,6 +3,8 @@
 #include <QString>
 #include <QSysInfo>
 #include <QFile>
+#include <QSettings>
+#include <QUuid>
 #include <vector>   
 #include <string>
 
@@ -177,6 +179,15 @@ DeviceDetails GetDeviceDetails() {
         d.osVersion = QSysInfo::productVersion();
         d.model = QSysInfo::prettyProductName();
     #endif
+        if (d.hwid.trimmed().isEmpty()) {
+            QSettings local("qThrone", "DeviceIdentity");
+            d.hwid = local.value("hwid").toString();
+            if (d.hwid.isEmpty()) {
+                d.hwid = QUuid::createUuid().toString(QUuid::WithoutBraces);
+                local.setValue("hwid", d.hwid);
+                local.sync();
+            }
+        }
         return d;
     }();
     return details;

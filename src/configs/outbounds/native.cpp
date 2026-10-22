@@ -6,11 +6,12 @@
 #include "include/configs/outbounds/olcrtc.h"
 #include "include/configs/outbounds/dnstunnel.h"
 #include "include/configs/outbounds/s3bypass.h"
+#include "include/configs/outbounds/sstp.h"
 #include <QSet>
 
 namespace Configs {
 bool IsNativeTransport(const QString &type) {
-    static const QSet<QString> types{"qwdtt", "csqtt", "wdttplus", "openflux", "olcrtc", "dnstt", "vaydns", "slipstream", "masterdns", "s3bypass"};
+    static const QSet<QString> types{"qwdtt", "csqtt", "wdttplus", "openflux", "olcrtc", "dnstt", "vaydns", "slipstream", "masterdns", "s3bypass", "sstp"};
     return types.contains(type);
 }
 
@@ -32,6 +33,7 @@ QString PrepareNativeTransport(extracore *outbound) {
     if (auto *o = dynamic_cast<olcrtc *>(outbound)) return o->Prepare();
     if (auto *o = dynamic_cast<dnstunnel *>(outbound)) return o->Prepare();
     if (auto *o = dynamic_cast<s3bypass *>(outbound)) return o->Prepare();
+    if (auto *o = dynamic_cast<sstp *>(outbound)) return o->Prepare();
     return {};
 }
 }

@@ -620,8 +620,7 @@ void DialogBasicSettings::downloadXrayGeoAsset(const QString &url, const QString
         runOnUiThread([err, fileName] {
             if (err.isEmpty()) {
                 MW_show_log(QObject::tr("Downloaded Xray geo asset: %1").arg(fileName));
-                QMessageBox::information(GetMainWindow(), QObject::tr("Download geo asset"),
-                    QObject::tr("%1 was downloaded successfully.").arg(fileName));
+                GetMainWindow()->showNotice(QObject::tr("%1 was downloaded successfully.").arg(fileName));
             } else {
                 MessageBoxWarning(QObject::tr("Download geo asset"),
                     QObject::tr("Failed to download %1:\n%2").arg(fileName, err));
