@@ -1,5 +1,7 @@
 # qThrone
 
+![GitHub Downloads](https://img.shields.io/github/downloads/ttrroyy/qThrone/total?label=downloads-total&color=brightgreen)
+
 Клиент для Windows, Linux и macOS на ядрах [sing-box](https://github.com/SagerNet/sing-box) и [Xray](https://github.com/XTLS/Xray-core). Форк [Throne](https://github.com/throneproj/Throne).
 
 Помимо стандартных протоколов sing-box и Xray поддерживает qWDTT, WDTT Plus, CSQTT 2.5.0 Legacy, olcRTC, OpenFlux, DNSTT, VayDNS, SlipStream, MasterDNS и S3 Bypass - с подписками, тестом пинга и раздельной маршрутизацией.
