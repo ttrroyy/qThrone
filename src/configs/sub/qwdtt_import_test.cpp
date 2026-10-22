@@ -1130,7 +1130,7 @@ proxies:
         plus->hashSource = "auto";
         cs->hashSource = "auto_js"; cs->vkAnonPath = "auto_js";
         ownToken->hashSource = "auto_js"; ownToken->vkAccessToken = "profile-token";
-        for (const auto &item : {plusProfile, csProfile, ownTokenProfile}) Configs::dataManager->profilesRepo->AddProfile(item, fixtureGroups.first());
+        for (auto item : {plusProfile, csProfile, ownTokenProfile}) Configs::dataManager->profilesRepo->AddProfile(item, fixtureGroups.first());
         check(ResetQWDTTHashSources(), "unlink saves reset hash sources");
         check(dynamic_cast<Configs::qwdtt *>(profile->outbound.get())->hashSource == "manual", "unlink resets existing automatic profile");
         check(plus->hashSource == "manual" && cs->hashSource == "manual" && cs->vkAnonPath == "vkcalls", "unlink resets all shared relay modes even in incomplete editable profiles");
