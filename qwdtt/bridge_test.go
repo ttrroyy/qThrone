@@ -27,7 +27,7 @@ func testBridge(t *testing.T, dial bridgeDial) string {
 		t.Fatal(err)
 	}
 	done := make(chan error, 1)
-	go func() { done <- serveBridgeSOCKS(ctx, ln, dial, "user", "secret") }()
+	go func() { done <- serveBridgeSOCKS(ctx, ln, dial, nil, "user", "secret") }()
 	t.Cleanup(func() {
 		cancel()
 		select {
@@ -394,4 +394,64 @@ func TestBackgroundBridgeUsesOneWorkerGroup(t *testing.T) {
 		t.Fatal("speed test lost the profile's worker count")
 	}
 
+}
+
+// A shared tunnel port keeps one source port for every relay and accepts
+// replies from addresses the client never sent to, as Steam's relay pings need.
+func TestSOCKSUDPSharedPortAcceptsAnyReply(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	ln, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	listen := func() (net.PacketConn, error) { return net.ListenPacket("udp4", "127.0.0.1:0") }
+	done := make(chan error, 1)
+	go func() { done <- serveBridgeSOCKS(ctx, ln, (&net.Dialer{}).DialContext, listen, "user", "secret") }()
+	defer func() { cancel(); <-done }()
+	third, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer third.Close()
+	sources := make(chan string, 2)
+	var targets []string
+	for range 2 {
+		server, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer server.Close()
+		targets = append(targets, server.LocalAddr().String())
+		go func() {
+			b := make([]byte, 2048)
+			n, addr, e := server.ReadFromUDP(b)
+			if e == nil {
+				sources <- addr.String()
+				_, _ = third.WriteToUDP(b[:n], addr)
+			}
+		}()
+	}
+	control := testControl(t, ln.Addr().String(), "secret")
+	relay, err := net.Dial("udp", testRequest(t, control, 3, "0.0.0.0:0"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer relay.Close()
+	_ = relay.SetDeadline(time.Now().Add(5 * time.Second))
+	for _, target := range targets {
+		frame := append([]byte{0, 0, 0}, encodeSOCKSAddress(target)...)
+		_, _ = relay.Write(append(frame, "ping"...))
+	}
+	if a, b := <-sources, <-sources; a != b {
+		t.Fatalf("relays saw different source ports: %s and %s", a, b)
+	}
+	want := append([]byte{0, 0, 0}, encodeSOCKSAddress(third.LocalAddr().String())...)
+	want = append(want, "ping"...)
+	b := make([]byte, 2048)
+	for range 2 {
+		n, err := relay.Read(b)
+		if err != nil || !bytes.Equal(b[:n], want) {
+			t.Fatalf("reply from an unsent address: %v %q", err, b[:n])
+		}
+	}
 }

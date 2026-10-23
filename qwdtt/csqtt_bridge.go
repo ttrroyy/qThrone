@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -204,6 +205,9 @@ func runCSQTTBridge(path string) error {
 		device.Close()
 		return err
 	}
+	// Loopback UDP drops on a full buffer; the Android TUN path never does.
+	_ = socket.SetReadBuffer(socketBufSize)
+	_ = socket.SetWriteBuffer(socketBufSize)
 	relay := make(chan struct{})
 	go func() { csqtt.RelayIP(ctx, device, socket); close(relay); cancel() }()
 	defer func() { cancel(); <-relay }()
@@ -221,7 +225,10 @@ func runCSQTTBridge(path string) error {
 		listener.Close()
 	}()
 	fmt.Println("[CSQTT] SOCKS bridge ready")
-	err = serveBridgeSOCKS(ctx, listener, csqttTunnelDial(network.DialContext, dns), c.SOCKSUser, c.SOCKSPass)
+	listen := func() (net.PacketConn, error) {
+		return network.ListenUDPAddrPort(netip.AddrPortFrom(tunnel.Address, 0))
+	}
+	err = serveBridgeSOCKS(ctx, listener, csqttTunnelDial(network.DialContext, dns), listen, c.SOCKSUser, c.SOCKSPass)
 	if ctx.Err() != nil {
 		return nil
 	}

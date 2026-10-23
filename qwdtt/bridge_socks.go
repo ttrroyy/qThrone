@@ -8,12 +8,16 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/netip"
 	"strconv"
 	"sync"
 	"time"
 )
 
 type bridgeDial func(context.Context, string, string) (net.Conn, error)
+
+// bridgeListen opens one unconnected tunnel UDP socket for a whole association.
+type bridgeListen func() (net.PacketConn, error)
 
 func readSOCKSAddress(r io.Reader) (string, error) {
 	var t [1]byte
@@ -151,7 +155,7 @@ func socksHandshake(c net.Conn, user, pass string) error {
 	return nil
 }
 
-func serveBridgeSOCKS(ctx context.Context, listener net.Listener, dial bridgeDial, user, pass string) error {
+func serveBridgeSOCKS(ctx context.Context, listener net.Listener, dial bridgeDial, listen bridgeListen, user, pass string) error {
 	var wg sync.WaitGroup
 	stop := context.AfterFunc(ctx, func() { _ = listener.Close() })
 	defer stop()
@@ -213,7 +217,7 @@ func serveBridgeSOCKS(ctx context.Context, listener net.Listener, dial bridgeDia
 				_ = upstream.Close()
 				<-finished
 			case 3:
-				_ = socksUDPAssociation(ctx, c, dial)
+				_ = socksUDPAssociation(ctx, c, dial, listen)
 			default:
 				_ = socksReply(c, 7, "")
 			}
@@ -223,7 +227,7 @@ func serveBridgeSOCKS(ctx context.Context, listener net.Listener, dial bridgeDia
 
 // Each association belongs to its authenticated TCP control connection. All
 // destination sockets are created by the tunnel's netstack, never by the host.
-func socksUDPAssociation(parent context.Context, control net.Conn, dial bridgeDial) error {
+func socksUDPAssociation(parent context.Context, control net.Conn, dial bridgeDial, listen bridgeListen) error {
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
 	udp, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4(127, 0, 0, 1)})
@@ -232,7 +236,24 @@ func socksUDPAssociation(parent context.Context, control net.Conn, dial bridgeDi
 		return err
 	}
 	defer udp.Close()
-	stop := context.AfterFunc(ctx, func() { _ = udp.Close() })
+	_ = udp.SetReadBuffer(socketBufSize)
+	_ = udp.SetWriteBuffer(socketBufSize)
+	// With a listener, IP destinations share one tunnel port that accepts replies
+	// from any address, as a TUN does: games such as Steam ping many relays at once.
+	var shared net.PacketConn
+	if listen != nil {
+		if shared, err = listen(); err != nil {
+			_ = socksReply(control, 1, "")
+			return err
+		}
+		defer shared.Close()
+	}
+	stop := context.AfterFunc(ctx, func() {
+		_ = udp.Close()
+		if shared != nil {
+			_ = shared.Close()
+		}
+	})
 	defer stop()
 	if err = socksReply(control, 0, udp.LocalAddr().String()); err != nil {
 		return err
@@ -268,6 +289,23 @@ func socksUDPAssociation(parent context.Context, control net.Conn, dial bridgeDi
 		}
 		if client == nil {
 			client = source
+			if shared != nil {
+				wg.Add(1)
+				go func(replyTo *net.UDPAddr) {
+					defer wg.Done()
+					response := make([]byte, 65535)
+					for {
+						n, from, e := shared.ReadFrom(response)
+						if e != nil {
+							return
+						}
+						header := append([]byte{0, 0, 0}, encodeSOCKSAddress(from.String())...)
+						if _, e = udp.WriteToUDP(append(header, response[:n]...), replyTo); e != nil {
+							return
+						}
+					}
+				}(client)
+			}
 		}
 		if source.String() != client.String() {
 			continue
@@ -278,6 +316,10 @@ func socksUDPAssociation(parent context.Context, control net.Conn, dial bridgeDi
 			continue
 		}
 		payload := r.b
+		if target, e := netip.ParseAddrPort(destination); e == nil && shared != nil {
+			_, _ = shared.WriteTo(payload, net.UDPAddrFromAddrPort(target))
+			continue
+		}
 		mu.Lock()
 		conn := flows[destination]
 		if conn == nil && len(flows) < 256 {
@@ -338,5 +380,5 @@ func runBridgeSOCKS(ctx context.Context, address string, dial bridgeDial, user, 
 	}
 	defer listener.Close()
 	log.Printf("[qWDTT] SOCKS bridge ready: %s (TCP/UDP)", address)
-	return serveBridgeSOCKS(ctx, listener, dial, user, pass)
+	return serveBridgeSOCKS(ctx, listener, dial, nil, user, pass)
 }
