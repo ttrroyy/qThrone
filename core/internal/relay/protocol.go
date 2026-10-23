@@ -17,6 +17,7 @@ type Request struct {
 	Value     string            `json:"value"`
 	Server    map[string]string `json:"server"`
 	Count     int               `json:"count"`
+	Hashes    []string          `json:"hashes"`
 }
 type Event struct {
 	Type  string `json:"type"`
@@ -138,6 +139,8 @@ func Run(input io.Reader, output io.Writer) (err error) {
 		err = p.login(r)
 	case "vk-hashes":
 		err = p.hashes(r)
+	case "vk-hashes-delete":
+		err = p.deleteHashes(r)
 	case "vk-calls-token":
 		err = p.callsToken()
 	case "wdttplus-bootstrap":

@@ -24,14 +24,16 @@ import (
 const accountKey = "account"
 
 type account struct {
-	Token      string          `json:"token"`
-	User       string          `json:"user"`
-	Name       string          `json:"name"`
-	Expires    int64           `json:"expires"`
-	Hashes     []string        `json:"hashes"`
-	Cookies    []browserCookie `json:"cookies"`
-	UserAgent  string          `json:"userAgent"`
-	RetryAfter int64           `json:"retryAfter"`
+	Token   string   `json:"token"`
+	User    string   `json:"user"`
+	Name    string   `json:"name"`
+	Expires int64    `json:"expires"`
+	Hashes  []string `json:"hashes"`
+	// Call ids of the hashes this client created, so deleting a hash also ends its VK call.
+	CallIDs    map[string]string `json:"callIds,omitempty"`
+	Cookies    []browserCookie   `json:"cookies"`
+	UserAgent  string            `json:"userAgent"`
+	RetryAfter int64             `json:"retryAfter"`
 }
 type browserCookie struct {
 	Name     string  `json:"name"`
@@ -560,9 +562,13 @@ func (p *protocol) login(r Request) error {
 type vkError struct{ Code int }
 
 func (e vkError) Error() string { return fmt.Sprintf("VK: код %d", e.Code) }
-func vkAPI(ctx context.Context, token, method string) (json.RawMessage, error) {
+func vkAPI(ctx context.Context, token, method string, params ...string) (json.RawMessage, error) {
 	client := &http.Client{Timeout: 20 * time.Second}
-	request, e := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.vk.ru/method/"+method+"?"+url.Values{"access_token": {token}, "v": {"5.199"}}.Encode(), nil)
+	query := url.Values{"access_token": {token}, "v": {"5.199"}}
+	for i := 0; i+1 < len(params); i += 2 {
+		query.Set(params[i], params[i+1])
+	}
+	request, e := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.vk.ru/method/"+method+"?"+query.Encode(), nil)
 	if e != nil {
 		return nil, e
 	}
@@ -611,8 +617,8 @@ func (p *protocol) confirmVKBrowser() error {
 }
 
 func (p *protocol) hashes(r Request) error {
-	if r.Count < 1 || r.Count > 6 {
-		return fmt.Errorf("Количество хешей: от 1 до 6")
+	if r.Count < 1 || r.Count > maxAccountHashes {
+		return fmt.Errorf("Количество хешей: от 1 до %d", maxAccountHashes)
 	}
 	unlock, e := vaultLock(p.ctx, "account")
 	if e != nil {
@@ -672,6 +678,7 @@ func (p *protocol) hashes(r Request) error {
 		}
 		var call struct {
 			Link string `json:"join_link"`
+			ID   string `json:"call_id"`
 		}
 		if json.Unmarshal(result, &call) != nil {
 			return fmt.Errorf("VK не вернул ссылку звонка")
@@ -685,6 +692,12 @@ func (p *protocol) hashes(r Request) error {
 			return fmt.Errorf("Некорректный хеш VK")
 		}
 		a.Hashes = append(a.Hashes, hash)
+		if call.ID != "" {
+			if a.CallIDs == nil {
+				a.CallIDs = map[string]string{}
+			}
+			a.CallIDs[hash] = call.ID
+		}
 		created++
 		if e = saveAccount(a); e != nil {
 			return e
@@ -692,6 +705,57 @@ func (p *protocol) hashes(r Request) error {
 		p.emit("progress", fmt.Sprintf("Создано хешей: %d/%d", len(a.Hashes), r.Count), nil)
 	}
 	p.emit("result", "", a.Hashes[:r.Count])
+	return nil
+}
+
+const maxAccountHashes = 30
+
+// Removes hashes from the account and ends the VK calls behind them. A call VK refuses to end, or one
+// created before call ids were kept, is still removed here; the result counts those left running.
+func (p *protocol) deleteHashes(r Request) error {
+	unlock, e := vaultLock(p.ctx, "account")
+	if e != nil {
+		return e
+	}
+	defer unlock()
+	a, e := readAccount()
+	if e != nil {
+		return fmt.Errorf("Сначала привяжите аккаунт VK")
+	}
+	drop := map[string]bool{}
+	for _, hash := range r.Hashes {
+		drop[hash] = true
+	}
+	unfinished := 0
+	tokenReady := false
+	var kept []string
+	for _, hash := range a.Hashes {
+		if !drop[hash] {
+			kept = append(kept, hash)
+			continue
+		}
+		id := a.CallIDs[hash]
+		delete(a.CallIDs, hash)
+		if id == "" {
+			unfinished++
+			continue
+		}
+		if !tokenReady {
+			tokenReady = p.tokenForCalls(&a) == nil
+		}
+		if !tokenReady {
+			unfinished++
+			continue
+		}
+		if _, err := vkAPI(p.ctx, a.Token, "calls.forceFinish", "call_id", id); err != nil {
+			unfinished++
+		}
+	}
+	a.Hashes = kept
+	if e = saveAccount(a); e != nil {
+		return e
+	}
+	p.emit("result", "", map[string]any{"hashes": a.Hashes, "unfinished": unfinished})
 	return nil
 }
 

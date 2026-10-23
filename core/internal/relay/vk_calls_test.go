@@ -98,3 +98,33 @@ func TestBootstrapUsesOnlyUnambiguousApprovedServer(t *testing.T) {
 		}
 	}
 }
+
+func TestDeletingHashesEndsTheirCalls(t *testing.T) {
+	keyring.MockInit()
+	dir := t.TempDir()
+	t.Setenv("APPDATA", dir)
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	t.Setenv("HOME", dir)
+	old := http.DefaultTransport
+	defer func() { http.DefaultTransport = old }()
+	var finished []string
+	http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path != "/method/calls.forceFinish" {
+			t.Fatal("unexpected request " + r.URL.String())
+		}
+		finished = append(finished, r.URL.Query().Get("call_id"))
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"response":1}`)), Header: make(http.Header)}, nil
+	})
+	if err := saveAccount(account{Token: "valid", Expires: time.Now().Add(time.Hour).Unix(), Hashes: []string{"keep_hash_123456789", "drop_hash_123456789", "old_hash_1234567890"},
+		CallIDs: map[string]string{"drop_hash_123456789": "call-1"}, Cookies: []browserCookie{{Name: "remixsid", Value: "session", Domain: ".vk.ru"}}}); err != nil {
+		t.Fatal(err)
+	}
+	var output bytes.Buffer
+	if err := Run(strings.NewReader(`{"operation":"vk-hashes-delete","hashes":["drop_hash_123456789","old_hash_1234567890"]}`+"\n"), &output); err != nil {
+		t.Fatal(err)
+	}
+	a, _ := readAccount()
+	if len(finished) != 1 || finished[0] != "call-1" || len(a.Hashes) != 1 || a.Hashes[0] != "keep_hash_123456789" || len(a.CallIDs) != 0 || !strings.Contains(output.String(), `"unfinished":1`) {
+		t.Fatalf("finished=%v hashes=%v output=%s", finished, a.Hashes, output.String())
+	}
+}

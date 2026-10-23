@@ -20,7 +20,11 @@
 #include <QDir>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFontDatabase>
 #include <QFormLayout>
+#include <QHBoxLayout>
+#include <QInputDialog>
+#include <QMouseEvent>
 #include <QGroupBox>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -655,6 +659,180 @@ class ServerEditor : public QDialog {
             connect(docker, &QCheckBox::toggled, this, [this] { updateDirty(); });
     }
 };
+
+// A press held on a row starts selection, as a long tap does on the phone.
+class LongPress : public QObject {
+  public:
+    LongPress(QWidget *target, std::function<void()> onLong, std::function<void()> onClick)
+        : QObject(target), onLong(std::move(onLong)), onClick(std::move(onClick)) {
+        timer.setSingleShot(true);
+        timer.setInterval(450);
+        connect(&timer, &QTimer::timeout, this, [this] { this->onLong(); });
+        target->installEventFilter(this);
+    }
+    bool eventFilter(QObject *, QEvent *event) override {
+        if (event->type() == QEvent::MouseButtonPress && static_cast<QMouseEvent *>(event)->button() == Qt::LeftButton)
+            timer.start();
+        if (event->type() == QEvent::MouseButtonRelease && timer.isActive()) {
+            timer.stop();
+            onClick();
+        }
+        return false;
+    }
+
+  private:
+    QTimer timer;
+    std::function<void()> onLong, onClick;
+};
+
+void ShowHashGenerator(QWidget *parent) {
+    constexpr int maxHashes = 30;
+    QDialog dialog(parent);
+    dialog.setWindowTitle("Генерация хешей");
+    dialog.resize(560, 440);
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *top = new QHBoxLayout;
+    layout->addLayout(top);
+    auto *hint = new QLabel(&dialog);
+    hint->setWordWrap(true);
+    top->addWidget(hint, 1);
+    auto *add = new QPushButton("+", &dialog);
+    add->setToolTip("Создать хеши");
+    add->setFixedWidth(40);
+    auto *selectAll = new QPushButton("Выбрать все", &dialog);
+    auto *removeSelected = new QPushButton("Удалить", &dialog);
+    top->addWidget(add);
+    top->addWidget(selectAll);
+    top->addWidget(removeSelected);
+    auto *list = new QListWidget(&dialog);
+    list->setSelectionMode(QAbstractItemView::NoSelection);
+    layout->addWidget(list, 1);
+    auto *status = new QLabel(&dialog);
+    status->setWordWrap(true);
+    layout->addWidget(status);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+
+    auto *task = new RelayTask(&dialog);
+    struct State {
+        QStringList hashes;
+        QSet<QString> checked;
+        bool selecting = false;
+        bool busy = false;
+    };
+    auto state = std::make_shared<State>();
+    auto rebuild = std::make_shared<std::function<void()>>();
+    // Every change ends by reading the account again, so a half-finished request still shows what VK created.
+    const auto reload = [=] {
+        task->start({{"operation", "vk-info"}}, [=](const QJsonObject &event) {
+            if (event["type"] == "result") {
+                state->hashes.clear();
+                for (const auto &hash : event["value"].toObject()["hashes"].toArray()) state->hashes << hash.toString();
+                for (const auto &hash : QSet<QString>(state->checked)) if (!state->hashes.contains(hash)) state->checked.remove(hash);
+                if (state->checked.isEmpty()) state->selecting = false;
+            }
+            if (event["type"] == "error") status->setText(event["text"].toString());
+            if (event["type"] == "finished") { state->busy = false; (*rebuild)(); }
+        });
+    };
+    const auto remove = [=, &dialog](const QStringList &hashes) {
+        const auto text = hashes.size() == 1 ? QStringLiteral("Удалить хеш и завершить его звонок в VK?")
+                                             : QString("Удалить выбранные хеши (%1) и завершить их звонки в VK?").arg(hashes.size());
+        if (QMessageBox::question(&dialog, "Удаление хешей", text) != QMessageBox::Yes) return;
+        state->busy = true;
+        (*rebuild)();
+        status->setText("Удаление…");
+        task->start({{"operation", "vk-hashes-delete"}, {"hashes", QJsonArray::fromStringList(hashes)}}, [=](const QJsonObject &event) {
+            if (event["type"] == "result") {
+                state->checked.clear();
+                const int unfinished = event["value"].toObject()["unfinished"].toInt();
+                status->setText(unfinished ? QString("Хеши удалены. Звонков, которые не удалось завершить в VK: %1").arg(unfinished) : QString("Хеши удалены"));
+            }
+            if (event["type"] == "error") status->setText(event["text"].toString());
+            if (event["type"] == "finished") reload();
+        });
+    };
+    *rebuild = [=] {
+        list->clear();
+        for (const auto &hash : state->hashes) {
+            auto *item = new QListWidgetItem(list);
+            auto *row = new QWidget(list);
+            auto *rowLayout = new QHBoxLayout(row);
+            rowLayout->setContentsMargins(6, 2, 6, 2);
+            auto *check = new QCheckBox(row);
+            check->setVisible(state->selecting);
+            check->setChecked(state->checked.contains(hash));
+            check->setAttribute(Qt::WA_TransparentForMouseEvents);
+            rowLayout->addWidget(check);
+            auto *label = new QLabel(hash, row);
+            label->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+            rowLayout->addWidget(label, 1);
+            auto *copy = new QPushButton("Копировать", row);
+            QObject::connect(copy, &QPushButton::clicked, row, [hash, status] {
+                QApplication::clipboard()->setText(hash);
+                status->setText("Хеш скопирован");
+            });
+            rowLayout->addWidget(copy);
+            auto *drop = new QPushButton("✕", row);
+            drop->setToolTip("Удалить хеш и завершить звонок в VK");
+            drop->setFixedWidth(32);
+            drop->setVisible(!state->selecting);
+            drop->setEnabled(!state->busy);
+            QObject::connect(drop, &QPushButton::clicked, row, [=] { remove({hash}); });
+            rowLayout->addWidget(drop);
+            new LongPress(row, [=] {
+                if (state->busy || state->selecting) return;
+                state->selecting = true;
+                state->checked = {hash};
+                QTimer::singleShot(0, list, [=] { (*rebuild)(); });
+            }, [=] {
+                if (!state->selecting) return;
+                if (!state->checked.remove(hash)) state->checked.insert(hash);
+                if (state->checked.isEmpty()) state->selecting = false;
+                QTimer::singleShot(0, list, [=] { (*rebuild)(); });
+            });
+            item->setSizeHint(row->sizeHint());
+            list->setItemWidget(item, row);
+        }
+        hint->setText(state->hashes.isEmpty() ? QStringLiteral("Хешей пока нет. Нажмите +, чтобы создать.")
+                      : state->selecting ? QString("Выбрано: %1").arg(state->checked.size())
+                                         : QString("Хешей: %1. Удерживайте хеш, чтобы выделить несколько.").arg(state->hashes.size()));
+        add->setVisible(!state->selecting);
+        add->setEnabled(!state->busy && state->hashes.size() < maxHashes);
+        selectAll->setVisible(state->selecting);
+        removeSelected->setVisible(state->selecting);
+        removeSelected->setEnabled(!state->busy && !state->checked.isEmpty());
+    };
+    QObject::connect(selectAll, &QPushButton::clicked, &dialog, [=] {
+        state->checked = QSet<QString>(state->hashes.begin(), state->hashes.end());
+        (*rebuild)();
+    });
+    QObject::connect(removeSelected, &QPushButton::clicked, &dialog, [=] {
+        QStringList chosen;
+        for (const auto &hash : state->hashes) if (state->checked.contains(hash)) chosen << hash;
+        remove(chosen);
+    });
+    QObject::connect(add, &QPushButton::clicked, &dialog, [=, &dialog] {
+        bool ok = false;
+        const int count = QInputDialog::getInt(&dialog, "Создать хеши", "Сколько хешей создать:", 1, 1,
+                                               qMin(6, maxHashes - static_cast<int>(state->hashes.size())), 1, &ok);
+        if (!ok) return;
+        state->busy = true;
+        (*rebuild)();
+        status->setText("Создание хешей…");
+        task->start({{"operation", "vk-hashes"}, {"count", static_cast<int>(state->hashes.size()) + count}}, [=](const QJsonObject &event) {
+            if (event["type"] == "progress" || event["type"] == "error") status->setText(event["text"].toString());
+            if (event["type"] == "result") status->setText("Хеши созданы");
+            if (event["type"] == "finished") reload();
+        });
+    });
+    state->busy = true;
+    (*rebuild)();
+    reload();
+    dialog.exec();
+    *rebuild = nullptr; // the row lambdas hold it
+}
 } // namespace
 
 bool SaveVKRelayPreviews(const QString &directory) {
@@ -827,38 +1005,25 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
     accountButtons->addWidget(link);
     accountButtons->addWidget(unlink);
     unlink->setEnabled(false);
-    auto *hashGroup = new QGroupBox("Хеши по умолчанию для новых профилей qWDTT", accountPage);
+    auto *hashGroup = new QGroupBox("Хеши VK", accountPage);
     accountLayout->addWidget(hashGroup);
     auto *hashForm = new QFormLayout(hashGroup);
     auto *source = new QComboBox(hashGroup);
     source->addItem("Вручную", "manual");
     source->addItem("Авто", "auto");
     autoEnabled(source, false);
-    hashForm->addRow("Источник хешей", source);
+    hashForm->addRow("Хеши новых профилей", source);
     auto *settings = Configs::dataManager->settingsRepo.get();
     source->setCurrentIndex(settings->qwdtt_hash_source == "auto" ? 1 : 0);
-    auto *count = new QSpinBox(hashGroup);
-    count->setRange(1, 4);
-    count->setValue(settings->qwdtt_auto_hash_count);
-    hashForm->addRow("Количество хешей", count);
-    auto *generate = new QPushButton("Создать хеши VK", hashGroup);
+    auto *generate = new QPushButton("Генерация хешей", hashGroup);
     hashForm->addRow(generate);
     generate->setEnabled(false);
-    const auto sourceVisibility = [source, generate, count, hashForm] {
-        const bool automatic = source->currentData() == "auto";
-        generate->setVisible(automatic);
-        count->setVisible(automatic);
-        hashForm->labelForField(count)->setVisible(automatic);
-    };
-    connect(source, &QComboBox::currentIndexChanged, this, sourceVisibility);
-    sourceVisibility();
-    const auto saveDefaults = [settings, source, count] {
+    connect(generate, &QPushButton::clicked, this, [this] { ShowHashGenerator(this); });
+    const auto saveDefaults = [settings, source] {
         settings->qwdtt_hash_source = source->currentData().toString();
-        settings->qwdtt_auto_hash_count = count->value();
         settings->Save();
     };
     connect(source, &QComboBox::currentIndexChanged, this, saveDefaults);
-    connect(count, &QSpinBox::valueChanged, this, saveDefaults);
     auto *status = new QLabel(this);
     status->setWordWrap(true);
     accountLayout->addStretch();
@@ -907,18 +1072,6 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
             }
             if (event["type"] == "error")
                 status->setText(event["text"].toString());
-        });
-    });
-    connect(generate, &QPushButton::clicked, this, [=] {
-        generate->setEnabled(false);
-        accountTask->start({{"operation", "vk-hashes"}, {"count", count->value()}}, [=](const QJsonObject &event) {
-            if (event["type"] == "result") {
-                status->setText("Хеши готовы");
-            }
-            if (event["type"] == "error" || event["type"] == "progress")
-                status->setText(event["text"].toString());
-            if (event["type"] == "finished")
-                generate->setEnabled(settings->vk_relay_linked);
         });
     });
     auto *storeTask = new RelayTask(this);
