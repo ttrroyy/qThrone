@@ -11,6 +11,7 @@
 #include "include/configs/common/utils.h"
 #include "include/global/Configs.hpp"
 
+#include <atomic>
 #include <QApplication>
 #include <QFileInfo>
 #include <QHostAddress>
@@ -2969,7 +2970,9 @@ namespace Configs {
         buildLogSection(ctx);
         buildCertificateSection(ctx);
         buildNTPSection(ctx);
-        int suffix = 1;
+        // Concurrent sweeps share the core's streamed results by tag, so tags never repeat across builds.
+        static std::atomic<int> testTagSerial{1};
+        int suffix = testTagSerial.fetch_add(static_cast<int>(profiles.size()) + 1);
 
         int xrayPortIdx=0;
         int xrayCount=0;

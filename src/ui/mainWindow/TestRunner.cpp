@@ -132,7 +132,8 @@ void TestRunner::applyUrlResult(const std::shared_ptr<Configs::Profile>& ent, co
     const auto error = QString::fromStdString(res.error.value());
     if (error.isEmpty()) {
         ent->SetLatency(res.latency_ms.value());
-    } else if (isTestAborted(error)) {
+    } else if (isTestAborted(error) || gate_.stopRequested.load()) {
+        // A probe a stop or a repeated press cut short failed only because of the stop.
         ent->SetLatency(0);
     } else if (error.startsWith("qWDTT test not started:")) {
         ent->SetLatency(error.contains("skipped:") ? 0 : -1);
