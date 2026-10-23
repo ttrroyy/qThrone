@@ -1,7 +1,7 @@
 import copy
 import unittest
 
-from verify_common_artifacts import CPP_REUSE_SUFFIXES, verify_cpp_artifacts, verify_release_artifacts
+from verify_common_artifacts import CPP_REUSE_SUFFIXES, verify_cpp_artifacts, verify_pack_artifacts, verify_release_artifacts
 
 
 class DesktopResumeTests(unittest.TestCase):
@@ -65,6 +65,35 @@ class StablePublishTests(unittest.TestCase):
             verify_release_artifacts(self.sha, self.jobs, self.artifacts, ['version.json'])
         with self.assertRaises(RuntimeError):
             verify_release_artifacts(self.sha, self.jobs, [], [])
+
+    def test_verified_pack_resume_can_publish_without_rebuilding(self):
+        jobs = [job for job in self.jobs if job['name'] not in ('Pack windows', 'Pack linux-amd64', 'Pack linux-arm64') and not job['name'].startswith('build-cpp (')]
+        jobs.append({'name': 'verify-pack', 'conclusion': 'success'})
+        verify_release_artifacts(self.sha, jobs, self.artifacts, [])
+        jobs[-1]['conclusion'] = 'failure'
+        with self.assertRaises(RuntimeError):
+            verify_release_artifacts(self.sha, jobs, self.artifacts, [])
+
+
+class PackageResumeTests(unittest.TestCase):
+    def setUp(self):
+        self.sha = 'c' * 40
+        self.jobs = [{'name': 'verify-common', 'conclusion': 'success'},
+                     {'name': 'build-cpp (macos-15, qt, arm64, darwin-arm64, common)', 'conclusion': 'success'}]
+        self.artifacts = [{'name': 'Throne-' + self.sha + '-darwin-arm64', 'expired': False, 'size_in_bytes': 10}]
+        for target in ('windows', 'linux-amd64', 'linux-arm64'):
+            self.jobs.append({'name': 'Pack ' + target, 'conclusion': 'success'})
+            self.artifacts.append({'name': 'Pack-' + self.sha + '-' + target, 'expired': False, 'size_in_bytes': 10})
+
+    def test_verified_packages_and_arm_binary_are_reused(self):
+        verify_pack_artifacts(self.sha, self.jobs, self.artifacts, ['.github/workflows/build.yml'])
+
+    def test_missing_or_failed_packages_cannot_be_reused(self):
+        with self.assertRaises(RuntimeError):
+            verify_pack_artifacts(self.sha, self.jobs, self.artifacts[:-1], [])
+        self.jobs[-1]['conclusion'] = 'failure'
+        with self.assertRaises(RuntimeError):
+            verify_pack_artifacts(self.sha, self.jobs, self.artifacts, [])
 
 
 if __name__ == '__main__':
