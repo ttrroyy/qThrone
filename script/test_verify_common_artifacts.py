@@ -1,7 +1,7 @@
 import copy
 import unittest
 
-from verify_common_artifacts import CPP_REUSE_SUFFIXES, verify_cpp_artifacts
+from verify_common_artifacts import CPP_REUSE_SUFFIXES, verify_cpp_artifacts, verify_release_artifacts
 
 
 class DesktopResumeTests(unittest.TestCase):
@@ -38,6 +38,33 @@ class DesktopResumeTests(unittest.TestCase):
             verify_cpp_artifacts(self.sha, self.jobs, self.artifacts[1:], [])
         with self.assertRaises(RuntimeError):
             verify_cpp_artifacts(self.sha, self.jobs, self.artifacts + [{'name': 'Throne-' + self.sha + '-darwin-arm64'}], [])
+
+
+class StablePublishTests(unittest.TestCase):
+    def setUp(self):
+        self.sha = 'b' * 40
+        names = ['Pack windows', 'Pack linux-amd64', 'Pack linux-arm64', 'Pack macos', 'Pack debug',
+                 'Verify portable Windows upgrade', 'Pack and verify Arch Linux x86_64',
+                 'build-cpp (macos-15, qt, arm64, darwin-arm64, common)']
+        self.jobs = [{'name': name, 'conclusion': 'success'} for name in names]
+        self.jobs.append({'name': 'Publish Release', 'conclusion': 'failure'})
+        self.artifacts = [{'name': 'Deployment-' + self.sha, 'expired': False, 'size_in_bytes': 100}]
+
+    def test_verified_packages_publish_without_rebuilding(self):
+        verify_release_artifacts(self.sha, self.jobs, self.artifacts, ['.github/workflows/publish-verified.yml'])
+
+    def test_failed_checks_block_publication(self):
+        for index in range(len(self.jobs) - 1):
+            jobs = copy.deepcopy(self.jobs)
+            jobs[index]['conclusion'] = 'failure'
+            with self.subTest(index=index), self.assertRaises(RuntimeError):
+                verify_release_artifacts(self.sha, jobs, self.artifacts, [])
+
+    def test_application_changes_or_missing_packages_block_publication(self):
+        with self.assertRaises(RuntimeError):
+            verify_release_artifacts(self.sha, self.jobs, self.artifacts, ['version.json'])
+        with self.assertRaises(RuntimeError):
+            verify_release_artifacts(self.sha, self.jobs, [], [])
 
 
 if __name__ == '__main__':

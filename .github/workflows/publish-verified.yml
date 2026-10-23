@@ -1,0 +1,44 @@
+name: Publish verified qThrone release from stable
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Completed release build with verified packages
+        required: true
+jobs:
+  publish:
+    if: github.ref_name == 'stable'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Verify tested packages match stable
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_RUN_ID: ${{ inputs.run_id }}
+        run: |
+          python3 -m unittest discover -s script -p test_verify_common_artifacts.py
+          python3 script/verify_common_artifacts.py
+          git fetch origin dev stable
+          test "$(git rev-parse origin/stable)" = "$GITHUB_SHA"
+          test "$(git rev-parse origin/dev)" = "$GITHUB_SHA"
+      - uses: actions/download-artifact@v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.run_id }}
+          name: Deployment-${{ steps.verify.outputs.release_sha }}
+          path: deployment
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c 'import json,re; v=json.load(open("version.json"))["version"]; assert re.fullmatch(r"\d+\.\d+(?:\.\d+)?",v); print(v)')
+          test -f "deployment/qThrone-$VERSION-windows64.zip"
+          test -f "deployment/qThrone-$VERSION-macos-arm64.zip"
+          python3 script/release_notes.py > "$RUNNER_TEMP/release-notes.md"
+          gh release create "v$VERSION" deployment/* --target "$GITHUB_SHA" --title "$VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"

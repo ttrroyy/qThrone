@@ -627,7 +627,7 @@ jobs:
     if: always() && needs.pack.result == 'success' && needs.pack-arch.result == 'success' && (needs.test-windows-upgrade.result == 'success' || needs.test-windows-upgrade.result == 'skipped')
     permissions:
       contents: write
-      actions: read
+      actions: write
     steps:
       - name: Checking out sources
         uses: actions/checkout@v7.0.1
@@ -652,7 +652,7 @@ jobs:
           git merge-base --is-ancestor origin/stable "$GITHUB_SHA"
           git push origin "$GITHUB_SHA:refs/heads/stable"
       - name: Publish release
-        if: github.event.inputs.publish == 'p' || github.event.inputs.publish == 'r'
+        if: github.event.inputs.publish == 'p' || (github.event.inputs.publish == 'r' && github.ref_name == 'stable')
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -669,6 +669,12 @@ jobs:
           gh release create "$RELEASE_GIT_TAG" deployment/* \
             --target "$RELEASE_SHA" --title "$title" \
             --notes-file "$RUNNER_TEMP/release-notes.md" "${args[@]}"
+      - name: Publish verified packages from stable
+        if: github.event.inputs.publish == 'r' && github.ref_name != 'stable'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run publish-verified.yml --ref stable -f run_id="$GITHUB_RUN_ID"
   # Updates the AUR package after a stable release.
   publish-aur:
     name: Publish AUR Package

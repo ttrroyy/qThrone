@@ -3,6 +3,7 @@ import json
 import os
 import re
 import subprocess
+import time
 import urllib.request
 from pathlib import Path
 
@@ -22,11 +23,12 @@ def job_section(workflow, name):
 CPP_REUSE_SUFFIXES = ("windows-amd64", "windows-arm64", "windowslegacy-amd64", "windowslegacy-386",
                       "linux-amd64", "linux-amd64-system-qt", "linux-arm64", "linux-arm64-system-qt",
                       "darwin-amd64", "darwinlegacy-amd64")
+CI_ONLY_FILES = {".github/workflows/build.yml", ".github/workflows/publish-verified.yml",
+                 "script/verify_common_artifacts.py", "script/test_verify_common_artifacts.py"}
 
 
 def verify_cpp_artifacts(sha, jobs, artifacts, changed):
-    allowed = {".github/workflows/build.yml", "script/verify_common_artifacts.py", "script/test_verify_common_artifacts.py"}
-    if set(changed) - allowed:
+    if set(changed) - CI_ONLY_FILES:
         raise RuntimeError("Application sources changed; rebuild desktop artifacts")
     if not any(job["name"] == "verify-common" and job["conclusion"] == "success" for job in jobs):
         raise RuntimeError("The source GUI build must have verified its common artifacts")
@@ -42,9 +44,29 @@ def verify_cpp_artifacts(sha, jobs, artifacts, changed):
             raise RuntimeError("Desktop artifact unavailable: " + suffix)
 
 
+def verify_release_artifacts(sha, jobs, artifacts, changed):
+    if set(changed) - CI_ONLY_FILES:
+        raise RuntimeError("Application sources differ from the tested release packages")
+    required = {"Pack windows", "Pack linux-amd64", "Pack linux-arm64", "Pack macos", "Pack debug",
+                "Verify portable Windows upgrade", "Pack and verify Arch Linux x86_64"}
+    for name in required:
+        matching = [job for job in jobs if job["name"] == name]
+        if len(matching) != 1 or matching[0]["conclusion"] != "success":
+            raise RuntimeError("Release check did not pass: " + name)
+    cpp = [job for job in jobs if job["name"].startswith("build-cpp (")]
+    if not cpp or any(job["conclusion"] != "success" for job in cpp):
+        raise RuntimeError("Desktop build did not pass")
+    if any(job["conclusion"] not in ("success", "skipped") and job["name"] != "Publish Release" for job in jobs):
+        raise RuntimeError("A prerequisite failed")
+    deployment = [artifact for artifact in artifacts if artifact["name"] == "Deployment-" + sha]
+    if len(deployment) != 1 or deployment[0]["expired"] or deployment[0]["size_in_bytes"] <= 0:
+        raise RuntimeError("Verified deployment artifact is unavailable")
+
+
 def main():
     cpp_mode = bool(os.environ.get("CPP_RUN_ID"))
-    run_id = os.environ["CPP_RUN_ID"] if cpp_mode else os.environ["COMMON_RUN_ID"]
+    release_mode = bool(os.environ.get("RELEASE_RUN_ID"))
+    run_id = os.environ["RELEASE_RUN_ID"] if release_mode else (os.environ["CPP_RUN_ID"] if cpp_mode else os.environ["COMMON_RUN_ID"])
     if not run_id.isdigit():
         raise RuntimeError("Common artifact run ID must be numeric")
     repo = os.environ["GITHUB_REPOSITORY"]
@@ -58,20 +80,31 @@ def main():
             return json.load(response)
 
     run = api("/actions/runs/" + run_id)
+    if run.get("event") != "workflow_dispatch" or run.get("head_repository", {}).get("full_name") != repo:
+        raise RuntimeError("Artifacts must come from a release build dispatched in this repository")
+    if release_mode:
+        for _ in range(12):
+            if run["status"] == "completed":
+                break
+            time.sleep(5)
+            run = api("/actions/runs/" + run_id)
     if run["path"] != ".github/workflows/build.yml" or run["status"] != "completed":
         raise RuntimeError("Select a completed qThrone release build")
     jobs = api("/actions/runs/" + run_id + "/jobs?per_page=100")["jobs"]
-    if cpp_mode:
+    if cpp_mode or release_mode:
         sha = run["head_sha"]
         if not re.fullmatch(r"[0-9a-f]{40}", sha):
             raise RuntimeError("Invalid source commit")
         subprocess.run(["git", "fetch", "origin", sha, "--depth=1"], check=True)
         changed = git("diff", "--name-only", sha, "HEAD").splitlines()
         artifacts = api("/actions/runs/" + run_id + "/artifacts?per_page=100")["artifacts"]
-        verify_cpp_artifacts(sha, jobs, artifacts, changed)
+        if release_mode:
+            verify_release_artifacts(sha, jobs, artifacts, changed)
+        else:
+            verify_cpp_artifacts(sha, jobs, artifacts, changed)
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-            output.write("cpp_sha=" + sha + "\n")
-        print("Verified 10 unchanged desktop artifacts; rebuilding macOS ARM64 only")
+            output.write(("release_sha=" if release_mode else "cpp_sha=") + sha + "\n")
+        print("Verified release packages" if release_mode else "Verified 10 unchanged desktop artifacts; rebuilding macOS ARM64 only")
         return
     for prefix, count in (("build-go (", 9), (("test-qwdtt (", "qWDTT and CSQTT tests ("), 3), ("build-android", 1)):
         required = [job for job in jobs if job["name"].startswith(prefix)]
