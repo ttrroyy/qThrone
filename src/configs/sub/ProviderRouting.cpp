@@ -370,8 +370,7 @@ void PrepareGeoInBackground(const QList<Command> &commands) {
                 QString path;
                 if (const auto error = PrepareGeo(doc, kind, path); !error.isEmpty()) errors << error;
             }
-        if (!errors.isEmpty()) MW_show_log(errors.join("
-"));
+        if (!errors.isEmpty()) MW_show_log(errors.join(QChar('\n')));
         if (auto *window = GetMainWindow())
             window->showNotice(errors.isEmpty() ? QObject::tr("All files were downloaded successfully")
                                                 : QObject::tr("Geo data was not downloaded: %1").arg(errors.first()));
