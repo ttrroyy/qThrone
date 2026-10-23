@@ -8136,6 +8136,14 @@ Release note:
         <translation>Загружен гео-файл Xray: %1</translation>
     </message>
     <message>
+        <source>All files were downloaded successfully</source>
+        <translation>Все файлы были успешно загружены</translation>
+    </message>
+    <message>
+        <source>Geo data was not downloaded: %1</source>
+        <translation>Гео-файлы не загружены: %1</translation>
+    </message>
+    <message>
         <source>Download geo asset</source>
         <translation>Загрузка гео-файла</translation>
     </message>

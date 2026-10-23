@@ -855,7 +855,10 @@ namespace Subscription {
             const auto payload = ProviderRouting::Extract(document, {}, group && group->sub_options.provider_ignore_import);
             for (const auto &warning : payload.warnings) MW_show_log(warning);
             ParseDocument(payload.body, sinkFor(sink));
-            if (group) ProviderRouting::Apply(group->sub_options, payload.commands);
+            if (group) {
+                ProviderRouting::Apply(group->sub_options, payload.commands);
+                ProviderRouting::PrepareGeoInBackground(payload.commands);
+            }
         }
         if (group) Configs::dataManager->groupsRepo->Save(group);
         sink.flush();
@@ -918,6 +921,7 @@ namespace Subscription {
 
         group->sub_info = subInfo;
         ProviderRouting::Apply(group->sub_options, payload.commands);
+        ProviderRouting::PrepareGeoInBackground(payload.commands);
         group->info.clear();
         groupsRepo->Save(group);
 

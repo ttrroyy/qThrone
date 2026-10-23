@@ -127,7 +127,6 @@ QString download(const QJsonObject &doc, const QString &kind, QString &path, boo
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly) || file.write(response.data) != response.data.size() || !file.commit())
         return QObject::tr("Could not save Geo file: %1").arg(path);
-    if (auto *window = GetMainWindow()) window->showNotice(QObject::tr("Geo data downloaded: %1").arg(kind));
     return {};
 }
 } // namespace
@@ -357,6 +356,26 @@ QString GeoUrl(const QJsonObject &doc, const QString &kind) {
 QString PrepareGeo(const QJsonObject &doc, const QString &kind, QString &path, bool force) {
     QMutexLocker lock(&geoMutex);
     return download(doc, kind, path, force);
+}
+void PrepareGeoInBackground(const QList<Command> &commands) {
+    QList<QJsonObject> documents;
+    for (const auto &command : commands)
+        if (!command.off && !command.document.isEmpty()) documents << command.document;
+    if (documents.isEmpty()) return;
+    // One notice for the whole import, also when every file is already cached.
+    runOnNewThread([documents] {
+        QStringList errors;
+        for (const auto &doc : documents)
+            for (const auto &kind : {QStringLiteral("geosite"), QStringLiteral("geoip")}) {
+                QString path;
+                if (const auto error = PrepareGeo(doc, kind, path); !error.isEmpty()) errors << error;
+            }
+        if (!errors.isEmpty()) MW_show_log(errors.join("
+"));
+        if (auto *window = GetMainWindow())
+            window->showNotice(errors.isEmpty() ? QObject::tr("All files were downloaded successfully")
+                                                : QObject::tr("Geo data was not downloaded: %1").arg(errors.first()));
+    });
 }
 QString ResolveGeo(Configs::RouteProfile &profile, const QJsonObject &doc) {
     QMutexLocker lock(&geoMutex);

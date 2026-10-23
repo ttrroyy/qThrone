@@ -14,6 +14,7 @@
 #include <QApplication>
 #include <QFileInfo>
 #include <QHostAddress>
+#include <QNetworkInterface>
 #include <QMutex>
 #include <QRegularExpression>
 #include <QScopeGuard>
@@ -185,6 +186,23 @@ namespace Configs {
             QString host = "127.0.0.1";
         };
 
+        // "192.168.1.0/24" for every IPv4 address of an active, non-loopback interface.
+        QStringList localIPv4Networks() {
+            QStringList networks;
+            for (const auto &iface : QNetworkInterface::allInterfaces()) {
+                if (!(iface.flags() & QNetworkInterface::IsUp) || (iface.flags() & QNetworkInterface::IsLoopBack)) continue;
+                for (const auto &entry : iface.addressEntries()) {
+                    const auto ip = entry.ip();
+                    const int length = entry.prefixLength();
+                    if (ip.protocol() != QAbstractSocket::IPv4Protocol || length < 8 || length > 32) continue;
+                    const quint32 mask = length == 32 ? 0xFFFFFFFFu : ~(0xFFFFFFFFu >> length);
+                    const auto network = QHostAddress(ip.toIPv4Address() & mask).toString() + "/" + QString::number(length);
+                    if (!networks.contains(network)) networks << network;
+                }
+            }
+            return networks;
+        }
+
         struct BuildContext {
             std::shared_ptr<RouteProfile> route;
             QJsonObject providerRouting;
@@ -196,6 +214,9 @@ namespace Configs {
             bool xrayToSingTransitioned = false;
             bool proxyUsesXray = false;
             bool qwdttIPv4Only = false;
+            // The started profile is a VPN whose server LAN is reachable: private ranges stay in the Tun.
+            bool remoteLan = false;
+            bool sstpRemoteLan = false;
             QSet<QString> ipv4TransportTags;
             QList<std::shared_ptr<Profile>> preparedTransports;
             std::shared_ptr<Profile> ent = std::make_shared<Profile>(nullptr, nullptr);
@@ -868,7 +889,11 @@ namespace Configs {
                 .ipCIDRs = &preReqs.tun.directIPCIDRs,
             });
 
-            if (!settings.disable_private_range_bypass) {
+            // As on Android: OpenConnect/OpenVPN route what the server advertises, SSTP (no routes) every private range.
+            ctx.remoteLan = ctx.tunEnabled && !ctx.forTest &&
+                (ctx.ent->type == "openconnect" || ctx.ent->type == "openvpn" || ctx.ent->type == "sstp");
+            ctx.sstpRemoteLan = ctx.remoteLan && ctx.ent->type == "sstp";
+            if (!settings.disable_private_range_bypass && !ctx.remoteLan) {
                 const auto hijackedIPs = routeChain->get_hijacked_ips();
                 // sing-tun keeps an excluded range out of the Tun entirely, so a rule aimed at one never fires (#1741).
                 for (const auto &range : settings.vpn_private_ranges) {
@@ -1367,6 +1392,11 @@ namespace Configs {
                 if (ctx.os == Darwin) {
                     excludedRanges = subtractPrefix(excludedRanges, tunIPv4CIDR);
                     if (settings.vpn_ipv6 && !ctx.qwdttIPv4Only) excludedRanges = subtractPrefix(excludedRanges, tunIPv6CIDR);
+                }
+                // The computer's own networks stay direct while SSTP carries the server's LAN.
+                if (ctx.sstpRemoteLan) {
+                    for (const auto &network : localIPv4Networks())
+                        if (!prefixesOverlap(network, tunIPv4CIDR)) excludedRanges << network;
                 }
                 for (const auto &range : excludedRanges) routeExcludeAddrs << range;
                 inboundObj["route_exclude_address"] = routeExcludeAddrs;
@@ -2375,6 +2405,17 @@ namespace Configs {
                 routeRules.append(r);
             }
             for (const auto& r : vpnAuxRules) routeRules.append(r);
+            if (ctx.remoteLan && !routeChain->isRaw) {
+                if (ctx.sstpRemoteLan) {
+                    routeRules.append(QJsonObject{{"ip_is_private", true}, {"action", "route"}, {"outbound", tags::proxy}});
+                } else if (ctx.vpnEndpointTags.contains(tags::proxy)) {
+                    routeRules.append(QJsonObject{{"ip_is_private", true}, {"preferred_by", QJsonArray{tags::proxy}},
+                        {"action", "route"}, {"outbound", tags::proxy}});
+                }
+                // The rest of the local ranges keep the usual bypass, now as a rule instead of a Tun exclusion.
+                if (!settings.disable_private_range_bypass)
+                    routeRules.append(QJsonObject{{"ip_is_private", true}, {"action", "route"}, {"outbound", tags::direct}});
+            }
             for (const auto& r : l3BridgeFinalRules) routeRules.append(r);
             // final still names the tunnel, but nothing may reach it unmatched.
             for (const auto& r : vpnFallthroughRules) routeRules.append(r);

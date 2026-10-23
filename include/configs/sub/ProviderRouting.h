@@ -25,6 +25,8 @@ void Apply(Configs::SubscriptionOptions &options, const QList<Command> &commands
 std::shared_ptr<Configs::RouteProfile> Profile(const QJsonObject &document, const QString &provider);
 QString GeoUrl(const QJsonObject &document, const QString &kind);
 QString PrepareGeo(const QJsonObject &document, const QString &kind, QString &path, bool force = false);
+// Downloads the Geo files of the imported routing right away and reports the outcome bottom right.
+void PrepareGeoInBackground(const QList<Command> &commands);
 QString ResolveGeo(Configs::RouteProfile &profile, const QJsonObject &document);
 QString ResolveXrayGeo(const QJsonObject &document, QJsonObject &config);
 QString Dns(const QJsonObject &document, const QString &prefix, const QString &fallback);
