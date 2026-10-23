@@ -73,8 +73,17 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 		results = probe.BatchURLTestTo(testCtx, env.box, env.tags, in.GetUrl(),
 			int(in.GetMaxConcurrency()), twice, time.Duration(in.GetTestTimeoutMs())*time.Millisecond, func(*probe.URLTestResult) {}, coldAllowance)
 	} else {
+		// A shared box streams each finished tag (unique per profile) to QueryURLTest; a single-profile box
+		// reports under its "proxy" alias, which concurrent sweeps would share, so it only answers at the end.
+		publish := func(*probe.URLTestResult) {}
+		if env.reportTag == "" {
+			publish = probe.URLReporter.AddResult
+		}
 		results = probe.BatchURLTestTo(testCtx, env.box, env.tags, in.GetUrl(),
-			int(in.GetMaxConcurrency()), twice, time.Duration(in.GetTestTimeoutMs())*time.Millisecond, func(*probe.URLTestResult) {})
+			int(in.GetMaxConcurrency()), twice, time.Duration(in.GetTestTimeoutMs())*time.Millisecond, publish)
+		if env.reportTag == "" {
+			probe.URLReporter.Reclaim(results)
+		}
 	}
 
 	res := make([]*gen.URLTestResp, 0, len(results))

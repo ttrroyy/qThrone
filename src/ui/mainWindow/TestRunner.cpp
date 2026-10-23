@@ -24,6 +24,7 @@ using namespace API;
 namespace {
     constexpr int kTestBatchSize = 100;
     constexpr int kSpeedPollIntervalMs = 100;
+    constexpr int kLatencyPollIntervalMs = 200;
 
     QList<int> withoutAutoSelectors(const QList<int>& profileIDs) {
         const auto selectors = Configs::dataManager->profilesRepo->GetProfileIdsByType("autoselector");
@@ -161,6 +162,33 @@ void TestRunner::applyIpResult(const std::shared_ptr<Configs::Profile>& ent, con
     Configs::dataManager->profilesRepo->Save(ent);
 }
 
+// The core buffers each finished result of a shared test box; show it as soon as it arrives.
+void TestRunner::pollUrlStream() {
+    bool ok = false;
+    const auto resp = defaultClient->QueryURLTest(&ok);
+    if (!ok) return;
+    QList<int> updated;
+    for (const auto& res : resp.results) {
+        const auto tag = QString::fromStdString(res.outbound_tag.value());
+        int entid = -1;
+        {
+            QMutexLocker lock(&streamMu_);
+            // A tag no running probe owns is a leftover of an aborted one.
+            if (!streamTags_.contains(tag) || streamed_.contains(tag)) continue;
+            entid = streamTags_.value(tag);
+            streamed_.insert(tag);
+        }
+        auto ent = Configs::dataManager->profilesRepo->GetProfile(entid);
+        if (ent == nullptr) continue;
+        applyUrlResult(ent, res);
+        mw_->dataViewHtmlGenerator_.addTestProgress();
+        updated << entid;
+    }
+    if (updated.isEmpty()) return;
+    mw_->UpdateDataView(true);
+    runOnUiThread([=, this] { mw_->refresh_proxy_list(updated); });
+}
+
 void TestRunner::runUrlProbe(const Target& target) {
     if (gate_.stopRequested.load()) {
         MW_show_log(MainWindow::tr("Profile test aborted"));
@@ -184,8 +212,25 @@ void TestRunner::runUrlProbe(const Target& target) {
     bool rpcOK = false;
     QString coreError;
     libcore::TestResp result;
+    // Only a shared box streams: a single-profile target reports under the ambiguous "proxy" tag.
+    const bool streaming = target.qwdttConfig.isEmpty() && !target.outboundTags.isEmpty();
+    if (streaming) {
+        QMutexLocker lock(&streamMu_);
+        for (auto it = target.tag2entID.cbegin(); it != target.tag2entID.cend(); ++it) streamTags_.insert(it.key(), it.value());
+    }
     {
+        std::unique_ptr<ResultPoller> poller;
+        if (streaming) poller = std::make_unique<ResultPoller>([this] { pollUrlStream(); }, kLatencyPollIntervalMs);
         result = defaultClient->Test(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 2) + (target.qwdttConfig.isEmpty() ? 0 : 330000));
+    }
+    // What the stream already showed; a late poll tick finds the tags gone and drops its copy.
+    QSet<QString> shown;
+    if (streaming) {
+        QMutexLocker lock(&streamMu_);
+        for (auto it = target.tag2entID.cbegin(); it != target.tag2entID.cend(); ++it) {
+            streamTags_.remove(it.key());
+            if (streamed_.remove(it.key())) shown.insert(it.key());
+        }
     }
 
     if (!rpcOK || result.results.empty()) {
@@ -217,6 +262,15 @@ void TestRunner::runUrlProbe(const Target& target) {
         auto ent = Configs::dataManager->profilesRepo->GetProfile(entid);
         if (ent == nullptr) {
             MW_show_log(MainWindow::tr("Profile manager data is corrupted, try again."));
+            continue;
+        }
+        const auto tag = QString::fromStdString(res.outbound_tag.value());
+        if (shown.contains(tag)) {
+            // Already counted; only a VPN endpoint's connect-only verdict can still change it.
+            if (!res.error.value().empty() && isVpnProfile(ent)) {
+                applyUrlResult(ent, res, &vpnConnected);
+                runOnUiThread([this, entid] { mw_->refresh_proxy_list({entid}); });
+            }
             continue;
         }
         applyUrlResult(ent, res, &vpnConnected);

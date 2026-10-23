@@ -6,6 +6,7 @@
 #include <QMutex>
 #include <QThreadPool>
 #include <QPair>
+#include <QSet>
 #include <QString>
 #include <QStringList>
 
@@ -105,6 +106,13 @@ private:
     // Tests bypass the clash tracker, so their bytes are counted only here, diffed per tag.
     QMutex creditMu_;
     QHash<QString, QPair<qint64, qint64>> credited_;
+    // Streamed URL results: tags of every running shared-box probe (unique per profile across concurrent
+    // sweeps, as the gate never tests one profile twice) and the tags already applied from the stream.
+    QMutex streamMu_;
+    QHash<QString, int> streamTags_;
+    QSet<QString> streamed_;
+    void pollUrlStream();
+
     // Destroyed first: wait for native workers before their owner state disappears.
     QThreadPool nativeProbePool_;
 };
