@@ -102,6 +102,7 @@ namespace Configs {
         QString theme = "0";
         QString seasonal_decoration = "auto";
         bool seasonal_auto_13_migrated = false;
+        bool dns_optimistic_164_migrated = false;
         int language = 0;
         QString font = "";
         int font_size = 0;
@@ -206,7 +207,7 @@ namespace Configs {
         bool use_dns_object = false;
         QString dns_object = "";
         QString dns_final_out = "remote";
-        bool dns_optimistic = false;
+        bool dns_optimistic = true;
         QString dns_optimistic_timeout = "";
         QString dns_query_timeout = "";
         bool dns_use_hosts = false;

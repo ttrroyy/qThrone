@@ -1275,9 +1275,9 @@ namespace Configs {
                 rules = headRules;
             }
 
-            // Both qWDTT RAW and WG bridges use the original IPv4-only dialer.
-            // Empty AAAA answers let TUN clients choose reachable IPv4 addresses.
-            if (ctx.qwdttIPv4Only) {
+            // Both qWDTT RAW and WG bridges use the original IPv4-only dialer, and a Tun without IPv6 cannot carry it:
+            // empty AAAA answers keep browsers off IPv6 that would leak past the tunnel or stall before IPv4.
+            if (ctx.qwdttIPv4Only || (!ctx.forTest && settings.spmode_vpn && !settings.vpn_ipv6)) {
                 rules.prepend(QJsonObject{{"query_type", QJsonArray{"AAAA"}}, {"action", "predefined"}});
             } else if (!ctx.ipv4TransportTags.isEmpty()) {
                 const auto route = ctx.route ? ctx.route : dataManager->routesRepo->GetRouteProfile(settings.current_route_id);
@@ -2391,6 +2391,9 @@ namespace Configs {
             appendIfSet(injected.resolve);
             appendIfSet(injected.dnsHijack);
             appendIfSet(injected.dnsInReject);
+            // QUIC that a proxy carries badly stalls the browser without an error; refused, it falls back to TCP at once.
+            if (!routeChain->isRaw && !ctx.forTest)
+                routeRules.append(QJsonObject{{"network", "udp"}, {"port", 443}, {"action", "reject"}});
             for (const auto& r : profileRules) {
                 const auto rule = r.toObject();
                 if (ctx.ipv4TransportTags.contains(rule.value("outbound").toString()) && rule.value("action").toString("route") == "route") {
@@ -2462,7 +2465,8 @@ namespace Configs {
             // enabled is unconditional: the same file backs the remote rule-set cache and the auto-selector's last pick.
             experimentalObj["cache_file"] = QJsonObject{
                 {"enabled", true},
-                {"store_fakeip", settings.dns_persist_cache},
+                // Fake addresses outlive a core restart in the apps' DNS caches, so their mapping must too.
+                {"store_fakeip", settings.dns_persist_cache || settings.fake_dns},
                 {"store_dns", settings.dns_persist_cache}
             };
 
@@ -2922,6 +2926,22 @@ namespace Configs {
     }
 
     namespace {
+    bool testBatchValid(const BuildTestConfigResult &batch)
+    {
+        bool ok = false;
+        if (!batch.outboundTags.isEmpty()) {
+            if (!API::defaultClient->CheckConfig(&ok, QJsonObject2QString(batch.coreConfig, true)).isEmpty() || !ok) return false;
+        }
+        QStringList xray = batch.xrayFullConfigs;
+        if (batch.isXrayNeeded) xray << QJsonObject2QString(batch.xrayConfig, true);
+        for (const auto &config : xray) {
+            const auto resp = API::defaultClient->CheckConfig(&ok, config, true);
+            // Missing geo files fail at test time, where handleXrayGeoAssetError() names them.
+            if (!ok || (!resp.isEmpty() && !resp.contains("geoip.dat") && !resp.contains("geosite.dat"))) return false;
+        }
+        return true;
+    }
+
     std::shared_ptr<BuildTestConfigResult> buildTestConfigImpl(const QList<std::shared_ptr<Profile> > &profiles,
                                                                const TestBuildOptions &options)
     {
@@ -3108,6 +3128,11 @@ namespace Configs {
 
     std::shared_ptr<BuildTestConfigResult> BuildTestConfig(const QList<std::shared_ptr<Profile> > &profiles)
     {
+        // One core check of the whole batch; the per-profile checks run only to find the profile that broke it.
+        if (profiles.size() > 1) {
+            auto fast = buildTestConfigImpl(profiles, {.validate = false});
+            if (fast->error.isEmpty() && testBatchValid(*fast)) return fast;
+        }
         return buildTestConfigImpl(profiles, {});
     }
 

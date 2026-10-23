@@ -19,6 +19,12 @@ namespace Configs {
             seasonal_auto_13_migrated = true;
             initialized = true;
         }
+        // 1.6.4 turns optimistic DNS on once: a cold encrypted lookup no longer holds the first page load.
+        if (!dns_optimistic_164_migrated) {
+            dns_optimistic = true;
+            dns_optimistic_164_migrated = true;
+            initialized = true;
+        }
         // An empty secret disables authentication on the API service outright.
         if (core_box_api_secret.isEmpty()) {
             core_box_api_secret = QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-');
@@ -34,6 +40,7 @@ namespace Configs {
     void SettingsRepo::initMaps() {
         boolMap = {
             {"seasonal_auto_13_migrated", &seasonal_auto_13_migrated},
+            {"dns_optimistic_164_migrated", &dns_optimistic_164_migrated},
             {"vk_relay_linked", &vk_relay_linked},
             {"disable_tray",                  &disable_tray},
             {"random_inbound_port",           &random_inbound_port},

@@ -399,21 +399,25 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
         mw_->dataViewHtmlGenerator_.seedLatencyTest(panelKind, profileIDs.size());
         mw_->UpdateDataView(true);
 
-        auto runBatch = [this, isUrl](const QList<std::shared_ptr<Configs::Profile>>& profileSlice, const QList<int>& ids) {
+        // Native transports finish on their own: a slow handshake must not hold the next batch back.
+        QSemaphore nativeDone;
+        int nativeCount = 0;
+        auto runBatch = [this, isUrl, &nativeDone, &nativeCount](const QList<std::shared_ptr<Configs::Profile>>& profileSlice, const QList<int>& ids) {
             auto buildObject = Configs::BuildTestConfig(profileSlice);
             if (!buildObject->error.isEmpty()) {
                 MW_show_log(MainWindow::tr("Failed to build test config for batch: ") + buildObject->error);
                 return;
             }
 
-            const int testCount = buildObject->fullConfigs.size() + (buildObject->outboundTags.empty() ? 0 : 1);
-            if (testCount == 0) return;
-
             QSemaphore batchDone;
-            const auto probe = [this, isUrl, &batchDone](const Target& target) {
-                auto *pool = target.qwdttConfig.isEmpty() ? mw_->parallelCoreCallPool : &nativeProbePool_;
-                pool->start([this, isUrl, target, &batchDone] {
-                    const QSemaphoreReleaser releaser(batchDone);
+            int testCount = 0;
+            const auto probe = [this, isUrl, &batchDone, &testCount, &nativeDone, &nativeCount](const Target& target) {
+                const bool native = !target.qwdttConfig.isEmpty();
+                auto *pool = native ? &nativeProbePool_ : mw_->parallelCoreCallPool;
+                auto *done = native ? &nativeDone : &batchDone;
+                ++(native ? nativeCount : testCount);
+                pool->start([this, isUrl, target, done] {
+                    const QSemaphoreReleaser releaser(*done);
                     if (isUrl) runUrlProbe(target);
                     else runIpProbe(target);
                 });
@@ -456,6 +460,7 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
             }
             for (const auto &target : individualTargets) probe(target);
             batchDone.acquire(testCount);
+            if (testCount == 0) return;
 
             MW_show_log(isUrl ? "URL test for batch done." : "IP test for batch done.");
             runOnUiThread([=, this] {
@@ -473,6 +478,7 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
             }
             runBatch(profiles, profileIDsSlice);
         }
+        nativeDone.acquire(nativeCount);
 
         if (isUrl) {
             QMutexLocker lock(&urlMu_);

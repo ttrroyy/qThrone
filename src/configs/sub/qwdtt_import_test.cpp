@@ -1047,6 +1047,10 @@ proxies:
         const auto guard = dnsRules.isEmpty() ? QJsonObject{} : dnsRules.first().toObject();
         check(guard["query_type"].toArray() == QJsonArray{"AAAA"} && guard["action"] == "predefined",
               "qWDTT IPv4 bridge suppresses unusable IPv6 DNS answers");
+        bool quicRefused = false;
+        for (const auto &rule : live->coreConfig["route"].toObject()["rules"].toArray())
+            quicRefused |= rule.toObject() == QJsonObject{{"network", "udp"}, {"port", 443}, {"action", "reject"}};
+        check(quicRefused, "QUIC is refused so browsers fall back to TCP");
     }
     EditQWDTT editor;
     auto *workers = editor.findChild<QComboBox *>("qwdttWorkers");
