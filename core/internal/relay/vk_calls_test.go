@@ -54,9 +54,9 @@ func TestAutoHashesRefreshRejectedTokenOnce(t *testing.T) {
 	calls, refreshes := 0, 0
 	http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		body := ""
-		if r.URL.Host == "oauth.vk.com" {
+		if r.URL.Host == "oauth.vk.ru" {
 			refreshes++
-			location := "https://oauth.vk.com/blank.html#" + url.Values{"access_token": {"fresh"}, "state": {r.URL.Query().Get("state")}, "user_id": {"42"}}.Encode()
+			location := "https://oauth.vk.ru/blank.html#" + url.Values{"access_token": {"fresh"}, "state": {r.URL.Query().Get("state")}, "user_id": {"42"}}.Encode()
 			return &http.Response{StatusCode: 302, Body: io.NopCloser(strings.NewReader("")), Header: http.Header{"Location": {location}}}, nil
 		}
 		calls++

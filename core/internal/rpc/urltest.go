@@ -15,7 +15,11 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 	// server, no tunnel. A sweep through full tunnels hit VK's Flood control and ended
 	// with a device-wide disconnect that also dropped the connected VPN.
 	if nativeQWDTTPing(in.GetQwdttConfig()) {
-		delay, err := runQWDTTPing(ctx, in.GetQwdttConfig(), time.Duration(in.GetTestTimeoutMs())*time.Millisecond)
+		// Stopping tests must end this handshake too, or a repeated ping waits for the old one.
+		pingCtx, cancelPing := context.WithCancel(probe.TestContext())
+		defer cancelPing()
+		defer context.AfterFunc(ctx, cancelPing)()
+		delay, err := runQWDTTPing(pingCtx, in.GetQwdttConfig(), time.Duration(in.GetTestTimeoutMs())*time.Millisecond)
 		message := ""
 		if err != nil {
 			message = "qWDTT ping failed: " + err.Error()

@@ -16,6 +16,7 @@
 #include <QThread>
 #include <QThreadPool>
 
+#include <algorithm>
 #include <limits>
 #include <utility>
 
@@ -144,7 +145,13 @@ void TestRunner::applyUrlResult(const std::shared_ptr<Configs::Profile>& ent, co
         MW_show_log(MainWindow::tr("[%1] test error: %2").arg(ent->outbound->DisplayTypeAndName(), error));
     }
     Configs::dataManager->profilesRepo->Save(ent);
-    runOnUiThread([this, id = ent->id] { mw_->profilesTableModel->setTestState({id}, 0); });
+    runOnUiThread([this, id = ent->id] { clearTestState({id}); });
+}
+
+void TestRunner::clearTestState(const QList<int>& ids) {
+    QList<int> done;
+    for (int id : ids) if (!restarting_.contains(id)) done << id;
+    mw_->profilesTableModel->setTestState(done, 0);
 }
 
 void TestRunner::applyIpResult(const std::shared_ptr<Configs::Profile>& ent, const libcore::IPTestRes& res) {
@@ -348,6 +355,26 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
 
     auto profileIDs = withoutAutoSelectors(requestedIDs);
     if (profileIDs.isEmpty()) { finish(); return false; }
+    if (isUrl && interactive && !waitForSession) {
+        QList<int> restart;
+        {
+            QMutexLocker lock(&urlMu_);
+            if (std::any_of(profileIDs.begin(), profileIDs.end(), [this](int id) { return urlIds_.contains(id); })) {
+                restart = profileIDs;
+                for (int id : urlIds_) if (!restart.contains(id)) restart << id;
+            }
+        }
+        if (!restart.isEmpty()) {
+            // Pressing ping again restarts it: the running sweeps stop and their profiles start over at once.
+            runOnUiThread([this, restart] {
+                restarting_.unite(QSet<int>(restart.begin(), restart.end()));
+                mw_->profilesTableModel->restartTestAnimation(restart);
+            });
+            stop();
+            queueUrlTests(restart, onFinished);
+            return true;
+        }
+    }
     const auto started = gate_.beginLatency(profileIDs, waitForSession);
     if (started != TestSessionGate::Start::Started) {
         if (started == TestSessionGate::Start::Busy) {
@@ -359,7 +386,14 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
         return false;
     }
 
-    if (isUrl) runOnUiThread([this, profileIDs] { mw_->profilesTableModel->setTestState(profileIDs, 1); });
+    if (isUrl) {
+        QMutexLocker lock(&urlMu_);
+        urlIds_.unite(QSet<int>(profileIDs.begin(), profileIDs.end()));
+    }
+    if (isUrl) runOnUiThread([this, profileIDs] {
+        for (int id : profileIDs) restarting_.remove(id);
+        mw_->profilesTableModel->setTestState(profileIDs, 1);
+    });
 
     runOnNewThread([this, profileIDs, panelKind, isUrl, finish]() {
         mw_->dataViewHtmlGenerator_.seedLatencyTest(panelKind, profileIDs.size());
@@ -440,7 +474,11 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
             runBatch(profiles, profileIDsSlice);
         }
 
-        runOnUiThread([this, profileIDs] { mw_->profilesTableModel->setTestState(profileIDs, 0); }, true);
+        if (isUrl) {
+            QMutexLocker lock(&urlMu_);
+            for (int id : profileIDs) urlIds_.remove(id);
+        }
+        runOnUiThread([this, profileIDs] { clearTestState(profileIDs); }, true);
         if (gate_.finishLatency(profileIDs)) mw_->dataViewHtmlGenerator_.clearTestSections();
         mw_->UpdateDataView(true);
         finish();

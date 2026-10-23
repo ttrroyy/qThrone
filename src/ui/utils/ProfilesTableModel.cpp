@@ -3,6 +3,7 @@
 #include "include/database/entities/Profile.h"
 #include "include/configs/common/Outbound.h"
 #include <QApplication>
+#include <QDateTime>
 #include <QMimeData>
 #include <QPalette>
 
@@ -15,10 +16,16 @@ ProfilesTableModel::ProfilesTableModel(QObject *parent)
 
 void ProfilesTableModel::setTestState(const QList<int> &ids, int state, const QString &country, const QString &text) {
     for (int id : ids) {
+        if (state == 1 && testStates.value(id).first != 1) testSince[id] = QDateTime::currentMSecsSinceEpoch();
         if (state) { testStates[id] = {state, country}; testProgressText[id] = text; }
-        else { testStates.remove(id); testProgressText.remove(id); }
+        else { testStates.remove(id); testProgressText.remove(id); testSince.remove(id); }
         refreshProfileId(id);
     }
+}
+
+void ProfilesTableModel::restartTestAnimation(const QList<int> &ids) {
+    setTestState(ids, 0);
+    setTestState(ids, 1);
 }
 
 int ProfilesTableModel::rowCount(const QModelIndex &parent) const {
@@ -106,6 +113,7 @@ QVariant ProfilesTableModel::data(const QModelIndex &index, int role) const {
     const auto progress = testStates.value(profileId);
     if (role == TestStateRole) return progress.first;
     if (role == TestCountryRole) return progress.second;
+    if (role == TestSinceRole) return testSince.value(profileId);
 
     const int startedId = Configs::dataManager->settingsRepo->started_id;
     const bool isRunning = (profile->id == startedId);

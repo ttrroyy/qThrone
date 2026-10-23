@@ -92,12 +92,12 @@ func TestVKHashesCacheAndRateLimit(t *testing.T) {
 	authorizations := 0
 	limited := false
 	http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		if r.URL.Host == "oauth.vk.com" {
+		if r.URL.Host == "oauth.vk.ru" {
 			authorizations++
 			if r.Method != "GET" || r.URL.Query().Get("client_id") != "6287487" || r.URL.Query().Get("scope") != "messages" || r.Header.Get("User-Agent") != "browser-UA" || r.Header.Get("Accept") != "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8" || !strings.Contains(r.Header.Get("Cookie"), "remixsid=session") || !strings.Contains(r.Header.Get("Cookie"), "id_session=id-cookie") {
 				t.Fatal("OAuth differs from original qWDTT cookie flow")
 			}
-			redirect := "https://oauth.vk.com/blank.html#" + url.Values{"access_token": {"test-token"}, "user_id": {"42"}, "state": {r.URL.Query().Get("state")}}.Encode()
+			redirect := "https://oauth.vk.ru/blank.html#" + url.Values{"access_token": {"test-token"}, "user_id": {"42"}, "state": {r.URL.Query().Get("state")}}.Encode()
 			return &http.Response{StatusCode: 302, Body: io.NopCloser(strings.NewReader("")), Header: http.Header{"Location": {redirect}}}, nil
 		}
 		if r.URL.Host != "api.vk.ru" || r.Method != "GET" || r.URL.Path != "/method/calls.start" || r.URL.Query().Get("access_token") != "test-token" || r.URL.Query().Get("v") != "5.199" || r.Header.Get("User-Agent") != "okhttp/4.12.0" {
@@ -250,7 +250,7 @@ func TestVKTokenFallbackRequiresConfirmation(t *testing.T) {
 	requests := 0
 	http.DefaultTransport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
 		requests++
-		if r.URL.Host != "oauth.vk.com" {
+		if r.URL.Host != "oauth.vk.ru" {
 			t.Fatal("API called without an access token")
 		}
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("login required")), Header: make(http.Header)}, nil

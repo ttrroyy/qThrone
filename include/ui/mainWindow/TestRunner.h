@@ -112,6 +112,12 @@ private:
     QHash<QString, int> streamTags_;
     QSet<QString> streamed_;
     void pollUrlStream();
+    // Profiles of running URL sweeps, so a repeated press can restart them.
+    QMutex urlMu_;
+    QSet<int> urlIds_;
+    // UI thread only: restarted rows keep their spinner while the stopped sweep reports its aborts.
+    QSet<int> restarting_;
+    void clearTestState(const QList<int>& ids);
 
     // Destroyed first: wait for native workers before their owner state disappears.
     QThreadPool nativeProbePool_;

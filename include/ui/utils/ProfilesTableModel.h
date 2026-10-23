@@ -13,8 +13,10 @@ namespace Configs {
 class ProfilesTableModel : public QAbstractTableModel {
     Q_OBJECT
 public:
-    enum { ProfileIdRole = Qt::UserRole, TestStateRole, TestCountryRole };
+    enum { ProfileIdRole = Qt::UserRole, TestStateRole, TestCountryRole, TestSinceRole };
     void setTestState(const QList<int> &ids, int state, const QString &country = {}, const QString &text = {});
+    // A repeated latency test starts the rows' spinners over.
+    void restartTestAnimation(const QList<int> &ids);
 
     enum Column {
         ColType = 0,
@@ -65,6 +67,7 @@ public:
 private:
     QHash<int, QPair<int, QString>> testStates;
     QHash<int, QString> testProgressText;
+    QHash<int, qint64> testSince;
     void ensureCached(int profileId) const;
     void evictOne() const;
     void setProfileIds(const QList<int> &ids);

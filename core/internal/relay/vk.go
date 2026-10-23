@@ -69,7 +69,7 @@ func trustedVK(raw string) bool {
 }
 
 var locationPattern = regexp.MustCompile(`location\.href\s*=\s*["']([^"']+)["']`)
-var grantPattern = regexp.MustCompile(`https://login\.vk\.com/\?act=grant_access[^"'\s<]+`)
+var grantPattern = regexp.MustCompile(`https://login\.vk\.(?:com|ru)/\?act=grant_access[^"'\s<]+`)
 
 func refreshToken(ctx context.Context, a *account) error {
 	cookies := vkCookieHeader(a.Cookies)
@@ -205,10 +205,11 @@ func sameVKAccount(a, b account) bool {
 	return false
 }
 
-var vkCookieURLs = []string{"https://vk.com", "https://vk.ru", "https://m.vk.com", "https://m.vk.ru", "https://login.vk.com", "https://oauth.vk.com", "https://id.vk.com", "https://id.vk.ru"}
+var vkCookieURLs = []string{"https://vk.com", "https://vk.ru", "https://m.vk.com", "https://m.vk.ru", "https://login.vk.com", "https://login.vk.ru", "https://oauth.vk.com", "https://oauth.vk.ru", "https://id.vk.com", "https://id.vk.ru"}
 
+// The login window signs in on m.vk.ru, and oauth.vk.com would not see that session and ask to sign in again.
 func oauthURL(state string) string {
-	return "https://oauth.vk.com/authorize?" + url.Values{"client_id": {"6287487"}, "display": {"mobile"}, "redirect_uri": {"https://oauth.vk.com/blank.html"}, "response_type": {"token"}, "scope": {"messages"}, "v": {"5.199"}, "state": {state}}.Encode()
+	return "https://oauth.vk.ru/authorize?" + url.Values{"client_id": {"6287487"}, "display": {"mobile"}, "redirect_uri": {"https://oauth.vk.ru/blank.html"}, "response_type": {"token"}, "scope": {"messages"}, "v": {"5.199"}, "state": {state}}.Encode()
 }
 func oauthToken(raw, state string) (account, bool) {
 	u, e := url.Parse(raw)
@@ -499,6 +500,25 @@ func (p *protocol) login(r Request) error {
 	}
 	saved.Cookies = cookies.Cookies
 	saved.UserAgent, _ = c.evaluate("navigator.userAgent")
+	if !tokenMode {
+		// Take the calls token in this window too, so creating hashes later needs no second window.
+		p.emit("progress", "Подтвердите доступ VK в том же окне", nil)
+		if _, e = c.call("Page.navigate", map[string]any{"url": oauthURL(state)}); e == nil {
+			deadline := time.Now().Add(2 * time.Minute)
+			for ctx.Err() == nil && time.Now().Before(deadline) && saved.Token == "" {
+				pages, err := browserTabs(httpClient, endpoint)
+				if err != nil || len(pages) == 0 {
+					break // the window was closed; the session alone is still linked
+				}
+				for _, page := range pages {
+					if a, ok := oauthToken(page.URL, state); ok {
+						saved.Token, saved.Expires, saved.User = a.Token, a.Expires, a.User
+					}
+				}
+				time.Sleep(500 * time.Millisecond)
+			}
+		}
+	}
 	if saved.User == "" {
 		for _, cookie := range saved.Cookies {
 			if cookie.Name == "remixmid" && cookie.Value != "0" {
@@ -522,7 +542,7 @@ func (p *protocol) login(r Request) error {
 	}
 	if old, e := readAccount(); e == nil && sameVKAccount(old, saved) {
 		saved.Hashes = old.Hashes
-		if !tokenMode {
+		if !tokenMode && saved.Token == "" {
 			saved.Token = old.Token
 			saved.Expires = old.Expires
 		}

@@ -8,6 +8,7 @@
 #include <QElapsedTimer>
 #include <QPainter>
 #include <QApplication>
+#include <QDateTime>
 #include <cmath>
 
 class TestResultDelegate final : public QStyledItemDelegate {
@@ -35,7 +36,9 @@ public:
         const auto color = option.palette.color(option.state & QStyle::State_Selected ? QPalette::HighlightedText : QPalette::Text);
         painter->setPen(QPen(color, qBound(1., side / 11., 1.5), Qt::SolidLine, Qt::RoundCap));
         if (state == 1) {
-            painter->drawArc(box.adjusted(1,1,-1,-1), -int(clock.elapsed()%1000)*5760/1000, 250*16);
+            const qint64 since = index.data(ProfilesTableModel::TestSinceRole).toLongLong();
+            const qint64 spun = since > 0 ? QDateTime::currentMSecsSinceEpoch() - since : clock.elapsed();
+            painter->drawArc(box.adjusted(1,1,-1,-1), -int(spun%1000)*5760/1000, 250*16);
         } else {
             painter->drawArc(box.adjusted(1,1,-1,-1), -45*16, 270*16);
             const QPointF center=box.center();
