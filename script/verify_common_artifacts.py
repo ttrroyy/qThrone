@@ -19,8 +19,32 @@ def job_section(workflow, name):
     return "\n".join(line for line in match[1].splitlines() if not line.startswith(("    if: ", "    name: ")))
 
 
+CPP_REUSE_SUFFIXES = ("windows-amd64", "windows-arm64", "windowslegacy-amd64", "windowslegacy-386",
+                      "linux-amd64", "linux-amd64-system-qt", "linux-arm64", "linux-arm64-system-qt",
+                      "darwin-amd64", "darwinlegacy-amd64")
+
+
+def verify_cpp_artifacts(sha, jobs, artifacts, changed):
+    allowed = {".github/workflows/build.yml", "script/verify_common_artifacts.py", "script/test_verify_common_artifacts.py"}
+    if set(changed) - allowed:
+        raise RuntimeError("Application sources changed; rebuild desktop artifacts")
+    if not any(job["name"] == "verify-common" and job["conclusion"] == "success" for job in jobs):
+        raise RuntimeError("The source GUI build must have verified its common artifacts")
+    expected = {"Throne-" + sha + "-" + suffix for suffix in CPP_REUSE_SUFFIXES}
+    if {artifact["name"] for artifact in artifacts if artifact["name"].startswith("Throne-" + sha + "-")} != expected:
+        raise RuntimeError("Source must contain exactly the 10 unchanged desktop artifacts")
+    for suffix in CPP_REUSE_SUFFIXES:
+        matching = [job for job in jobs if job["name"].startswith("build-cpp (") and job["name"].split(", ")[3:4] == [suffix]]
+        if len(matching) != 1 or matching[0]["conclusion"] != "success":
+            raise RuntimeError("Desktop build did not pass: " + suffix)
+        matching = [artifact for artifact in artifacts if artifact["name"] == "Throne-" + sha + "-" + suffix]
+        if len(matching) != 1 or matching[0]["expired"] or matching[0]["size_in_bytes"] <= 0:
+            raise RuntimeError("Desktop artifact unavailable: " + suffix)
+
+
 def main():
-    run_id = os.environ["COMMON_RUN_ID"]
+    cpp_mode = bool(os.environ.get("CPP_RUN_ID"))
+    run_id = os.environ["CPP_RUN_ID"] if cpp_mode else os.environ["COMMON_RUN_ID"]
     if not run_id.isdigit():
         raise RuntimeError("Common artifact run ID must be numeric")
     repo = os.environ["GITHUB_REPOSITORY"]
@@ -37,6 +61,18 @@ def main():
     if run["path"] != ".github/workflows/build.yml" or run["status"] != "completed":
         raise RuntimeError("Select a completed qThrone release build")
     jobs = api("/actions/runs/" + run_id + "/jobs?per_page=100")["jobs"]
+    if cpp_mode:
+        sha = run["head_sha"]
+        if not re.fullmatch(r"[0-9a-f]{40}", sha):
+            raise RuntimeError("Invalid source commit")
+        subprocess.run(["git", "fetch", "origin", sha, "--depth=1"], check=True)
+        changed = git("diff", "--name-only", sha, "HEAD").splitlines()
+        artifacts = api("/actions/runs/" + run_id + "/artifacts?per_page=100")["artifacts"]
+        verify_cpp_artifacts(sha, jobs, artifacts, changed)
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+            output.write("cpp_sha=" + sha + "\n")
+        print("Verified 10 unchanged desktop artifacts; rebuilding macOS ARM64 only")
+        return
     for prefix, count in (("build-go (", 9), (("test-qwdtt (", "qWDTT and CSQTT tests ("), 3), ("build-android", 1)):
         required = [job for job in jobs if job["name"].startswith(prefix)]
         if len(required) != count or any(job["conclusion"] != "success" for job in required):

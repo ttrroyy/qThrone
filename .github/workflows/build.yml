@@ -12,7 +12,28 @@ on:
       common_run_id:
         description: "Reuse unchanged Go artifacts from a completed build; start at the GUI stage"
         required: false
+      cpp_run_id:
+        description: "Repair macOS ARM64 only; reuse the other 10 verified desktop builds from this completed run"
+        required: false
 jobs:
+  verify-cpp:
+    if: inputs.cpp_run_id != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      cpp_sha: ${{ steps.verify.outputs.cpp_sha }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - id: verify
+        name: Verify unchanged desktop artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CPP_RUN_ID: ${{ inputs.cpp_run_id }}
+        run: |
+          python3 -m unittest discover -s script -p test_verify_common_artifacts.py
+          python3 script/verify_common_artifacts.py
   verify-common:
     if: inputs.common_run_id != ''
     runs-on: ubuntu-latest
@@ -257,76 +278,26 @@ jobs:
     needs:
       - build-go
       - verify-common
-    if: always() && ((needs.build-go.result == 'success' && needs.verify-common.result == 'skipped') || (needs.build-go.result == 'skipped' && needs.verify-common.result == 'success'))
+      - verify-cpp
+    if: always() && (needs.verify-cpp.result == 'success' || needs.verify-cpp.result == 'skipped') && ((needs.build-go.result == 'success' && needs.verify-common.result == 'skipped') || (needs.build-go.result == 'skipped' && needs.verify-common.result == 'success'))
     strategy:
       matrix:
-        include:
-          - platform: windows-latest
-            qt_version: "6.11.2"
-            target: x64
-            dest_suffix: windows-amd64
-            common: windows-amd64
-            launcher: sccache
-          - platform: windows-11-arm
-            qt_version: "6.11.2"
-            target: arm64
-            dest_suffix: windows-arm64
-            common: windows-arm64
-            launcher: ""
-          - platform: ubuntu-22.04
-            qt_version: "6.11.2"
-            target: x86_64
-            dest_suffix: linux-amd64
-            common: linux-amd64
-            launcher: ccache
-          - platform: ubuntu-22.04
-            qt_version: "6.2.0"
-            target: x86_64
-            dest_suffix: linux-amd64-system-qt
-            common: linux-amd64
-            launcher: ccache
-          - platform: ubuntu-24.04-arm
-            qt_version: "6.11.1"
-            target: aarch64
-            dest_suffix: linux-arm64
-            common: linux-arm64
-            launcher: ccache
-          - platform: ubuntu-22.04-arm
-            qt_version: "6.2.0"
-            target: aarch64
-            dest_suffix: linux-arm64-system-qt
-            common: linux-arm64
-            launcher: ccache
-          - platform: macos-15-intel
-            qt_version: "6.11.2"
-            target: x86_64
-            dest_suffix: darwin-amd64
-            common: darwin-amd64
-            launcher: ccache
-          - platform: macos-15-intel
-            qt_version: "6.11.2"
-            target: arm64
-            dest_suffix: darwin-arm64
-            common: darwin-arm64
-            launcher: ccache
-          - platform: macos-15-intel
-            qt_version: "6.4.3"
-            target: x86_64
-            dest_suffix: darwinlegacy-amd64
-            common: darwinlegacy-amd64
-            launcher: ccache
-          - platform: windows-latest
-            qt_version: "6.2.13"
-            target: x64
-            dest_suffix: windowslegacy-amd64
-            common: windowslegacy-amd64
-            launcher: sccache
-          - platform: windows-2022
-            qt_version: "6.2.13"
-            target: x86
-            dest_suffix: windowslegacy-386
-            common: windowslegacy-386
-            launcher: sccache
+        include: >-
+          ${{ fromJSON(inputs.cpp_run_id != '' &&
+          '[{"platform":"macos-15","qt_version":"6.11.2","target":"arm64","dest_suffix":"darwin-arm64","common":"darwin-arm64","launcher":"ccache"}]' ||
+          '[
+          {"platform":"windows-latest","qt_version":"6.11.2","target":"x64","dest_suffix":"windows-amd64","common":"windows-amd64","launcher":"sccache"},
+          {"platform":"windows-11-arm","qt_version":"6.11.2","target":"arm64","dest_suffix":"windows-arm64","common":"windows-arm64","launcher":""},
+          {"platform":"ubuntu-22.04","qt_version":"6.11.2","target":"x86_64","dest_suffix":"linux-amd64","common":"linux-amd64","launcher":"ccache"},
+          {"platform":"ubuntu-22.04","qt_version":"6.2.0","target":"x86_64","dest_suffix":"linux-amd64-system-qt","common":"linux-amd64","launcher":"ccache"},
+          {"platform":"ubuntu-24.04-arm","qt_version":"6.11.1","target":"aarch64","dest_suffix":"linux-arm64","common":"linux-arm64","launcher":"ccache"},
+          {"platform":"ubuntu-22.04-arm","qt_version":"6.2.0","target":"aarch64","dest_suffix":"linux-arm64-system-qt","common":"linux-arm64","launcher":"ccache"},
+          {"platform":"macos-15-intel","qt_version":"6.11.2","target":"x86_64","dest_suffix":"darwin-amd64","common":"darwin-amd64","launcher":"ccache"},
+          {"platform":"macos-15","qt_version":"6.11.2","target":"arm64","dest_suffix":"darwin-arm64","common":"darwin-arm64","launcher":"ccache"},
+          {"platform":"macos-15-intel","qt_version":"6.4.3","target":"x86_64","dest_suffix":"darwinlegacy-amd64","common":"darwinlegacy-amd64","launcher":"ccache"},
+          {"platform":"windows-latest","qt_version":"6.2.13","target":"x64","dest_suffix":"windowslegacy-amd64","common":"windowslegacy-amd64","launcher":"sccache"},
+          {"platform":"windows-2022","qt_version":"6.2.13","target":"x86","dest_suffix":"windowslegacy-386","common":"windowslegacy-386","launcher":"sccache"}
+          ]') }}
       fail-fast: false
     runs-on: ${{ matrix.platform }}
     env:
@@ -509,9 +480,11 @@ jobs:
     runs-on: ${{ matrix.runner }}
     needs:
       - build-cpp
-    if: always() && needs.build-cpp.result == 'success'
+      - verify-cpp
+    if: always() && needs.build-cpp.result == 'success' && (needs.verify-cpp.result == 'success' || needs.verify-cpp.result == 'skipped')
     permissions:
       contents: read
+      actions: read
     strategy:
       matrix:
         include:
@@ -540,6 +513,15 @@ jobs:
         uses: actions/download-artifact@v8.0.1
         with:
           pattern: Throne-${{ github.sha }}-${{ matrix.artifacts }}
+          path: download-artifact
+        if: inputs.cpp_run_id == '' || matrix.target == 'macos' || matrix.target == 'debug'
+      - name: Download verified unchanged desktop artifacts
+        if: inputs.cpp_run_id != ''
+        uses: actions/download-artifact@v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.cpp_run_id }}
+          pattern: Throne-${{ needs.verify-cpp.outputs.cpp_sha }}-${{ matrix.artifacts }}
           path: download-artifact
       - name: Install packaging tools
         if: matrix.tools
