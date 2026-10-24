@@ -56,7 +56,7 @@ namespace {
     }
 
     // Mirror the core's URLTestTimeout, TunnelStartupTimeout, TunnelHandshakeTimeout and normalizeConcurrency.
-    constexpr int kCoreDefaultTimeoutMs = 3000;
+    constexpr int kCoreDefaultTimeoutMs = 5000;
     constexpr int kTunnelStartupMs = 5000;
     constexpr int kTunnelHandshakeMs = 10000;
     constexpr int kCoreMaxConcurrency = 100;

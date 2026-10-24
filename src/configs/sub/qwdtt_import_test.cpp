@@ -1168,6 +1168,7 @@ proxies:
         settings->log_level = "debug";
         settings->url_test_timeout_ms = 12345;
         settings->Save();
+        check(Configs::SettingsRepo(db).url_test_timeout_ms == 12345, "test defaults apply once and keep the user's choice");
         const auto device = settings->relay_device_id;
         const auto secret = settings->core_box_api_secret;
         const auto counts = [&db] {
@@ -1194,7 +1195,7 @@ proxies:
         check(settings->noSave, "reset prevents stale shutdown save");
         check(before == counts(), "reset retains every non-settings table");
         Configs::SettingsRepo defaults(db);
-        check(defaults.log_level == "info" && defaults.url_test_timeout_ms == 3000 &&
+        check(defaults.log_level == "info" && defaults.url_test_timeout_ms == 5000 && defaults.test_concurrent == 32 &&
               defaults.seasonal_decoration == "auto", "reset loads compiled defaults after restart");
         check(defaults.relay_device_id == device && defaults.core_box_api_secret == secret,
               "reset preserves bound device and API identity");

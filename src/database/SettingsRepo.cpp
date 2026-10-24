@@ -25,6 +25,14 @@ namespace Configs {
             dns_optimistic_164_migrated = true;
             initialized = true;
         }
+        // 1.8.2 sets the test defaults once: 32 profiles at a time, 5 s for a ping and for a speed test.
+        if (!test_defaults_182_migrated) {
+            test_concurrent = 32;
+            url_test_timeout_ms = 5000;
+            speed_test_timeout_ms = 5000;
+            test_defaults_182_migrated = true;
+            initialized = true;
+        }
         // An empty secret disables authentication on the API service outright.
         if (core_box_api_secret.isEmpty()) {
             core_box_api_secret = QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-');
@@ -41,6 +49,7 @@ namespace Configs {
         boolMap = {
             {"seasonal_auto_13_migrated", &seasonal_auto_13_migrated},
             {"dns_optimistic_164_migrated", &dns_optimistic_164_migrated},
+            {"test_defaults_182_migrated", &test_defaults_182_migrated},
             {"vk_relay_linked", &vk_relay_linked},
             {"disable_tray",                  &disable_tray},
             {"random_inbound_port",           &random_inbound_port},

@@ -10,7 +10,7 @@ import (
 
 var URLReporter resultBuffer[URLTestResult]
 
-const URLTestTimeout = 3 * time.Second
+const URLTestTimeout = 5 * time.Second
 
 type URLTestResult struct {
 	Duration time.Duration
@@ -38,9 +38,6 @@ func BatchURLTestTo(ctx context.Context, i Box, outboundTags []string, url strin
 			client, closeClient := outboundHTTPClient(ctx, i, tag, outbound)
 			defer closeClient()
 			firstTimeout := firstRequestTimeout(i, tag, twice, timeout)
-			if twice {
-				firstTimeout += ColdRequestAllowance
-			}
 			if twice && len(coldAllowance) > 0 && coldAllowance[0] > 0 {
 				firstTimeout += coldAllowance[0]
 			}
@@ -53,9 +50,6 @@ func BatchURLTestTo(ctx context.Context, i Box, outboundTags []string, url strin
 		publish: publish,
 	})
 }
-
-// The unmeasured first request also dials and handshakes the server, and a slow one must not read as unreachable.
-const ColdRequestAllowance = 5 * time.Second
 
 func urlTestRequests(ctx context.Context, client *http.Client, url string, timeout, firstTimeout time.Duration, twice bool) (time.Duration, error) {
 	duration, err := urlTest(ctx, client, url, firstTimeout)

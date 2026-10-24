@@ -78,6 +78,10 @@ func countryTest(ctx context.Context, dialer func(ctx context.Context, network s
 }
 
 func BatchSpeedTest(ctx context.Context, i Box, outboundTags []string, testDl, testUl bool, simpleDL bool, simpleAddress string, timeout time.Duration, countryOnly bool, countryConcurrency int32) []*SpeedTestResult {
+	// An empty timeout field would otherwise end the download and upload phases before they start.
+	if timeout <= 0 {
+		timeout = URLTestTimeout
+	}
 	outbounds := service.FromContext[adapter.OutboundManager](i.Context())
 	results := make([]*SpeedTestResult, 0, len(outboundTags))
 	var queuer chan struct{}

@@ -69,9 +69,9 @@ namespace Configs {
         QString test_latency_url = "http://www.google.com/generate_204";
         // Fetched WITHOUT any proxy, so it must be reachable directly; empty falls back to the OS.
         QString direct_test_url = "";
-        int url_test_timeout_ms = 3000;
+        int url_test_timeout_ms = 5000;
         bool disable_tray = false;
-        int test_concurrent = 10;
+        int test_concurrent = 32;
         bool disable_traffic_stats = false;
         int current_group = 0;
         QString mux_protocol = "smux";
@@ -103,6 +103,7 @@ namespace Configs {
         QString seasonal_decoration = "auto";
         bool seasonal_auto_13_migrated = false;
         bool dns_optimistic_164_migrated = false;
+        bool test_defaults_182_migrated = false;
         int language = 0;
         QString font = "";
         int font_size = 0;
