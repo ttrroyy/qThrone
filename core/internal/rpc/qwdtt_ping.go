@@ -58,6 +58,14 @@ func runQWDTTPing(parent context.Context, config string, budget ...time.Duration
 		return 0, err
 	}
 	defer release()
+	// Profiles of one subscription join the same VK calls; parallel joins of one call fail some of them.
+	if callKey, shared := qwdttCallKey(config); shared {
+		callRelease, err := acquireQWDTTProbe(ctx, callKey)
+		if err != nil {
+			return 0, err
+		}
+		defer callRelease()
+	}
 	// qWDTT and CSQTT probes share one budget, so a sweep stays below VK's limits.
 	slotRelease, err := acquireTransportProbeSlot(ctx)
 	if err != nil {

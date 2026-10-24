@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -49,6 +50,19 @@ func qwdttSessionKey(config string) ([32]byte, bool) {
 		identity = c.Password
 	}
 	return sha256.Sum256([]byte(c.Backend + "\x00" + peer + "\x00" + identity)), true
+}
+
+// The VK calls a profile joins, as one key; false when it names none (automatic hashes).
+func qwdttCallKey(config string) ([32]byte, bool) {
+	var c struct {
+		Hashes []string `json:"hashes"`
+	}
+	if json.Unmarshal([]byte(config), &c) != nil || len(c.Hashes) == 0 {
+		return [32]byte{}, false
+	}
+	hashes := slices.Clone(c.Hashes)
+	slices.Sort(hashes)
+	return sha256.Sum256([]byte("qwdtt vk calls\x00" + strings.Join(hashes, "\x00"))), true
 }
 
 // Separate devices/servers can run together. Duplicate profiles must not share
@@ -147,6 +161,15 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	release, err := acquireQWDTTProbe(queueCtx, key)
 	if err != nil {
 		return nil, err
+	}
+	if callKey, shared := qwdttCallKey(config); kind.vk && shared {
+		callRelease, callErr := acquireQWDTTProbe(queueCtx, callKey)
+		if callErr != nil {
+			release()
+			return nil, callErr
+		}
+		deviceRelease := release
+		release = func() { callRelease(); deviceRelease() }
 	}
 	if kind.vk {
 		slotRelease, slotErr := acquireTransportProbeSlot(queueCtx)
