@@ -57,49 +57,12 @@ func BatchURLTestTo(ctx context.Context, i Box, outboundTags []string, url strin
 // The unmeasured first request also dials and handshakes the server, and a slow one must not read as unreachable.
 const ColdRequestAllowance = 5 * time.Second
 
-// A cold request that lost a packet waits out a retransmit (3 s for a SYN on Windows); a second one
-// on a fresh connection usually gets through first. The measured request is never hedged.
-const ColdRequestHedgeDelay = time.Second
-
 func urlTestRequests(ctx context.Context, client *http.Client, url string, timeout, firstTimeout time.Duration, twice bool) (time.Duration, error) {
-	if !twice {
-		return urlTest(ctx, client, url, firstTimeout)
+	duration, err := urlTest(ctx, client, url, firstTimeout)
+	if err == nil && twice {
+		return urlTest(ctx, client, url, timeout)
 	}
-	if _, err := hedgedURLTest(ctx, client, url, firstTimeout, ColdRequestHedgeDelay); err != nil {
-		return 0, err
-	}
-	return urlTest(ctx, client, url, timeout)
-}
-
-// Each attempt keeps its own deadline; the first success wins and cancels the other.
-func hedgedURLTest(ctx context.Context, client *http.Client, url string, timeout, delay time.Duration) (time.Duration, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	type outcome struct {
-		duration time.Duration
-		err      error
-	}
-	results := make(chan outcome, 2)
-	attempt := func() {
-		duration, err := urlTest(ctx, client, url, timeout)
-		results <- outcome{duration, err}
-	}
-	go attempt()
-	hedge := time.NewTimer(delay)
-	defer hedge.Stop()
-	pending := 1
-	for {
-		select {
-		case <-hedge.C:
-			pending++
-			go attempt()
-		case res := <-results:
-			pending--
-			if res.err == nil || pending == 0 {
-				return res.duration, res.err
-			}
-		}
-	}
+	return duration, err
 }
 
 func urlTest(ctx context.Context, client *http.Client, url string, timeout time.Duration) (time.Duration, error) {

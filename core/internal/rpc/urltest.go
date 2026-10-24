@@ -51,7 +51,7 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 		}
 		return nil, err
 	}
-	defer env.close()
+	defer closeTestEnv(env, in.GetQwdttConfig())
 
 	// Held, not re-read: StopTest rearms a fresh context, uncancelled.
 	testCtx := env.ctx
@@ -120,6 +120,16 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 	return out, nil
 }
 
+// A repeated ping waits for this one to return, and Xray alone can take seconds to close; the box
+// is torn down in the background instead. A native helper still closes before the next one starts.
+func closeTestEnv(env *testEnv, qwdttConfig string) {
+	if qwdttConfig != "" {
+		env.close()
+		return
+	}
+	go env.close()
+}
+
 func urlProbeBudget(in *gen.TestReq) time.Duration {
 	timeout := time.Duration(in.GetTestTimeoutMs()) * time.Millisecond
 	if timeout <= 0 {
@@ -173,7 +183,7 @@ func (s *server) IPTest(ctx context.Context, in *gen.IPTestRequest) (*gen.IPTest
 		}
 		return nil, err
 	}
-	defer env.close()
+	defer closeTestEnv(env, in.GetQwdttConfig())
 
 	timeout := time.Duration(in.GetTestTimeoutMs()) * time.Millisecond
 	var results []*probe.IPTestResult
