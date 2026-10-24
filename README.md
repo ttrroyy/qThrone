@@ -1,8 +1,24 @@
+<div align="center">
+
+<img src="docs/screenshots/icon-tun.png" width="128" alt="qThrone">
+
 # qThrone
 
-![GitHub Downloads](https://img.shields.io/github/downloads/ttrroyy/qThrone/total?label=downloads-total&color=brightgreen)
+**Клиент для Windows, Linux и macOS на ядрах sing-box и Xray**
 
-Клиент для Windows, Linux и macOS на ядрах [sing-box](https://github.com/SagerNet/sing-box) и [Xray](https://github.com/XTLS/Xray-core). Форк [Throne](https://github.com/throneproj/Throne).
+Форк [Throne](https://github.com/throneproj/Throne)
+
+![Windows](https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
+![macOS](https://img.shields.io/badge/macOS-000000?style=for-the-badge&logo=apple&logoColor=white)
+![Qt](https://img.shields.io/badge/Qt-41CD52?style=for-the-badge&logo=qt&logoColor=white)
+![Go](https://img.shields.io/badge/Go-00ADD8?style=for-the-badge&logo=go&logoColor=white)
+[![sing-box](https://img.shields.io/badge/sing--box-1F2937?style=for-the-badge)](https://github.com/SagerNet/sing-box)
+[![Xray](https://img.shields.io/badge/Xray-2563EB?style=for-the-badge)](https://github.com/XTLS/Xray-core)
+
+[![Downloads](https://img.shields.io/github/downloads/ttrroyy/qThrone/total?label=downloads-total&color=brightgreen)](https://github.com/ttrroyy/qThrone/releases)
+
+</div>
 
 Помимо стандартных протоколов sing-box и Xray поддерживает qWDTT, WDTT Plus, CSQTT 2.5.0 Legacy, SSTP, olcRTC, OpenFlux, DNSTT, VayDNS, SlipStream, MasterDNS и S3 Bypass - с подписками, тестом пинга и раздельной маршрутизацией.
 
@@ -73,6 +89,7 @@
 
 | Сеть | Адрес |
 |---|---|
+| <a href="https://boosty.to/ttrroyy/donate"><img src="https://img.shields.io/badge/Boosty-donate-F15F2C?style=flat-square&logo=boosty&logoColor=white" alt="Boosty"></a> | [boosty.to/ttrroyy/donate](https://boosty.to/ttrroyy/donate) |
 | <img src="https://img.shields.io/badge/USDT-TRC--20-26A17B?style=flat-square&logo=tether&logoColor=white" alt="USDT TRC-20"> | `TL22P1n3JmVkhYU8RyMXfRUURx4PN6h4WZ` |
 | <img src="https://img.shields.io/badge/USDT%20%2F%20BNB-BEP--20-F0B90B?style=flat-square&logo=bnbchain&logoColor=white" alt="USDT / BNB BEP-20"> | `0x0B7e9f024e92f7333AB9146c0351732B959D4e9A` |
 | <img src="https://img.shields.io/badge/BTC-Bitcoin-F7931A?style=flat-square&logo=bitcoin&logoColor=white" alt="Bitcoin"> | `bc1qw5larutup50tdk4vuskdzep5r9ydyzt4g0c6dm` |
