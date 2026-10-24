@@ -49,3 +49,22 @@ func TestURLWarmupCanBeCancelled(t *testing.T) {
 		t.Fatal("warmup ignored cancellation")
 	}
 }
+
+func TestColdRequestHedgesAStalledAttempt(t *testing.T) {
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if calls.Add(1) == 1 {
+			<-r.Context().Done()
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	started := time.Now()
+	if _, err := hedgedURLTest(context.Background(), server.Client(), server.URL, 5*time.Second, 50*time.Millisecond); err != nil {
+		t.Fatal(err)
+	}
+	if calls.Load() != 2 || time.Since(started) > time.Second {
+		t.Fatalf("stalled attempt was not hedged: %d calls in %v", calls.Load(), time.Since(started))
+	}
+}
