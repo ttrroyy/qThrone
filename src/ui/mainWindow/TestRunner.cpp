@@ -120,10 +120,12 @@ bool TestRunner::isRunning() {
 }
 
 void TestRunner::stop() {
+    // Flag first, count second: a probe that read the old count either sees the flag or is refused by the core.
     gate_.stopRequested.store(true);
-    runOnNewThread([] {
+    const qint64 epoch = ++stopEpoch_;
+    runOnNewThread([epoch] {
         bool ok = false;
-        defaultClient->StopTests(&ok);
+        defaultClient->StopTests(&ok, epoch);
         if (!ok) MW_show_log(MainWindow::tr("Failed to stop tests"));
     });
 }
@@ -206,6 +208,7 @@ void TestRunner::pollUrlStream() {
 }
 
 void TestRunner::runUrlProbe(const Target& target) {
+    const qint64 epoch = stopEpoch_.load();
     if (gate_.stopRequested.load()) {
         MW_show_log(MainWindow::tr("Profile test aborted"));
         return;
@@ -217,6 +220,7 @@ void TestRunner::runUrlProbe(const Target& target) {
     req.url = Configs::dataManager->settingsRepo->test_latency_url.toStdString();
     req.max_concurrency = Configs::dataManager->settingsRepo->test_concurrent;
     req.test_timeout_ms = Configs::dataManager->settingsRepo->url_test_timeout_ms;
+    req.stop_epoch = epoch;
 
     // The test box dies with the RPC, so the verdict has to be asked for up front.
     for (auto it = target.tag2entID.cbegin(); it != target.tag2entID.cend(); ++it) {
@@ -299,6 +303,7 @@ void TestRunner::runUrlProbe(const Target& target) {
 }
 
 void TestRunner::runIpProbe(const Target& target) {
+    const qint64 epoch = stopEpoch_.load();
     if (gate_.stopRequested.load()) {
         MW_show_log(MainWindow::tr("Profile test aborted"));
         return;
@@ -309,6 +314,7 @@ void TestRunner::runIpProbe(const Target& target) {
     req.test_current = target.testCurrent;
     req.max_concurrency = Configs::dataManager->settingsRepo->test_concurrent;
     req.test_timeout_ms = Configs::dataManager->settingsRepo->url_test_timeout_ms;
+    req.stop_epoch = epoch;
 
     bool rpcOK = false;
     QString coreError;

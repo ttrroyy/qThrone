@@ -33,7 +33,8 @@ namespace API {
         // coreError (optional): on RPC failure, receives the core's error message. timeoutMs 0 = the channel default.
         libcore::TestResp Test(bool *rpcOK, const libcore::TestReq &request, QString *coreError = nullptr, int timeoutMs = 0);
 
-        void StopTests(bool *rpcOK);
+        // A nonzero epoch also refuses probes launched before it that reach the core late.
+        void StopTests(bool *rpcOK, qint64 epoch = 0);
 
         libcore::QueryURLTestResponse QueryURLTest(bool *rpcOK);
 

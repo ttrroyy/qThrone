@@ -103,6 +103,8 @@ private:
     // A poll thread is not joined, so a late tick must not drain the next batch.
     std::atomic<quint64> sessionGen_ = 0;
     std::atomic<bool> testingCurrent_ = false;
+    // Counts stop() calls; each probe sends the count it launched under (see StopTestReq).
+    std::atomic<qint64> stopEpoch_ = 0;
 
     // Tests bypass the clash tracker, so their bytes are counted only here, diffed per tag.
     QMutex creditMu_;

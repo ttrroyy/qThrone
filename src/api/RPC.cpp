@@ -322,8 +322,9 @@ namespace API {
         }
     }
 
-    void Client::StopTests(bool *rpcOK) {
-        const libcore::EmptyReq request;
+    void Client::StopTests(bool *rpcOK, qint64 epoch) {
+        libcore::StopTestReq request;
+        if (epoch > 0) request.epoch = epoch;
         std::vector<uint8_t> resp;
         auto status = channel->Call("StopTest", spb::pb::serialize<std::string>(request), resp);
 

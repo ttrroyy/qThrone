@@ -4,19 +4,33 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync/atomic"
 	"time"
 
 	"qThroneCore/gen"
 	"qThroneCore/internal/probe"
 )
 
+// The client's latest stop count. A probe it launched before that stop can reach the core after
+// CancelTests has already rearmed the test context, and would otherwise run to its end.
+var stoppedEpoch atomic.Int64
+
+// Take the test context before calling this: a stop landing in between then still cancels it.
+func launchedBeforeStop(epoch *int64) bool {
+	return epoch != nil && *epoch < stoppedEpoch.Load()
+}
+
 func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, error) {
+	testCtx := probe.TestContext()
+	if launchedBeforeStop(in.StopEpoch) {
+		return &gen.TestResp{}, nil
+	}
 	// qWDTT is measured like the original app does it: one TURN/DTLS handshake with the
 	// server, no tunnel. A sweep through full tunnels hit VK's Flood control and ended
 	// with a device-wide disconnect that also dropped the connected VPN.
 	if nativeQWDTTPing(in.GetQwdttConfig()) {
 		// Stopping tests must end this handshake too, or a repeated ping waits for the old one.
-		pingCtx, cancelPing := context.WithCancel(probe.TestContext())
+		pingCtx, cancelPing := context.WithCancel(testCtx)
 		defer cancelPing()
 		defer context.AfterFunc(ctx, cancelPing)()
 		delay, err := runQWDTTPing(pingCtx, in.GetQwdttConfig(), time.Duration(in.GetTestTimeoutMs())*time.Millisecond)
@@ -28,7 +42,7 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 	}
 	// Each RPC owns a deadline/cancellation scope. Expiring one native probe
 	// must not cancel sibling requests or leave a helper running after its caller.
-	parent, cancel := context.WithCancel(probe.TestContext())
+	parent, cancel := context.WithCancel(testCtx)
 	defer cancel()
 	stopRPC := context.AfterFunc(ctx, cancel)
 	defer stopRPC()
@@ -147,7 +161,16 @@ func urlProbeBudget(in *gen.TestReq) time.Duration {
 	return budget
 }
 
-func (s *server) StopTest(ctx context.Context, in *gen.EmptyReq) (*gen.EmptyResp, error) {
+func (s *server) StopTest(ctx context.Context, in *gen.StopTestReq) (*gen.EmptyResp, error) {
+	// Recorded before cancelling, so a probe that takes the rearmed context sees it.
+	if in.Epoch != nil {
+		for {
+			current := stoppedEpoch.Load()
+			if *in.Epoch <= current || stoppedEpoch.CompareAndSwap(current, *in.Epoch) {
+				break
+			}
+		}
+	}
 	probe.CancelTests()
 
 	return &gen.EmptyResp{}, nil
@@ -173,7 +196,11 @@ func (s *server) QueryURLTest(ctx context.Context, in *gen.EmptyReq) (out *gen.Q
 func (s *server) IPTest(ctx context.Context, in *gen.IPTestRequest) (*gen.IPTestResp, error) {
 	// qWDTT can reuse its active IP/netstack; ordinary IP tests still build their own box.
 	current := in.GetTestCurrent()
-	env, err := prepareTestEnv(current, in.GetNeedXray(), in.GetXrayConfig(),
+	testCtx := probe.TestContext()
+	if launchedBeforeStop(in.StopEpoch) {
+		return &gen.IPTestResp{}, nil
+	}
+	env, err := prepareTestEnvContext(testCtx, current, in.GetNeedXray(), in.GetXrayConfig(),
 		in.XrayFullConfigs, in.GetConfig(), in.OutboundTags, in.GetUseDefaultOutbound(),
 		in.GetXrayOutboundDnsStrategy(), in.GetQwdttConfig())
 	if err != nil {
