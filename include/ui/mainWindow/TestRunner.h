@@ -28,6 +28,7 @@ class TestRunner {
 public:
     explicit TestRunner(MainWindow* mw) : mw_(mw) {
         nativeProbePool_.setMaxThreadCount(3);
+        vkProbePool_.setMaxThreadCount(12);
     }
 
     TestRunner(const TestRunner&) = delete;
@@ -121,4 +122,7 @@ private:
 
     // Destroyed first: wait for native workers before their owner state disappears.
     QThreadPool nativeProbePool_;
+    // qWDTT, CSQTT and WDTT Plus: the core queues them per device and per VK call and runs three at a time,
+    // so a probe waiting there for its turn must not hold a thread another native profile needs.
+    QThreadPool vkProbePool_;
 };

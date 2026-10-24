@@ -43,6 +43,14 @@ namespace {
         return error.contains("test aborted") || error.contains("context canceled");
     }
 
+    bool usesVkCalls(const QString& nativeConfig) {
+        const auto backend = QJsonDocument::fromJson(nativeConfig.toUtf8()).object().value("backend").toString();
+        return backend.isEmpty() || backend == "csqtt" || backend == "wdttplus";
+    }
+
+    // The core runs a native probe once its turn comes, with budgets of its own; Stop still ends it at once.
+    constexpr int kNativeRpcSlackMs = 30 * 60 * 1000;
+
     bool isVpnProfile(const std::shared_ptr<Configs::Profile>& ent) {
         return ent != nullptr && (ent->type == "openvpn" || ent->type == "openconnect");
     }
@@ -229,7 +237,7 @@ void TestRunner::runUrlProbe(const Target& target) {
     {
         std::unique_ptr<ResultPoller> poller;
         if (streaming) poller = std::make_unique<ResultPoller>([this] { pollUrlStream(); }, kLatencyPollIntervalMs);
-        result = defaultClient->Test(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 2) + (target.qwdttConfig.isEmpty() ? 0 : 330000));
+        result = defaultClient->Test(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 2) + (target.qwdttConfig.isEmpty() ? 0 : kNativeRpcSlackMs));
     }
     // What the stream already showed; a late poll tick finds the tags gone and drops its copy.
     QSet<QString> shown;
@@ -306,7 +314,7 @@ void TestRunner::runIpProbe(const Target& target) {
     QString coreError;
     libcore::IPTestResp result;
     {
-        result = defaultClient->IPTest(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 1) + (target.qwdttConfig.isEmpty() ? 0 : 330000));
+        result = defaultClient->IPTest(&rpcOK, req, &coreError, batchRpcTimeoutMs(target.outboundTags.size(), 1) + (target.qwdttConfig.isEmpty() ? 0 : kNativeRpcSlackMs));
     }
 
     if (!rpcOK || result.results.empty()) {
@@ -414,7 +422,7 @@ bool TestRunner::runLatencyGroup(LatencyKind kind, const QList<int>& requestedID
             int testCount = 0;
             const auto probe = [this, isUrl, &batchDone, &testCount, &nativeDone, &nativeCount](const Target& target) {
                 const bool native = !target.qwdttConfig.isEmpty();
-                auto *pool = native ? &nativeProbePool_ : mw_->parallelCoreCallPool;
+                auto *pool = !native ? mw_->parallelCoreCallPool : usesVkCalls(target.qwdttConfig) ? &vkProbePool_ : &nativeProbePool_;
                 auto *done = native ? &nativeDone : &batchDone;
                 ++(native ? nativeCount : testCount);
                 pool->start([this, isUrl, target, done] {

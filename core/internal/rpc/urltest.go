@@ -32,9 +32,6 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 	defer cancel()
 	stopRPC := context.AfterFunc(ctx, cancel)
 	defer stopRPC()
-	total := urlProbeBudget(in)
-	parent, finish := context.WithTimeout(parent, total)
-	defer finish()
 	env, err := prepareTestEnvContext(parent, in.GetTestCurrent(), in.GetNeedXray(), in.GetXrayConfig(),
 		in.XrayFullConfigs, in.GetConfig(), in.OutboundTags, in.GetUseDefaultOutbound(),
 		in.GetXrayOutboundDnsStrategy(), in.GetQwdttConfig())
@@ -53,8 +50,10 @@ func (s *server) Test(ctx context.Context, in *gen.TestReq) (*gen.TestResp, erro
 	}
 	defer closeTestEnv(env, in.GetQwdttConfig())
 
-	// Held, not re-read: StopTest rearms a fresh context, uncancelled.
-	testCtx := env.ctx
+	// Held, not re-read: StopTest rearms a fresh context, uncancelled. A native helper's queue and
+	// startup have budgets of their own, so this one covers only the requests.
+	testCtx, finish := context.WithTimeout(env.ctx, urlProbeBudget(in))
+	defer finish()
 	if env.live {
 		testCtx = probe.LiveInstance(testCtx)
 	}

@@ -45,29 +45,30 @@ func runQWDTTPing(parent context.Context, config string, budget ...time.Duration
 	if len(budget) > 0 && budget[0] > timeout {
 		timeout = budget[0]
 	}
-	// VK authorization (with automatic checks) is preparation, not the measured round trip.
-	ctx, cancel := context.WithTimeout(parent, timeout+qwdttPingAuthBudget+2*time.Second)
-	defer cancel()
-	stop := context.AfterFunc(probe.TestContext(), cancel)
+	stopped, cancelStopped := context.WithCancel(parent)
+	defer cancelStopped()
+	stop := context.AfterFunc(probe.TestContext(), cancelStopped)
 	defer stop()
+	queueCtx, cancelQueue := context.WithTimeout(stopped, nativeProbeQueueBudget)
+	defer cancelQueue()
 	// A handshake probe never authenticates a second netstack as the same device.
 	// Use a separate gate so testing the active profile cannot wait on its own VPN.
 	pingKey := sha256.Sum256(append([]byte("qwdtt native ping\x00"), key[:]...))
-	release, err := acquireQWDTTProbe(ctx, pingKey)
+	release, err := acquireQWDTTProbe(queueCtx, pingKey)
 	if err != nil {
 		return 0, err
 	}
 	defer release()
 	// Profiles of one subscription join the same VK calls; parallel joins of one call fail some of them.
 	if callKey, shared := qwdttCallKey(config); shared {
-		callRelease, err := acquireQWDTTProbe(ctx, callKey)
+		callRelease, err := acquireQWDTTProbe(queueCtx, callKey)
 		if err != nil {
 			return 0, err
 		}
 		defer callRelease()
 	}
 	// qWDTT and CSQTT probes share one budget, so a sweep stays below VK's limits.
-	slotRelease, err := acquireTransportProbeSlot(ctx)
+	slotRelease, err := acquireTransportProbeSlot(queueCtx)
 	if err != nil {
 		return 0, err
 	}
@@ -77,12 +78,16 @@ func runQWDTTPing(parent context.Context, config string, budget ...time.Duration
 	}
 	_ = json.Unmarshal([]byte(config), &c)
 	if c.Interactive {
-		browserRelease, err := acquireQWDTTProbe(ctx, sha256.Sum256([]byte("qThrone interactive captcha browser")))
+		browserRelease, err := acquireQWDTTProbe(queueCtx, sha256.Sum256([]byte("qThrone interactive captcha browser")))
 		if err != nil {
 			return 0, err
 		}
 		defer browserRelease()
 	}
+	// The budget starts once the ping holds its gates: waiting for another profile's turn says nothing
+	// about this server. VK authorization (with automatic checks) is preparation, not the measured round trip.
+	ctx, cancel := context.WithTimeout(stopped, timeout+qwdttPingAuthBudget+2*time.Second)
+	defer cancel()
 	var pingConfig map[string]any
 	if err = json.Unmarshal([]byte(config), &pingConfig); err != nil {
 		return 0, err

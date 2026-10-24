@@ -97,6 +97,9 @@ func acquireQWDTTProbe(ctx context.Context, key [32]byte) (func(), error) {
 	}
 }
 
+// How long a native probe may wait for its device, its VK calls and a slot before its own budget starts.
+const nativeProbeQueueBudget = 15 * time.Minute
+
 // Cap fresh VK-authenticated test sessions across both transports. A permit
 // remains owned until native shutdown/leave cleanup has completed.
 var transportProbeSlots = make(chan struct{}, 3)
@@ -135,10 +138,7 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	if !known {
 		return nil, errors.New("unknown probe transport")
 	}
-	// Include queue waits in the startup budget; manual captcha gets time for user input.
 	budget := kind.probeStartup
-	ctx, cancelProbe := context.WithTimeout(ctx, budget)
-	defer cancelProbe()
 	host, port, err := net.SplitHostPort(c.SOCKS)
 	n, _ := strconv.Atoi(port)
 	if err != nil || host != "127.0.0.1" || n < 1 || n > 65535 {
@@ -156,7 +156,8 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	if activeOpenFluxCarrier(config) {
 		return nil, errors.New("skipped: the connected OpenFlux profile uses this exit")
 	}
-	queueCtx, cancelQueue := context.WithTimeout(ctx, kind.probeStartup)
+	// A probe of one subscription waits for its siblings' turns; that wait is not its server's startup.
+	queueCtx, cancelQueue := context.WithTimeout(ctx, nativeProbeQueueBudget)
 	defer cancelQueue()
 	release, err := acquireQWDTTProbe(queueCtx, key)
 	if err != nil {
