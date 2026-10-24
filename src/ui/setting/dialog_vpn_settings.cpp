@@ -55,6 +55,7 @@ DialogVPNSettings::DialogVPNSettings(QWidget *parent) : QDialog(parent), ui(new 
     ui->auto_redirect->hide();
 #endif
     ui->l3_bridge->setChecked(Configs::dataManager->settingsRepo->vpn_l3_bridge);
+    ui->block_quic->setChecked(Configs::dataManager->settingsRepo->block_quic);
     // The core's bridge backend has no implementation for Windows on ARM.
 #if defined(Q_OS_WIN) && defined(Q_PROCESSOR_ARM)
     ui->l3_bridge->hide();
@@ -107,6 +108,7 @@ void DialogVPNSettings::accept() {
     Configs::dataManager->settingsRepo->vpn_private_ranges = privateRanges;
     Configs::dataManager->settingsRepo->vpn_auto_redirect = ui->auto_redirect->isChecked();
     Configs::dataManager->settingsRepo->vpn_l3_bridge = ui->l3_bridge->isChecked();
+    Configs::dataManager->settingsRepo->block_quic = ui->block_quic->isChecked();
     MW_dialog_message(MwMessage::UpdateSettings, {MwArg::Vpn});
     QDialog::accept();
 }

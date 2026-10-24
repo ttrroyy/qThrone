@@ -123,6 +123,16 @@
          </widget>
         </item>
         <item>
+         <widget class="QCheckBox" name="block_quic">
+          <property name="toolTip">
+           <string>Refuse QUIC (UDP 443) sent through a proxy, so browsers switch to TCP at once instead of stalling. Direct traffic is not affected.</string>
+          </property>
+          <property name="text">
+           <string>Block QUIC</string>
+          </property>
+         </widget>
+        </item>
+        <item>
          <spacer name="checksRow2Spacer">
           <property name="orientation">
            <enum>Qt::Orientation::Horizontal</enum>

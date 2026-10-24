@@ -1047,10 +1047,23 @@ proxies:
         const auto guard = dnsRules.isEmpty() ? QJsonObject{} : dnsRules.first().toObject();
         check(guard["query_type"].toArray() == QJsonArray{"AAAA"} && guard["action"] == "predefined",
               "qWDTT IPv4 bridge suppresses unusable IPv6 DNS answers");
-        bool quicRefused = false;
-        for (const auto &rule : live->coreConfig["route"].toObject()["rules"].toArray())
-            quicRefused |= rule.toObject() == QJsonObject{{"network", "udp"}, {"port", 443}, {"action", "reject"}};
-        check(quicRefused, "QUIC is refused so browsers fall back to TCP");
+        const QJsonObject quicReject{{"network", "udp"}, {"port", 443}, {"action", "reject"}};
+        const auto rules = live->coreConfig["route"].toObject()["rules"].toArray();
+        check(!rules.isEmpty() && rules.last().toObject() == quicReject, "QUIC reaching the proxy final is refused so browsers fall back to TCP");
+        for (qsizetype i = 0; i + 1 < rules.size(); ++i) {
+            const auto next = rules[i + 1].toObject();
+            if (next["outbound"] == "direct")
+                check(rules[i].toObject()["action"] != "reject" || rules[i].toObject()["type"] != "logical", "direct QUIC is not refused");
+        }
+        settings->block_quic = false;
+        settings->spmode_vpn = true;
+        const auto open = Configs::BuildSingBoxConfig(testProfiles.first());
+        settings->spmode_vpn = oldTun;
+        settings->block_quic = true;
+        bool quicLeft = false;
+        for (const auto &rule : open->coreConfig["route"].toObject()["rules"].toArray())
+            quicLeft |= rule.toObject() == quicReject || rule.toObject()["type"] == "logical";
+        check(!quicLeft, "QUIC blocking can be switched off");
     }
     EditQWDTT editor;
     auto *workers = editor.findChild<QComboBox *>("qwdttWorkers");

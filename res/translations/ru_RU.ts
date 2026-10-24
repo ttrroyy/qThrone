@@ -3293,6 +3293,14 @@ Use a number followed by ns, us, ms, s, m, h or d.</source>
 <context>
     <name>DialogVPNSettings</name>
     <message>
+        <source>Block QUIC</source>
+        <translation>Блокировать QUIC</translation>
+    </message>
+    <message>
+        <source>Refuse QUIC (UDP 443) sent through a proxy, so browsers switch to TCP at once instead of stalling. Direct traffic is not affected.</source>
+        <translation>Отклонять QUIC (UDP 443), идущий через прокси: браузер сразу переходит на TCP и не зависает. Прямой трафик не затрагивается.</translation>
+    </message>
+    <message>
         <source>Tun Settings</source>
         <translation>Настройки TUN</translation>
     </message>

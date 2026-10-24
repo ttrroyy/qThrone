@@ -2392,9 +2392,7 @@ namespace Configs {
             appendIfSet(injected.resolve);
             appendIfSet(injected.dnsHijack);
             appendIfSet(injected.dnsInReject);
-            // QUIC that a proxy carries badly stalls the browser without an error; refused, it falls back to TCP at once.
-            if (!routeChain->isRaw && !ctx.forTest)
-                routeRules.append(QJsonObject{{"network", "udp"}, {"port", 443}, {"action", "reject"}});
+            const qsizetype quicGuardFrom = routeRules.size();
             for (const auto& r : profileRules) {
                 const auto rule = r.toObject();
                 if (ctx.ipv4TransportTags.contains(rule.value("outbound").toString()) && rule.value("action").toString("route") == "route") {
@@ -2429,6 +2427,31 @@ namespace Configs {
             }
             if (!routeChain->isRaw && defOut == blockID) {
                 routeRules.append(QJsonObject{{"action", "reject"}});
+            }
+
+            // QUIC that a proxy carries badly stalls the browser without an error; refused, it falls back to TCP at once.
+            // Only traffic headed for a proxy is refused, so direct QUIC keeps working.
+            if (settings.block_quic && !routeChain->isRaw && !ctx.forTest) {
+                const QJsonObject quic{{"network", "udp"}, {"port", 443}};
+                QJsonArray guarded;
+                for (qsizetype i = 0; i < routeRules.size(); ++i) {
+                    const auto rule = routeRules[i].toObject();
+                    const auto outbound = rule.value("outbound").toString();
+                    if (i >= quicGuardFrom && rule.value("action").toString("route") == "route" && !outbound.isEmpty()
+                        && outbound != tags::direct && outbound != tags::l3Direct) {
+                        auto condition = rule;
+                        for (const auto *key : {"action", "outbound", "override_address", "override_port", "network_strategy",
+                                                "network_type", "fallback_network_type", "fallback_delay", "udp_disable_domain_unmatch",
+                                                "udp_connect", "udp_timeout", "tls_fragment", "tls_fragment_fallback_delay", "tls_record_fragment"})
+                            condition.remove(key);
+                        guarded.append(condition.isEmpty() ? QJsonObject{{"network", "udp"}, {"port", 443}, {"action", "reject"}}
+                            : QJsonObject{{"type", "logical"}, {"mode", "and"}, {"rules", QJsonArray{condition, quic}}, {"action", "reject"}});
+                    }
+                    guarded.append(rule);
+                }
+                if (finalTag != tags::direct && defOut != blockID)
+                    guarded.append(QJsonObject{{"network", "udp"}, {"port", 443}, {"action", "reject"}});
+                routeRules = guarded;
             }
 
             QJsonObject route = routeChain->isRaw ? rawRouteObj : QJsonObject{};

@@ -208,6 +208,7 @@ namespace Configs {
         QString dns_object = "";
         QString dns_final_out = "remote";
         bool dns_optimistic = true;
+        bool block_quic = true;
         QString dns_optimistic_timeout = "";
         QString dns_query_timeout = "";
         bool dns_use_hosts = false;

@@ -106,6 +106,7 @@ namespace Configs {
             {"dns_reverse_mapping", &dns_reverse_mapping},
             {"disable_private_range_bypass", &disable_private_range_bypass},
             {"dns_optimistic", &dns_optimistic},
+            {"block_quic", &block_quic},
             {"dns_use_hosts", &dns_use_hosts},
             {"dns_predefined_enable", &dns_predefined_enable},
             {"connection_sort_asc", &connection_sort_asc},
