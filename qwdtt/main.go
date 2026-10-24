@@ -114,6 +114,8 @@ func sanitizeHashCheckMessage(message string) string {
 
 func main() {
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
+	ownProcessTree()
+	removeStaleCaptchaProfiles()
 	if len(os.Args) == 2 && (os.Args[1] == "-csqtt-share-decode" || os.Args[1] == "-csqtt-share-encode") {
 		if err := csqttShare(os.Args[1] == "-csqtt-share-encode"); err != nil {
 			os.Exit(1)
