@@ -186,12 +186,13 @@ func runCSQTTBridge(path string) error {
 	if err != nil {
 		return err
 	}
-	// MTU is fixed at 1300 in the original Android VPN service.
+	// The dispatcher splits large packets itself; at 1300 a full-size game datagram
+	// (Steam sends 1300-byte payloads) became IP fragments whose tail has no ports.
 	dns := make([]string, len(tunnel.DNS))
 	for i, a := range tunnel.DNS {
 		dns[i] = a.String()
 	}
-	device, network, err := startRawNetstack("RAWCONF:" + tunnel.Address.String() + "|" + strings.Join(dns, ",") + "|1300")
+	device, network, err := startRawNetstack("RAWCONF:" + tunnel.Address.String() + "|" + strings.Join(dns, ",") + "|1400")
 	if err != nil {
 		return err
 	}
