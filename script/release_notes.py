@@ -3,6 +3,6 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent
 version = json.loads((root / "version.json").read_text(encoding="utf-8"))
-print('- CSQTT: игры Valve (CS2, Dota 2 и другие) снова находят релеи Steam. Внутренний MTU моста CSQTT поднят с 1300 до 1400: полноразмерные игровые UDP-пакеты больше не режутся на IP-фрагменты, которые терялись по пути. MTU TUN в настройках по-прежнему 1500.')
+print('- В настройках TUN появился переключатель «Блокировать QUIC», по умолчанию включён. QUIC (UDP 443) теперь отклоняется только для трафика, который идёт через прокси: браузер сразу переходит на TCP и не зависает. Сайты и приложения, которые идут напрямую, снова могут пользоваться QUIC. Если выключить переключатель, QUIC не блокируется совсем.')
 print()
 print(f"Основа: Throne {version['throne_version']}, коммит [{version['throne_commit'][:8]}](https://github.com/throneproj/Throne/commit/{version['throne_commit']}).")
