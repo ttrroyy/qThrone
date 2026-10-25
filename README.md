@@ -20,7 +20,7 @@
 
 </div>
 
-Помимо стандартных протоколов sing-box и Xray поддерживает qWDTT, WDTT Plus, CSQTT 2.5.0 Legacy, SSTP, olcRTC, OpenFlux, DNSTT, VayDNS, SlipStream, MasterDNS и S3 Bypass - с подписками, тестом пинга и раздельной маршрутизацией.
+Помимо стандартных протоколов sing-box и Xray поддерживает qWDTT, WDTT Plus, CSQTT 2.5.0 Legacy, SSTP, olcRTC, OpenFlux, DNSTT, VayDNS, SlipStream, MasterDNS, CottenDNS, Soar, S3 Bypass и обфускацию WireGuard (wg-obfuscator, Phobos, wgobfs) - с подписками, тестом пинга и раздельной маршрутизацией.
 
 <p align="center">
   <img src="docs/screenshots/screenshot-main.png" width="800" alt="Главное окно qThrone с профилями разных протоколов">
@@ -53,14 +53,15 @@
 | VPN | WireGuard, AmneziaWG, OpenVPN, OpenConnect, SSTP |
 | Другие прокси | ShadowTLS, NaïveProxy, AnyTLS, Mieru, Snell, Juicity, TrustTunnel |
 | VK и WebRTC | qWDTT, WDTT Plus, CSQTT 2.5.0 Legacy, olcRTC, OpenFlux |
-| DNS-туннели | DNSTT, VayDNS, SlipStream, MasterDNS |
+| DNS-туннели | DNSTT, VayDNS, SlipStream, MasterDNS (и StormDNS), CottenDNS, Soar |
+| Обфускация WireGuard | wg-obfuscator (маскировка STUN и MEDIA под видеозвонок), Phobos (STUN, MEDIA, TLS, режим SOCKS5), wgobfs |
 | S3-хранилище | S3 Bypass |
 
 Также поддерживаются пользовательские outbound, полные конфиги sing-box и Xray, цепочки прокси и дополнительные ядра.
 
 ## Как добавить профиль
 
-Меню «+» в главном окне: из буфера обмена, по QR-коду с экрана или с картинки, из файла, по ссылке на подписку или вручную. Понимает ссылки всех перечисленных протоколов - в том числе `qwdtt://`, `csqtt://`, `olcrtc://`, `openflux://`, `dnst://`, `slipnet://` и `masterdns://`, - а также JSON-конфиги sing-box и Xray (S3 Bypass импортируется из Xray-конфига с outbound `fedarisha`). Из файла также добавляются конфиги MasterDnsVPN (`client_config.toml`) и профили WhiteDNS.
+Меню «+» в главном окне: из буфера обмена, по QR-коду с экрана или с картинки, из файла, по ссылке на подписку или вручную. Понимает ссылки всех перечисленных протоколов - в том числе `qwdtt://`, `csqtt://`, `olcrtc://`, `openflux://`, `dnst://`, `slipnet://`, `masterdns://`, `stormdns://`, `cottendns://`, `soar://` и `phobos://`, - а также JSON-конфиги sing-box и Xray (S3 Bypass импортируется из Xray-конфига с outbound `fedarisha`). Из файла также добавляются конфиги MasterDnsVPN (`client_config.toml`), профили WhiteDNS и конфиги Phobos. Обфускатор WireGuard и ключ Phobos задаются и вручную, в редакторе профиля.
 
 ## Сборка
 
@@ -75,9 +76,10 @@
 - Ядра: [SagerNet/sing-box](https://github.com/SagerNet/sing-box), [XTLS/Xray-core](https://github.com/XTLS/Xray-core)
 - Основа клиента: [Throne](https://github.com/throneproj/Throne), [NekoRay](https://github.com/MatsuriDayo/nekoray)
 - VK и WebRTC: [proxy-turn-vk-android](https://github.com/SpaceNeuroX/proxy-turn-vk-android), [CSQTT 2.5.0 Legacy](https://github.com/ttrroyy/csqtt-rebirth/releases/tag/v2.5.0-legacy), [WDTT Plus](https://github.com/Ivan4537/WDTT-Plus), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [OpenFlux](https://github.com/p1neappleXpress/OpenFlux)
-- DNS-туннели: [dnstt](https://www.bamsoftware.com/software/dnstt/), [VayDNS](https://github.com/net2share/vaydns), [slipstream-rust](https://github.com/Mygod/slipstream-rust), [MasterDnsVPN](https://github.com/masterking32/MasterDnsVPN), [dnst-url-spec](https://github.com/net2share/dnst-url-spec), [SlipNet](https://github.com/anonvector/SlipNet), [WhiteDNS](https://github.com/WhiteDNS/WhiteDNS-Android)
+- DNS-туннели: [dnstt](https://www.bamsoftware.com/software/dnstt/), [VayDNS](https://github.com/net2share/vaydns), [slipstream-rust](https://github.com/Mygod/slipstream-rust), [MasterDnsVPN](https://github.com/masterking32/MasterDnsVPN), [CottenDNS](https://github.com/TaJirax/cottenDNS), [Soar](https://github.com/getlantern/soar), [dnst-url-spec](https://github.com/net2share/dnst-url-spec), [SlipNet](https://github.com/anonvector/SlipNet), [WhiteDNS](https://github.com/WhiteDNS/WhiteDNS-Android)
 - S3 Bypass и TrustTunnel: [s3-bypass](https://github.com/SpaceNeuroX/s3-bypass), [Xray-core-fedarisha](https://github.com/Fedarisha/Xray-core-fedarisha), [sing-trusttunnel](https://github.com/xchacha20-poly1305/sing-trusttunnel), [TrustTunnelClient](https://github.com/TrustTunnel/TrustTunnelClient)
 - SSTP: [SwiftSSTP](https://github.com/alichdrdzn/swiftsstp)
+- Обфускация WireGuard: [wg-obfuscator](https://github.com/ClusterM/wg-obfuscator), [Phobos](https://github.com/Ground-Zerro/Phobos), [xt_wgobfs](https://github.com/infinet/xt_wgobfs), [rs-wgobfs](https://github.com/infinet/rs-wgobfs)
 - Прочее: [routeprofiles](https://github.com/throneproj/routeprofiles), [sing-box-dashboard](https://github.com/SagerNet/sing-box-dashboard)
 
 Версия для Android - [qThroneMobile](https://github.com/ttrroyy/qThroneMobile).
