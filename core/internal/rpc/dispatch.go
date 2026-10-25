@@ -133,6 +133,7 @@ var handlers = map[string]handlerFn{
 	"QueryCountryTest":    handle(globalServer.QueryCountryTest),
 	"GenWgKeyPair":        handle(globalServer.GenWgKeyPair),
 	"WarpRegister":        handle(globalServer.WarpRegister),
+	"GenQuicSignature":    handle(globalServer.GenQuicSignature),
 	"InstallDashboard":    handle(globalServer.InstallDashboard),
 	"QueryVPNStatus":      handle(globalServer.QueryVPNStatus),
 	"SubmitVPNChallenge":  handle(globalServer.SubmitVPNChallenge),
@@ -146,6 +147,7 @@ var handlers = map[string]handlerFn{
 	"ScanURLTest":         handle(globalServer.ScanURLTest),
 	"ScanCheckNetwork":    handle(globalServer.ScanCheckNetwork),
 	"ParseRuleSet":        handle(globalServer.ParseRuleSet),
+	"ResolveDomains":      handle(globalServer.ResolveDomains),
 }
 
 func dispatch(methodName string, payload []byte) ([]byte, error) {

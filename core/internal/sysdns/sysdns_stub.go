@@ -8,6 +8,14 @@ import (
 	tun "github.com/sagernet/sing-tun"
 )
 
-func SetSystemDNS(addr string, interfaceMonitor tun.DefaultInterfaceMonitor) error {
-	return errors.New("not implemented for this OS")
+func Prepare() error {
+	return errors.ErrUnsupported
 }
+
+func Apply(tun.DefaultInterfaceMonitor) error {
+	return errors.ErrUnsupported
+}
+
+func Release() {}
+
+func RestoreStale() {}
