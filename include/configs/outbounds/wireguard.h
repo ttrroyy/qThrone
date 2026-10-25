@@ -67,6 +67,23 @@ namespace Configs
         bool random_trailers = false;
         bool disable_cookies = false;
 
+        // Obfuscator in front of the server: "wg-obfuscator" (ClusterM, Phobos) or "wgobfs" (xt_wgobfs); empty is plain WireGuard.
+        QString obfs_type;
+        QString obfs_key;
+        // wg-obfuscator: NONE, STUN or MEDIA (an RTP video stream).
+        QString obfs_masking;
+        // -1 keeps the obfuscator's default of 4.
+        int obfs_max_dummy = -1;
+        int obfs_obfuscate_bytes = 0;
+        int obfs_media_pt = 0;
+        quint32 obfs_media_ssrc = 0;
+        int obfs_media_clock = 0;
+
+        // The Phobos client .conf: [Interface], [Peer] and the obfuscator's [instance].
+        QString ExportPhobosConf();
+        // The core's "obfs" object; empty without an obfuscator.
+        QJsonObject ObfsToJson() const;
+
         bool ParseFromClash(const clash::Proxies& object) override;
         bool ParseFromLink(const QString& link) override;
         bool ParseFromJson(const QJsonObject& object) override;
@@ -85,6 +102,7 @@ namespace Configs
 
         private:
         QJsonObject AmneziaToJson();
+        void ObfsFromJson(const QJsonObject& object);
         void AmneziaFromJson(const QJsonObject& object);
         static QString AmneziaRangeFromJson(const QJsonValue& value);
         void FixAddress();

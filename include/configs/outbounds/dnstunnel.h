@@ -4,17 +4,17 @@
 #include <QStringList>
 
 namespace Configs {
-// A DNS tunnel profile: DNSTT, VayDNS, SlipStream or MasterDNS. The fields are those of
-// the dnst:// format (net2share/dnst-url-spec); links of the apps that predate it are read
-// too (slipnet://, masterdns://). Without resolvers of its own a profile uses the network's
-// DNS servers, which the helper reads from the system.
+// A DNS tunnel profile: DNSTT, VayDNS, SlipStream, MasterDNS, CottenDNS or Soar. The fields are
+// those of the dnst:// format (net2share/dnst-url-spec); links of the apps that predate it are read
+// too (slipnet://, and the masterdns://, stormdns://, cottendns:// and soar:// profiles). Without
+// resolvers of its own a profile uses the network's DNS servers, which the helper reads from the system.
 class dnstunnel : public extracore {
 public:
     explicit dnstunnel(const QString &kind = "dnstt") : kind(kind) { server_port = 0; socksPort = 0; }
     static const QStringList &Kinds();
     static const QStringList &RecordTypes();
     static QString Title(const QString &kind);
-    // Which of the four transports this profile is; the profile's type follows it.
+    // Which of the transports this profile is; the profile's type follows it.
     QString kind;
     // The dnst:// fields (domain, pubkey, resolvers, backend, ...), without type and name.
     QJsonObject data;
@@ -27,6 +27,8 @@ public:
     QString DisplayAddress() override { return data.value("domain").toString(); }
     SecurityInfo GetSecurity() override;
     QString Validate() const;
+    // A whitedns.profile JSON; the link's scheme, when there is one, names the engine.
+    bool ParseWhiteDnsProfile(const QJsonObject &json, QString scheme = {});
     QString Prepare();
     BuildResult Build() override;
     bool SupportsCredentialStrip() const override { return true; }
@@ -35,6 +37,7 @@ private:
     QString bridgeAuth;
     bool parseDnst(const QString &body);
     bool parseSlipNet(const QString &body);
-    bool parseWhiteDns(const QString &body);
+    bool parseWhiteDns(const QString &body, const QString &scheme);
+    QString exportWhiteDns() const;
 };
 }

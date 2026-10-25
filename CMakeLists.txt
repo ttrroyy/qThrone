@@ -390,6 +390,10 @@ set(PROJECT_SOURCES
         src/ui/profile/edit_wireguard_amnezia.cpp
         include/ui/profile/edit_wireguard_amnezia.ui
 
+        include/ui/profile/edit_wireguard_obfs.h
+        src/ui/profile/edit_wireguard_obfs.cpp
+        include/ui/profile/edit_wireguard_obfs.ui
+
         include/ui/profile/edit_masque.h
         src/ui/profile/edit_masque.cpp
         include/ui/profile/edit_masque.ui

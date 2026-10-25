@@ -1,6 +1,7 @@
 #include "include/ui/profile/edit_wireguard.h"
 
 #include "include/ui/profile/edit_wireguard_amnezia.h"
+#include "include/ui/profile/edit_wireguard_obfs.h"
 
 #include <QPointer>
 
@@ -14,6 +15,14 @@ EditWireguard::EditWireguard(QWidget *parent) : QWidget(parent), ui(new Ui::Edit
         if (ent == nullptr) return;
         auto *amnezia = new EditWireguardAmnezia(this, ent);
         amnezia->show();
+    });
+
+    connect(ui->obfs_options, &QPushButton::clicked, this, [=, this] {
+        if (ent == nullptr) return;
+        // Amnezia is applied on save from the checkbox, so the dialog writes its answer back to it.
+        ent->Wireguard()->enable_amnezia = ui->enable_amnezia->isChecked();
+        EditWireguardObfs obfs(this, ent);
+        if (obfs.exec() == QDialog::Accepted) ui->enable_amnezia->setChecked(ent->Wireguard()->enable_amnezia);
     });
 
     connect(ui->warp_autogen, &QPushButton::clicked, this, [this] {

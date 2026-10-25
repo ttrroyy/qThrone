@@ -11,17 +11,17 @@
 
 namespace Configs {
 bool IsNativeTransport(const QString &type) {
-    static const QSet<QString> types{"qwdtt", "csqtt", "wdttplus", "openflux", "olcrtc", "dnstt", "vaydns", "slipstream", "masterdns", "s3bypass", "sstp"};
+    static const QSet<QString> types{"qwdtt", "csqtt", "wdttplus", "openflux", "olcrtc", "dnstt", "vaydns", "slipstream", "masterdns", "cottendns", "soar", "s3bypass", "sstp"};
     return types.contains(type);
 }
 
 bool IsTcpOnlyTransport(const QString &type) {
-    static const QSet<QString> types{"olcrtc", "dnstt", "vaydns", "slipstream", "masterdns"};
+    static const QSet<QString> types{"olcrtc", "dnstt", "vaydns", "slipstream", "masterdns", "cottendns", "soar"};
     return types.contains(type);
 }
 
 bool HasOwnServerFields(const QString &type) {
-    static const QSet<QString> types{"olcrtc", "dnstt", "vaydns", "slipstream", "masterdns", "s3bypass"};
+    static const QSet<QString> types{"olcrtc", "dnstt", "vaydns", "slipstream", "masterdns", "cottendns", "soar", "s3bypass"};
     return types.contains(type);
 }
 

@@ -64,12 +64,85 @@
      </item>
     </widget>
    </item>
+   <item row="4" column="0">
+    <widget class="QLabel" name="phobos_key_l">
+     <property name="toolTip">
+      <string>The obfuscator key of a Phobos server in SOCKS5 mode. Leave empty for a plain SOCKS proxy.</string>
+     </property>
+     <property name="text">
+      <string>Phobos key</string>
+     </property>
+     <property name="buddy">
+      <cstring>phobos_key</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="1">
+    <widget class="QLineEdit" name="phobos_key"/>
+   </item>
+   <item row="5" column="0">
+    <widget class="QLabel" name="phobos_masking_l">
+     <property name="text">
+      <string>Masking</string>
+     </property>
+     <property name="buddy">
+      <cstring>phobos_masking</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="5" column="1">
+    <widget class="QComboBox" name="phobos_masking">
+     <property name="toolTip">
+      <string>How the obfuscated stream looks on the wire: a STUN call, an RTP video stream (MEDIA) or an HTTPS session (TLS). Must match the server.</string>
+     </property>
+     <item>
+      <property name="text">
+       <string notr="true">NONE</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string notr="true">STUN</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string notr="true">MEDIA</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string notr="true">TLS</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item row="6" column="0">
+    <widget class="QLabel" name="phobos_media_ssrc_l">
+     <property name="text">
+      <string>Media SSRC</string>
+     </property>
+     <property name="buddy">
+      <cstring>phobos_media_ssrc</cstring>
+     </property>
+    </widget>
+   </item>
+   <item row="6" column="1">
+    <widget class="QLineEdit" name="phobos_media_ssrc">
+     <property name="toolTip">
+      <string>The fixed RTP SSRC of MEDIA masking when the server sets one; empty or 0 is random.</string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <tabstops>
   <tabstop>version</tabstop>
   <tabstop>username</tabstop>
   <tabstop>password</tabstop>
+  <tabstop>phobos_key</tabstop>
+  <tabstop>phobos_masking</tabstop>
+  <tabstop>phobos_media_ssrc</tabstop>
  </tabstops>
  <resources/>
  <connections/>

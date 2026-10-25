@@ -399,7 +399,7 @@ namespace Configs {
             name += ".exe";
 #endif
             add(QFileInfo(QCoreApplication::applicationDirPath() + "/" + name).canonicalFilePath());
-            for (const auto *helper : {"dnstun", "masterdns", "s3bypass", "slipstream-client", "wdttplus-client", "sstp-client"}) {
+            for (const auto *helper : {"dnstun", "masterdns", "cottendns", "soar", "s3bypass", "slipstream-client", "wdttplus-client", "sstp-client"}) {
                 name = QString::fromLatin1(helper);
 #ifdef Q_OS_WIN
                 name += ".exe";

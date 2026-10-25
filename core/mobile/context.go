@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/netip"
 	"os"
+	"qThroneCore/internal/obfs"
 
 	"qThroneCore/internal/xray"
 
@@ -39,7 +40,8 @@ func newBoxContext(platform PlatformInterface, platformInterface adapter.Platfor
 	}
 	ctx := context.Background()
 	ctx = filemanager.WithDefault(ctx, sWorkingPath, sTempPath, os.Getuid(), os.Getgid())
-	ctx = box.Context(ctx, include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry(), dnsRegistry, include.ServiceRegistry(), include.CertificateProviderRegistry())
+	outbounds, endpoints := obfs.Registries()
+	ctx = box.Context(ctx, include.InboundRegistry(), outbounds, endpoints, dnsRegistry, include.ServiceRegistry(), include.CertificateProviderRegistry())
 	ctx = service.ContextWith[deprecated.Manager](ctx, deprecated.NewStderrManager(log.StdLogger()))
 	if platformInterface != nil {
 		ctx = service.ContextWith[adapter.PlatformInterface](ctx, platformInterface)

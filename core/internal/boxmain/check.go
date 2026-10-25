@@ -2,6 +2,7 @@ package boxmain
 
 import (
 	"context"
+	"qThroneCore/internal/obfs"
 
 	"github.com/sagernet/sing-box/include"
 
@@ -10,7 +11,8 @@ import (
 
 func Check(content []byte) error {
 	ctx := context.Background()
-	ctx = boxbox.Context(ctx, include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry(), include.DNSTransportRegistry(), include.ServiceRegistry(), include.CertificateProviderRegistry())
+	outbounds, endpoints := obfs.Registries()
+	ctx = boxbox.Context(ctx, include.InboundRegistry(), outbounds, endpoints, include.DNSTransportRegistry(), include.ServiceRegistry(), include.CertificateProviderRegistry())
 	options, err := parseConfig(ctx, content)
 	if err != nil {
 		return err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/user"
+	"qThroneCore/internal/obfs"
 	"strconv"
 
 	box "github.com/sagernet/sing-box"
@@ -37,6 +38,7 @@ func newBoxContext() context.Context {
 		ctx = filemanager.WithDefault(ctx, "", "", ownerUID, ownerGID)
 	}
 	ctx = service.ContextWith(ctx, deprecated.NewStderrManager(log.StdLogger()))
-	ctx = box.Context(ctx, include.InboundRegistry(), include.OutboundRegistry(), include.EndpointRegistry(), include.DNSTransportRegistry(), include.ServiceRegistry(), include.CertificateProviderRegistry())
+	outbounds, endpoints := obfs.Registries()
+	ctx = box.Context(ctx, include.InboundRegistry(), outbounds, endpoints, include.DNSTransportRegistry(), include.ServiceRegistry(), include.CertificateProviderRegistry())
 	return ctx
 }

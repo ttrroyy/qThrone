@@ -9,7 +9,7 @@
 #include "profile_editor.h"
 class QFormLayout;
 
-// DNSTT, VayDNS, SlipStream and MasterDNS: one editor, fields by transport.
+// DNSTT, VayDNS, SlipStream, MasterDNS, CottenDNS and Soar: one editor, fields by transport.
 class EditDnsTunnel : public QWidget, public ProfileEditor {
     Q_OBJECT
 public:
@@ -20,10 +20,10 @@ private:
     std::shared_ptr<Configs::Profile> ent;
     QString kind;
     QFormLayout *form;
-    QLineEdit *domain, *pubkey, *mkey, *idleTimeout, *keepalive, *user, *password;
+    QLineEdit *domain, *pubkey, *mkey, *idleTimeout, *keepalive, *user, *password, *soarCountry;
     QPlainTextEdit *cert, *resolvers, *privateKey;
-    QComboBox *encryption, *recordType, *congestion, *backend, *method;
-    QCheckBox *dnsttCompat, *authoritative;
+    QComboBox *encryption, *recordType, *congestion, *backend, *method, *soarTransport;
+    QCheckBox *dnsttCompat, *authoritative, *soarDiscovery;
     QSpinBox *clientIdSize, *keepAliveInterval;
     QLabel *note;
     void setRowVisible(QWidget *field, bool visible);

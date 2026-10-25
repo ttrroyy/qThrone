@@ -28,7 +28,7 @@ cp deployment/${DEST_SUFFIX%-system-qt}/csqtt-transport $DEST
 cp deployment/${DEST_SUFFIX%-system-qt}/CSQTT-LICENSE $DEST
 cp deployment/${DEST_SUFFIX%-system-qt}/CSQTT-SOURCE $DEST
 cp deployment/${DEST_SUFFIX%-system-qt}/csqtt-source.tar.gz $DEST
-for name in dnstun VayDNS-LICENSE VayDNS-SOURCE vaydns-source.tar.gz masterdns MasterDnsVPN-LICENSE MasterDnsVPN-SOURCE masterdns-source.tar.gz \
+for name in dnstun VayDNS-LICENSE VayDNS-SOURCE vaydns-source.tar.gz masterdns MasterDnsVPN-LICENSE MasterDnsVPN-SOURCE masterdns-source.tar.gz cottendns CottenDNS-LICENSE CottenDNS-SOURCE cottendns-source.tar.gz soar Soar-LICENSE Soar-SOURCE soar-source.tar.gz \
     s3bypass Xray-fedarisha-LICENSE Xray-fedarisha-SOURCE fedarisha-source.tar.gz slipstream-client Slipstream-LICENSE Slipstream-SOURCE slipstream-source.tar.gz \
     wdttplus-client WDTT-Plus-LICENSE WDTT-Plus-SOURCE wdttplus-source.tar.gz; do
     cp deployment/${DEST_SUFFIX%-system-qt}/$name $DEST

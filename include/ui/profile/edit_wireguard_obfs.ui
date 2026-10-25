@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>EditWireguardObfs</class>
+ <widget class="QDialog" name="EditWireguardObfs">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>460</width>
+    <height>320</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Obfuscation</string>
+  </property>
+  <layout class="QVBoxLayout" name="dialog_layout">
+   <item>
+    <layout class="QGridLayout" name="gridLayout">
+     <item row="0" column="0">
+      <widget class="QLabel" name="type_l">
+       <property name="text">
+        <string>Obfuscator</string>
+       </property>
+       <property name="buddy">
+        <cstring>type</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="type">
+       <property name="toolTip">
+        <string>The obfuscator running in front of the WireGuard server. wg-obfuscator covers ClusterM's and Phobos servers, wgobfs covers xt_wgobfs and rs-wgobfs.</string>
+       </property>
+       <item>
+        <property name="text">
+         <string>Off</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string notr="true">wg-obfuscator (ClusterM, Phobos)</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string notr="true">wgobfs (xt_wgobfs)</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="key_l">
+       <property name="text">
+        <string>Key</string>
+       </property>
+       <property name="buddy">
+        <cstring>key</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QLineEdit" name="key">
+       <property name="toolTip">
+        <string>The shared obfuscation key, the same as on the server.</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="masking_l">
+       <property name="text">
+        <string>Masking</string>
+       </property>
+       <property name="buddy">
+        <cstring>masking</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QComboBox" name="masking">
+       <property name="toolTip">
+        <string>STUN makes the traffic look like a call, MEDIA like an RTP video stream of a video call. MEDIA must also be set on the server.</string>
+       </property>
+       <item>
+        <property name="text">
+         <string notr="true">NONE</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string notr="true">STUN</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string notr="true">MEDIA</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="max_dummy_l">
+       <property name="text">
+        <string>Max dummy bytes</string>
+       </property>
+       <property name="buddy">
+        <cstring>max_dummy</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <widget class="QLineEdit" name="max_dummy">
+       <property name="placeholderText">
+        <string notr="true">4</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="0">
+      <widget class="QLabel" name="obfuscate_bytes_l">
+       <property name="text">
+        <string>Obfuscate bytes</string>
+       </property>
+       <property name="buddy">
+        <cstring>obfuscate_bytes</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1">
+      <widget class="QLineEdit" name="obfuscate_bytes">
+       <property name="toolTip">
+        <string>Obfuscate only the first bytes of each packet, as the server's obfuscate-bytes. Empty obfuscates whole packets, or 16 bytes with MEDIA.</string>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="0">
+      <widget class="QLabel" name="media_pt_l">
+       <property name="text">
+        <string>Media payload type</string>
+       </property>
+       <property name="buddy">
+        <cstring>media_pt</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="5" column="1">
+      <widget class="QLineEdit" name="media_pt">
+       <property name="placeholderText">
+        <string>random</string>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="0">
+      <widget class="QLabel" name="media_ssrc_l">
+       <property name="text">
+        <string>Media SSRC</string>
+       </property>
+       <property name="buddy">
+        <cstring>media_ssrc</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="6" column="1">
+      <widget class="QLineEdit" name="media_ssrc">
+       <property name="placeholderText">
+        <string>random</string>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="0">
+      <widget class="QLabel" name="media_clock_l">
+       <property name="text">
+        <string>Media frame rate</string>
+       </property>
+       <property name="buddy">
+        <cstring>media_clock</cstring>
+       </property>
+      </widget>
+     </item>
+     <item row="7" column="1">
+      <widget class="QLineEdit" name="media_clock">
+       <property name="placeholderText">
+        <string>random</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="buttonBox">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <property name="standardButtons">
+      <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <tabstops>
+  <tabstop>type</tabstop>
+  <tabstop>key</tabstop>
+  <tabstop>masking</tabstop>
+  <tabstop>max_dummy</tabstop>
+  <tabstop>obfuscate_bytes</tabstop>
+  <tabstop>media_pt</tabstop>
+  <tabstop>media_ssrc</tabstop>
+  <tabstop>media_clock</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+</ui>

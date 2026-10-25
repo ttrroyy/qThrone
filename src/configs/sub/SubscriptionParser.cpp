@@ -78,7 +78,7 @@ namespace Subscription {
 
         struct Protocol {
             const char *type;
-            const char *schemes[4];
+            const char *schemes[8];
             const char *singbox[2];
             const char *clash[2];
         };
@@ -91,10 +91,12 @@ namespace Subscription {
             {"openflux", {"openflux://"}, {"openflux"}, {}},
             {"olcrtc", {"olcrtc://"}, {"olcrtc"}, {}},
             // One model reads every DNS tunnel link and takes its transport from it.
-            {"dnstt", {"dnst://", "slipnet://", "masterdns://"}, {"dnstt"}, {}},
+            {"dnstt", {"dnst://", "slipnet://", "masterdns://", "stormdns://", "cottendns://", "soar://"}, {"dnstt"}, {}},
             {"vaydns", {}, {"vaydns"}, {}},
             {"slipstream", {}, {"slipstream"}, {}},
             {"masterdns", {}, {"masterdns"}, {}},
+            {"cottendns", {}, {"cottendns"}, {}},
+            {"soar", {}, {"soar"}, {}},
             {"s3bypass", {}, {"s3bypass"}, {}},
             {"sstp", {"sstp://"}, {"sstp"}, {}},
             {"socks", {"socks5://", "socks4://", "socks4a://", "socks://"}, {"socks"}, {"socks5"}},
@@ -329,13 +331,11 @@ namespace Subscription {
             return masterDnsProfile(values["DOMAINS"], key, ok ? method : 1, {});
         }
 
-        // WhiteDNS's profile file (the JSON a masterdns:// link carries) or MasterDnsVPN's JSON config.
+        // The whitedns.profile file (the JSON a masterdns:// or cottendns:// link carries) or MasterDnsVPN's JSON config.
         QJsonObject masterDnsJson(const QJsonObject &object) {
             if (object["schema"].toString() == "whitedns.profile") {
-                const auto profile = object["profile"].toObject();
-                const auto server = profile["server"].toObject();
-                return masterDnsProfile(server["domain"].toString(), server["encryption_key"].toString(),
-                                        server["encryption_method"].toInt(1), profile["name"].toString());
+                Configs::dnstunnel tunnel;
+                return tunnel.ParseWhiteDnsProfile(object) ? tunnel.ExportToJson() : QJsonObject{};
             }
             if (object.contains("DOMAINS") && object.contains("ENCRYPTION_KEY")) {
                 QStringList domains;
@@ -474,6 +474,7 @@ namespace Subscription {
             void link(std::string_view line, int depth, const QString &overrideName);
             void jsonLink(const QString &str, bool throneAdd);
             void vpnLink(const QString &str, int depth);
+            void phobosLink(const QString &str);
         };
 
         void Parser::document(std::string_view raw, bool allowBase64, bool needParse, int depth, const QString &overrideName) {
@@ -584,7 +585,7 @@ namespace Subscription {
                 }
             }
             if (const auto config = masterDnsJson(object); !config.isEmpty()) {
-                auto ent = Configs::ProfilesRepo::NewProfile("masterdns");
+                auto ent = Configs::ProfilesRepo::NewProfile(config["type"].toString());
                 if (ent->outbound->ParseFromJson(config)) produce(ent);
                 else log("Invalid MasterDNS profile");
                 return;
@@ -806,6 +807,10 @@ namespace Subscription {
                 vpnLink(toQString(line), depth);
                 return;
             }
+            if (scan::startsWithNoCase(line, "phobos://")) {
+                phobosLink(toQString(line));
+                return;
+            }
 
             const char *profileType = typeForScheme(line);
             if (profileType == nullptr) return;
@@ -845,6 +850,28 @@ namespace Subscription {
             // Exactly the same import path as a plain JSON subscription, including
             // full configs, native exports, arrays and mixed profile wrappers.
             json(document, scan::view(dataBytes));
+        }
+
+        // A Phobos link is the client's whole .conf in base64url: WireGuard behind the obfuscator, or its SOCKS5 mode.
+        void Parser::phobosLink(const QString &str) {
+            auto raw = str.mid(9);
+            QString name;
+            if (const auto frag = raw.indexOf('#'); frag != -1) {
+                name = QUrl::fromPercentEncoding(raw.mid(frag + 1).toUtf8()).trimmed();
+                raw = raw.left(frag);
+            }
+            if (name == "none") name.clear();
+            const auto conf = QString::fromUtf8(DecodeB64IfValid(raw.trimmed(), QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
+            static const QRegularExpression socksMode(R"(^\s*mode\s*=\s*socks5\s*$)", QRegularExpression::MultilineOption | QRegularExpression::CaseInsensitiveOption);
+            const bool socks5 = socksMode.match(conf).hasMatch();
+            auto ent = Configs::ProfilesRepo::NewProfile(socks5 ? "socks" : "wireguard");
+            const bool ok = socks5 ? ent->Socks()->ParsePhobosConf(conf) : ent->outbound->ParseFromLink(conf);
+            if (!ok) {
+                log("Invalid Phobos link");
+                return;
+            }
+            setNameIfEmpty(*ent, {name});
+            produce(ent);
         }
 
         void Parser::vpnLink(const QString &str, int depth) {

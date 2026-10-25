@@ -159,6 +159,16 @@
        </widget>
       </item>
       <item row="11" column="0" colspan="2">
+       <widget class="QPushButton" name="obfs_options">
+        <property name="toolTip">
+         <string>Set the obfuscator in front of the server: wg-obfuscator with STUN or MEDIA masking (ClusterM, Phobos) or wgobfs.</string>
+        </property>
+        <property name="text">
+         <string>Obfuscation</string>
+        </property>
+       </widget>
+      </item>
+      <item row="12" column="0" colspan="2">
        <widget class="QPushButton" name="warp_autogen">
         <property name="toolTip">
          <string>Generate a Cloudflare WARP account and fill the key, address and endpoint fields above.</string>
@@ -185,6 +195,7 @@
   <tabstop>sys_ifc</tabstop>
   <tabstop>enable_amnezia</tabstop>
   <tabstop>amnezia_options</tabstop>
+  <tabstop>obfs_options</tabstop>
   <tabstop>warp_autogen</tabstop>
  </tabstops>
  <resources/>

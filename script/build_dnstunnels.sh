@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # DNSTT, VayDNS and the Slipstream front run through VayDNS's client library,
-# MasterDNS through MasterDnsVPN's own client, S3 Bypass through the fedarisha
-# outbound of Xray-core-fedarisha. Each is the original project's code behind
-# an authenticated loopback SOCKS5 listener (script/dnstun, masterdns, s3bypass).
+# MasterDNS (and StormDNS) through MasterDnsVPN's own client, CottenDNS through
+# its own client, Soar through Lantern's client library, S3 Bypass through the
+# fedarisha outbound of Xray-core-fedarisha. Each is the original project's code
+# behind an authenticated loopback SOCKS5 listener (script/dnstun, masterdns,
+# cottendns, soar, s3bypass).
 set -euo pipefail
 suffix=$([[ "$GOOS" == windows ]] && echo '.exe' || true)
 
@@ -34,6 +36,34 @@ CGO_ENABLED=0 "$GOCMD" build -trimpath -ldflags='-s -w' -o "$DEST/masterdns$suff
 cp LICENSE "$DEST/MasterDnsVPN-LICENSE"
 printf '%s\n' 'https://github.com/masterking32/MasterDnsVPN' "Revision: $masterdns_revision" 'Desktop integration: script/masterdns in qThrone' > "$DEST/MasterDnsVPN-SOURCE"
 tar -czf "$DEST/masterdns-source.tar.gz" --exclude=.git --exclude=.github .
+popd
+
+cottendns_revision=7db7b73658c791cce62300d29647e4d369d6e1e4
+if [ ! -d cottendns-source/.git ]; then
+    python3 script/fetch_pinned_source.py https://github.com/TaJirax/cottenDNS.git "$cottendns_revision" cottendns-source
+fi
+test "$(git -C cottendns-source rev-parse HEAD)" = "$cottendns_revision"
+mkdir -p cottendns-source/cmd/qthrone-cottendns
+cp script/cottendns/*.go cottendns-source/cmd/qthrone-cottendns/
+pushd cottendns-source
+CGO_ENABLED=0 "$GOCMD" build -trimpath -ldflags='-s -w' -o "$DEST/cottendns$suffix" ./cmd/qthrone-cottendns
+cp LICENSE "$DEST/CottenDNS-LICENSE"
+printf '%s\n' 'https://github.com/TaJirax/cottenDNS' "Revision: $cottendns_revision" 'Desktop integration: script/cottendns in qThrone' > "$DEST/CottenDNS-SOURCE"
+tar -czf "$DEST/cottendns-source.tar.gz" --exclude=.git --exclude=.github .
+popd
+
+soar_revision=fea80aae6c60a9f27d7358e5f967cbc9b57bb37d
+if [ ! -d soar-source/.git ]; then
+    python3 script/fetch_pinned_source.py https://github.com/getlantern/soar.git "$soar_revision" soar-source
+fi
+test "$(git -C soar-source rev-parse HEAD)" = "$soar_revision"
+mkdir -p soar-source/cmd/qthrone-soar
+cp script/soar/*.go soar-source/cmd/qthrone-soar/
+pushd soar-source
+CGO_ENABLED=0 "$GOCMD" build -trimpath -ldflags='-s -w' -o "$DEST/soar$suffix" ./cmd/qthrone-soar
+cp LICENSE "$DEST/Soar-LICENSE"
+printf '%s\n' 'https://github.com/getlantern/soar' "Revision: $soar_revision" 'Desktop integration: script/soar in qThrone' > "$DEST/Soar-SOURCE"
+tar -czf "$DEST/soar-source.tar.gz" --exclude=.git --exclude=.github .
 popd
 
 # Xray-core-fedarisha needs Go 1.27, newer than the patched toolchain of the

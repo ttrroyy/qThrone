@@ -45,7 +45,7 @@ namespace Configs
         if (type == "wdttplus") return new wdttplus();
         if (type == "openflux") return new openflux();
         if (type == "olcrtc") return new olcrtc();
-        if (type == "dnstt" || type == "vaydns" || type == "slipstream" || type == "masterdns") return new dnstunnel(type);
+        if (type == "dnstt" || type == "vaydns" || type == "slipstream" || type == "masterdns" || type == "cottendns" || type == "soar") return new dnstunnel(type);
         if (type == "s3bypass") return new s3bypass();
         if (type == "sstp") return new sstp();
         if (type == "socks") return new socks();

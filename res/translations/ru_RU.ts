@@ -5990,6 +5990,30 @@ Improves hole-punching reliability. Requires IPv4.</source>
         <source>4</source>
         <translation>4</translation>
     </message>
+    <message>
+        <source>The obfuscator key of a Phobos server in SOCKS5 mode. Leave empty for a plain SOCKS proxy.</source>
+        <translation>Ключ обфускатора сервера Phobos в режиме SOCKS5. Пусто: обычный SOCKS-прокси.</translation>
+    </message>
+    <message>
+        <source>Phobos key</source>
+        <translation>Ключ Phobos</translation>
+    </message>
+    <message>
+        <source>Masking</source>
+        <translation>Маскировка</translation>
+    </message>
+    <message>
+        <source>How the obfuscated stream looks on the wire: a STUN call, an RTP video stream (MEDIA) or an HTTPS session (TLS). Must match the server.</source>
+        <translation>Как выглядит поток в сети: звонок STUN, видеопоток RTP (MEDIA) или сессия HTTPS (TLS). Должна совпадать с сервером.</translation>
+    </message>
+    <message>
+        <source>Media SSRC</source>
+        <translation>SSRC медиапотока</translation>
+    </message>
+    <message>
+        <source>The fixed RTP SSRC of MEDIA masking when the server sets one; empty or 0 is random.</source>
+        <translation>Фиксированный SSRC маскировки MEDIA, если он задан на сервере; пусто или 0: случайный.</translation>
+    </message>
 </context>
 <context>
     <name>EditTailScale</name>
@@ -6294,6 +6318,14 @@ Improves hole-punching reliability. Requires IPv4.</source>
     <message>
         <source>Success!</source>
         <translation>Успешно!</translation>
+    </message>
+    <message>
+        <source>Set the obfuscator in front of the server: wg-obfuscator with STUN or MEDIA masking (ClusterM, Phobos) or wgobfs.</source>
+        <translation>Обфускатор перед сервером: wg-obfuscator с маскировкой STUN или MEDIA (ClusterM, Phobos) или wgobfs.</translation>
+    </message>
+    <message>
+        <source>Obfuscation</source>
+        <translation>Обфускация</translation>
     </message>
 </context>
 <context>
@@ -8917,6 +8949,14 @@ Release note:
         <source>Generating a WARP identity registers a new device with Cloudflare.&lt;br&gt;&lt;br&gt;Do you accept the &lt;a href=&quot;%1&quot;&gt;Cloudflare WARP terms of service&lt;/a&gt;?</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>WireGuard obfuscation cannot be combined with AmneziaWG</source>
+        <translation>Обфускацию WireGuard нельзя совмещать с AmneziaWG</translation>
+    </message>
+    <message>
+        <source>WireGuard obfuscation needs a key</source>
+        <translation>Для обфускации WireGuard нужен ключ</translation>
+    </message>
 </context>
 <context>
     <name>QPlatformTheme</name>
@@ -9629,5 +9669,72 @@ Remove that endpoint from this routing profile as well?</source>
     <message><source>Enter one to six VK call hashes.</source><translation>Укажите от одного до шести хешей звонков VK.</translation></message>
     <message><source>Enter valid, distinct VK call hashes.</source><translation>Укажите корректные хеши звонков VK без повторений.</translation></message>
     <message><source>Enter a valid device ID.</source><translation>Укажите корректный ID устройства.</translation></message>
+</context>
+<context>
+    <name>EditWireguardObfs</name>
+    <message>
+        <source>Obfuscation</source>
+        <translation>Обфускация</translation>
+    </message>
+    <message>
+        <source>Obfuscator</source>
+        <translation>Обфускатор</translation>
+    </message>
+    <message>
+        <source>The obfuscator running in front of the WireGuard server. wg-obfuscator covers ClusterM's and Phobos servers, wgobfs covers xt_wgobfs and rs-wgobfs.</source>
+        <translation>Обфускатор перед сервером WireGuard. wg-obfuscator подходит для серверов ClusterM и Phobos, wgobfs для xt_wgobfs и rs-wgobfs.</translation>
+    </message>
+    <message>
+        <source>Off</source>
+        <translation>Выключен</translation>
+    </message>
+    <message>
+        <source>Key</source>
+        <translation>Ключ</translation>
+    </message>
+    <message>
+        <source>The shared obfuscation key, the same as on the server.</source>
+        <translation>Общий ключ обфускации, как на сервере.</translation>
+    </message>
+    <message>
+        <source>Masking</source>
+        <translation>Маскировка</translation>
+    </message>
+    <message>
+        <source>STUN makes the traffic look like a call, MEDIA like an RTP video stream of a video call. MEDIA must also be set on the server.</source>
+        <translation>STUN маскирует трафик под звонок, MEDIA под видеопоток RTP видеозвонка. MEDIA нужно задать и на сервере.</translation>
+    </message>
+    <message>
+        <source>Max dummy bytes</source>
+        <translation>Макс. мусорных байт</translation>
+    </message>
+    <message>
+        <source>Obfuscate bytes</source>
+        <translation>Обфусцировать байт</translation>
+    </message>
+    <message>
+        <source>Obfuscate only the first bytes of each packet, as the server's obfuscate-bytes. Empty obfuscates whole packets, or 16 bytes with MEDIA.</source>
+        <translation>Обфусцировать только первые байты пакета, как obfuscate-bytes на сервере. Пусто: весь пакет, с MEDIA 16 байт.</translation>
+    </message>
+    <message>
+        <source>Media payload type</source>
+        <translation>Тип нагрузки RTP</translation>
+    </message>
+    <message>
+        <source>random</source>
+        <translation>случайно</translation>
+    </message>
+    <message>
+        <source>Media SSRC</source>
+        <translation>SSRC медиапотока</translation>
+    </message>
+    <message>
+        <source>Media frame rate</source>
+        <translation>Частота кадров</translation>
+    </message>
+    <message>
+        <source>Enter the obfuscator key.</source>
+        <translation>Укажите ключ обфускатора.</translation>
+    </message>
 </context>
 </TS>

@@ -12,6 +12,9 @@
 
 namespace Configs {
 namespace {
+// The engines that take a domain and key of their own and run their own client, not VayDNS's.
+bool Keyed(const QString &kind) { return kind == "masterdns" || kind == "cottendns" || kind == "soar"; }
+
 const QString dnstPrefix = QStringLiteral("dnst://");
 
 // SlipNet's tunnel types that are DNS tunnels this client runs, by its export name.
@@ -45,7 +48,7 @@ bool dnsHasLineBreak(const QString &value) { return value.contains('\n') || valu
 }
 
 const QStringList &dnstunnel::Kinds() {
-    static const QStringList kinds{"dnstt", "vaydns", "slipstream", "masterdns"};
+    static const QStringList kinds{"dnstt", "vaydns", "slipstream", "masterdns", "cottendns", "soar"};
     return kinds;
 }
 
@@ -58,14 +61,17 @@ QString dnstunnel::Title(const QString &kind) {
     if (kind == "vaydns") return "VayDNS";
     if (kind == "slipstream") return "SlipStream";
     if (kind == "masterdns") return "MasterDNS";
+    if (kind == "cottendns") return "CottenDNS";
+    if (kind == "soar") return "Soar";
     return "DNSTT";
 }
 
 SecurityInfo dnstunnel::GetSecurity() {
     const auto &d = data;
     if (kind == "slipstream") return {"QUIC TLS", "DNS", SecurityLevel::Secure};
-    if (kind == "masterdns") return {d["encryption"].toInt() == 0 ? QString() : QStringLiteral("MasterDNS"), "DNS",
+    if (kind == "masterdns" || kind == "cottendns") return {d["encryption"].toInt() == 0 ? QString() : Title(kind), "DNS",
                                      d["encryption"].toInt() == 0 ? SecurityLevel::None : SecurityLevel::Secure};
+    if (kind == "soar") return {"X25519 ChaCha20", "DNS", SecurityLevel::Secure};
     return {"Noise", "DNS", SecurityLevel::Secure};
 }
 
@@ -84,8 +90,8 @@ bool dnstunnel::ParseFromJson(const QJsonObject &o) {
     auto domain = data["domain"].toString().trimmed();
     while (domain.endsWith('.')) domain.chop(1);
     data["domain"] = domain;
-    if (kind != "masterdns" && !data.contains("backend")) data["backend"] = QJsonObject{{"type", "socks"}};
-    if (kind == "masterdns") data.remove("backend");
+    if (!Keyed(kind) && !data.contains("backend")) data["backend"] = QJsonObject{{"type", "socks"}};
+    if (Keyed(kind)) data.remove("backend");
     server = domain; server_port = 0;
     return Validate().isEmpty();
 }
@@ -96,13 +102,22 @@ QString dnstunnel::Validate() const {
     if (domain.isEmpty() || domain.size() > 253 || domain.contains(QRegularExpression("[\\s/]"))) return QStringLiteral("%1: укажите домен туннеля").arg(Title(kind));
     if ((kind == "dnstt" || kind == "vaydns") && !hex64.match(data["pubkey"].toString()).hasMatch())
         return QStringLiteral("%1: публичный ключ сервера — 64 шестнадцатеричных символа").arg(Title(kind));
-    if (kind == "masterdns") {
+    if (kind == "masterdns" || kind == "cottendns") {
         const int encryption = data["encryption"].toInt(-1);
-        if (data["mkey"].toString().trimmed().isEmpty() || encryption < 0 || encryption > 5) return QStringLiteral("MasterDNS: укажите ключ и метод шифрования");
+        if (data["mkey"].toString().trimmed().isEmpty() || encryption < 0 || encryption > 5) return QStringLiteral("%1: укажите ключ и метод шифрования").arg(Title(kind));
+    }
+    if (kind == "soar") {
+        static const QRegularExpression label("^[a-z0-9]([a-z0-9-]*[a-z0-9])?$");
+        for (const auto &part : domain.toLower().split('.')) {
+            if (domain.size() > 45 || !domain.contains('.') || part.size() > 63 || !label.match(part).hasMatch())
+                return QStringLiteral("Soar: домен туннеля один, не длиннее 45 символов");
+        }
+        if (QByteArray::fromBase64(data["pubkey"].toString().trimmed().toLatin1()).size() != 32)
+            return QStringLiteral("Soar: публичный ключ сервера Ed25519 в base64 (32 байта)");
     }
     if (kind == "vaydns" && !data["record_type"].toString().isEmpty() && !RecordTypes().contains(data["record_type"].toString()))
         return QStringLiteral("VayDNS: неизвестный тип DNS-записи");
-    if (kind != "masterdns") {
+    if (!Keyed(kind)) {
         const auto backend = data["backend"].toObject();
         const auto type = backend["type"].toString();
         if (type == "ssh") {
@@ -118,7 +133,7 @@ QString dnstunnel::Validate() const {
     for (const auto &resolver : data["resolvers"].toArray()) {
         if (dnsHasLineBreak(resolver.toString())) return QStringLiteral("%1: неверный резолвер").arg(Title(kind));
     }
-    if ((kind == "slipstream" || kind == "masterdns")) {
+    if (kind == "slipstream" || Keyed(kind)) {
         for (const auto &resolver : data["resolvers"].toArray()) {
             const auto value = resolver.toString().trimmed();
             if (value.contains("://") && !value.startsWith("udp://")) return QStringLiteral("%1: резолверы — только UDP-адреса").arg(Title(kind));
@@ -131,7 +146,10 @@ bool dnstunnel::ParseFromLink(const QString &link) {
     const auto text = link.trimmed();
     if (text.startsWith(dnstPrefix)) return parseDnst(text.mid(dnstPrefix.size()));
     if (text.startsWith("slipnet://")) return parseSlipNet(text.mid(10));
-    if (text.startsWith("masterdns://")) return parseWhiteDns(text.mid(12));
+    for (const auto *scheme : {"masterdns", "stormdns", "cottendns", "soar"}) {
+        const auto prefix = QString::fromLatin1(scheme) + "://";
+        if (text.startsWith(prefix, Qt::CaseInsensitive)) return parseWhiteDns(text.mid(prefix.size()), QString::fromLatin1(scheme));
+    }
     return false;
 }
 
@@ -228,16 +246,55 @@ bool dnstunnel::parseSlipNet(const QString &body) {
     return ParseFromJson(o);
 }
 
-// WhiteDNS's MasterDnsVPN profile link: base64url JSON of the whitedns.profile schema.
-bool dnstunnel::parseWhiteDns(const QString &body) {
-    const auto json = QJsonDocument::fromJson(dnsDecodeBase64(body.section('#', 0, 0).section('?', 0, 0))).object();
+// The whitedns.profile link of the Iranian DNS tunnel apps: base64 JSON whose scheme names the engine.
+// StormDNS speaks MasterDnsVPN's protocol and runs on its client; CottenDNS and Soar have their own.
+bool dnstunnel::parseWhiteDns(const QString &body, const QString &scheme) {
+    return ParseWhiteDnsProfile(QJsonDocument::fromJson(dnsDecodeBase64(body.section('#', 0, 0).section('?', 0, 0))).object(), scheme);
+}
+
+bool dnstunnel::ParseWhiteDnsProfile(const QJsonObject &json, QString scheme) {
     if (json["schema"].toString() != "whitedns.profile") return false;
+    if (scheme.isEmpty() || scheme == "stormdns" || scheme == "masterdns") scheme = json["import_type"].toString(scheme).toLower();
     const auto profile = json["profile"].toObject();
     const auto serverObject = profile["server"].toObject();
-    return ParseFromJson(QJsonObject{{"type", "masterdns"}, {"name", profile["name"].toString()},
-                                     {"domain", serverObject["domain"].toString()},
-                                     {"mkey", serverObject["encryption_key"].toString()},
-                                     {"encryption", serverObject["encryption_method"].toInt()}});
+    QStringList domains;
+    for (const auto &value : serverObject["domains"].toArray()) domains << value.toString().trimmed();
+    domains.removeAll(QString());
+    if (domains.isEmpty()) domains << serverObject["domain"].toString().trimmed();
+    if (scheme == "soar") {
+        QJsonArray resolvers;
+        for (const auto &value : profile["resolvers"].toArray()) resolvers.append(value.toString());
+        QJsonObject o{{"type", "soar"}, {"name", profile["name"].toString()}, {"domain", domains.first()},
+                      {"pubkey", serverObject["public_key"].toString()}, {"resolvers", resolvers}};
+        if (profile["soarSettings"].isObject()) o["soar"] = profile["soarSettings"].toObject();
+        return ParseFromJson(o);
+    }
+    auto key = serverObject["encryption_key"].toString();
+    if (key.isEmpty()) key = serverObject["encryptionKey"].toString();
+    const auto method = serverObject.contains("encryption_method") ? serverObject["encryption_method"].toInt(1) : serverObject["encryptionMethod"].toInt(1);
+    return ParseFromJson(QJsonObject{{"type", scheme == "cottendns" ? "cottendns" : "masterdns"}, {"name", profile["name"].toString()},
+                                     {"domain", domains.join(',')}, {"mkey", key}, {"encryption", method}});
+}
+
+// CottenDNS and Soar profiles travel as the links their own apps import.
+QString dnstunnel::exportWhiteDns() const {
+    QJsonObject serverObject;
+    const auto domains = data["domain"].toString().split(',', Qt::SkipEmptyParts);
+    serverObject["domain"] = domains.value(0);
+    QJsonObject profile{{"name", name.isEmpty() ? domains.value(0) : name}};
+    if (kind == "soar") {
+        serverObject["public_key"] = data["pubkey"].toString();
+        if (data["soar"].isObject()) profile["soarSettings"] = data["soar"].toObject();
+        if (!data["resolvers"].toArray().isEmpty()) profile["resolvers"] = data["resolvers"].toArray();
+    } else {
+        serverObject["domains"] = QJsonArray::fromStringList(domains);
+        serverObject["encryption_key"] = data["mkey"].toString();
+        serverObject["encryption_method"] = data["encryption"].toInt();
+    }
+    profile["server"] = serverObject;
+    const QJsonObject json{{"schema", "whitedns.profile"}, {"version", 1}, {"import_type", kind}, {"profile", profile}};
+    return kind + "://" + QString::fromLatin1(QJsonDocument(json).toJson(QJsonDocument::Compact)
+                                              .toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
 }
 
 QJsonObject dnstunnel::ExportToJson() {
@@ -253,6 +310,7 @@ QJsonObject dnstunnel::ExportIdentity() { auto o = ExportToJson(); o.remove("nam
 QString dnstunnel::ExportToLink() {
     const auto &d = data;
     if (!Validate().isEmpty()) return {};
+    if (kind == "cottendns" || kind == "soar") return exportWhiteDns();
     const auto backend = d["backend"].toObject();
     if (!d["cert"].toString().isEmpty() || !backend["pk"].toString().isEmpty()) {
         QJsonObject transport{{"type", kind}};
@@ -282,7 +340,7 @@ QString dnstunnel::ExportToLink() {
 QString dnstunnel::Prepare() {
     const auto &d = data;
     if (const auto error = Validate(); !error.isEmpty()) return error;
-    QString executable = kind == "masterdns" ? "masterdns" : "dnstun";
+    QString executable = Keyed(kind) ? kind : QStringLiteral("dnstun");
 #ifdef Q_OS_WIN
     executable += ".exe";
 #endif
@@ -302,7 +360,8 @@ QString dnstunnel::Prepare() {
     config["type"] = kind;
     // "backend" tells the core which transport this is; the helper reads the server's service here.
     config.remove("backend");
-    if (kind != "masterdns") config["tunnel_backend"] = d["backend"].toObject();
+    if (!Keyed(kind)) config["tunnel_backend"] = d["backend"].toObject();
+    if (kind == "soar") config["server_public_key"] = d["pubkey"].toString();
     config["backend"] = kind;
     config["socks"] = "127.0.0.1:" + QString::number(socksPort);
     config["socks_user"] = bridgeAuth;

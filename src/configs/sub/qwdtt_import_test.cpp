@@ -1027,6 +1027,38 @@ proxies:
               && tunnel(toml.first())->data["encryption"].toInt() == 3 && tunnel(toml.first())->data["domain"].toString() == "v.example.com", "MasterDnsVPN client_config.toml file");
         const auto whiteFile = parse(white);
         check(whiteFile.size() == 1 && whiteFile.first()->type == "masterdns" && tunnel(whiteFile.first())->name == "Iran", "WhiteDNS profile file");
+        // The same profile under the stormdns://, cottendns:// and soar:// schemes picks its engine.
+        const auto b64 = [](const QByteArray &json) { return QString::fromLatin1(json.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)); };
+        const auto storm = read("stormdns://" + b64(white));
+        check(storm && storm->type == "masterdns" && tunnel(storm)->data["mkey"].toString() == "k3y", "StormDNS link runs on the MasterDNS client");
+        const auto cotten = read("cottendns://" + b64(white));
+        check(cotten && cotten->type == "cottendns" && tunnel(cotten)->data["encryption"].toInt() == 2, "CottenDNS link");
+        const auto cottenAgain = cotten ? read(tunnel(cotten)->ExportToLink()) : nullptr;
+        check(cottenAgain && cottenAgain->type == "cottendns" && tunnel(cottenAgain)->ExportToJson() == tunnel(cotten)->ExportToJson(), "CottenDNS link reads back");
+        const QByteArray soarJson = R"({"schema":"whitedns.profile","version":1,"import_type":"soar","profile":{"name":"Soar IR","resolvers":["1.1.1.1"],
+            "soarSettings":{"transport":"auto","discovery":true,"country":"IR"},"server":{"domain":"s.example.com","public_key":"JFHtVsmq5DauWWsc/PbXYS3xd5jCnstAPYEIEVKUC08="}}})";
+        const auto soarProfile = read("soar://" + b64(soarJson));
+        check(soarProfile && soarProfile->type == "soar" && tunnel(soarProfile)->data["pubkey"].toString().size() == 44
+              && tunnel(soarProfile)->data["soar"].toObject()["country"].toString() == "IR", "Soar link");
+        if (soarProfile && tunnel(soarProfile)->Prepare().isEmpty()) {
+            const auto prepared = QJsonDocument::fromJson(tunnel(soarProfile)->extraCoreConf.toUtf8()).object();
+            check(prepared["server_public_key"].toString() == tunnel(soarProfile)->data["pubkey"].toString(), "Soar helper gets the server key");
+        }
+        // Phobos links: the client .conf, WireGuard behind wg-obfuscator or the SOCKS5 mode.
+        const auto phobosWg = read("phobos://W0ludGVyZmFjZV0KUHJpdmF0ZUtleSA9IE1Ccm5ab1RkeVQvTFI0WHBCN3RFbFN4eVZUUWRYRncwdHZWSk9NU0wvR0k9CkFkZHJlc3MgPSAxMC44LjAuNC8zMiwgZmRjYzphZDk0OmJhY2Y6NjFhNDo6Y2FmZTo0LzEyOApNVFUgPSAxNDIwCkROUyA9IDguOC44LjgsIDIwMDE6NDg2MDo0ODYwOjo4ODg4CgpbUGVlcl0KUHVibGljS2V5ID0gZy9HNHkyWGtUWTVtUExNWVlYWENhcnZ5eFVTSFV6TTF2cElZUkh3d0ZUND0KUHJlc2hhcmVkS2V5ID0gbDVURldNM3RJUjBEazg3dVBFblZrcXFsNExta2NQb2VXbU9LWktmeWVmWT0KQWxsb3dlZElQcyA9IDAuMC4wLjAvMCwgOjovMApQZXJzaXN0ZW50S2VlcGFsaXZlID0gMApFbmRwb2ludCA9IDEyNy4wLjAuMToxMzI1NQoKW2luc3RhbmNlXQpzb3VyY2UtaWYgPSAxMjcuMC4wLjEKc291cmNlLWxwb3J0ID0gMTMyNTUKdGFyZ2V0ID0gMTMwLjQ5LjE4NS4xMzY6NTE4MjQKa2V5ID0gWFIwTkVmOE1oR0FHY0NwYwptYXNraW5nID0gU1RVTgp2ZXJib3NlID0gSU5GTwppZGxlLXRpbWVvdXQgPSAzMDAKbWF4LWR1bW15ID0gNDU#Mobil-phone");
+        auto *wg = phobosWg ? phobosWg->Wireguard() : nullptr;
+        check(wg && wg->peer->address == "130.49.185.136" && wg->peer->port == 51824 && wg->obfs_type == "wg-obfuscator" && wg->obfs_key == "XR0NEf8MhGAGcCpc"
+              && wg->obfs_masking == "STUN" && wg->obfs_max_dummy == 45 && wg->name == "Mobil-phone", "Phobos WireGuard link");
+        if (wg) {
+            const auto built = wg->Build();
+            check(built.error.isEmpty() && built.object["obfs"].toObject()["masking"].toString() == "stun", "Phobos WireGuard builds with the obfuscator");
+            const auto again = read(wg->ExportToLink());
+            check(again && again->Wireguard() && again->Wireguard()->ObfsToJson() == wg->ObfsToJson() && again->Wireguard()->peer->port == 51824, "Phobos WireGuard link reads back");
+        }
+        const auto phobosSocks = read("phobos://W2luc3RhbmNlXQptb2RlID0gc29ja3M1CnJvbGUgPSBjbGllbnQKc291cmNlLWlmID0gMTI3LjAuMC4xCnNvdXJjZS1scG9ydCA9IDEwODAKdGFyZ2V0ID0gdnBuLmV4YW1wbGUuY29tOjUxODI0CmtleSA9IFhSME5FZjhNaEdBR2NDcGMKbWFza2luZyA9IE1FRElBCnZlcmJvc2UgPSBlcnJvcgptZWRpYS1zc3JjID0gMzA1NDE5ODk2Cgpbc29ja3M1XQpsb2dpbiA9IEFiM0txCnBhc3N3b3JkID0gWng5TG0#Mobil-phone");
+        auto *ps = phobosSocks ? phobosSocks->Socks() : nullptr;
+        check(ps && ps->server == "vpn.example.com" && ps->server_port == 51824 && ps->username == "Ab3Kq" && ps->password == "Zx9Lm"
+              && ps->phobos_masking == "MEDIA" && ps->phobos_media_ssrc == 305419896 && ps->Build().object["type"].toString() == "phobos", "Phobos SOCKS5 link");
     }
     if (!testProfiles.isEmpty()) {
         const auto &settings = Configs::dataManager->settingsRepo;

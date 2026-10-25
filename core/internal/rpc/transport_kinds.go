@@ -31,8 +31,10 @@ var transportKinds = map[string]transportKind{
 	"vaydns":     {executable: "dnstun", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
 	"slipstream": {executable: "dnstun", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
 	"masterdns":  {executable: "masterdns", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
+	"cottendns":  {executable: "cottendns", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
+	"soar":       {executable: "soar", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
 	"s3bypass":   {executable: "s3bypass", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
 }
 
 // tunnelHelpers are the bundled executables that may run as routed transports.
-var tunnelHelpers = map[string]bool{"qwdtt": true, "openflux": true, "olcrtc": true, "dnstun": true, "masterdns": true, "s3bypass": true, "sstp-client": true}
+var tunnelHelpers = map[string]bool{"qwdtt": true, "openflux": true, "olcrtc": true, "dnstun": true, "masterdns": true, "cottendns": true, "soar": true, "s3bypass": true, "sstp-client": true}

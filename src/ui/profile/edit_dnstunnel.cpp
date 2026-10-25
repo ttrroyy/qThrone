@@ -36,6 +36,11 @@ EditDnsTunnel::EditDnsTunnel(QWidget *parent) : QWidget(parent) {
     privateKey = multiline(3); privateKey->setPlaceholderText(QStringLiteral("-----BEGIN OPENSSH PRIVATE KEY----- … (необязательно)"));
     method = new QComboBox(this);
     for (const auto *m : {"chacha20-ietf-poly1305", "aes-256-gcm", "aes-128-gcm"}) method->addItem(m, m);
+    soarDiscovery = new QCheckBox(QStringLiteral("Искать рабочие резолверы страны"), this);
+    soarCountry = new QLineEdit(this); soarCountry->setPlaceholderText("IR"); soarCountry->setMaxLength(2);
+    soarTransport = new QComboBox(this);
+    soarTransport->addItem(QStringLiteral("Авто"), "auto"); soarTransport->addItem(QStringLiteral("UDP и TCP"), "on");
+    soarTransport->addItem(QStringLiteral("Только TCP"), "only"); soarTransport->addItem(QStringLiteral("Только UDP"), "off");
     note = new QLabel(this); note->setWordWrap(true);
 
     form->addRow(QStringLiteral("Домен туннеля"), domain);
@@ -57,6 +62,9 @@ EditDnsTunnel::EditDnsTunnel(QWidget *parent) : QWidget(parent) {
     form->addRow(QStringLiteral("Пароль"), password);
     form->addRow(QStringLiteral("Приватный ключ SSH"), privateKey);
     form->addRow(QStringLiteral("Метод шифрования"), method);
+    form->addRow(QString(), soarDiscovery);
+    form->addRow(QStringLiteral("Страна сети"), soarCountry);
+    form->addRow(QStringLiteral("DNS через TCP/53"), soarTransport);
     form->addRow(note);
     connect(backend, &QComboBox::currentIndexChanged, this, [this] { updateFields(); });
 }
@@ -67,11 +75,15 @@ void EditDnsTunnel::setRowVisible(QWidget *field, bool visible) {
 }
 
 void EditDnsTunnel::updateFields() {
-    const bool dnstt = kind == "dnstt", vaydns = kind == "vaydns", slip = kind == "slipstream", master = kind == "masterdns";
-    setRowVisible(pubkey, dnstt || vaydns);
+    const bool dnstt = kind == "dnstt", vaydns = kind == "vaydns", slip = kind == "slipstream", soar = kind == "soar";
+    // MasterDNS and CottenDNS take a key and method; Soar a public key; none of the three a server-side service.
+    const bool keyed = kind == "masterdns" || kind == "cottendns", master = keyed || soar;
+    setRowVisible(pubkey, dnstt || vaydns || soar);
+    pubkey->setPlaceholderText(soar ? QStringLiteral("Ed25519 в base64, 44 символа") : QStringLiteral("64 шестнадцатеричных символа"));
+    for (QWidget *field : std::initializer_list<QWidget *>{soarDiscovery, soarCountry, soarTransport}) setRowVisible(field, soar);
     setRowVisible(cert, slip);
-    setRowVisible(mkey, master);
-    setRowVisible(encryption, master);
+    setRowVisible(mkey, keyed);
+    setRowVisible(encryption, keyed);
     for (QWidget *field : std::initializer_list<QWidget *>{recordType, dnsttCompat, clientIdSize, idleTimeout, keepalive}) setRowVisible(field, vaydns);
     for (QWidget *field : std::initializer_list<QWidget *>{authoritative, congestion, keepAliveInterval}) setRowVisible(field, slip);
     const auto service = backend->currentData().toString();
@@ -114,6 +126,10 @@ void EditDnsTunnel::onStart(std::shared_ptr<Configs::Profile> profile) {
     password->setText(service["password"].toString());
     privateKey->setPlainText(service["pk"].toString());
     method->setCurrentIndex(qMax(0, method->findData(service["method"].toString("chacha20-ietf-poly1305"))));
+    const auto soar = d["soar"].toObject();
+    soarDiscovery->setChecked(soar["discovery"].toBool(true));
+    soarCountry->setText(soar["country"].toString("IR"));
+    soarTransport->setCurrentIndex(qMax(0, soarTransport->findData(soar["transport"].toString("auto"))));
     updateFields();
 }
 
@@ -129,7 +145,15 @@ bool EditDnsTunnel::onEnd() {
     QJsonArray list;
     for (const auto &line : resolvers->toPlainText().split(QRegularExpression("[,\\s]+"), Qt::SkipEmptyParts)) list.append(line);
     if (!list.isEmpty()) d["resolvers"] = list;
-    if (kind == "dnstt" || kind == "vaydns") d["pubkey"] = pubkey->text().trimmed();
+    if (kind == "dnstt" || kind == "vaydns" || kind == "soar") d["pubkey"] = pubkey->text().trimmed();
+    if (kind == "soar") {
+        // The advanced Soar settings of an imported profile stay as they came.
+        auto soar = d["soar"].toObject();
+        soar["discovery"] = soarDiscovery->isChecked();
+        soar["country"] = soarCountry->text().trimmed().toUpper();
+        soar["transport"] = soarTransport->currentData().toString();
+        d["soar"] = soar;
+    }
     if (kind == "slipstream") {
         if (!cert->toPlainText().trimmed().isEmpty()) d["cert"] = cert->toPlainText().trimmed();
         d["authoritative"] = authoritative->isChecked();
@@ -143,10 +167,10 @@ bool EditDnsTunnel::onEnd() {
         if (!idleTimeout->text().trimmed().isEmpty()) d["idle_timeout"] = idleTimeout->text().trimmed();
         if (!keepalive->text().trimmed().isEmpty()) d["keepalive"] = keepalive->text().trimmed();
     }
-    if (kind == "masterdns") {
+    if (kind == "masterdns" || kind == "cottendns") {
         d["mkey"] = mkey->text().trimmed();
         d["encryption"] = encryption->currentData().toInt();
-    } else {
+    } else if (kind != "soar") {
         // Keep only what the chosen service uses, so a link shares no stale password or key.
         const auto service = backend->currentData().toString();
         QJsonObject b{{"type", service}};

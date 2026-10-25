@@ -124,15 +124,35 @@ namespace Configs {
     bool wireguard::ParseFromLink(const QString& link) {
         if (link.contains("[Interface]") && link.contains("[Peer]")) {
             auto lines = link.split("\n");
+            QString section, target;
             for (const auto& line : lines) {
                 QString trimmed = line.trimmed();
                 if (trimmed.isEmpty() || trimmed.startsWith('#')) continue;
-                if (trimmed == "[Peer]" || trimmed == "[Interface]") continue;
+                if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                    section = trimmed.mid(1, trimmed.size() - 2).trimmed().toLower();
+                    continue;
+                }
                 if (!trimmed.contains("=")) continue;
                 auto eqIdx = trimmed.indexOf("=");
                 QString key = trimmed.left(eqIdx).trimmed().toLower();
                 QString value = trimmed.mid(eqIdx + 1).trimmed();
-                
+                // Phobos links write "none" for every field the panel left unset.
+                if (value.compare("none", Qt::CaseInsensitive) == 0) continue;
+
+                // The [instance] section of a Phobos .conf is the wg-obfuscator client in front of the server.
+                if (section == "instance") {
+                    obfs_type = "wg-obfuscator";
+                    if (key == "key") obfs_key = value;
+                    else if (key == "target") target = value;
+                    else if (key == "masking") obfs_masking = value.toUpper() == "AUTO" ? QString() : value.toUpper();
+                    else if (key == "max-dummy") obfs_max_dummy = value.toInt();
+                    else if (key == "obfuscate-bytes") obfs_obfuscate_bytes = value.toInt();
+                    else if (key == "media-pt") obfs_media_pt = value.toInt();
+                    else if (key == "media-ssrc") obfs_media_ssrc = value.toUInt(nullptr, 0);
+                    else if (key == "media-clock") obfs_media_clock = value.toInt();
+                    continue;
+                }
+
                 if (key == "privatekey") private_key = value;
                 else if (key == "address") address = value.replace(" ", "").split(",", Qt::SkipEmptyParts);
                 else if (key == "mtu") mtu = value.toInt();
@@ -179,8 +199,15 @@ namespace Configs {
                 else if (key == "randomtrailers" || key == "random_trailers") random_trailers = ParseAmneziaBool(value), enable_amnezia = true;
                 else if (key == "disablecookies" || key == "disable_cookies") disable_cookies = ParseAmneziaBool(value), enable_amnezia = true;
             }
+            // The peer's Endpoint points at the local obfuscator; the server is its target.
+            if (const auto colon = target.lastIndexOf(':'); colon > 0) {
+                auto host = target.left(colon).trimmed();
+                if (host.startsWith('[') && host.endsWith(']')) host = host.mid(1, host.length() - 2);
+                peer->address = server = host;
+                peer->port = server_port = target.mid(colon + 1).toInt();
+            }
             FixAddress();
-            return !private_key.isEmpty() && !peer->public_key.isEmpty();
+            return !private_key.isEmpty() && !peer->public_key.isEmpty() && (obfs_type.isEmpty() || !obfs_key.isEmpty());
         }
         
         auto url = QUrl(link);
@@ -238,6 +265,17 @@ namespace Configs {
         if (query.hasQueryItem("max_handshake_attempts")) max_handshake_attempts = QueryValue(query, "max_handshake_attempts"), enable_amnezia = true;
         if (query.hasQueryItem("random_trailers")) random_trailers = ParseAmneziaBool(QueryValue(query, "random_trailers")), enable_amnezia = true;
         if (query.hasQueryItem("disable_cookies")) disable_cookies = ParseAmneziaBool(QueryValue(query, "disable_cookies")), enable_amnezia = true;
+
+        if (query.hasQueryItem("obfs")) {
+            obfs_type = QueryValue(query, "obfs");
+            obfs_key = QueryValue(query, "obfs_key");
+            obfs_masking = QueryValue(query, "obfs_masking").toUpper();
+            if (query.hasQueryItem("obfs_max_dummy")) obfs_max_dummy = QueryValue(query, "obfs_max_dummy").toInt();
+            obfs_obfuscate_bytes = QueryValue(query, "obfs_bytes").toInt();
+            obfs_media_pt = QueryValue(query, "obfs_media_pt").toInt();
+            obfs_media_ssrc = QueryValue(query, "obfs_media_ssrc").toUInt(nullptr, 0);
+            obfs_media_clock = QueryValue(query, "obfs_media_clock").toInt();
+        }
         
         FixAddress();
 
@@ -284,11 +322,17 @@ namespace Configs {
         if (object.contains("worker_count")) worker_count = object["worker_count"].toInt();
         if (object.contains("udp_timeout")) udp_timeout = object["udp_timeout"].toString();
         if (object.contains("amnezia_wg")) AmneziaFromJson(object["amnezia_wg"].toObject());
+        if (object.contains("obfs")) ObfsFromJson(object["obfs"].toObject());
         FixAddress();
         return true;
     }
 
     QString wireguard::ExportToLink() {
+        // wg-obfuscator profiles travel as Phobos links, which Phobos clients import too.
+        if (obfs_type == "wg-obfuscator") {
+            return "phobos://" + QString::fromLatin1(ExportPhobosConf().toUtf8().toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)) +
+                   "#" + (name.isEmpty() ? QStringLiteral("none") : QString::fromLatin1(QUrl::toPercentEncoding(name)));
+        }
         QUrl url;
         QUrlQuery query;
         url.setScheme("wg");
@@ -333,6 +377,11 @@ namespace Configs {
             if (disable_cookies) query.addQueryItem("disable_cookies", "true");
         }
 
+        if (!obfs_type.isEmpty()) {
+            query.addQueryItem("obfs", obfs_type);
+            query.addQueryItem("obfs_key", obfs_key);
+        }
+
         mergeUrlQuery(query, outbound::ExportToLink());
         mergeUrlQuery(query, peer->ExportToLink());
         
@@ -354,6 +403,7 @@ namespace Configs {
         
         auto amneziaObj = AmneziaToJson();
         if (!amneziaObj.isEmpty()) object["amnezia_wg"] = amneziaObj;
+        if (const auto obfs = ObfsToJson(); !obfs.isEmpty()) object["obfs"] = obfs;
 
         auto peerObj = peer->ExportToJson();
         if (!peerObj.isEmpty()) {
@@ -377,6 +427,11 @@ namespace Configs {
 
         auto amneziaObj = AmneziaToJson();
         if (!amneziaObj.isEmpty()) object["amnezia_wg"] = amneziaObj;
+        if (const auto obfs = ObfsToJson(); !obfs.isEmpty()) {
+            if (!amneziaObj.isEmpty()) return {{}, QObject::tr("WireGuard obfuscation cannot be combined with AmneziaWG")};
+            if (obfs_key.isEmpty()) return {{}, QObject::tr("WireGuard obfuscation needs a key")};
+            object["obfs"] = obfs;
+        }
 
         auto peerObj = peer->Build().object;
         if (!peerObj.isEmpty()) {
@@ -410,7 +465,10 @@ namespace Configs {
     }
 
     SecurityInfo wireguard::GetSecurity() {
-        return {QObject::tr("Encrypted"), enable_amnezia ? "AmneziaWG" : QString(), SecurityLevel::Secure};
+        const auto obfs = obfs_type == "wgobfs" ? QStringLiteral("wgobfs")
+                        : obfs_type.isEmpty() ? QString()
+                        : obfs_masking.isEmpty() || obfs_masking == "NONE" ? QStringLiteral("wg-obfuscator") : "wg-obfuscator " + obfs_masking;
+        return {QObject::tr("Encrypted"), enable_amnezia ? QStringLiteral("AmneziaWG") : obfs, SecurityLevel::Secure};
     }
 
     bool wireguard::IsEndpoint() {
@@ -496,5 +554,47 @@ namespace Configs {
             newAddresses.append(trimmed);
         }
         address = newAddresses;
+    }
+
+    QJsonObject wireguard::ObfsToJson() const {
+        if (obfs_type.isEmpty()) return {};
+        QJsonObject object{{"type", obfs_type}, {"key", obfs_key}};
+        if (obfs_type != "wg-obfuscator") return object;
+        if (!obfs_masking.isEmpty() && obfs_masking != "NONE") object["masking"] = obfs_masking.toLower();
+        if (obfs_max_dummy >= 0) object["max_dummy"] = obfs_max_dummy;
+        if (obfs_obfuscate_bytes > 0) object["obfuscate_bytes"] = obfs_obfuscate_bytes;
+        if (obfs_media_pt > 0) object["media_pt"] = obfs_media_pt;
+        if (obfs_media_ssrc > 0) object["media_ssrc"] = qint64(obfs_media_ssrc);
+        if (obfs_media_clock > 0) object["media_clock"] = obfs_media_clock;
+        return object;
+    }
+
+    void wireguard::ObfsFromJson(const QJsonObject& object) {
+        obfs_type = object["type"].toString();
+        obfs_key = object["key"].toString();
+        obfs_masking = object["masking"].toString().toUpper();
+        obfs_max_dummy = object.contains("max_dummy") ? object["max_dummy"].toInt() : -1;
+        obfs_obfuscate_bytes = object["obfuscate_bytes"].toInt();
+        obfs_media_pt = object["media_pt"].toInt();
+        obfs_media_ssrc = quint32(object["media_ssrc"].toInteger());
+        obfs_media_clock = object["media_clock"].toInt();
+    }
+
+    QString wireguard::ExportPhobosConf() {
+        QStringList conf{"[Interface]", "PrivateKey = " + private_key, "Address = " + address.join(", ")};
+        if (mtu > 0) conf << "MTU = " + QString::number(mtu);
+        conf << "" << "[Peer]" << "PublicKey = " + peer->public_key;
+        if (!peer->pre_shared_key.isEmpty()) conf << "PresharedKey = " + peer->pre_shared_key;
+        conf << "AllowedIPs = 0.0.0.0/0, ::/0";
+        if (!peer->persistent_keepalive.isEmpty()) conf << "PersistentKeepalive = " + peer->persistent_keepalive;
+        conf << "Endpoint = 127.0.0.1:13255" << "" << "[instance]" << "source-if = 127.0.0.1" << "source-lport = 13255"
+             << "target = " + ::DisplayAddress(peer->address, peer->port) << "key = " + obfs_key
+             << "masking = " + (obfs_masking.isEmpty() ? QStringLiteral("NONE") : obfs_masking);
+        if (obfs_max_dummy >= 0) conf << "max-dummy = " + QString::number(obfs_max_dummy);
+        if (obfs_obfuscate_bytes > 0) conf << "obfuscate-bytes = " + QString::number(obfs_obfuscate_bytes);
+        if (obfs_media_pt > 0) conf << "media-pt = " + QString::number(obfs_media_pt);
+        if (obfs_media_ssrc > 0) conf << "media-ssrc = " + QString::number(obfs_media_ssrc);
+        if (obfs_media_clock > 0) conf << "media-clock = " + QString::number(obfs_media_clock);
+        return conf.join("\n") + "\n";
     }
 }
