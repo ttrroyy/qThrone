@@ -1,5 +1,7 @@
 #include "include/ui/profile/edit_wireguard_obfs.h"
 
+#include <QCheckBox>
+
 #include "include/global/GuiUtils.hpp"
 #include "include/global/Utils.hpp"
 
