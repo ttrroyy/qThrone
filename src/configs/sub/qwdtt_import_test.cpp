@@ -101,7 +101,7 @@ int TestQwdttImport() {
         Configs::SettingsRepo upgraded(Configs::dataManager->getDatabase());
         check(upgraded.seasonal_decoration == "auto" && upgraded.seasonal_auto_13_migrated,
               "1.3 upgrade selects Auto once");
-        for (const auto &choice : {QStringLiteral("christmas"), QStringLiteral("none")}) {
+        for (const auto &choice : {QStringLiteral("newyear"), QStringLiteral("none")}) {
             upgraded.seasonal_decoration = choice;
             upgraded.Save();
             Configs::SettingsRepo reopened(Configs::dataManager->getDatabase());
@@ -141,7 +141,7 @@ int TestQwdttImport() {
         const auto restoreCallback = qScopeGuard([previousCallback] { MW_dialog_message = previousCallback; });
         DialogBasicSettings dialog;
         auto *selector = dialog.findChild<QComboBox *>("seasonal_decoration");
-        check(selector && selector->count() == 6 && selector->findData("auto") >= 0 && selector->findData("remembrance") < 0 && selector->findData("may_remembrance") < 0, "four manual seasons, Auto and Disabled");
+        check(selector && selector->count() == 6 && selector->findData("auto") >= 0 && selector->findData("none") >= 0, "four manual seasons, Auto and Disabled");
         if (selector) {
             selector->setCurrentIndex(selector->findData("newyear"));
             const auto inboundBefore = Configs::dataManager->settingsRepo->inbound_socks_port;

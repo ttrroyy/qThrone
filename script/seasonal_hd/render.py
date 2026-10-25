@@ -1,16 +1,14 @@
-"""Approved high-resolution seasonal artwork renderer."""
+"""High-resolution seasonal artwork renderer."""
 from pathlib import Path
-import ast, math, types, json, zipfile
-from PIL import Image as PILImage, ImageDraw as PILDraw, ImageFont, ImageChops, ImageStat
+import ast, math, types
+from PIL import Image as PILImage, ImageDraw as PILDraw, ImageFont
 
 BASE = Path(__file__).parent
 SOURCE = BASE.parent / 'seasonal_sources'
 OUT = BASE / 'animations'
 SCALE = 6
 BG = '#202020'
-THEMES = {'halloween':18, 'newyear':24, 'remembrance':30, 'may_remembrance':24,
-          'kupala':24, 'patrick':24, 'valentine':24, 'maslenitsa':24, 'christmas':24, 'easter':24,
-          'spring':24, 'summer':24, 'autumn':24, 'winter':24}
+THEMES = {'halloween':18, 'newyear':24, 'easter':24, 'kupala':24}
 
 class Coordinate(float):
     def __index__(self): return int(round(float(self)))
@@ -43,10 +41,6 @@ class VectorDraw:
     def polygon(self,xy,fill=None,outline=None,width=1):
         p=points(xy)
         if len(p)<3:return
-        if SCALE==2:
-            # May petals already contain detailed curved 64-point outlines.
-            self.d.polygon([(x*SCALE,y*SCALE) for x,y in p],fill=colour(fill),outline=colour(outline),width=max(1,round(width*SCALE)))
-            return
         # Rounded vector corners rather than enlarged staircase pixels.
         result=[]
         for i,b in enumerate(p):
@@ -101,13 +95,13 @@ class Rounds(ast.NodeTransformer):
         return node
 
 def load(theme):
-    name='christmas_easter' if theme in ('christmas','easter') else theme
-    if theme in ('spring','summer','autumn','winter'):name='seasons'
+    if theme not in THEMES:raise ValueError(f'Unknown artwork: {theme}')
+    name=theme
     path=SOURCE/(name+'.py')
     if (BASE/'sources'/(name+'.py')).exists():path=BASE/'sources'/(name+'.py')
     tree=ast.parse(path.read_text(encoding='utf-8'))
     # Retain exact geometry, timing and layering; redraw primitives at high resolution.
-    if theme!='may_remembrance':tree=Rounds().visit(tree)
+    tree=Rounds().visit(tree)
     module=types.ModuleType(name);module.__file__=str(path)
     exec(compile(ast.fix_missing_locations(tree),str(path),'exec'),module.__dict__)
     module.Image=Images;module.ImageDraw=Draws;module.precise=precise
@@ -115,16 +109,15 @@ def load(theme):
 
 def render(module,theme,variant,t):
     global SCALE
-    SCALE=2 if theme=='may_remembrance' else 6
-    if theme in ('christmas','easter','spring','summer','autumn','winter'):art=module.frame(theme,variant,t)
-    elif theme=='remembrance':art=module.draw(variant,t)
+    SCALE=6
+    if theme=='easter':art=module.frame(theme,variant,t)
     else:art=module.frame(variant,t)
     target=(544 if variant=='wide' else 368,184)
     return art.raw.resize(target,PILImage.Resampling.LANCZOS)
 
 def preview():
     OUT.mkdir(parents=True,exist_ok=True)
-    board=PILImage.new('RGB',(1100,10*245+30),BG);d=PILDraw.Draw(board)
+    board=PILImage.new('RGB',(1100,len(THEMES)*245+30),BG);d=PILDraw.Draw(board)
     for row,theme in enumerate(THEMES):
         module=load(theme)
         for variant,x in [('wide',15),('compact',610)]:

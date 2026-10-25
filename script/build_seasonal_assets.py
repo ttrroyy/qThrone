@@ -1,4 +1,4 @@
-"""Bake approved smooth artwork into transparent atlases; runtime needs no Pillow."""
+"""Bake seasonal artwork into transparent atlases; runtime needs no Pillow."""
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 import sys,json
