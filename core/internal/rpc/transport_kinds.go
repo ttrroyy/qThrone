@@ -27,14 +27,15 @@ var transportKinds = map[string]transportKind{
 	"openflux": {executable: "openflux", flag: "--qthrone-config", probeStartup: 15 * time.Second, connectStartup: 2 * time.Minute, quiet: true},
 	"olcrtc":   {executable: "olcrtc", flag: "--qthrone-config", probeStartup: 30 * time.Second, connectStartup: 2 * time.Minute, quiet: true},
 	// DNS tunnels measure MTU and handshake query by query; S3 Bypass waits for the bucket.
-	"dnstt":      {executable: "dnstun", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
-	"vaydns":     {executable: "dnstun", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
-	"slipstream": {executable: "dnstun", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
-	"masterdns":  {executable: "masterdns", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
-	"cottendns":  {executable: "cottendns", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
-	"soar":       {executable: "soar", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
-	"s3bypass":   {executable: "s3bypass", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
+	"dnstt":       {executable: "dnstun", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
+	"vaydns":      {executable: "dnstun", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
+	"slipstream":  {executable: "dnstun", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
+	"masterdns":   {executable: "masterdns", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
+	"cottendns":   {executable: "cottendns", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
+	"soar":        {executable: "soar", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
+	"openfluxkey": {executable: "openfluxkey", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
+	"s3bypass":    {executable: "s3bypass", flag: "--qthrone-config", probeStartup: 2 * time.Minute, connectStartup: 3 * time.Minute, quiet: true},
 }
 
 // tunnelHelpers are the bundled executables that may run as routed transports.
-var tunnelHelpers = map[string]bool{"qwdtt": true, "openflux": true, "olcrtc": true, "dnstun": true, "masterdns": true, "cottendns": true, "soar": true, "s3bypass": true, "sstp-client": true}
+var tunnelHelpers = map[string]bool{"qwdtt": true, "openflux": true, "openfluxkey": true, "olcrtc": true, "dnstun": true, "masterdns": true, "cottendns": true, "soar": true, "s3bypass": true, "sstp-client": true}

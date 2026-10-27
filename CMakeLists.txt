@@ -333,6 +333,10 @@ set(PROJECT_SOURCES
         include/ui/profile/edit_dnstunnel.h
         src/ui/profile/edit_s3bypass.cpp
         include/ui/profile/edit_s3bypass.h
+        src/configs/outbounds/openfluxkey.cpp
+        include/configs/outbounds/openfluxkey.h
+        src/ui/profile/edit_openfluxkey.cpp
+        include/ui/profile/edit_openfluxkey.h
         include/configs/outbounds/olcrtc.h
         src/ui/profile/edit_olcrtc.cpp
         include/ui/profile/edit_olcrtc.h

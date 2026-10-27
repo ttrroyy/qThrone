@@ -88,6 +88,8 @@ namespace Subscription {
             {"wdttplus", {"wdtt://connect"}, {"wdttplus"}, {}},
             {"qwdtt", {"qwdtt://", "qwdtt:config", "wdtt://"}, {"qwdtt", "wdtt"}, {}},
             {"csqtt", {"csqtt://"}, {"csqtt"}, {}},
+            // The wlruscfd/openflux-server fork's links, before the original's openflux://v1/.
+            {"openfluxkey", {"openflux://import"}, {"openfluxkey"}, {}},
             {"openflux", {"openflux://"}, {"openflux"}, {}},
             {"olcrtc", {"olcrtc://"}, {"olcrtc"}, {}},
             // One model reads every DNS tunnel link and takes its transport from it.

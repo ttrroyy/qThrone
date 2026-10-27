@@ -29,6 +29,7 @@
 #include "include/configs/outbounds/csqtt.h"
 #include "include/configs/outbounds/wdttplus.h"
 #include "include/configs/outbounds/openflux.h"
+#include "include/configs/outbounds/openfluxkey.h"
 #include "include/configs/outbounds/olcrtc.h"
 #include "include/configs/outbounds/dnstunnel.h"
 #include "include/configs/outbounds/s3bypass.h"
@@ -47,6 +48,7 @@ namespace Configs
         if (type == "olcrtc") return new olcrtc();
         if (type == "dnstt" || type == "vaydns" || type == "slipstream" || type == "masterdns" || type == "cottendns" || type == "soar") return new dnstunnel(type);
         if (type == "s3bypass") return new s3bypass();
+        if (type == "openfluxkey") return new openfluxkey();
         if (type == "sstp") return new sstp();
         if (type == "socks") return new socks();
         if (type == "http") return new http();

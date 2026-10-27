@@ -9,6 +9,8 @@ test "$(git -C openflux-source rev-parse HEAD)" = "$revision"
 mkdir -p openflux-source/mobile/cmd/qthrone-openflux
 cp script/openflux/*.go openflux-source/mobile/cmd/qthrone-openflux/
 pushd openflux-source/mobile
+# The Yandex check opens in a private browser window, as qWDTT's VK captcha does.
+"$GOCMD" get github.com/chromedp/chromedp@v0.14.2
 CGO_ENABLED=0 "$GOCMD" build -trimpath -ldflags='-s -w -checklinkname=0' -o "$DEST/openflux$([[ "$GOOS" == windows ]] && echo '.exe')" ./cmd/qthrone-openflux
 popd
 pushd openflux-source

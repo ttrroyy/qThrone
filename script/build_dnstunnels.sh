@@ -66,6 +66,28 @@ printf '%s\n' 'https://github.com/getlantern/soar' "Revision: $soar_revision" 'D
 tar -czf "$DEST/soar-source.tar.gz" --exclude=.git --exclude=.github .
 popd
 
+# Profiles of the wlruscfd/openflux-server fork (its openflux://import links): the fork's
+# exit nodes frame traffic their own way, so they run through the fork's bridge, not OpenFlux's.
+if [[ "${IS_LEGACY:-false}" == true ]]; then
+    echo "OpenFlux Key is not built for legacy systems"
+else
+    openfluxkey_revision=fc5647767c9daba6571ec3157f9be9b6ffe6e551
+    if [ ! -d openfluxkey-source/.git ]; then
+        python3 script/fetch_pinned_source.py https://github.com/wlruscfd/openflux-server.git "$openfluxkey_revision" openfluxkey-source
+    fi
+    test "$(git -C openfluxkey-source rev-parse HEAD)" = "$openfluxkey_revision"
+    mkdir -p openfluxkey-source/cmd/qthrone-openfluxkey
+    cp script/openfluxkey/*.go openfluxkey-source/cmd/qthrone-openfluxkey/
+    cp script/openfluxkey/bridge/*.go openfluxkey-source/bridge/
+    pushd openfluxkey-source
+    "$GOCMD" get github.com/chromedp/chromedp@v0.14.2
+    CGO_ENABLED=0 "$GOCMD" build -trimpath -ldflags='-s -w -checklinkname=0' -o "$DEST/openfluxkey$suffix" ./cmd/qthrone-openfluxkey
+    cp LICENSE "$DEST/OpenFluxKey-LICENSE"
+    printf '%s\n' 'https://github.com/wlruscfd/openflux-server' "Revision: $openfluxkey_revision" 'Desktop integration: script/openfluxkey in qThrone' > "$DEST/OpenFluxKey-SOURCE"
+    tar -czf "$DEST/openfluxkey-source.tar.gz" --exclude=.git --exclude=.github .
+    popd
+fi
+
 # Xray-core-fedarisha needs Go 1.27, newer than the patched toolchain of the
 # Windows 7 and macOS 10.15 builds: S3 Bypass is not part of those.
 if [[ "${IS_LEGACY:-false}" == true ]]; then

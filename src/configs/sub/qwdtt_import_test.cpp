@@ -14,6 +14,7 @@
 #include "include/configs/outbounds/olcrtc.h"
 #include "include/configs/outbounds/dnstunnel.h"
 #include "include/configs/outbounds/s3bypass.h"
+#include "include/configs/outbounds/openfluxkey.h"
 #include "include/configs/generate.h"
 #include "include/global/Configs.hpp"
 #include "include/global/Utils.hpp"
@@ -1060,6 +1061,17 @@ proxies:
             const auto prepared = QJsonDocument::fromJson(tunnel(soarProfile)->extraCoreConf.toUtf8()).object();
             check(prepared["server_public_key"].toString() == tunnel(soarProfile)->data["pubkey"].toString(), "Soar helper gets the server key");
         }
+        // openflux://import links of the wlruscfd/openflux-server fork run its own client.
+        const QByteArray forkJson = R"({"name":"Board","mode":"key","control_url":"https://203.0.113.10","key_token":"key_example0000000000",)"
+                                    R"("doc_url":"https://boards.yandex.ru/whiteboard/?hash=0123456789abcdef0123456789abcdef","transport":"boards","e2e_encryption":true})";
+        const auto fork = read("openflux://import?data=" + b64(forkJson));
+        auto *forkKey = fork ? dynamic_cast<Configs::openfluxkey *>(fork->outbound.get()) : nullptr;
+        check(fork && fork->type == "openfluxkey" && forkKey && forkKey->data["transport"].toString() == "boards"
+              && forkKey->data["doc_url"].toString() == "https://boards.yandex.ru/whiteboard/?hash=0123456789abcdef0123456789abcdef"
+              && !forkKey->data.contains("e2e_encryption"), "OpenFlux Key link");
+        const auto forkAgain = forkKey ? read(forkKey->ExportToLink()) : nullptr;
+        check(forkAgain && forkAgain->outbound->ExportToJson() == fork->outbound->ExportToJson(), "OpenFlux Key link reads back");
+        check(!read("openflux://import?data=" + b64(R"({"transport":"boards","doc_url":"http://boards.yandex.ru/x"})")), "OpenFlux Key needs an https document");
         // WARP AmneziaWG writes IPv4 and IPv6 as separate Address lines; both stay.
         const auto warp = read("[Interface]\nAddress = 172.16.0.2/32\nAddress = 2606:4700:110:827c:dcbb:200:a6e7:fbc4/128\n"
                                "PrivateKey = h+tGZJvVA5XBtvBeR9aMZ71ZuN8m6+CNawC+8KnVGbU=\nMTU = 1420\nJc = 4\nJmin = 40\nJmax = 70\nH1 = 1\nH2 = 2\nH3 = 3\nH4 = 4\n"
