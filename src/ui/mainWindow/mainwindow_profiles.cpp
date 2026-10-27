@@ -135,7 +135,7 @@ void releaseDeletedQwdtt(const QList<QStringList> &deleted) {
     if (deleted.isEmpty()) return;
     runOnNewThread([deleted] {
         QSet<QString> kept;
-        const auto repo = Configs::dataManager->profilesRepo;
+        const auto &repo = Configs::dataManager->profilesRepo;
         for (const auto &profile : repo->GetProfileBatch(repo->GetAllProfileIds()))
             if (const auto key = qwdttKey(profile); !key.isEmpty()) kept.insert(key.join('\n'));
         int freed = 0;
