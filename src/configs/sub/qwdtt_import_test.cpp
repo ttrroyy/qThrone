@@ -1060,6 +1060,14 @@ proxies:
             const auto prepared = QJsonDocument::fromJson(tunnel(soarProfile)->extraCoreConf.toUtf8()).object();
             check(prepared["server_public_key"].toString() == tunnel(soarProfile)->data["pubkey"].toString(), "Soar helper gets the server key");
         }
+        // WARP AmneziaWG writes IPv4 and IPv6 as separate Address lines; both stay.
+        const auto warp = read("[Interface]\nAddress = 172.16.0.2/32\nAddress = 2606:4700:110:827c:dcbb:200:a6e7:fbc4/128\n"
+                               "PrivateKey = h+tGZJvVA5XBtvBeR9aMZ71ZuN8m6+CNawC+8KnVGbU=\nMTU = 1420\nJc = 4\nJmin = 40\nJmax = 70\nH1 = 1\nH2 = 2\nH3 = 3\nH4 = 4\n"
+                               "I1 = <b 0xc7000000010809a1ed4edbbe7615>\n\n[Peer]\nPublicKey = bmXOC+F1FxEMF9dyiK2H5/1SUtzH0JuVo51h2wPfgyo=\n"
+                               "Endpoint = 8.6.112.9:500\nAllowedIPs = 0.0.0.0/0, ::/0\n");
+        auto *warpWg = warp ? warp->Wireguard() : nullptr;
+        check(warpWg && warpWg->address == QStringList{"172.16.0.2/32", "2606:4700:110:827c:dcbb:200:a6e7:fbc4/128"}
+              && warpWg->i1 == "<b 0xc7000000010809a1ed4edbbe7615>" && warpWg->peer->port == 500, "WARP AmneziaWG conf keeps both addresses");
         // Phobos links: the client .conf, WireGuard behind wg-obfuscator or the SOCKS5 mode.
         const auto phobosWg = read("phobos://W0ludGVyZmFjZV0KUHJpdmF0ZUtleSA9IE1Ccm5ab1RkeVQvTFI0WHBCN3RFbFN4eVZUUWRYRncwdHZWSk9NU0wvR0k9CkFkZHJlc3MgPSAxMC44LjAuNC8zMiwgZmRjYzphZDk0OmJhY2Y6NjFhNDo6Y2FmZTo0LzEyOApNVFUgPSAxNDIwCkROUyA9IDguOC44LjgsIDIwMDE6NDg2MDo0ODYwOjo4ODg4CgpbUGVlcl0KUHVibGljS2V5ID0gZy9HNHkyWGtUWTVtUExNWVlYWENhcnZ5eFVTSFV6TTF2cElZUkh3d0ZUND0KUHJlc2hhcmVkS2V5ID0gbDVURldNM3RJUjBEazg3dVBFblZrcXFsNExta2NQb2VXbU9LWktmeWVmWT0KQWxsb3dlZElQcyA9IDAuMC4wLjAvMCwgOjovMApQZXJzaXN0ZW50S2VlcGFsaXZlID0gMApFbmRwb2ludCA9IDEyNy4wLjAuMToxMzI1NQoKW2luc3RhbmNlXQpzb3VyY2UtaWYgPSAxMjcuMC4wLjEKc291cmNlLWxwb3J0ID0gMTMyNTUKdGFyZ2V0ID0gMTMwLjQ5LjE4NS4xMzY6NTE4MjQKa2V5ID0gWFIwTkVmOE1oR0FHY0NwYwptYXNraW5nID0gU1RVTgp2ZXJib3NlID0gSU5GTwppZGxlLXRpbWVvdXQgPSAzMDAKbWF4LWR1bW15ID0gNDU#Mobil-phone");
         auto *wg = phobosWg ? phobosWg->Wireguard() : nullptr;

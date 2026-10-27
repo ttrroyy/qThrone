@@ -154,7 +154,7 @@ namespace Configs {
                 }
 
                 if (key == "privatekey") private_key = value;
-                else if (key == "address") address = value.replace(" ", "").split(",", Qt::SkipEmptyParts);
+                else if (key == "address") address += value.replace(" ", "").split(",", Qt::SkipEmptyParts); // WARP writes IPv4 and IPv6 as separate lines
                 else if (key == "mtu") mtu = value.toInt();
                 else if (key == "publickey") peer->public_key = value;
                 else if (key == "presharedkey" || key == "preshared_key" || key == "psk") peer->pre_shared_key = value;
