@@ -1035,6 +1035,22 @@ proxies:
         check(cotten && cotten->type == "cottendns" && tunnel(cotten)->data["encryption"].toInt() == 2, "CottenDNS link");
         const auto cottenAgain = cotten ? read(tunnel(cotten)->ExportToLink()) : nullptr;
         check(cottenAgain && cottenAgain->type == "cottendns" && tunnel(cottenAgain)->ExportToJson() == tunnel(cotten)->ExportToJson(), "CottenDNS link reads back");
+        // The qWDTT profile API's signed form, as the server's authenticateProfileRequest checks it.
+        const auto proof = Configs::qwdtt::ProfileProof("unbind", "pass", "dev", "n1");
+        check(proof.queryItemValue("key_id") == "6a04f6c1b45b1aeb0aac823892ffe31c5624590bd115878d13ee2dbc4291347c"
+              && proof.queryItemValue("proof") == "b0c8a42aa100c367ff315b9cef4cd4dfd4b6fa3ea3e845b5cb2c9e6b05117d89", "qWDTT device unbind is signed like the original app");
+        // WhiteDNS's master-storm preset reaches the engine and the link keeps it.
+        const QByteArray cottenLegacy = R"({"schema":"whitedns.profile","version":1,"profile":{"name":"Cotten","server":{"domain":"cot.example.com","encryption_key":"k3y","encryption_method":5},
+            "cottenSettings":{"tunnelMode":"legacy","configPreset":"master-storm","transportMode":"preset","deliveryMode":"preset","qnameMode":"preset","ipMode":"preset"}}})";
+        const auto legacy = read("cottendns://" + b64(cottenLegacy));
+        check(legacy && tunnel(legacy)->data["cotten"].toObject()["configPreset"].toString() == "master-storm", "CottenDNS keeps WhiteDNS settings");
+        const auto legacyAgain = legacy ? read(tunnel(legacy)->ExportToLink()) : nullptr;
+        check(legacyAgain && tunnel(legacyAgain)->ExportToJson() == tunnel(legacy)->ExportToJson(), "CottenDNS settings survive the link");
+        if (legacy && tunnel(legacy)->Prepare().isEmpty()) {
+            const auto options = QJsonDocument::fromJson(tunnel(legacy)->extraCoreConf.toUtf8()).object()["options"].toObject();
+            check(options["LEGACY_SESSION_ID"].toBool() && !options["DNS_EDNS_COOKIE"].toBool(true) && options["RESOLVER_TRANSPORT"].toString() == "udp"
+                  && options["CONFIG_PRESET"].toString() == "default", "CottenDNS compatibility preset reaches the engine");
+        }
         const QByteArray soarJson = R"({"schema":"whitedns.profile","version":1,"import_type":"soar","profile":{"name":"Soar IR","resolvers":["1.1.1.1"],
             "soarSettings":{"transport":"auto","discovery":true,"country":"IR"},"server":{"domain":"s.example.com","public_key":"JFHtVsmq5DauWWsc/PbXYS3xd5jCnstAPYEIEVKUC08="}}})";
         const auto soarProfile = read("soar://" + b64(soarJson));

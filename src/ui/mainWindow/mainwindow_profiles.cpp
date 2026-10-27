@@ -1,4 +1,5 @@
 #include "include/ui/mainwindow.h"
+#include "include/configs/outbounds/qwdtt.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -121,11 +122,42 @@ void MainWindow::on_menu_delete_repeat_triggered() {
     refresh_proxy_list({}, true, RefreshAnchor::Removal);
 }
 
+namespace {
+// qWDTT passwords of profiles the user deleted by hand: this device's slot is freed on the server
+// when no remaining profile uses the same password, as the original app's unbind does.
+QStringList qwdttKey(const std::shared_ptr<Configs::Profile> &profile) {
+    auto *o = profile ? dynamic_cast<Configs::qwdtt *>(profile->outbound.get()) : nullptr;
+    if (!o || o->password.isEmpty() || o->deviceID.isEmpty()) return {};
+    return {o->server, QString::number(o->server_port), o->password, o->deviceID};
+}
+
+void releaseDeletedQwdtt(const QList<QStringList> &deleted) {
+    if (deleted.isEmpty()) return;
+    runOnNewThread([deleted] {
+        QSet<QString> kept;
+        const auto repo = Configs::dataManager->profilesRepo;
+        for (const auto &profile : repo->GetProfileBatch(repo->GetAllProfileIds()))
+            if (const auto key = qwdttKey(profile); !key.isEmpty()) kept.insert(key.join('\n'));
+        int freed = 0;
+        for (const auto &key : deleted)
+            if (!kept.contains(key.join('\n')) && Configs::qwdtt::UnbindDevice(key[0], key[1].toInt(), key[2], key[3])) ++freed;
+        if (freed > 0) runOnUiThread([] { MW_show_log(QStringLiteral("qWDTT: устройство отвязано от сервера")); });
+    });
+}
+}
+
 void MainWindow::on_menu_delete_triggered() {
     auto entIDs = get_now_selected_list();
     if (entIDs.count() == 0) return;
     if (Configs::dataManager->settingsRepo->skip_delete_confirmation || QMessageBox::question(this, tr("Confirmation"), QString(tr("Remove %1 item(s) ?")).arg(entIDs.count()))==QMessageBox::StandardButton::Yes) {
+        QList<QPair<int, QStringList>> qwdttProfiles;
+        for (const auto &profile : Configs::dataManager->profilesRepo->GetProfileBatch(entIDs))
+            if (const auto key = qwdttKey(profile); !key.isEmpty()) qwdttProfiles.append({profile->id, key});
         Configs::dataManager->profilesRepo->BatchDeleteProfiles(entIDs, true);
+        QList<QStringList> deleted;
+        for (const auto &[id, key] : qwdttProfiles)
+            if (!Configs::dataManager->profilesRepo->GetProfile(id)) deleted.append(key);
+        releaseDeletedQwdtt(deleted);
         refresh_proxy_list({}, true, RefreshAnchor::Removal);
     }
 }

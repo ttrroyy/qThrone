@@ -1,6 +1,7 @@
 #pragma once
 #include "include/configs/outbounds/extracore.h"
 #include <QStringList>
+#include <QUrlQuery>
 #include <QUuid>
 
 namespace Configs {
@@ -40,6 +41,12 @@ namespace Configs {
         // A call hash from what the user pastes: the hash itself or a VK call link, as stripVkUrlStatic
         // of the original qWDTT and CSQTT apps reads it.
         static QString StripVkCallLink(const QString &input);
+        // The server's profile API, as the original app's profile list uses it: the device slots of a
+        // password, each request signed with the password over a one-time server nonce.
+        struct DeviceSlots { bool ok = false; int max = 1, bound = 0, active = 0; bool current = false; };
+        static DeviceSlots FetchDeviceSlots(const QString &server, int port, const QString &password, const QString &device);
+        static bool UnbindDevice(const QString &server, int port, const QString &password, const QString &device);
+        static QUrlQuery ProfileProof(const QString &action, const QString &password, const QString &device, const QString &nonce);
     private:
         QString bridgeAuth;
     };

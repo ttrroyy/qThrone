@@ -7,6 +7,13 @@
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QCryptographicHash>
+#include <QEventLoop>
+#include <QMessageAuthenticationCode>
+#include <QNetworkAccessManager>
+#include <QNetworkProxy>
+#include <QNetworkReply>
+#include <QTimer>
 #include <QRegularExpression>
 #include <QTcpServer>
 #include <QUdpSocket>
@@ -222,5 +229,52 @@ BuildResult qwdtt::Build() {
     if (socksPort == 0 || bridgeAuth.isEmpty()) return {{}, "qWDTT bridge has not been prepared"};
     return {QJsonObject{{"type", "socks"}, {"server", socksAddress}, {"server_port", socksPort},
                         {"version", "5"}, {"username", bridgeAuth}, {"password", bridgeAuth}}, {}};
+}
+
+QUrlQuery qwdtt::ProfileProof(const QString &action, const QString &password, const QString &device, const QString &nonce) {
+    const auto keyId = QCryptographicHash::hash(QByteArray("WDTT-PROFILE-ID-v1") + '\0' + password.toUtf8(), QCryptographicHash::Sha256).toHex();
+    const auto proof = QMessageAuthenticationCode::hash((action + "\n" + device + "\n" + nonce).toUtf8(), password.toUtf8(), QCryptographicHash::Sha256).toHex();
+    QUrlQuery form;
+    form.addQueryItem("device_id", device);
+    form.addQueryItem("nonce", nonce);
+    form.addQueryItem("key_id", QString::fromLatin1(keyId));
+    form.addQueryItem("proof", QString::fromLatin1(proof));
+    return form;
+}
+
+namespace {
+QJsonObject profileApiPost(const QString &url, const QByteArray &body) {
+    QNetworkAccessManager manager;
+    manager.setProxy(QNetworkProxy::NoProxy);
+    QNetworkRequest request{QUrl(url)};
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+    request.setTransferTimeout(5000);
+    auto *reply = manager.post(request, body);
+    QEventLoop loop;
+    QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    loop.exec();
+    reply->deleteLater();
+    if (reply->error() != QNetworkReply::NoError || reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200) return {};
+    return QJsonDocument::fromJson(reply->readAll()).object();
+}
+
+QJsonObject profileApiSigned(const QString &server, int port, const QString &password, const QString &device, const QString &action) {
+    if (server.isEmpty() || port < 1 || port > 65535 || password.isEmpty() || device.isEmpty()) return {};
+    const auto host = server.contains(':') && !server.startsWith('[') ? "[" + server + "]" : server;
+    const auto base = QStringLiteral("http://%1:%2/api/profile/").arg(host).arg(port);
+    const auto nonce = profileApiPost(base + "challenge", {})["nonce"].toString();
+    if (nonce.isEmpty()) return {};
+    return profileApiPost(base + action, Configs::qwdtt::ProfileProof(action, password, device, nonce).toString(QUrl::FullyEncoded).toUtf8());
+}
+}
+
+qwdtt::DeviceSlots qwdtt::FetchDeviceSlots(const QString &server, int port, const QString &password, const QString &device) {
+    const auto o = profileApiSigned(server, port, password, device, "status");
+    if (o.isEmpty()) return {};
+    return {true, o["max_devices"].toInt(1), o["bound_devices"].toInt(), o["active_devices"].toInt(), o["is_current_bound"].toBool()};
+}
+
+bool qwdtt::UnbindDevice(const QString &server, int port, const QString &password, const QString &device) {
+    return profileApiSigned(server, port, password, device, "unbind")["success"].toBool();
 }
 }

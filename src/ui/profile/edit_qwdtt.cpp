@@ -4,6 +4,7 @@
 #include "include/ui/setting/dialog_vk_relay.h"
 #include <QFormLayout>
 #include <QLabel>
+#include <QMessageBox>
 #include <QSignalBlocker>
 #include <QStandardItemModel>
 #include <QApplication>
@@ -191,6 +192,25 @@ EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
     device = new QLineEdit(this);
     form->addRow(tr("Device ID"), device);
     device->setToolTip(tr("Generated automatically. Keep it unchanged for passwords bound to a device."));
+    // The original qWDTT list shows the password's device slots and frees this device's one.
+    auto *deviceSlots = new QPushButton(QStringLiteral("Устройства на сервере"), this);
+    form->addRow(deviceSlots);
+    connect(deviceSlots, &QPushButton::clicked, this, [this, deviceSlots] {
+        const auto server = get_edit_text_serverAddress().trimmed();
+        const int port = get_edit_text_serverPort().toInt();
+        const auto pass = password->text(), id = device->text().trimmed();
+        deviceSlots->setEnabled(false);
+        const auto status = Configs::qwdtt::FetchDeviceSlots(server, port, pass, id);
+        deviceSlots->setEnabled(true);
+        if (!status.ok) { MessageBoxWarning("qWDTT", QStringLiteral("Сервер не сообщает об устройствах для этого пароля.")); return; }
+        const auto text = QStringLiteral("Привязано %1 из %2, активно %3.\n%4").arg(status.bound).arg(status.max).arg(status.active)
+            .arg(status.current ? QStringLiteral("Это устройство привязано. Отвязать его? Место на сервере освободится, а следующее подключение привяжет устройство снова, если место будет свободно.")
+                                : QStringLiteral("Это устройство не привязано."));
+        if (!status.current) { QMessageBox::information(this, QStringLiteral("Устройства на сервере"), text); return; }
+        if (QMessageBox::question(this, QStringLiteral("Устройства на сервере"), text) != QMessageBox::Yes) return;
+        if (Configs::qwdtt::UnbindDevice(server, port, pass, id)) QMessageBox::information(this, "qWDTT", QStringLiteral("Устройство отвязано."));
+        else MessageBoxWarning("qWDTT", QStringLiteral("Не удалось отвязать устройство."));
+    });
     auto *accountTask = new RelayTask(this);
     accountTask->start({{"operation", "vk-info"}}, [this](const QJsonObject &event) {
         if (event["type"] == "result") {
@@ -295,8 +315,8 @@ bool EditQWDTT::onEnd() {
     if (password->text().isEmpty() || password->text().contains('|') || password->text().contains('\n') ||
         password->text().contains('\r'))
         return invalid(tr("Enter a valid connection password."));
-    if (hashSource->currentData() != "auto" && (values.isEmpty() || values.size() > 4))
-        return invalid(tr("Enter one to four VK call hashes."));
+    if (hashSource->currentData() != "auto" && values.size() > 4)
+        return invalid(QStringLiteral("Укажите не больше четырёх хешей звонков VK."));
     if (device->text().trimmed().isEmpty() || device->text().contains('|'))
         return invalid(tr("Enter a valid device ID."));
     o->mode = mode->currentData().toString();

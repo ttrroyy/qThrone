@@ -17,6 +17,128 @@ bool Keyed(const QString &kind) { return kind == "masterdns" || kind == "cottend
 
 const QString dnstPrefix = QStringLiteral("dnst://");
 
+int cottenNumber(const QJsonObject &o, const QString &key) { return o[key].toVariant().toInt(); }
+
+QStringList cottenDomains(const QString &text, const QStringList &skip = {}) {
+    QStringList out;
+    for (auto value : text.split(QRegularExpression("[,\\s]+"), Qt::SkipEmptyParts)) {
+        while (value.endsWith('.')) value.chop(1);
+        value = value.toLower();
+        if (!value.isEmpty() && !skip.contains(value) && !out.contains(value)) out << value;
+    }
+    return out;
+}
+
+// The engine keys WhiteDNS's CottenDnsSettingsRenderer writes for its cottenSettings; master-storm is its
+// compatibility preset for MasterDNS/StormDNS servers, which refuse the engine's own session IDs and EDNS cookies.
+QJsonObject cottenOptions(const QJsonObject &s, const QString &domain) {
+    QJsonObject o;
+    if (s.isEmpty()) return o;
+    const auto choice = [&s](const QString &key, const QStringList &allowed, const QString &fallback = "preset") {
+        const auto value = s[key].toString().trimmed().toLower();
+        return allowed.contains(value) ? value : fallback;
+    };
+    const auto preset = choice("configPreset", {"default", "speed", "survival", "tcp-survival", "master-storm"}, "default");
+    const bool legacy = preset == "master-storm", survival = preset == "survival";
+    const auto transportMode = choice("transportMode", {"auto", "udp", "tcp", "dot", "doh", "doh3", "doq"});
+    const auto deliveryMode = choice("deliveryMode", {"txt", "txt-cname", "txt-https", "txt-aaaa", "all"});
+    const auto qnameMode = choice("qnameMode", {"off", "moderate", "aggressive"});
+    const auto ipMode = choice("ipMode", {"auto", "dual", "ipv4", "ipv6"});
+    const bool max = !legacy && s["tunnelMode"].toString().trimmed().toLower() == "cottenmax";
+    o["CONFIG_PRESET"] = legacy ? QStringLiteral("default") : preset;
+    o["LEGACY_SESSION_ID"] = legacy;
+    if (!legacy) o["TUNNEL_MODE"] = max ? "cottenmax" : "legacy";
+    o["RESOLVER_IP_MODE"] = legacy || ipMode == "preset" ? QStringLiteral("auto") : ipMode;
+    int rate = s["queryRateLimit"].toVariant().toInt();
+    if (rate < 1 || rate > 10) rate = 0;
+    const auto scope = choice("queryRateScope", {"total", "resolver", "domain"}, "total");
+    o["QUERY_RATE_LIMIT_PER_SECOND"] = scope == "total" ? rate : 0;
+    o["QUERY_RATE_LIMIT_PER_RESOLVER_PER_SECOND"] = scope == "resolver" ? rate : 0;
+    o["QUERY_RATE_LIMIT_PER_DOMAIN_PER_SECOND"] = scope == "domain" ? rate : 0;
+    const auto mask = s["timingMask"].toString();
+    o["QUERY_TIMING_JITTER"] = mask == "light" ? 0.3 : mask == "strong" ? 0.6 : 0.0;
+    const QString transport = legacy ? QStringLiteral("udp") : transportMode != "preset" ? transportMode
+        : preset == "tcp-survival" ? QStringLiteral("tcp") : QStringLiteral("auto");
+    o["RESOLVER_TRANSPORT"] = transport;
+    const bool encrypted = QStringList{"dot", "doh", "doh3", "doq"}.contains(transport);
+    if (encrypted) {
+        if (!s["resolverTlsServerName"].toString().trimmed().isEmpty()) o["RESOLVER_TLS_SERVER_NAME"] = s["resolverTlsServerName"].toString().trimmed();
+        if (!s["resolverTlsPin"].toString().trimmed().isEmpty()) o["RESOLVER_TLS_PIN"] = s["resolverTlsPin"].toString().trimmed();
+        const auto port = [&s](const QString &key, int fallback) { const int p = cottenNumber(s, key); return p >= 1 && p <= 65535 ? p : fallback; };
+        if (transport == "doq") o["RESOLVER_DOQ_PORT"] = port("resolverDoTPort", 853);
+        else if (transport == "dot") o["RESOLVER_DOT_PORT"] = port("resolverDoTPort", 853);
+        else {
+            o["RESOLVER_DOH_PORT"] = port("resolverDoHPort", 443);
+            const auto path = s["resolverDoHPath"].toString().trimmed();
+            o["RESOLVER_DOH_PATH"] = path.isEmpty() ? QStringLiteral("/dns-query") : path;
+        }
+    }
+    QStringList types{"TXT"};
+    if (!legacy) {
+        if (deliveryMode == "txt-cname") types = {"TXT", "CNAME"};
+        else if (deliveryMode == "txt-https") types = {"TXT", "HTTPS"};
+        else if (deliveryMode == "txt-aaaa") types = {"TXT", "AAAA"};
+        else if (deliveryMode == "all") types = {"TXT", "CNAME", "NULL", "HTTPS", "AAAA"};
+        else if (deliveryMode == "preset" && (preset == "speed" || preset == "tcp-survival")) types = {"TXT", "HTTPS"};
+        else if (deliveryMode == "preset" && survival) types = {"TXT", "CNAME", "HTTPS", "A"};
+    }
+    o["QUERY_TYPES"] = QJsonArray::fromStringList(types);
+    const int labels = legacy || qnameMode == "off" ? 63 : qnameMode == "moderate" ? 42 : qnameMode == "aggressive" ? 32 : survival ? 42 : 63;
+    o["QNAME_LABEL_LENGTH"] = labels;
+    o["FAST_CONNECT"] = true;
+    o["MTU_BACKGROUND_PARALLELISM"] = qBound(1, cottenNumber(s, "backgroundScanParallelism"), 8);
+    o["ADAPTIVE_DUPLICATION"] = !legacy;
+    o["DUPLICATION_PREFER_DISTINCT_DOMAINS"] = !legacy;
+    o["DNS_EDNS_COOKIE"] = !legacy;
+    o["MTU_ADAPTIVE_GROUPING"] = !legacy;
+    o["MTU_PROBE_SAMPLES"] = survival ? 5 : 1;
+    o["MTU_MAX_LOSS"] = survival ? 0.5 : 0.0;
+    if (!legacy) {
+        o["ADAPTIVE_DUPLICATION_TARGET_DELIVERY"] = survival ? 0.97 : 0.95;
+        o["EDNS_UDP_SIZE"] = survival ? 1232 : 4096;
+        o["MTU_GROUP_GAP_RATIO"] = 0.25;
+    }
+    const auto m = s["cottenMaxOptions"].toObject();
+    if (!legacy && encrypted && cottenNumber(m, "dnsPaddingBlockSize") > 0) o["DNS_PADDING_BLOCK_SIZE"] = cottenNumber(m, "dnsPaddingBlockSize");
+    if (!legacy && transport == "doh3" && m["doh3FallbackToDoh"].toBool()) o["RESOLVER_HTTP3_FALLBACK"] = true;
+    if (max) {
+        const auto num = [&m](const QString &key, int fallback) { return m.contains(key) ? cottenNumber(m, key) : fallback; };
+        const auto primary = cottenDomains(domain);
+        const auto standby = cottenDomains(m["standbyDomains"].toString(), primary).mid(0, qMax(0, 8 - int(primary.size())));
+        if (!standby.isEmpty()) o["STANDBY_DOMAINS"] = QJsonArray::fromStringList(standby);
+        o["COTTENMAX_FAILOVER_AFTER_MILLISECONDS"] = num("failoverAfterMs", 3000);
+        // The first HELLO carries 55 base32 characters under the reserved subtree, so long domains need a bigger name budget.
+        int hello = 0;
+        for (const auto &d : primary + standby)
+            hello = qMax(hello, int(QStringLiteral("cottenmax-v1.").size() + d.size()) + 1 + 55 + 54 / labels + (m["labelCountJitter"].toBool() ? 3 : 0));
+        if (hello == 0) hello = 101;
+        const int safe = qMax(num("safeQName", 101), hello);
+        o["COTTENMAX_SAFE_QNAME"] = safe;
+        o["COTTENMAX_MAX_QNAME"] = qMax(num("maxQName", 253), safe);
+        o["COTTENMAX_MAX_ANSWER"] = num("maxAnswer", 1232);
+        o["COTTENMAX_MAX_PATH_WINDOW"] = num("maxPathWindow", 256);
+        o["COTTENMAX_MAX_INFLIGHT"] = num("maxInflight", 256);
+        o["COTTENMAX_FEC_DOWNLOAD_ENABLED"] = m["fecDownloadEnabled"].toBool();
+        o["COTTENMAX_FEC_DATA_SHARDS"] = num("fecDataShards", 4);
+        o["COTTENMAX_FEC_PARITY_SHARDS"] = num("fecParityShards", 1);
+        o["COTTENMAX_SESSION_IDLE_MILLISECONDS"] = num("sessionIdleMs", 90000);
+        o["COTTENMAX_HOLD_MILLISECONDS"] = num("holdMs", 500);
+        o["QNAME_LABEL_COUNT_JITTER"] = m["labelCountJitter"].toBool();
+        if (m["qnameLossGuard"].toBool()) o["COTTENMAX_QNAME_LOSS_GUARD"] = true;
+        o["RESOLVER_DISCOVERY_ENABLED"] = m["discoveryEnabled"].toBool();
+        if (m["discoveryEnabled"].toBool()) {
+            o["RESOLVER_DISCOVERY_COUNTRY"] = m["discoveryCountry"].toString().trimmed().toLower();
+            o["RESOLVER_DISCOVERY_SAMPLE_RANGES"] = num("discoverySampleRanges", 0);
+            o["RESOLVER_DISCOVERY_WANT"] = num("discoveryWant", 16);
+            o["RESOLVER_DISCOVERY_CONCURRENCY"] = num("discoveryConcurrency", 16);
+            o["RESOLVER_DISCOVERY_PACE_MILLISECONDS"] = num("discoveryPaceMs", 20);
+            const auto candidates = m["discoveryCandidates"].toString().split(QRegularExpression("[,\\s]+"), Qt::SkipEmptyParts);
+            if (!candidates.isEmpty()) o["RESOLVER_DISCOVERY_CANDIDATES"] = QJsonArray::fromStringList(candidates);
+        }
+    }
+    return o;
+}
+
 // SlipNet's tunnel types that are DNS tunnels this client runs, by its export name.
 const QMap<QString, QPair<QString, QString>> &dnsSlipNetTypes() {
     static const QMap<QString, QPair<QString, QString>> types{
@@ -272,8 +394,11 @@ bool dnstunnel::ParseWhiteDnsProfile(const QJsonObject &json, QString scheme) {
     auto key = serverObject["encryption_key"].toString();
     if (key.isEmpty()) key = serverObject["encryptionKey"].toString();
     const auto method = serverObject.contains("encryption_method") ? serverObject["encryption_method"].toInt(1) : serverObject["encryptionMethod"].toInt(1);
-    return ParseFromJson(QJsonObject{{"type", scheme == "cottendns" ? "cottendns" : "masterdns"}, {"name", profile["name"].toString()},
-                                     {"domain", domains.join(',')}, {"mkey", key}, {"encryption", method}});
+    QJsonObject o{{"type", scheme == "cottendns" ? "cottendns" : "masterdns"}, {"name", profile["name"].toString()},
+                  {"domain", domains.join(',')}, {"mkey", key}, {"encryption", method}};
+    // WhiteDNS's own settings of the profile, as the engine needs them (the compatibility preset among them).
+    if (scheme == "cottendns" && profile["cottenSettings"].isObject()) o["cotten"] = profile["cottenSettings"].toObject();
+    return ParseFromJson(o);
 }
 
 // CottenDNS and Soar profiles travel as the links their own apps import.
@@ -290,6 +415,7 @@ QString dnstunnel::exportWhiteDns() const {
         serverObject["domains"] = QJsonArray::fromStringList(domains);
         serverObject["encryption_key"] = data["mkey"].toString();
         serverObject["encryption_method"] = data["encryption"].toInt();
+        if (!data["cotten"].toObject().isEmpty()) profile["cottenSettings"] = data["cotten"].toObject();
     }
     profile["server"] = serverObject;
     const QJsonObject json{{"schema", "whitedns.profile"}, {"version", 1}, {"import_type", kind}, {"profile", profile}};
@@ -362,6 +488,13 @@ QString dnstunnel::Prepare() {
     config.remove("backend");
     if (!Keyed(kind)) config["tunnel_backend"] = d["backend"].toObject();
     if (kind == "soar") config["server_public_key"] = d["pubkey"].toString();
+    if (kind == "cottendns") {
+        auto options = cottenOptions(d["cotten"].toObject(), d["domain"].toString());
+        const auto own = d["options"].toObject();
+        for (auto it = own.begin(); it != own.end(); ++it) options[it.key()] = it.value();
+        config.remove("cotten");
+        config["options"] = options;
+    }
     config["backend"] = kind;
     config["socks"] = "127.0.0.1:" + QString::number(socksPort);
     config["socks_user"] = bridgeAuth;

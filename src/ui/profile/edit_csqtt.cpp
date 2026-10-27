@@ -262,7 +262,7 @@ bool EditCSQTT::onEnd() {
     const int p = get_edit_text_serverPort().toInt(&portOK);
     if (!portOK || p < 1 || p > 65535) return invalid(tr("Server port must be between 1 and 65535."));
     if (password->text().isEmpty() || password->text().contains('|') || password->text().contains('\n') || password->text().contains('\r')) return invalid(tr("Enter a valid connection password."));
-    if (!automatic && (values.isEmpty() || values.size() > 6)) return invalid(tr("Enter one to six VK call hashes."));
+    if (!automatic && values.size() > 6) return invalid(QStringLiteral("Укажите не больше шести хешей звонков VK."));
     QSet<QString> seen;
     for (const auto &hash : values) {
         if (hash.size() < 16 || hash.contains(QRegularExpression("[,|\\s]")) || seen.contains(hash)) return invalid(tr("Enter valid, distinct VK call hashes."));

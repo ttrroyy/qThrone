@@ -245,7 +245,7 @@ bool EditWdttPlus::onEnd() {
     const int p = get_edit_text_serverPort().toInt(&portOK);
     if (!portOK || p < 1 || p > 65535) return invalid(tr("Server port must be between 1 and 65535."));
     if (password->text().isEmpty() || password->text().contains('\n') || password->text().contains('\r')) return invalid(tr("Enter a valid connection password."));
-    if (!automatic && (values.isEmpty() || values.size() > 4)) return invalid(QStringLiteral("Укажите от одного до четырёх хешей звонков VK."));
+    if (!automatic && values.size() > 4) return invalid(QStringLiteral("Укажите не больше четырёх хешей звонков VK."));
     const QRegularExpression valid("^[A-Za-z0-9_-]{16,512}$");
     for (const auto &hash : values)
         if (!valid.match(hash).hasMatch()) return invalid(tr("Enter valid, distinct VK call hashes."));
