@@ -32,6 +32,7 @@
 #include <QFile>
 #include <QDir>
 #include <QScopeGuard>
+#include <tuple>
 #include "include/global/Version.hpp"
 #include "NkrVersion.h"
 #include "include/ui/profile/edit_qwdtt.h"
@@ -86,6 +87,39 @@ int TestQwdttImport() {
     }
     const auto check = [&failures](bool ok, const char *name) {
         if (!ok) { qCritical() << "qWDTT import test failed:" << name; ++failures; }
+    };
+    const auto checkWarp = [&](const std::shared_ptr<Configs::Profile> &profile, bool tcpOnly) {
+        auto &s = *Configs::dataManager->settingsRepo;
+        const auto saved = std::tuple{s.enable_warp, s.warp_mode, s.warp_masque_http_mode,
+            s.warp_private_key, s.warp_public_key, s.warp_ep, s.warp_ifc_addrs,
+            s.warp_masque_private_key, s.warp_masque_peer_public_key, s.warp_masque_ep, s.warp_masque_ifc_addrs};
+        const auto restore = qScopeGuard([&s, saved] {
+            std::tie(s.enable_warp, s.warp_mode, s.warp_masque_http_mode,
+                s.warp_private_key, s.warp_public_key, s.warp_ep, s.warp_ifc_addrs,
+                s.warp_masque_private_key, s.warp_masque_peer_public_key, s.warp_masque_ep, s.warp_masque_ifc_addrs) = saved;
+        });
+        s.enable_warp = true;
+        s.warp_private_key = "private"; s.warp_public_key = "public"; s.warp_ep = "192.0.2.200:2408"; s.warp_ifc_addrs = {"172.16.0.2/32"};
+        s.warp_masque_private_key = "private"; s.warp_masque_peer_public_key = "public"; s.warp_masque_ep = "192.0.2.200:443"; s.warp_masque_ifc_addrs = {"172.16.0.2/32"};
+        for (const auto *mode : {"wireguard", "masque"}) for (int version : {0, 1, 2}) {
+            if (QString(mode) == "wireguard" && version != 0) continue;
+            s.warp_mode = mode; s.warp_masque_http_mode = version;
+            const auto built = Configs::BuildSingBoxConfig(profile);
+            if (tcpOnly && s.warp_mode == "wireguard") {
+                check(!built->error.isEmpty() && built->error.contains("MASQUE"), "TCP-only transport rejects WireGuard WARP before startup");
+                continue;
+            }
+            check(built->error.isEmpty(), "native WARP chain builds");
+            if (!built->error.isEmpty()) continue;
+            QJsonObject warp, bridge;
+            for (const auto &item : built->coreConfig["endpoints"].toArray()) if (item.toObject()["tag"] == "proxy") warp = item.toObject();
+            for (const auto &item : built->coreConfig["outbounds"].toArray()) if (item.toObject()["tag"] == "warp-bypass") bridge = item.toObject();
+            check(warp["detour"] == "warp-bypass" && bridge["type"] == "socks" && bridge["server"] == "127.0.0.1" && !bridge.contains("detour"), "WARP reaches the native loopback bridge directly");
+            const auto privateConfig = QJsonDocument::fromJson(built->extraCoreData->config.toUtf8()).object();
+            check(bridge["username"] == privateConfig["socks_user"] && bridge["password"] == privateConfig["socks_pass"] &&
+                bridge["server_port"].toInt() == privateConfig["socks"].toString().section(':', -1).toInt(), "WARP preserves native session credentials and port");
+            if (tcpOnly) check(warp["http_version"].toInt() == 2 && bridge["network"] == "tcp", "TCP-only transport carries MASQUE through HTTP/2");
+        }
     };
     {
         auto *settings = Configs::dataManager->settingsRepo.get();
@@ -228,6 +262,10 @@ int TestQwdttImport() {
               profile.username == "user@example" && profile.password == "p:+/@ss" && profile.allowInsecure, "SSTP imports escaped credentials, IPv6, SNI and TLS options");
         check(restored.ParseFromLink(profile.ExportToLink()) && restored.ExportToJson() == profile.ExportToJson(), "SSTP URI round trip");
         check(restored.ParseFromJson(profile.ExportToJson()) && restored.ExportIdentity() == profile.ExportIdentity(), "SSTP JSON round trip");
+        check(!profile.useServerDNS, "SSTP server DNS stays opt-in for existing links");
+        profile.useServerDNS = true;
+        check(restored.ParseFromLink(profile.ExportToLink()) && restored.useServerDNS, "SSTP server DNS URI round trip");
+        check(restored.ParseFromJson(profile.ExportToJson()) && restored.useServerDNS && restored.ExportIdentity() == profile.ExportIdentity(), "SSTP server DNS JSON identity round trip");
         check(parse(link.toUtf8()).size() == 1 && parse(QJsonDocument(profile.ExportToJson()).toJson()).size() == 1, "SSTP clipboard/file and subscription dispatch");
         check(!restored.ParseFromLink("sstp://user:pass@vpn.example.org:0") && !restored.ParseFromLink("sstp://user@vpn.example.org"), "SSTP rejects invalid ports and missing credentials");
         const auto challenge = QByteArray("{\"outbounds\":[{\"server\":\"127.0.0.1\",\"tag\":\"HWID missing\"}]}");
@@ -779,6 +817,26 @@ proxies:
     if (!fixtureGroups.isEmpty() && !testProfiles.isEmpty() && !csProfiles.isEmpty()) {
         auto cs = csProfiles.first();
         check(Configs::dataManager->profilesRepo->AddProfile(cs, fixtureGroups.first()), "save routed CSQTT fixture");
+        checkWarp(testProfiles.first(), false);
+        checkWarp(cs, false);
+        auto plus = Configs::ProfilesRepo::NewProfile("wdttplus");
+        check(plus->outbound->ParseFromLink("wdtt://connect?v=1&host=192.0.2.5&dtls=56000&wg=56001&local=9000&password=fixture&hashes=exampleHash123456789"), "WDTT Plus WARP fixture parses");
+        check(Configs::dataManager->profilesRepo->AddProfile(plus, fixtureGroups.first()), "save WDTT Plus WARP fixture");
+        checkWarp(plus, false);
+        auto sstp = Configs::ProfilesRepo::NewProfile("sstp");
+        check(sstp->outbound->ParseFromLink("sstp://user:pass@vpn.example.org?use_server_dns=1"), "SSTP DNS fixture parses");
+        check(Configs::dataManager->profilesRepo->AddProfile(sstp, fixtureGroups.first()), "save SSTP DNS fixture");
+        const auto sstpBuilt = Configs::BuildSingBoxConfig(sstp);
+        check(sstpBuilt->error.isEmpty(), "SSTP server DNS config builds");
+        bool foundServerDns = false;
+        for (const auto &item : sstpBuilt->coreConfig["dns"].toObject()["servers"].toArray()) {
+            const auto dns = item.toObject();
+            if (dns["tag"] == "dns-remote") foundServerDns = dns["type"] == "tcp" && dns["server"] == "127.0.0.53" && dns["detour"] == "proxy";
+        }
+        check(foundServerDns && QJsonDocument::fromJson(sstpBuilt->extraCoreData->config.toUtf8()).object()["use_server_dns"].toBool(), "SSTP server DNS uses the authenticated bridge and private flag");
+        checkWarp(sstp, false);
+        QList<int> dnsWarpFixtures{plus->id, sstp->id};
+        check(Configs::dataManager->profilesRepo->BatchDeleteProfiles(dnsWarpFixtures), "remove isolated DNS/WARP fixtures");
         const auto originalDevice = dynamic_cast<Configs::csqtt*>(cs->outbound.get())->deviceID;
         auto refreshed = Configs::ProfilesRepo::NewProfile("csqtt");
         auto changed = cs->outbound->ExportToJson();
@@ -887,6 +945,7 @@ proxies:
         check(probe->error.isEmpty() && probe->qwdttConfigs.size() == 1, "olcRTC ping and speed private bridge");
         const auto live = Configs::BuildSingBoxConfig(rtcProfile);
         check(live->error.isEmpty() && live->extraCoreData->args.startsWith("--qthrone-config"), "olcRTC main bundled helper");
+        checkWarp(rtcProfile, true);
         check(rtc->Build().object["network"].toString() == "tcp", "olcRTC bridge cannot silently send UDP direct");
         auto mains = parse("vless://00000000-0000-4000-8000-000000000002@203.0.113.15:443?type=tcp&security=none#RTC-main");
         if (mains.size() == 1) {
@@ -920,6 +979,7 @@ proxies:
         check(probe->error.isEmpty() && probe->qwdttConfigs.size() == 1 && probe->fullConfigs.size() == 1, "OpenFlux ping and speed tests own a private bridge");
         const auto live = Configs::BuildSingBoxConfig(profile);
         check(live->error.isEmpty() && live->extraCoreData->args.startsWith("--qthrone-config"), "OpenFlux main connection uses bundled helper");
+        checkWarp(profile, false);
     }
     auto invalidFlux = fluxConfig; invalidFlux["secret"] = "short";
     check(!flux.ParseFromJson(invalidFlux), "OpenFlux rejects short secrets");

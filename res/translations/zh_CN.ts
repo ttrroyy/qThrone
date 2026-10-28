@@ -9674,6 +9674,7 @@ Error: %1</source>
 </context>
 <context>
     <name>QObject</name>
+    <message><source>WireGuard WARP requires UDP, but this transport supports TCP only. Select MASQUE in WARP settings and generate its config.</source><translation>WireGuard WARP 需要 UDP，但此传输仅支持 TCP。请在 WARP 设置中选择 MASQUE 并生成配置。</translation></message>
     <message>
         <location filename="Throne-1.3.1/include/configs/outbounds/autoselector.h" line="53"/>
         <source>Auto Selector</source>
@@ -11885,5 +11886,10 @@ Remove that endpoint from this routing profile as well?</source>
         <source>Page %1/%2</source>
         <translation>页面 %1/%2</translation>
     </message>
+</context>
+<context>
+    <name>EditSSTP</name>
+    <message><source>Use VPN server DNS</source><translation>使用 VPN 服务器的 DNS</translation></message>
+    <message><source>Use DNS received from this VPN server for remote queries. Other routing rules and saved DNS settings stay unchanged.</source><translation>使用此 VPN 服务器提供的 DNS 处理远程查询。其他路由规则和已保存的 DNS 设置保持不变。</translation></message>
 </context>
 </TS>

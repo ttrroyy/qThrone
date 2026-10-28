@@ -1,5 +1,6 @@
 #include "include/configs/generate.h"
 #include "include/configs/outbounds/qwdtt.h"
+#include "include/configs/outbounds/sstp.h"
 #include "include/configs/outbounds/csqtt.h"
 #include "include/configs/outbounds/openflux.h"
 #include "include/configs/outbounds/olcrtc.h"
@@ -236,6 +237,8 @@ namespace Configs {
             QStringList echQueryNames;
             // The main-profile tunnel set to Strict tunnel DNS; its resolvers take every remote query.
             QString vpnStrictTag;
+            QString sstpDnsTag;
+            bool warpTcpOnly = false;
             QList<QString> xrayIngressTags;
             QList<QString> singIngressTags;
             QList<coreBridgeConfig> singToXrayBridges;
@@ -1067,7 +1070,10 @@ namespace Configs {
             // Merged in front of `rules` at the end; the tailscale block below prepends.
             QJsonArray headRules;
             if (!ctx.forTest) {
-                auto remoteDnsObj = buildDnsObj(ctx, ctx.providerRouting.isEmpty() ? settings.remote_dns : Subscription::ProviderRouting::Dns(ctx.providerRouting, "Remote", "https://cloudflare-dns.com/dns-query"));
+                // The authenticated SSTP bridge resolves this alias using only negotiated VPN resolvers.
+                auto remoteDnsObj = ctx.sstpDnsTag.isEmpty()
+                    ? buildDnsObj(ctx, ctx.providerRouting.isEmpty() ? settings.remote_dns : Subscription::ProviderRouting::Dns(ctx.providerRouting, "Remote", "https://cloudflare-dns.com/dns-query"))
+                    : QJsonObject{{"type", "tcp"}, {"server", "127.0.0.53"}, {"server_port", 53}};
                 // overwrite remote dns to TCP based since Xray is shit
                 if (ctx.proxyUsesXray && ( remoteDnsObj.value("type").toString() == "udp" || remoteDnsObj.value("type").toString() == "quic" )) {
                     remoteDnsObj = buildDnsObj(ctx, upgradeUdpDnsToDoH(remoteDnsObj.value("server").toString()));
@@ -1075,7 +1081,7 @@ namespace Configs {
                 if (IsTcpOnlyTransport(ctx.ent->type) && (remoteDnsObj["type"].toString() == "udp" || remoteDnsObj["type"].toString() == "quic")) remoteDnsObj["type"] = "tcp";
                 remoteDnsObj["tag"] = tags::dnsRemote;
                 remoteDnsObj["domain_resolver"] = tags::dnsLocal;
-                remoteDnsObj["detour"] = tags::proxy;
+                remoteDnsObj["detour"] = ctx.sstpDnsTag.isEmpty() ? QString(tags::proxy) : ctx.sstpDnsTag;
                 servers += remoteDnsObj;
 
                 if (isTailscale)
@@ -1559,6 +1565,17 @@ namespace Configs {
             }
         }
 
+        bool adaptWarpToTransport(BuildContext &ctx, const std::shared_ptr<Profile> &warp, bool tcpOnly) {
+            if (!tcpOnly) return true;
+            if (auto *masque = dynamic_cast<Configs::masque *>(warp->outbound.get())) {
+                masque->http_version = 2;
+                masque->disable_version_fallback = true;
+                return true;
+            }
+            ctx.error = QObject::tr("WireGuard WARP requires UDP, but this transport supports TCP only. Select MASQUE in WARP settings and generate its config.");
+            return false;
+        }
+
         void buildSingboxChain(BuildContext &ctx, const QList<std::shared_ptr<Profile>> &ents, const hopChainOptions &opts) {
             for (int idx = 0; idx < ents.size(); idx++)
             {
@@ -1570,8 +1587,14 @@ namespace Configs {
                 if (opts.warpWrap && idx == 1) tag = tags::warpBypass;
                 if (opts.markIngress && idx == 0) ctx.singIngressTags << tag;
                 const auto& ent = ents[idx];
+                if (ctx.ent->type == "autoselector" && opts.prefix.startsWith(QString(tags::poolChainPrefix) + "-") && IsTcpOnlyTransport(ent->type))
+                    ctx.warpTcpOnly = true;
                 // Only the head hop (and warp's wrapped outbound) gets a tag rules can name.
                 const bool addressableHop = idx == 0 || (opts.warpWrap && idx == 1) || opts.addressableTags.contains(tag);
+                if (tag == tags::proxy || tag == tags::warpBypass) {
+                    const auto *sstp = dynamic_cast<Configs::sstp *>(ent->outbound.get());
+                    if (sstp != nullptr && sstp->useServerDNS) ctx.sstpDnsTag = tag;
+                }
                 if (addressableHop && (ent->type == "openvpn" || ent->type == "openconnect")) {
                     ctx.result->vpnEndpointProfiles.insert(tag, ent->id);
                     const auto *ovpn = ent->OpenVPN();
@@ -1682,6 +1705,9 @@ namespace Configs {
             QList<std::shared_ptr<Profile>> ents;
             entIDListtoEntList(ctx, req.hopIDs, ents, ctx.error);
             if (!ctx.error.isEmpty()) return ingressTag;
+
+            const bool tcpOnly = std::any_of(ents.begin(), ents.end(), [](const auto &ent) { return IsTcpOnlyTransport(ent->type); });
+            for (const auto &ent : ents) if (ent->id == warpProfileID && !adaptWarpToTransport(ctx, ent, tcpOnly)) return ingressTag;
 
             if (!ents.isEmpty() && ents.last()->outbound != nullptr && ents.last()->outbound->IsXrayFullConfig()) {
                 auto custom = ents.last()->Custom();
@@ -2049,6 +2075,7 @@ namespace Configs {
         void buildWarpInFrontOfSelector(BuildContext &ctx)
         {
             auto warpEnt = getWarpProfile();
+            if (!adaptWarpToTransport(ctx, warpEnt, ctx.warpTcpOnly)) return;
             auto [warpObject, warpError] = warpEnt->outbound->Build();
             if (!warpError.isEmpty())
             {

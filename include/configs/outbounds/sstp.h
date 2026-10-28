@@ -6,6 +6,7 @@ public:
     sstp() { server_port = 443; socksPort = 0; }
     QString username, password, sni;
     bool allowInsecure = false;
+    bool useServerDNS = false;
     bool ParseFromJson(const QJsonObject &) override;
     bool ParseFromLink(const QString &) override;
     QJsonObject ExportToJson() override;

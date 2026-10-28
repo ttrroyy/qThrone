@@ -12,5 +12,5 @@ public:
 private:
     std::shared_ptr<Configs::Profile> ent;
     QLineEdit *username, *password, *sni;
-    QCheckBox *insecure;
+    QCheckBox *insecure, *serverDNS;
 };

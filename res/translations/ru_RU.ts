@@ -7815,6 +7815,7 @@ Name: %1</source>
 </context>
 <context>
     <name>QObject</name>
+    <message><source>WireGuard WARP requires UDP, but this transport supports TCP only. Select MASQUE in WARP settings and generate its config.</source><translation>Для WireGuard WARP нужен UDP, а этот транспорт поддерживает только TCP. Выберите MASQUE в настройках WARP и сгенерируйте его конфиг.</translation></message>
     <message>
         <source>The selected TLS version is not supported on this system.</source>
         <translation type="unfinished">Выбранная версия TLS не поддерживается в этой системе</translation>
@@ -9744,5 +9745,10 @@ Remove that endpoint from this routing profile as well?</source>
         <source>Enter the obfuscator key.</source>
         <translation>Укажите ключ обфускатора.</translation>
     </message>
+</context>
+<context>
+    <name>EditSSTP</name>
+    <message><source>Use VPN server DNS</source><translation>Использовать DNS сервера VPN</translation></message>
+    <message><source>Use DNS received from this VPN server for remote queries. Other routing rules and saved DNS settings stay unchanged.</source><translation>Использовать DNS, выданный этим VPN-сервером, для удалённых запросов. Остальные правила маршрутизации и сохранённые настройки DNS не меняются.</translation></message>
 </context>
 </TS>

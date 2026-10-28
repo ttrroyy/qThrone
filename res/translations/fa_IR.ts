@@ -66,6 +66,7 @@
 </context>
 <context>
     <name>QObject</name>
+    <message><source>WireGuard WARP requires UDP, but this transport supports TCP only. Select MASQUE in WARP settings and generate its config.</source><translation>WireGuard WARP به UDP نیاز دارد، اما این انتقال فقط از TCP پشتیبانی می‌کند. در تنظیمات WARP گزینه MASQUE را انتخاب و پیکربندی آن را ایجاد کنید.</translation></message>
     <message>
         <source>Request with proxy but no profile started.</source>
         <translation type="unfinished">درخواست با پروکسی اما هیچ نمایه‌ای شروع نشده است.</translation>
@@ -2895,5 +2896,10 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
         <source>Direct</source>
         <translation>مستقیم</translation>
     </message>
+</context>
+<context>
+    <name>EditSSTP</name>
+    <message><source>Use VPN server DNS</source><translation>استفاده از DNS سرور VPN</translation></message>
+    <message><source>Use DNS received from this VPN server for remote queries. Other routing rules and saved DNS settings stay unchanged.</source><translation>برای پرس‌وجوهای راه دور از DNS ارائه‌شده توسط این سرور VPN استفاده شود. سایر قواعد مسیریابی و تنظیمات ذخیره‌شده DNS تغییر نمی‌کنند.</translation></message>
 </context>
 </TS>

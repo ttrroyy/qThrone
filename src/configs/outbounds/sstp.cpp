@@ -35,29 +35,33 @@ bool sstp::ParseFromJson(const QJsonObject &o) {
     server_port = o.contains("server_port") ? o["server_port"].toInt() : url.port(443);
     username = o["username"].toString().trimmed(); password = o["password"].toString();
     sni = o["sni"].toString().trimmed(); allowInsecure = o["allow_insecure"].toBool();
+    useServerDNS = o["use_server_dns"].toBool();
     return Validate().isEmpty();
 }
 bool sstp::ParseFromLink(const QString &link) {
     const QUrl url(link.trimmed());
     if (!url.isValid() || url.scheme() != "sstp" || (url.path() != "" && url.path() != "/")) return false;
     const QUrlQuery query(url);
-    for (const auto *key : {"sni", "insecure"}) if (query.allQueryItemValues(key).size() > 1) return false;
+    for (const auto *key : {"sni", "insecure", "use_server_dns"}) if (query.allQueryItemValues(key).size() > 1) return false;
     name = url.fragment(QUrl::FullyDecoded); server = url.host(); server_port = url.port(443);
     username = url.userName(QUrl::FullyDecoded).trimmed(); password = url.password(QUrl::FullyDecoded);
     sni = query.queryItemValue("sni", QUrl::FullyDecoded).trimmed();
     const auto insecure = query.queryItemValue("insecure");
     allowInsecure = insecure == "1" || insecure.compare("true", Qt::CaseInsensitive) == 0;
+    const auto serverDns = query.queryItemValue("use_server_dns");
+    useServerDNS = serverDns == "1" || serverDns.compare("true", Qt::CaseInsensitive) == 0;
     return Validate().isEmpty();
 }
 QJsonObject sstp::ExportToJson() {
     return {{"type", "sstp"}, {"name", name}, {"server", server}, {"server_port", server_port},
-        {"username", username}, {"password", password}, {"sni", sni}, {"allow_insecure", allowInsecure}};
+        {"username", username}, {"password", password}, {"sni", sni}, {"allow_insecure", allowInsecure}, {"use_server_dns", useServerDNS}};
 }
 QJsonObject sstp::ExportIdentity() { auto o = ExportToJson(); o.remove("name"); return o; }
 QString sstp::ExportToLink() {
     QUrl url; url.setScheme("sstp"); url.setHost(server); if (server_port != 443) url.setPort(server_port);
     url.setUserName(username); url.setPassword(password); url.setFragment(name);
     QUrlQuery query; if (!sni.isEmpty()) query.addQueryItem("sni", sni); if (allowInsecure) query.addQueryItem("insecure", "1");
+    if (useServerDNS) query.addQueryItem("use_server_dns", "1");
     url.setQuery(query); return url.toString(QUrl::FullyEncoded).replace('+', "%2B");
 }
 QString sstp::Prepare() {
