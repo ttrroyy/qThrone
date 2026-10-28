@@ -1,4 +1,4 @@
-#ifndef AppVersion
+﻿#ifndef AppVersion
   #define AppVersion "0.0.0"
 #endif
 #ifndef AppVersionMajor
@@ -39,6 +39,9 @@ DisableProgramGroupPage=yes
 ArchitecturesInstallIn64BitMode=win64
 CloseApplications=force
 RestartApplications=no
+LanguageDetectionMethod=uilanguage
+UsePreviousLanguage=no
+ShowLanguageDialog=auto
 ; Uninstall removes the associations Throne registers at runtime, so Explorer has to reload them.
 ChangesAssociations=yes
 Compression=lzma2/ultra64
@@ -48,8 +51,17 @@ LZMANumBlockThreads=4
 ; The default block is 4x the dictionary (256 MB), which would leave two of the four threads idle.
 LZMABlockSize=118784
 
-[Messages]
-SelectDirBrowseLabel=To continue, click Next. If the folder you choose is not named qThrone, Setup creates a qThrone folder inside it, so uninstalling only ever removes qThrone's own folder.
+[Languages]
+Name: "en"; MessagesFile: "compiler:Default.isl"
+Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
+Name: "zh_CN"; MessagesFile: "script\installer-languages\ChineseSimplified.isl"
+Name: "fa"; MessagesFile: "script\installer-languages\Farsi.isl"
+
+[CustomMessages]
+en.InstallPermission=You do not have permission to install to "%1".%n%nChoose a different folder, or restart Setup and choose to install for all users.
+ru.InstallPermission=Нет прав на установку в папку «%1».%n%nВыберите другую папку или запустите установку для всех пользователей.
+zh_CN.InstallPermission=没有权限安装到“%1”。%n%n请选择其他文件夹，或重新运行安装程序并选择为所有用户安装。
+fa.InstallPermission=اجازه نصب در «%1» را ندارید.%n%nپوشه دیگری انتخاب کنید یا نصب را برای همه کاربران اجرا کنید.
 
 [Files]
 Source: "deployment\windows-amd64\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion; Check: IsX64OS; MinVersion: 10.0.17763
@@ -66,6 +78,9 @@ Root: HKA; Subkey: "Software\qThrone"; ValueType: string; ValueName: "InstallPat
 
 [UninstallDelete]
 Type: files; Name: "{app}\qThroneUpdater.old"
+Type: filesandordirs; Name: "{app}"; Check: OwnInstallDirectory
+Type: filesandordirs; Name: "{localappdata}\qThrone"; Check: OwnUserDataDirectory
+Type: filesandordirs; Name: "{userappdata}\qThrone"
 
 [Run]
 Filename: "{app}\qThrone.exe"; Description: "{cm:LaunchProgram,qThrone}"; Flags: postinstall nowait skipifsilent
@@ -74,8 +89,17 @@ Filename: "{app}\qThrone.exe"; Description: "{cm:LaunchProgram,qThrone}"; Flags:
 const
   LegacyUninstall = 'Microsoft\Windows\CurrentVersion\Uninstall\qThrone';
 
-var
-  DeleteUserData: Boolean;
+function OwnInstallDirectory: Boolean;
+begin
+  Result := CompareText(ExtractFileName(RemoveBackslashUnlessRoot(ExpandConstant('{app}'))), 'qThrone') = 0;
+end;
+
+function OwnUserDataDirectory: Boolean;
+begin
+  // An independently installed portable copy may occupy this path.
+  Result := (CompareText(ExpandConstant('{app}'), ExpandConstant('{localappdata}\qThrone')) = 0) or
+    not FileExists(ExpandConstant('{localappdata}\qThrone\qThrone.exe'));
+end;
 
 // The NSIS installer was 32-bit, so on 64-bit Windows its HKLM keys sit under WOW6432Node of this installer's 64-bit view.
 function LegacyKey(const SubKey: String): String;
@@ -135,8 +159,7 @@ begin
   if Created then
     RemoveDir(Dir);
   if not Result then
-    SuppressibleMsgBox('You do not have permission to install to "' + Dir + '".' + #13#10#13#10 +
-      'Choose a different folder, or restart Setup and choose to install for all users.', mbError, MB_OK, IDOK);
+    SuppressibleMsgBox(FmtMessage(CustomMessage('InstallPermission'), [Dir]), mbError, MB_OK, IDOK);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
@@ -234,6 +257,48 @@ begin
     RegDeleteKeyIncludingSubkeys(HKEY_LOCAL_MACHINE, SubKey);
 end;
 
+procedure RemoveAutoRun;
+var
+  Scheduler, Root, Tasks, Task, Actions, Action: Variant;
+  I, J: Integer;
+  Command, TaskName, ExePath: String;
+begin
+  ExePath := ExpandConstant('{app}\qThrone.exe');
+  if RegQueryStringValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'qThrone', Command) and
+     (Pos(Lowercase(ExePath), Lowercase(Command)) > 0) then
+    RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'qThrone');
+  try
+    Scheduler := CreateOleObject('Schedule.Service');
+    Scheduler.Connect;
+    Root := Scheduler.GetFolder('\');
+    Tasks := Root.GetTasks(1);
+    for I := Tasks.Count downto 1 do
+    begin
+      Task := Tasks.Item(I);
+      TaskName := Task.Name;
+      if Pos('qThrone AutoRun ', TaskName) = 1 then
+      begin
+        Actions := Task.Definition.Actions;
+        for J := 1 to Actions.Count do
+        begin
+          Action := Actions.Item(J);
+          if Action.Type = 0 then
+          begin
+            Command := Action.Path;
+            if CompareText(Command, ExePath) = 0 then
+            begin
+              Root.DeleteTask(TaskName, 0);
+              Break;
+            end;
+          end;
+        end;
+      end;
+    end;
+  except
+    Log('Could not remove autorun: ' + GetExceptionMessage);
+  end;
+end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   App: String;
@@ -245,17 +310,12 @@ begin
     RemoveAssociations;
     RemoveCrashDumpKey('qThrone.exe');
     RemoveCrashDumpKey('qThroneCore.exe');
-    DeleteUserData := SuppressibleMsgBox('Also delete your qThrone profiles, settings and logs?' + #13#10#13#10 +
-      'Choose No if you plan to reinstall qThrone later and want to keep them.', mbConfirmation, MB_YESNO, IDYES) = IDYES;
+    RemoveAutoRun;
   end
-  else if (CurUninstallStep = usPostUninstall) and DeleteUserData then
+  else if CurUninstallStep = usPostUninstall then
   begin
-    if FileExists(App + '\config\throne.db') then
+    if not OwnInstallDirectory then
       DelTree(App + '\config', True, True, True);
-    // Where Throne keeps its config when its own folder is not writable (Qt's AppConfigLocation).
-    DelTree(ExpandConstant('{localappdata}\qThrone\config'), True, True, True);
-    RemoveDir(ExpandConstant('{localappdata}\qThrone'));
-    DelTree(ExpandConstant('{userappdata}\qThrone'), True, True, True);
     RemoveDir(App);
   end;
 end;

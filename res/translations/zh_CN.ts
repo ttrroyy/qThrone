@@ -3506,6 +3506,10 @@ Use a number followed by ns, us, ms, s, m, h or d.</source>
         <translation>更新了 %1, 失败了 %2:
 %3</translation>
     </message>
+    <message>
+        <source>Generate the WARP config in Routing Settings before enabling it.</source>
+        <translation>请先在路由设置中生成 WARP 配置，然后再启用。</translation>
+    </message>
 </context>
 <context>
     <name>DialogOtpManager</name>
@@ -9542,6 +9546,10 @@ Error: %1</source>
         <location filename="Throne-1.3.1/src/ui/mainWindow/TestRunner.cpp" line="645"/>
         <source>[%1] speed test error: %2</source>
         <translation>[%1] 速度测试错误：%2</translation>
+    </message>
+    <message>
+        <source>Generate the WARP config in Routing Settings before enabling it.</source>
+        <translation>请先在路由设置中生成 WARP 配置，然后再启用。</translation>
     </message>
 </context>
 <context>

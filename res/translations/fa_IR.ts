@@ -1222,6 +1222,10 @@ For more information, see the document &quot;Configuration/DNS&quot;.</source>
         <source>Local Override</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Generate the WARP config in Routing Settings before enabling it.</source>
+        <translation>پیش از فعال‌سازی، پیکربندی WARP را در تنظیمات مسیریابی بسازید.</translation>
+    </message>
 </context>
 <context>
     <name>DialogVPNSettings</name>
@@ -2660,6 +2664,10 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
     <message>
         <source>Add profile from File(s)</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Generate the WARP config in Routing Settings before enabling it.</source>
+        <translation>پیش از فعال‌سازی، پیکربندی WARP را در تنظیمات مسیریابی بسازید.</translation>
     </message>
 </context>
 <context>

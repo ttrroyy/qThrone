@@ -350,6 +350,11 @@ int TestQwdttImport() {
         check(header->sectionSize(0) + header->sectionSize(1) == beforeDrag[0] + beforeDrag[1], "drag only redistributes the adjacent column pair");
         for (int i = 2; i < header->count(); ++i) check(header->sectionSize(i) == beforeDrag[i], "drag preserves unrelated columns");
         check(header->length() == table.viewport()->width(), "drag keeps all columns inside the viewport");
+        const int protocolWidth = table.fontMetrics().horizontalAdvance("qWDTT (RAW)") + 24;
+        header->resizeSection(ProfilesTableModel::ColType, 32);
+        header->fitToWidth(table.viewport()->width(), protocolWidth);
+        check(header->sectionSize(ProfilesTableModel::ColType) >= protocolWidth, "automatic type width keeps the complete protocol name");
+        check(header->length() == table.viewport()->width(), "minimum type width preserves the table layout");
         {
             QWidget host; host.resize(340, 250); host.show();
             RestartNotice notice(&host);
@@ -741,6 +746,22 @@ proxies:
         check(Subscription::PreserveRelaySettings("wdttplus", limited, {user})["workers"].toInt() == 27, "a WDTT Plus refresh respects a new server limit");
     }
     Configs::qwdtt defaults;
+    {
+        Configs::qwdtt direct;
+        const QString link = "qwdtt://config?peer=192.0.2.1%3A56002&pass=fixture&hashes=exampleHash123456789&workers=18&port=9000";
+        check(direct.ParseFromLink(link) && direct.noDTLS && direct.server_port == 56002, "direct qWDTT server uses RTP AEAD without changing its port");
+        Configs::qwdtt restored;
+        check(restored.ParseFromLink(direct.ExportToLink()) && restored.noDTLS, "direct transport survives sharing");
+        check(restored.ParseFromLink(link + "&no_dtls=0") && !restored.noDTLS, "explicit DTLS settings override the standard direct port");
+        check(restored.ParseFromLink(QString(link).replace("56002", "56000")) && !restored.noDTLS, "ordinary qWDTT remains DTLS");
+        Configs::Database warpDatabase(":memory:");
+        Configs::SettingsRepo warp(warpDatabase);
+        check(warp.WarpConfigMissing(), "empty WARP is rejected");
+        warp.warp_private_key = "private"; warp.warp_public_key = "public"; warp.warp_ep = "example.invalid:2408"; warp.warp_ifc_addrs = {"172.16.0.2/32"};
+        check(!warp.WarpConfigMissing(), "generated WireGuard WARP is accepted");
+        warp.warp_mode = "masque";
+        check(warp.WarpConfigMissing(), "WireGuard identity does not enable an empty MASQUE configuration");
+    }
     check(defaults.mode == "wg" && defaults.turnTCP, "new profiles default to the original app's WG over TURN TCP");
     check(defaults.ParseFromLink(QString::fromUtf8(android)) && defaults.turnTCP, "Android links default to TCP");
     check(defaults.ParseFromLink(QString::fromUtf8(android) + "&turn_tcp=0") && !defaults.turnTCP, "explicit UDP is preserved");

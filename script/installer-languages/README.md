@@ -1,0 +1,1 @@
+ChineseSimplified.isl and Farsi.isl are Inno Setup translations from jrsoftware/issrc tag is-6_5_4, Files/Languages/Unofficial. Their original copyright notices are retained. English and Russian use the compiler-provided translations.

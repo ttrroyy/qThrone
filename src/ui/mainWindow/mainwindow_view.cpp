@@ -375,7 +375,14 @@ void MainWindow::refresh_proxy_list_column_size() {
         }
         // Stored sizes are proportions, not a fixed canvas wider than the
         // viewport. Fill the table on growth and keep every column on shrink.
-        hHeader->fitToWidth(ui->profilesTableView->viewport()->width());
+        int typeMinimum = 0;
+        if (group->column_width.isEmpty()) {
+            const auto metrics = ui->profilesTableView->fontMetrics();
+            const auto *model = ui->profilesTableView->model();
+            for (int row = 0; row < model->rowCount(); ++row)
+                typeMinimum = qMax(typeMinimum, metrics.horizontalAdvance(model->index(row, ProfilesTableModel::ColType).data().toString()) + 24);
+        }
+        hHeader->fitToWidth(ui->profilesTableView->viewport()->width(), typeMinimum);
         vBar->blockSignals(vBarBlocked);
         m_adjustingColumns = false;
     });

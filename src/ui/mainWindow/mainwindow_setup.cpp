@@ -955,6 +955,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
         actionWarp->setCheckable(true);
         actionWarp->setChecked(Configs::dataManager->settingsRepo->enable_warp);
         connect(actionWarp, &QAction::triggered, this, [=,this](bool checked) {
+            if (checked && Configs::dataManager->settingsRepo->WarpConfigMissing()) {
+                Configs::dataManager->settingsRepo->enable_warp = false;
+                actionWarp->setChecked(false);
+                Configs::dataManager->settingsRepo->Save();
+                MessageBoxWarning(tr("Enable Warp"), tr("Generate the WARP config in Routing Settings before enabling it."));
+                return;
+            }
             Configs::dataManager->settingsRepo->enable_warp = checked;
             actionWarp->setChecked(checked);
             Configs::dataManager->settingsRepo->Save();

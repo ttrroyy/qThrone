@@ -357,6 +357,17 @@ func TestPrivateBridgeConfig(t *testing.T) {
 	if e != nil || c.Mode != "raw" {
 		t.Fatalf("default mode: %v", e)
 	}
+	if c.NoDTLS {
+		t.Fatal("DTLS must stay enabled for an ordinary bridge")
+	}
+	direct := strings.Replace(valid, `"peer":`, `"no_dtls":true,"mode":"wg","peer":`, 1)
+	if e = os.WriteFile(p, []byte(direct), 0600); e != nil {
+		t.Fatal(e)
+	}
+	c, e = readBridgeConfig(p)
+	if e != nil || !c.NoDTLS || c.Mode != "wg" {
+		t.Fatalf("direct RTP AEAD bridge: %+v, %v", c, e)
+	}
 	for _, mode := range []string{"raw", "wg"} {
 		withWorkers := strings.Replace(valid, `"peer":`, fmt.Sprintf(`"mode":%q,"workers":16,"peer":`, mode), 1)
 		if e = os.WriteFile(p, []byte(withWorkers), 0600); e != nil {

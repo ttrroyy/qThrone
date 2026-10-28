@@ -93,6 +93,8 @@ bool qwdtt::ParseFromJson(const QJsonObject &o) {
     rawPort = o["raw_port"].toInt(56003);
     workers = o["workers"].toInt(o["workersPerHash"].toInt(9));
     turnTCP = o["turn_tcp"].toBool(true);
+    // The original server reserves 56002 for RTP AEAD without DTLS; explicit settings win.
+    noDTLS = o["no_dtls"].toBool(server_port == 56002);
     obfs = o["obfs"].toString("audio");
     vkAnonPath = o["vk_anon_path"].toString("vkcalls");
     captchaMode = o["captcha_mode"].toString("auto");
@@ -123,6 +125,7 @@ bool qwdtt::ParseFromLink(const QString &link) {
             if (q.hasQueryItem(key)) { bool ok; int n = q.queryItemValue(key).toInt(&ok); if (!ok) return false; o[key] = n; }
         }
         if (q.hasQueryItem("turn_tcp")) o["turn_tcp"] = q.queryItemValue("turn_tcp") == "1" || q.queryItemValue("turn_tcp") == "true";
+        if (q.hasQueryItem("no_dtls")) o["no_dtls"] = q.queryItemValue("no_dtls") == "1" || q.queryItemValue("no_dtls") == "true";
         if (!o.contains("name") && u.hasFragment()) o["name"] = u.fragment(QUrl::FullyDecoded);
         if (!q.hasQueryItem("peer")) return false;
         if (q.hasQueryItem("dtls_port") || q.hasQueryItem("server_port")) {
@@ -154,7 +157,7 @@ bool qwdtt::ParseFromLink(const QString &link) {
 QJsonObject qwdtt::ExportToJson() {
     return {{"type", "qwdtt"}, {"tag", name}, {"server", server}, {"server_port", server_port},
             {"password", password}, {"hashes", QJsonArray::fromStringList(hashes)}, {"mode", mode},
-            {"raw_port", rawPort}, {"workers", workers}, {"turn_tcp", turnTCP},
+            {"raw_port", rawPort}, {"workers", workers}, {"turn_tcp", turnTCP}, {"no_dtls", noDTLS},
             {"obfs", obfs}, {"go_dns", goDNS}, {"device_id", deviceID},
             {"vk_anon_path", vkAnonPath}, {"captcha_mode", captchaMode}, {"manual_hashes_override", manualRelayHashes}, {"hash_source", hashSource}, {"auto_hash_count", autoHashCount}};
 }
@@ -162,6 +165,7 @@ QJsonObject qwdtt::ExportIdentity() { auto o = ExportToJson(); o.remove("tag"); 
 QString qwdtt::ExportToLink() {
     QUrl u("qwdtt://config");
     QUrlQuery q;
+    q.addQueryItem("no_dtls", noDTLS ? "1" : "0");
     // Android uses form encoding: encode literal '+' so it survives import there.
     const auto addText = [&q](const QString &key, const QString &value) {
         q.addQueryItem(key, QString::fromLatin1(QUrl::toPercentEncoding(value)));
@@ -216,7 +220,7 @@ QString qwdtt::Prepare() {
     QJsonObject conf{{"peer", peerString(server, mode == "raw" ? rawPort : server_port)},
                      {"password", password}, {"hashes", QJsonArray::fromStringList(effectiveHashes)},
                      {"mode", mode}, {"workers", workers}, {"device_id", deviceID},
-                     {"turn_tcp", turnTCP}, {"obfs", obfs}, {"go_dns", goDNS},
+                     {"turn_tcp", turnTCP}, {"no_dtls", noDTLS}, {"obfs", obfs}, {"go_dns", goDNS},
                      {"vk_anon_path", vkAnonPath}, {"captcha_mode", captchaMode},
                      {"listen", peerString("127.0.0.1", udp.localPort())},
                      {"socks", peerString("127.0.0.1", socksPort)}, {"socks_user", auth}, {"socks_pass", auth}};

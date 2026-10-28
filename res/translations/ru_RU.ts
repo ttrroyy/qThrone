@@ -2919,6 +2919,10 @@ Use a number followed by ns, us, ms, s, m, h or d.</source>
         <source>Add these remote routing profiles?</source>
         <translation>Добавить эти удалённые профили маршрутизации?</translation>
     </message>
+    <message>
+        <source>Generate the WARP config in Routing Settings before enabling it.</source>
+        <translation>Сначала сгенерируйте конфиг WARP в настройках маршрутизации.</translation>
+    </message>
 </context>
 <context>
     <name>DialogOtpManager</name>
@@ -7716,6 +7720,10 @@ Name: %1</source>
     <message>
         <source>Close all connections for &quot;%1&quot; (%2)</source>
         <translation>Закрыть все соединения &quot;%1&quot; (%2)</translation>
+    </message>
+    <message>
+        <source>Generate the WARP config in Routing Settings before enabling it.</source>
+        <translation>Сначала сгенерируйте конфиг WARP в настройках маршрутизации.</translation>
     </message>
 </context>
 <context>

@@ -25,7 +25,7 @@ class ProfilesTableFilterHeader : public QHeaderView {
 public:
     bool adjustingWidths() const { return m_fitting; }
     bool resizingByMouse() const { return m_mouseSizing; }
-    void fitToWidth(int available) {
+    void fitToWidth(int available, int typeMinimum = 0) {
         if (m_mouseSizing || m_fitting) return;
         m_fitting = true;
         int total = 0, lastVisible = -1;
@@ -38,18 +38,22 @@ public:
         }
         setMinimumSectionSize(qMin(32, qMax(1, available / qMax(1, count()))));
         const int minimum = minimumSectionSize();
+        typeMinimum = qBound(minimum, typeMinimum, qMax(minimum, available - (count() - 1) * minimum));
+        const auto floorFor = [&](int column) { return column == ProfilesTableModel::ColType ? typeMinimum : minimum; };
         int visibleCount = 0;
+        int minimumTotal = 0;
         int flexibleTotal = 0;
-        for (int weight : weights) if (weight) {
+        for (int i = 0; i < weights.size(); ++i) if (weights[i]) {
             ++visibleCount;
-            flexibleTotal += qMax(0, weight - minimum);
+            minimumTotal += floorFor(i);
+            flexibleTotal += qMax(0, weights[i] - floorFor(i));
         }
-        const int flexibleSpace = qMax(0, available - visibleCount * minimum);
+        const int flexibleSpace = qMax(0, available - minimumTotal);
         int assigned = 0;
         if (total > 0 && available > 0) for (int i = 0; i < count(); ++i) {
             if (!weights[i]) continue;
-            const int width = i == lastVisible ? available - assigned : minimum +
-                (flexibleTotal ? int(qint64(flexibleSpace) * qMax(0, weights[i] - minimum) / flexibleTotal) : flexibleSpace / visibleCount);
+            const int width = i == lastVisible ? available - assigned : floorFor(i) +
+                (flexibleTotal ? int(qint64(flexibleSpace) * qMax(0, weights[i] - floorFor(i)) / flexibleTotal) : flexibleSpace / visibleCount);
             resizeSection(i, width);
             assigned += width;
         }

@@ -537,6 +537,11 @@ void DialogManageRoutes::accept() {
     Configs::dataManager->settingsRepo->warp_masque_ifc_addrs = SplitAndTrim(ui->warp_masque_ifc_addrs->text(), ",", false);
     Configs::dataManager->settingsRepo->warp_masque_sni = ui->warp_masque_sni->text().trimmed();
     Configs::dataManager->settingsRepo->warp_masque_http_mode = ui->warp_masque_http_mode->currentIndex();
+    if (Configs::dataManager->settingsRepo->enable_warp && Configs::dataManager->settingsRepo->WarpConfigMissing()) {
+        Configs::dataManager->settingsRepo->enable_warp = false;
+        ui->enable_warp->setChecked(false);
+        MessageBoxWarning(tr("Enable Warp"), tr("Generate the WARP config in Routing Settings before enabling it."));
+    }
 
     MW_dialog_message(MwMessage::UpdateSettings, {MwArg::Route});
 

@@ -279,6 +279,11 @@ namespace Configs {
         QString warp_masque_sni = "consumer-masque.cloudflareclient.com";
         int warp_masque_http_mode = 0; // 0 = HTTP/3 with fallback, 1 = HTTP/3 only, 2 = HTTP/2
         QStringList warp_api_hosts = {}; // registration API domains, tried in order; empty = api.cloudflareclient.com
+        bool WarpConfigMissing() const {
+            return warp_mode == "masque"
+                ? warp_masque_private_key.isEmpty() || warp_masque_peer_public_key.isEmpty() || warp_masque_ep.isEmpty() || warp_masque_ifc_addrs.isEmpty()
+                : warp_private_key.isEmpty() || warp_public_key.isEmpty() || warp_ep.isEmpty() || warp_ifc_addrs.isEmpty();
+        }
 
         // Hotkey
         QString hotkey_mainwindow = "";

@@ -33,6 +33,7 @@ type bridgeConfig struct {
 	Workers            int      `json:"workers"`
 	DeviceID           string   `json:"device_id"`
 	TurnTCP            bool     `json:"turn_tcp"`
+	NoDTLS             bool     `json:"no_dtls"`
 	Obfs               string   `json:"obfs"`
 	DNS                string   `json:"go_dns"`
 	Listen             string   `json:"listen"`
@@ -149,6 +150,7 @@ func applyBridgeConfig(filename string) error {
 		"peer": c.Peer, "password": c.Password, "vk": strings.Join(c.Hashes, ","),
 		"mode": mode, "n": strconv.Itoa(c.Workers), "device-id": c.DeviceID,
 		"turn-tcp": strconv.FormatBool(c.TurnTCP), "obfs": c.Obfs, "go-dns": c.DNS,
+		"notls":  strconv.FormatBool(c.NoDTLS),
 		"listen": c.Listen, "socks": c.SOCKS, "socks-auth": "true",
 		"socks-user": c.SOCKSUser, "socks-pass": c.SOCKSPass,
 		"captcha-mode": c.CaptchaMode, "vk-auth": "anonymous", "vk-anon-path": c.VKAnonPath,
