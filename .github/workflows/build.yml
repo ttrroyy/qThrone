@@ -644,6 +644,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
         run: ./script/test_windows_upgrade.ps1 -Archive "upgrade-package/qThrone-${{ github.event.inputs.tag }}-windows64.zip" -Version "${{ github.event.inputs.tag }}"
+      - name: Verify localized installer and complete uninstall
+        shell: pwsh
+        run: ./script/test_windows_installer.ps1 -Installer "upgrade-package/qThrone-${{ github.event.inputs.tag }}-windows-universal-installer.exe"
   publish:
     name: Publish Release
     runs-on: ubuntu-latest
