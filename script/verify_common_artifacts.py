@@ -24,7 +24,7 @@ CPP_REUSE_SUFFIXES = ("windows-amd64", "windows-arm64", "windowslegacy-amd64", "
                       "linux-amd64", "linux-amd64-system-qt", "linux-arm64", "linux-arm64-system-qt",
                       "darwin-amd64", "darwinlegacy-amd64")
 CI_ONLY_FILES = {".github/workflows/build.yml", ".github/workflows/publish-verified.yml",
-                 "script/verify_common_artifacts.py", "script/test_verify_common_artifacts.py"}
+                 "script/verify_common_artifacts.py", "script/test_verify_common_artifacts.py", "script/release_notes.py"}
 
 
 def verify_cpp_artifacts(sha, jobs, artifacts, changed, suffixes=CPP_REUSE_SUFFIXES):

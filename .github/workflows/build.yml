@@ -480,8 +480,22 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: '"$DEST/qThrone" --self-test-core-startup'
-      - name: Test packaged macOS core startup
+      - name: Verify packaged macOS architectures
         if: contains(matrix.platform, 'macos')
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r -d '' binary; do
+            if file -b "$binary" | grep -q '^Mach-O'; then
+              lipo -verify_arch "$ARCH" "$binary"
+              count=$((count + 1))
+            fi
+          done < <(find "$DEST/qThrone.app" -type f -print0)
+          test "$count" -gt 0
+      - name: Test packaged macOS core startup
+        # An Intel runner can build and inspect ARM binaries, but cannot execute them.
+        if: contains(matrix.platform, 'macos') && (matrix.target == 'x86_64' || runner.arch == 'ARM64')
         env:
           QT_QPA_PLATFORM: offscreen
         run: '"$DEST/qThrone.app/Contents/MacOS/qThrone" --self-test-core-startup'
