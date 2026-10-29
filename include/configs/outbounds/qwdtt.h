@@ -20,7 +20,6 @@ namespace Configs {
         int rawPort = 56003;
         int workers = 9;
         bool turnTCP = true;
-        bool noDTLS = false;
         QString obfs = "audio";
         QString vkAnonPath = "vkcalls";
         QString captchaMode = "auto";

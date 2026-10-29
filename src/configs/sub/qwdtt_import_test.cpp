@@ -787,11 +787,12 @@ proxies:
     {
         Configs::qwdtt direct;
         const QString link = "qwdtt://config?peer=192.0.2.1%3A56002&pass=fixture&hashes=exampleHash123456789&workers=18&port=9000";
-        check(direct.ParseFromLink(link) && direct.noDTLS && direct.server_port == 56002, "direct qWDTT server uses RTP AEAD without changing its port");
+        check(direct.ParseFromLink(link) && direct.mode == "wg" && direct.server_port == 56002 && !direct.ExportToJson().contains("no_dtls"), "qWDTT port does not implicitly select a different WG handshake");
         Configs::qwdtt restored;
-        check(restored.ParseFromLink(direct.ExportToLink()) && restored.noDTLS, "direct transport survives sharing");
-        check(restored.ParseFromLink(link + "&no_dtls=0") && !restored.noDTLS, "explicit DTLS settings override the standard direct port");
-        check(restored.ParseFromLink(QString(link).replace("56002", "56000")) && !restored.noDTLS, "ordinary qWDTT remains DTLS");
+        check(restored.ParseFromLink(direct.ExportToLink()) && restored.mode == "wg" && restored.server_port == 56002, "WG mode and server port survive sharing");
+        check(restored.ParseFromLink(link + "&no_dtls=1") && !restored.ExportToJson().contains("no_dtls"), "legacy direct flag is not propagated into WG configuration");
+        auto legacy = direct.ExportToJson(); legacy["no_dtls"] = true;
+        check(restored.ParseFromJson(legacy) && !restored.ExportToJson().contains("no_dtls"), "saved beta direct setting is discarded without changing the profile");
         Configs::Database warpDatabase(":memory:");
         Configs::SettingsRepo warp(warpDatabase);
         check(warp.WarpConfigMissing(), "empty WARP is rejected");
