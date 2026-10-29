@@ -282,14 +282,16 @@ begin
         for J := 1 to Actions.Count do
         begin
           Action := Actions.Item(J);
-          if Action.Type = 0 then
-          begin
+          // Non-executable actions have no Path property; Type is a Pascal keyword.
+          try
             Command := Action.Path;
-            if CompareText(Command, ExePath) = 0 then
-            begin
-              Root.DeleteTask(TaskName, 0);
-              Break;
-            end;
+          except
+            Command := '';
+          end;
+          if CompareText(Command, ExePath) = 0 then
+          begin
+            Root.DeleteTask(TaskName, 0);
+            Break;
           end;
         end;
       end;
