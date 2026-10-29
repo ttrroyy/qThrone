@@ -25,7 +25,7 @@ public:
     bool rtMasque = false;
     bool rtMasqueServerBootstrap = false;
     bool vkCallsPreflight = true;
-    QString turnSni;
+    QString turnSni = "ya.ru";
     QString fingerprint = "firefox";
     QString clientIds = "6287487,8202606";
     static bool ValidTurnSni(const QString &value);

@@ -88,7 +88,7 @@ bool wdttplus::ParseFromJson(const QJsonObject &object) {
     tcpOnly = object["tcp_only"].toBool(); rtMasque = object["rt_masque"].toBool();
     rtMasqueServerBootstrap = object["rt_masque_server_bootstrap"].toBool();
     vkCallsPreflight = object["vkcalls_preflight"].toBool(true);
-    turnSni = object["turn_sni"].toString().trimmed().toLower();
+    turnSni = object["turn_sni"].toString("ya.ru").trimmed().toLower();
     fingerprint = object["fingerprint"].toString("firefox");
     clientIds = object["client_ids"].toString("6287487,8202606");
     if (!object["device_id"].toString().isEmpty()) deviceID = object["device_id"].toString();

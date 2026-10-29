@@ -714,7 +714,7 @@ proxies:
             auto *o = dynamic_cast<Configs::wdttplus *>(plus.first()->outbound.get());
             check(o && o->DisplayType() == "WDTT Plus" && o->server == "192.0.2.5" && o->server_port == 56000 && o->wgPort == 56001
                   && o->localPort == 9000 && o->password == "p@ss" && o->hashes == QStringList{hash} && o->name == "Home"
-                  && o->maxWorkers == 36 && o->workers == 36, "WDTT Plus link fields");
+                  && o->maxWorkers == 36 && o->workers == 36 && o->turnSni == "ya.ru", "WDTT Plus link fields and original TURN SNI default");
             if (o) {
                 check(!o->ExportToLink().contains("device") && !o->ExportToLink().contains(o->deviceID), "the device id never travels in a WDTT Plus link");
                 Configs::wdttplus again;
@@ -722,6 +722,11 @@ proxies:
                 check(again.ParseFromLink(o->ExportToLink()), "WDTT Plus link round trip parses");
                 b = again.ExportToJson(); a.remove("device_id"); b.remove("device_id");
                 check(a == b, "WDTT Plus link round trip keeps every field");
+                auto withoutSni = o->ExportToJson(); withoutSni.remove("turn_sni");
+                Configs::wdttplus missingSni, disabledSni;
+                check(missingSni.ParseFromJson(withoutSni) && missingSni.turnSni == "ya.ru", "missing WDTT Plus TURN SNI uses original default");
+                withoutSni["turn_sni"] = "";
+                check(disabledSni.ParseFromJson(withoutSni) && disabledSni.turnSni.isEmpty() && disabledSni.ExportToJson()["turn_sni"] == "", "explicitly disabled WDTT Plus TURN SNI survives storage");
                 EditWdttPlus editor;
                 editor.onStart(plus.first());
                 auto *workers = editor.findChild<QComboBox *>("wdttPlusWorkers");
@@ -759,7 +764,7 @@ proxies:
               "WDTT Plus workers go in groups of 9 up to 108 or the server's limit");
         Configs::wdttplus fresh;
         Configs::qwdtt sibling;
-        check(fresh.workers == 18 && fresh.server_port == 56000 && fresh.wgPort == 56001 && fresh.localPort == 9000 && fresh.deviceID == sibling.deviceID,
+        check(fresh.workers == 18 && fresh.server_port == 56000 && fresh.wgPort == 56001 && fresh.localPort == 9000 && fresh.turnSni == "ya.ru" && fresh.deviceID == sibling.deviceID,
               "new WDTT Plus profiles follow the app's defaults and this computer's device id");
         check(EditWdttPlus::HashVerdict("ok") == QStringLiteral("TURN доступен") && EditWdttPlus::HashVerdict("Weird").contains(QStringLiteral("Диагностика")),
               "WDTT Plus hash verdicts are shown as fixed texts");
