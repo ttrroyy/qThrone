@@ -74,7 +74,7 @@ bool wdttplus::ParseFromJson(const QJsonObject &object) {
     localPort = object["local_port"].toInt(9000);
     maxWorkers = object["max_workers"].toInt(0);
     legacy = object["legacy"].toBool(false);
-    engine = object["engine"].toString("wdttplus");
+    engine = object["engine"].toString("qwdtt");
     mode = object["mode"].toString("wg");
     rawPort = object["raw_port"].toInt(56003);
     workers = NormalizeWorkers(object["workers"].toInt(18), maxWorkers);
@@ -157,7 +157,8 @@ QJsonObject wdttplus::ExportToJson() {
         {"manual_hashes_override", manualRelayHashes}, {"hash_source", hashSource}, {"auto_hash_count", autoHashCount}};
     if (maxWorkers > 0) object["max_workers"] = maxWorkers;
     if (legacy) object["legacy"] = true;
-    if (engine == "qwdtt") { object["engine"] = engine; object["mode"] = mode; object["raw_port"] = rawPort; }
+    if (legacy) object["engine"] = engine;
+    if (legacy && engine == "qwdtt") { object["mode"] = mode; object["raw_port"] = rawPort; }
     object["tcp_only"] = tcpOnly; object["turn_sni"] = turnSni;
     object["rt_masque"] = rtMasque; object["rt_masque_server_bootstrap"] = rtMasqueServerBootstrap;
     object["fingerprint"] = fingerprint; object["client_ids"] = clientIds; object["vkcalls_preflight"] = vkCallsPreflight;
@@ -179,7 +180,7 @@ QString wdttplus::ExportToLink() {
 
 QString wdttplus::Prepare() {
     qwdttEngine.reset();
-    if (engine == "qwdtt") {
+    if (legacy && engine == "qwdtt") {
         // The same server, password and hashes through the qWDTT client.
         auto object = ExportToJson();
         object["type"] = "qwdtt"; object["legacy"] = true;

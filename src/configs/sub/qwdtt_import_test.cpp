@@ -743,7 +743,10 @@ proxies:
             check(o && o->ExportToLink() == "wdtt://192.0.2.6:56000:56001:9000:secret:" + hash, "a WDTT profile is shared in its own link form");
             Configs::wdttplus stored;
             check(o && stored.ParseFromJson(o->ExportToJson()) && stored.legacy && stored.wgPort == 56001, "the WDTT mark survives storage");
-            check(stored.engine == "wdttplus" && stored.DisplayType() == "WDTT", "a WDTT link runs on WDTT Plus by default");
+            check(stored.engine == "qwdtt" && stored.DisplayType() == "WDTT · qWDTT (WG)", "a WDTT link runs on qWDTT by default");
+            stored.engine = "wdttplus";
+            Configs::wdttplus plusEngine;
+            check(plusEngine.ParseFromJson(stored.ExportToJson()) && plusEngine.engine == "wdttplus", "the chosen WDTT Plus engine survives storage");
             stored.engine = "qwdtt"; stored.mode = "raw"; stored.rawPort = 56013;
             Configs::wdttplus switched;
             check(switched.ParseFromJson(stored.ExportToJson()) && switched.engine == "qwdtt" && switched.mode == "raw" && switched.rawPort == 56013

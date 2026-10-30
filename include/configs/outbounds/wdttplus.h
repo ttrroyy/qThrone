@@ -23,7 +23,7 @@ public:
     int localPort = 9000;
     bool legacy = false;
     // A plain WDTT link names no client: "wdttplus" (original WDTT protocol) or "qwdtt" for servers that speak its WRAP.
-    QString engine = "wdttplus";
+    QString engine = "qwdtt";
     // qWDTT engine only.
     QString mode = "wg";
     int rawPort = 56003;
