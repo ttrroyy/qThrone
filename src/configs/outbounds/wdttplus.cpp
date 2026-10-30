@@ -74,6 +74,9 @@ bool wdttplus::ParseFromJson(const QJsonObject &object) {
     localPort = object["local_port"].toInt(9000);
     maxWorkers = object["max_workers"].toInt(0);
     legacy = object["legacy"].toBool(false);
+    engine = object["engine"].toString("wdttplus");
+    mode = object["mode"].toString("wg");
+    rawPort = object["raw_port"].toInt(56003);
     workers = NormalizeWorkers(object["workers"].toInt(18), maxWorkers);
     captchaMode = object["captcha_mode"].toString("auto");
     tcpOnly = object["tcp_only"].toBool(); rtMasque = object["rt_masque"].toBool();
@@ -83,7 +86,8 @@ bool wdttplus::ParseFromJson(const QJsonObject &object) {
     fingerprint = object["fingerprint"].toString("firefox");
     clientIds = object["client_ids"].toString("6287487,8202606");
     if (!object["device_id"].toString().isEmpty()) deviceID = object["device_id"].toString();
-    return !server.isEmpty() && wdttValidPort(server_port) && wdttValidPort(wgPort) && wdttValidPort(localPort)
+    return !server.isEmpty() && wdttValidPort(server_port) && wdttValidPort(wgPort) && wdttValidPort(localPort) && wdttValidPort(rawPort)
+        && (engine == "wdttplus" || engine == "qwdtt") && (mode == "wg" || mode == "raw")
         && (captchaMode == "auto" || captchaMode == "wv" || captchaMode == "rjs") && ValidTurnSni(turnSni)
         && QStringList{"firefox","chrome","safari","ios","android","random"}.contains(fingerprint)
         && QRegularExpression("^[0-9]+(?:,[0-9]+){0,15}$").match(clientIds).hasMatch();
@@ -153,6 +157,7 @@ QJsonObject wdttplus::ExportToJson() {
         {"manual_hashes_override", manualRelayHashes}, {"hash_source", hashSource}, {"auto_hash_count", autoHashCount}};
     if (maxWorkers > 0) object["max_workers"] = maxWorkers;
     if (legacy) object["legacy"] = true;
+    if (engine == "qwdtt") { object["engine"] = engine; object["mode"] = mode; object["raw_port"] = rawPort; }
     object["tcp_only"] = tcpOnly; object["turn_sni"] = turnSni;
     object["rt_masque"] = rtMasque; object["rt_masque_server_bootstrap"] = rtMasqueServerBootstrap;
     object["fingerprint"] = fingerprint; object["client_ids"] = clientIds; object["vkcalls_preflight"] = vkCallsPreflight;
@@ -173,6 +178,19 @@ QString wdttplus::ExportToLink() {
 }
 
 QString wdttplus::Prepare() {
+    qwdttEngine.reset();
+    if (engine == "qwdtt") {
+        // The same server, password and hashes through the qWDTT client.
+        auto object = ExportToJson();
+        object["type"] = "qwdtt"; object["legacy"] = true;
+        auto engineProfile = std::make_shared<qwdtt>();
+        if (!engineProfile->ParseFromJson(object)) return QStringLiteral("WDTT: неверные настройки движка qWDTT");
+        if (const auto error = engineProfile->Prepare(); !error.isEmpty()) return error;
+        extraCorePath = engineProfile->extraCorePath; extraCoreArgs = engineProfile->extraCoreArgs; extraCoreConf = engineProfile->extraCoreConf;
+        socksAddress = engineProfile->socksAddress; socksPort = engineProfile->socksPort;
+        qwdttEngine = engineProfile;
+        return {};
+    }
     hashes = qwdtt::NormalizeHashes(hashes);
     QStringList effectiveHashes = hashes;
     if (hashSource == "auto") {
@@ -210,6 +228,7 @@ QString wdttplus::Prepare() {
 }
 
 BuildResult wdttplus::Build() {
+    if (qwdttEngine) return qwdttEngine->Build();
     if (socksPort == 0 || bridgeUser.isEmpty()) return {{}, "WDTT Plus client has not been prepared"};
     return {QJsonObject{{"type", "socks"}, {"server", socksAddress}, {"server_port", socksPort}, {"version", "5"}, {"username", bridgeUser}, {"password", bridgePass}}, {}};
 }

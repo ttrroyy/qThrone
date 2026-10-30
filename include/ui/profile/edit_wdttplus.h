@@ -58,5 +58,10 @@ private:
     QLineEdit *clientIds;
     QSpinBox *wgPort;
     QSpinBox *localPort;
+    // A plain WDTT link only: the client that runs it, and the qWDTT client's own mode.
+    QComboBox *engine;
+    QComboBox *qwdttMode;
+    QSpinBox *rawPort;
+    void updateEngine();
     QLineEdit *device;
 };

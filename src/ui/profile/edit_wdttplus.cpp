@@ -27,6 +27,18 @@ EditWdttPlus::EditWdttPlus(QWidget *parent) : QWidget(parent) {
     form = new QFormLayout(this);
     password = new QLineEdit(this);
     form->addRow(tr("Password"), password);
+    engine = new QComboBox(this);
+    engine->addItem(QStringLiteral("WDTT Plus"), "wdttplus"); engine->addItem(QStringLiteral("qWDTT"), "qwdtt");
+    engine->setToolTip(QStringLiteral("Клиент, с которым работает сервер. По ссылке WDTT этого не узнать: если подключение не идёт, выберите другой."));
+    form->addRow(QStringLiteral("Движок"), engine);
+    qwdttMode = new QComboBox(this);
+    qwdttMode->addItem("WG", "wg"); qwdttMode->addItem("RAW", "raw");
+    form->addRow(QStringLiteral("Режим qWDTT"), qwdttMode);
+    rawPort = new QSpinBox(this);
+    rawPort->setRange(1, 65535);
+    form->addRow(QStringLiteral("Порт RAW"), rawPort);
+    connect(engine, &QComboBox::currentIndexChanged, this, [this] { updateEngine(); });
+    connect(qwdttMode, &QComboBox::currentIndexChanged, this, [this] { updateEngine(); });
     // "Авто" takes the calls of the qWDTT VK binding; WDTT Plus never logs into VK itself.
     hashSource = new QComboBox(this);
     hashSource->setObjectName("wdttPlusHashSource");
@@ -230,6 +242,21 @@ void EditWdttPlus::onStart(std::shared_ptr<Configs::Profile> profile) {
     wgPort->setValue(o->wgPort);
     localPort->setValue(o->localPort);
     device->setText(o->deviceID);
+    engine->setCurrentIndex(qMax(0, engine->findData(o->engine)));
+    qwdttMode->setCurrentIndex(qMax(0, qwdttMode->findData(o->mode)));
+    rawPort->setValue(o->rawPort);
+    // Only a plain WDTT link leaves the client open; a wdtt://connect link is WDTT Plus's own.
+    for (auto *field : std::initializer_list<QWidget *>{engine, qwdttMode, rawPort}) field->setProperty("wdttLegacy", o->legacy);
+    updateEngine();
+}
+
+void EditWdttPlus::updateEngine() {
+    const bool legacy = engine->property("wdttLegacy").toBool();
+    const bool qwdtt = legacy && engine->currentData() == "qwdtt";
+    engine->setVisible(legacy); form->labelForField(engine)->setVisible(legacy);
+    qwdttMode->setVisible(qwdtt); form->labelForField(qwdttMode)->setVisible(qwdtt);
+    const bool raw = qwdtt && qwdttMode->currentData() == "raw";
+    rawPort->setVisible(raw); form->labelForField(rawPort)->setVisible(raw);
 }
 
 bool EditWdttPlus::onEnd() {
@@ -266,6 +293,11 @@ bool EditWdttPlus::onEnd() {
     o->wgPort = wgPort->value();
     o->localPort = localPort->value();
     o->deviceID = device->text().trimmed();
+    if (o->legacy) {
+        o->engine = engine->currentData().toString();
+        o->mode = qwdttMode->currentData().toString();
+        o->rawPort = rawPort->value();
+    }
     return true;
 }
 

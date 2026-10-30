@@ -743,6 +743,22 @@ proxies:
             check(o && o->ExportToLink() == "wdtt://192.0.2.6:56000:56001:9000:secret:" + hash, "a WDTT profile is shared in its own link form");
             Configs::wdttplus stored;
             check(o && stored.ParseFromJson(o->ExportToJson()) && stored.legacy && stored.wgPort == 56001, "the WDTT mark survives storage");
+            check(stored.engine == "wdttplus" && stored.DisplayType() == "WDTT", "a WDTT link runs on WDTT Plus by default");
+            stored.engine = "qwdtt"; stored.mode = "raw"; stored.rawPort = 56013;
+            Configs::wdttplus switched;
+            check(switched.ParseFromJson(stored.ExportToJson()) && switched.engine == "qwdtt" && switched.mode == "raw" && switched.rawPort == 56013
+                  && switched.DisplayType() == "WDTT · qWDTT (RAW)", "the chosen qWDTT engine and its mode survive storage");
+            check(switched.ExportToLink() == "wdtt://192.0.2.6:56000:56001:9000:secret:" + hash, "the engine never travels in the WDTT link");
+        }
+        {
+            Configs::csqtt csq;
+            check(csq.ParseFromJson({{"type", "csqtt"}, {"server", "203.0.113.7"}, {"server_port", 46000}, {"password", "s"}}) && csq.version == "2.5.0",
+                  "CSQTT defaults to 2.5.0 and newer");
+            csq.version = "2.1.9";
+            Configs::csqtt again;
+            check(again.ParseFromJson(csq.ExportToJson()) && again.version == "2.1.9" && again.DisplayType() == "CSQTT 2.1.9 (UDP)", "the CSQTT version survives storage");
+            auto bad = csq.ExportToJson(); bad["csqtt_version"] = "3.0";
+            check(!again.ParseFromJson(bad), "an unknown CSQTT version is refused");
         }
         {
             const auto panel = parse(("wdtt://192.0.2.6:56000:56001:0:secret:" + hash + "#NL").toUtf8());

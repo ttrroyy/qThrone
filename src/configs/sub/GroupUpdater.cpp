@@ -570,13 +570,13 @@ namespace Subscription {
             if (type == "qwdtt") for (const auto *key : {"raw_port", "obfs", "vk_anon_path", "captcha_mode", "go_dns"})
                 if (old.contains(key)) incoming[key] = old.value(key);
             if (type == "csqtt") {
-                for (const auto *key : {"turn_transport", "srtp_mode", "obfs", "vk_anon_path", "captcha_mode", "fingerprint", "client_ids", "custom_turn_ips"})
+                for (const auto *key : {"turn_transport", "srtp_mode", "obfs", "vk_anon_path", "captcha_mode", "fingerprint", "client_ids", "custom_turn_ips", "csqtt_version"})
                     if (old.contains(key)) incoming[key] = old.value(key);
                 // An updated token in the subscription wins; a locally entered token survives an absent one.
                 if (incoming.value("vk_access_token").toString().isEmpty() && old.contains("vk_access_token"))
                     incoming["vk_access_token"] = old.value("vk_access_token");
             }
-            if (type == "wdttplus") for (const auto *key : {"tcp_only", "turn_sni", "rt_masque", "rt_masque_server_bootstrap", "fingerprint", "client_ids", "vkcalls_preflight", "captcha_mode"})
+            if (type == "wdttplus") for (const auto *key : {"tcp_only", "turn_sni", "rt_masque", "rt_masque_server_bootstrap", "fingerprint", "client_ids", "vkcalls_preflight", "captcha_mode", "engine", "mode", "raw_port"})
                 if (old.contains(key)) incoming[key] = old.value(key);
             const int count = incoming.value("hash_source").toString() == "auto"
                 ? incoming.value("auto_hash_count").toInt(1) : incoming.value("hashes").toArray().size();

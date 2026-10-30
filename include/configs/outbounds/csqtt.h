@@ -23,6 +23,8 @@ public:
     QString customTurnIps;
     QString vkAnonPath = "vkcalls";
     QString captchaMode = "auto";
+    // The client the server speaks: "2.5.0" (2.5.0 and newer) or "2.1.9", the original device-bound protocol.
+    QString version = "2.5.0";
     QString deviceID;
     static int MaxWorkers(int count) { return 100; }
     static int NormalizeWorkers(int requested, int count) { return requested <= 5 ? 5 : qMax(5, qMin(requested, 100)/10*10); }
@@ -32,7 +34,7 @@ public:
     QJsonObject ExportToJson() override;
     QJsonObject ExportIdentity() override;
     QString ExportToLink() override;
-    QString DisplayType() override { return "CSQTT (" + turnTransport.toUpper() + ")"; }
+    QString DisplayType() override { return (version == "2.1.9" ? "CSQTT 2.1.9 (" : "CSQTT (") + turnTransport.toUpper() + ")"; }
     SecurityInfo GetSecurity() override { return {"CSQTT " + srtpMode.toUpper(), "TURN " + turnTransport.toUpper(), SecurityLevel::Secure}; }
     QString Prepare();
     BuildResult Build() override;

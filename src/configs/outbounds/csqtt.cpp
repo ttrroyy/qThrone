@@ -73,6 +73,7 @@ bool csqtt::ParseFromJson(const QJsonObject &object) {
         hashSource = "auto_js"; vkAnonPath = "auto_js";
     } else if (vkAnonPath == "auto_js") vkAnonPath = "vkcalls";
     captchaMode = object["captcha_mode"].toString("auto");
+    version = object["csqtt_version"].toString("2.5.0");
     if (!object["device_id"].toString().isEmpty()) deviceID = object["device_id"].toString();
     return !server.isEmpty() && server_port > 0 && server_port <= 65535 && hashes.size() <= 6
         && (obfs == "audio" || obfs == "video" || obfs == "unified")
@@ -80,7 +81,8 @@ bool csqtt::ParseFromJson(const QJsonObject &object) {
         && (srtpMode == "auto" || srtpMode == "wrap" || srtpMode == "dtls")
         && vkAccessToken.size() <= 4096 && !vkAccessToken.contains(QRegularExpression("[\\s\\x00-\\x1f\\x7f]"))
         && (vkAnonPath == "vkcalls" || vkAnonPath == "legacy" || vkAnonPath == "auto_js")
-        && (captchaMode == "auto" || captchaMode == "wv" || captchaMode == "rjs");
+        && (captchaMode == "auto" || captchaMode == "wv" || captchaMode == "rjs")
+        && (version == "2.5.0" || version == "2.1.9");
 }
 bool csqtt::ParseFromLink(const QString &link) {
     if (link.size() > 65536) return false;
@@ -159,7 +161,7 @@ QJsonObject csqtt::ExportToJson() {
         {"turn_tcp",turnTCP},{"obfs",obfs},{"vk_anon_path",vkAnonPath},{"captcha_mode",captchaMode},{"device_id",deviceID},
         {"manual_hashes_override",manualRelayHashes},{"hash_source",hashSource},{"auto_hash_count",autoHashCount},{"vk_access_token",vkAccessToken},
         {"turn_transport",turnTransport},{"srtp_mode",srtpMode},{"fingerprint",fingerprint},
-        {"client_ids",clientIds},{"custom_turn_ips",customTurnIps}};
+        {"client_ids",clientIds},{"custom_turn_ips",customTurnIps},{"csqtt_version",version}};
 }
 QJsonObject csqtt::ExportIdentity() { auto object = ExportToJson(); object.remove("tag"); object.remove("device_id"); object.remove("hashes"); object.remove("workers"); object.remove("manual_hashes_override"); return object; }
 QString csqtt::ExportToLink() {
@@ -211,6 +213,7 @@ QString csqtt::Prepare() {
     config["vk_access_token"] = effectiveToken;
     config.remove("auto_hash_count");
     config["backend"] = "csqtt"; config["peer"] = endpoint(server,server_port);
+    config["protocol_variant"] = version == "2.1.9" ? "compat" : "legacy";
     config["listen"] = endpoint("127.0.0.1",udp.localPort()); config["socks"] = endpoint(socksAddress,socksPort);
     config["socks_user"] = bridgeAuth; config["socks_pass"] = bridgeAuth;
     extraCoreConf = QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact)); extraCoreArgs = "-csqtt-config %s";

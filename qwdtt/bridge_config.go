@@ -26,6 +26,8 @@ type bridgeConfig struct {
 	InteractiveCaptcha bool     `json:"interactive_captcha"`
 	VKAnonPath         string   `json:"vk_anon_path"`
 	CaptchaMode        string   `json:"captcha_mode"`
+	// CSQTT only: "compat" runs the original 2.1.9 client, anything else 2.5.0.
+	ProtocolVariant    string   `json:"protocol_variant"`
 	Peer               string   `json:"peer"`
 	Password           string   `json:"password"`
 	Hashes             []string `json:"hashes"`

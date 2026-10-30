@@ -284,7 +284,7 @@ Keywords=proxy;vpn;network;privacy;
             install(tmpdir / "Version", APPDIR / "Version", 0o644)
 
             y = message(scr, y, f"Installing binaries to {APPDIR}")
-            for name in ("qThroneCore", "qThrone", "qwdtt", "csqtt-transport", "openflux", "openfluxkey", "olcrtc", "dnstun", "masterdns", "cottendns", "soar", "s3bypass", "slipstream-client", "wdttplus-client", "qThroneUpdater"):
+            for name in ("qThroneCore", "qThrone", "qwdtt", "csqtt-transport", "csqtt-compat", "openflux", "openfluxkey", "olcrtc", "dnstun", "masterdns", "cottendns", "soar", "s3bypass", "slipstream-client", "wdttplus-client", "qThroneUpdater"):
                 install(tmpdir / "qThrone" / name, APPDIR / name, 0o755)
             usr_src = tmpdir / "qThrone/usr"
             for f in usr_src.rglob("*"):
@@ -293,7 +293,7 @@ Keywords=proxy;vpn;network;privacy;
                     install(f, APPDIR / "usr" / rel, 0o644)
             install(tmpdir / "qThrone/qThrone.png", APPDIR / "qThrone.png", 0o644)
             install(tmpdir / "qThrone/qwdtt-LICENSE", APPDIR / "qwdtt-LICENSE", 0o644)
-            for name in ("CSQTT-LICENSE", "CSQTT-SOURCE", "csqtt-source.tar.gz", "OpenFlux-LICENSE", "OpenFlux-SOURCE", "openflux-source.tar.gz", "OLCRTC-LICENSE", "OLCRTC-SOURCE", "olcrtc-source.tar.gz",
+            for name in ("CSQTT-LICENSE", "CSQTT-SOURCE", "csqtt-source.tar.gz", "CSQTT-Compat-LICENSE", "CSQTT-Compat-SOURCE", "csqtt-compat-source.tar.gz", "OpenFlux-LICENSE", "OpenFlux-SOURCE", "openflux-source.tar.gz", "OLCRTC-LICENSE", "OLCRTC-SOURCE", "olcrtc-source.tar.gz",
                          "VayDNS-LICENSE", "VayDNS-SOURCE", "vaydns-source.tar.gz", "MasterDnsVPN-LICENSE", "MasterDnsVPN-SOURCE", "masterdns-source.tar.gz",
                          "CottenDNS-LICENSE", "CottenDNS-SOURCE", "cottendns-source.tar.gz", "Soar-LICENSE", "Soar-SOURCE", "soar-source.tar.gz",
                          "OpenFluxKey-LICENSE", "OpenFluxKey-SOURCE", "openfluxkey-source.tar.gz",

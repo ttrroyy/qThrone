@@ -78,6 +78,9 @@ func readCSQTTConfig(path string) (*bridgeConfig, error) {
 	if c.SRTPMode != "" && c.SRTPMode != "auto" && c.SRTPMode != "wrap" && c.SRTPMode != "dtls" {
 		return nil, errors.New("invalid CSQTT SRTP mode")
 	}
+	if c.ProtocolVariant != "" && c.ProtocolVariant != "legacy" && c.ProtocolVariant != "compat" {
+		return nil, errors.New("invalid CSQTT version")
+	}
 	return &c, nil
 }
 
@@ -107,6 +110,9 @@ func runCSQTTBridge(path string) error {
 		return err
 	}
 	name := "csqtt-transport"
+	if c.ProtocolVariant == "compat" {
+		name = "csqtt-compat"
+	}
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}

@@ -27,6 +27,10 @@ EditCSQTT::EditCSQTT(QWidget *parent) : QWidget(parent) {
     password = new QLineEdit(this);
     password->setEchoMode(QLineEdit::Normal);
     form->addRow(tr("Password"), password);
+    version = new QComboBox(this);
+    version->addItem(QStringLiteral("2.5.0 и новее"), "2.5.0"); version->addItem(QStringLiteral("2.1.9"), "2.1.9");
+    version->setToolTip(QStringLiteral("Версия клиента CSQTT, с которой работает сервер. 2.1.9 привязывает сессию к устройству."));
+    form->addRow(QStringLiteral("Версия CSQTT"), version);
     // Every account mode uses the shared qWDTT binding; a link may supply its own Auto JS token.
     hashSource = new QComboBox(this);
     hashSource->setObjectName("csqttHashSource");
@@ -244,6 +248,7 @@ void EditCSQTT::onStart(std::shared_ptr<Configs::Profile> profile) {
     captcha->setCurrentIndex(captcha->findData(o->captchaMode));
     obfs->setCurrentIndex(obfs->findData(o->obfs));
     srtp->setCurrentIndex(srtp->findData(o->srtpMode));
+    version->setCurrentIndex(qMax(0, version->findData(o->version)));
     fingerprint->setCurrentText(o->fingerprint);
     clientIds->setText(o->clientIds); customTurnIps->setText(o->customTurnIps);
     device->setText(o->deviceID);
@@ -287,6 +292,7 @@ bool EditCSQTT::onEnd() {
     o->captchaMode = captcha->currentData().toString();
     o->obfs = obfs->currentData().toString();
     o->srtpMode = srtp->currentData().toString();
+    o->version = version->currentData().toString();
     o->fingerprint = fingerprint->currentText();
     o->clientIds = clientIds->text(); o->customTurnIps = customTurnIps->text();
     o->deviceID = device->text().trimmed();

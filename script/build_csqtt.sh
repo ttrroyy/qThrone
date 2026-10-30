@@ -4,6 +4,10 @@ set -euo pipefail
 revision=2066156119a5afe7d63e104aefdc8e0849999d03
 python3 script/fetch_pinned_source.py https://github.com/ttrroyy/csqtt-rebirth.git "$revision" csqtt-source
 python3 script/prepare_csqtt.py csqtt-source
+# CSQTT 2.1.9, the original device-bound protocol, for profiles that pick it.
+compat_revision=446293aa2e873ac5323ef6fd2316d9b81d966c11
+python3 script/fetch_pinned_source.py https://github.com/amurcanov/csqtt.git "$compat_revision" csqtt-compat-source
+python3 script/prepare_csqtt_compat.py csqtt-compat-source
 rustup toolchain install 1.97.1 --profile minimal
 
 case "$RUNNER_OS:$ARCH" in
@@ -25,6 +29,7 @@ if [ "$RUNNER_OS" = Windows ]; then
 fi
 if [ "$RUNNER_OS" = macOS ]; then export MACOSX_DEPLOYMENT_TARGET=10.15; fi
 cargo +1.97.1 build --release --locked --target "$target" --manifest-path csqtt-source/rust-client/Cargo.toml
+cargo +1.97.1 build --release --locked --target "$target" --manifest-path csqtt-compat-source/rust-client/Cargo.toml
 mkdir -p csqtt-artifact
 extension=''
 if [ "$RUNNER_OS" = Windows ]; then extension=.exe; fi
@@ -32,3 +37,8 @@ cp "csqtt-source/rust-client/target/$target/release/client$extension" "csqtt-art
 cp csqtt-source/LICENSE csqtt-artifact/CSQTT-LICENSE
 printf '%s\n' 'Original source: https://github.com/ttrroyy/csqtt-rebirth' "Revision: $revision" 'Desktop changes: script/prepare_csqtt.py in qThrone' > csqtt-artifact/CSQTT-SOURCE
 tar -czf csqtt-artifact/csqtt-source.tar.gz --exclude=target --exclude=.git -C csqtt-source rust-client shared LICENSE
+cp "csqtt-compat-source/rust-client/target/$target/release/client$extension" "csqtt-artifact/csqtt-compat$extension"
+cp csqtt-compat-source/LICENSE csqtt-artifact/CSQTT-Compat-LICENSE
+printf '%s
+' 'Original source: https://github.com/amurcanov/csqtt' "Revision: $compat_revision" 'Desktop changes: script/prepare_csqtt_compat.py in qThrone' > csqtt-artifact/CSQTT-Compat-SOURCE
+tar -czf csqtt-artifact/csqtt-compat-source.tar.gz --exclude=target --exclude=.git -C csqtt-compat-source rust-client shared LICENSE

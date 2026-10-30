@@ -49,6 +49,7 @@ private:
     QComboBox *authorization;
     QComboBox *captcha;
     QComboBox *srtp;
+    QComboBox *version;
     QComboBox *fingerprint;
     QLineEdit *clientIds;
     QLineEdit *customTurnIps;

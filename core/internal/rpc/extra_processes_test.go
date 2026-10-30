@@ -112,9 +112,9 @@ func testLiveTransportHTTP(t *testing.T, conf string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	setBoxInstance(box, cancel)
+	setBoxInstance(box, cancel, nil)
 	defer func() {
-		setBoxInstance(nil, nil)
+		setBoxInstance(nil, nil, nil)
 		box.CloseWithTimeout(cancel, time.Second, func(...any) {}, false)
 		extraSessions = nil
 	}()
