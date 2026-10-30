@@ -280,6 +280,9 @@ int TestQwdttImport() {
             const auto defaults = parse(amnezia({}));
             wg = defaults.size() == 1 ? dynamic_cast<Configs::wireguard *>(defaults.first()->outbound.get()) : nullptr;
             check(wg && wg->dns == QStringList{"1.1.1.1", "1.0.0.1"}, "Amnezia export without DNS fields takes Amnezia defaults");
+            Configs::wireguard awg, plainWg;
+            check(awg.ParseFromLink(QString(conf).replace("[Peer]", "Jc = 4\nS1 = 20\n[Peer]")) && awg.mtu == 1376, "an AmneziaWG file without MTU runs at AmneziaVPN's 1376");
+            check(plainWg.ParseFromLink(QString(conf).replace("DNS = $PRIMARY_DNS, $SECONDARY_DNS\n", "")) && plainWg.mtu == 1420, "a plain WireGuard file keeps 1420");
         }
         check(!restored.ParseFromLink("sstp://user:pass@vpn.example.org:0") && !restored.ParseFromLink("sstp://user@vpn.example.org"), "SSTP rejects invalid ports and missing credentials");
         const auto challenge = QByteArray("{\"outbounds\":[{\"server\":\"127.0.0.1\",\"tag\":\"HWID missing\"}]}");

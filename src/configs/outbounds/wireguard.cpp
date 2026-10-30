@@ -390,6 +390,9 @@ namespace Configs {
                 peer->address = server = host;
                 peer->port = server_port = target.mid(colon + 1).toInt();
             }
+            // AmneziaVPN runs an AmneziaWG config without an MTU line at 1376: its padding does not fit WireGuard's 1420.
+            static const QRegularExpression mtuLine(R"((?im)^\s*MTU\s*=)");
+            if (enable_amnezia && !mtuLine.match(link).hasMatch()) mtu = 1376;
             FixAddress();
             wireguardDropBadAddresses(address);
             if (private_key.isEmpty() || peer->public_key.isEmpty() || (!obfs_type.isEmpty() && obfs_key.isEmpty())) return false;
