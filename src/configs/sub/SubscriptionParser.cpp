@@ -1405,6 +1405,10 @@ namespace Subscription {
                             conf = protoObj["last_config"].toObject()["config"].toString();
                         }
                         if (conf.isEmpty()) continue;
+                        // AmneziaVPN fills "DNS = $PRIMARY_DNS, $SECONDARY_DNS" from the export's dns1/dns2 (its defaults when absent).
+                        const auto dns1 = root["dns1"].toString().trimmed(), dns2 = root["dns2"].toString().trimmed();
+                        conf.replace("$PRIMARY_DNS", dns1.isEmpty() ? QStringLiteral("1.1.1.1") : dns1)
+                            .replace("$SECONDARY_DNS", dns2.isEmpty() ? QStringLiteral("1.0.0.1") : dns2);
 
                         auto bytes = conf.toUtf8();
                         const bool isWg = hasWireGuardSections(scan::view(bytes));

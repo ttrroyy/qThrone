@@ -10,6 +10,7 @@
 #include "include/configs/outbounds/qwdtt.h"
 #include "include/configs/outbounds/csqtt.h"
 #include "include/configs/outbounds/wdttplus.h"
+#include "include/configs/outbounds/wireguard.h"
 #include "include/configs/outbounds/openflux.h"
 #include "include/configs/outbounds/olcrtc.h"
 #include "include/configs/outbounds/dnstunnel.h"
@@ -265,6 +266,29 @@ int TestQwdttImport() {
         check(restored.ParseFromLink(profile.ExportToLink()) && restored.useServerDNS, "SSTP server DNS URI round trip");
         check(restored.ParseFromJson(profile.ExportToJson()) && restored.useServerDNS && restored.ExportIdentity() == profile.ExportIdentity(), "SSTP server DNS JSON identity round trip");
         check(parse(link.toUtf8()).size() == 1 && parse(QJsonDocument(profile.ExportToJson()).toJson()).size() == 1, "SSTP clipboard/file and subscription dispatch");
+        {
+            // AmneziaVPN exports keep "DNS = $PRIMARY_DNS, $SECONDARY_DNS" and the values in dns1/dns2.
+            const QString conf = "[Interface]
+Address = 10.8.1.2/32
+DNS = $PRIMARY_DNS, $SECONDARY_DNS
+PrivateKey = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+"
+                                 "[Peer]
+PublicKey = BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=
+AllowedIPs = 0.0.0.0/0
+Endpoint = 192.0.2.10:51820
+";
+            const auto amnezia = [&conf](QJsonObject root) {
+                root["containers"] = QJsonArray{QJsonObject{{"container", "amnezia-awg"}, {"awg", QJsonObject{{"last_config", conf}}}}};
+                return "vpn://" + QJsonDocument(root).toJson(QJsonDocument::Compact).toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
+            };
+            const auto withDns = parse(amnezia({{"dns1", "172.29.172.254"}, {"dns2", "10.8.1.1"}}));
+            const auto *wg = withDns.size() == 1 ? dynamic_cast<Configs::wireguard *>(withDns.first()->outbound.get()) : nullptr;
+            check(wg && wg->dns == QStringList{"172.29.172.254", "10.8.1.1"} && wg->DnsServer() == "172.29.172.254", "Amnezia export fills its DNS placeholders");
+            const auto defaults = parse(amnezia({}));
+            wg = defaults.size() == 1 ? dynamic_cast<Configs::wireguard *>(defaults.first()->outbound.get()) : nullptr;
+            check(wg && wg->dns == QStringList{"1.1.1.1", "1.0.0.1"}, "Amnezia export without DNS fields takes Amnezia defaults");
+        }
         check(!restored.ParseFromLink("sstp://user:pass@vpn.example.org:0") && !restored.ParseFromLink("sstp://user@vpn.example.org"), "SSTP rejects invalid ports and missing credentials");
         const auto challenge = QByteArray("{\"outbounds\":[{\"server\":\"127.0.0.1\",\"tag\":\"HWID missing\"}]}");
         check(Subscription::RequiresHwid(challenge) && Subscription::RequiresHwid(challenge.toBase64()), "HWID-required placeholder is recognized before import");
@@ -537,7 +561,8 @@ int TestQwdttImport() {
             const auto bytes = QJsonDocument(original->outbound->ExportToJson()).toJson(QJsonDocument::Compact);
             const auto plain = parse(bytes);
             const auto encoded = parse(original->outbound->ExportJsonLink().toUtf8());
-            check(plain.size() == encoded.size() && !plain.isEmpty(), "registered native exports import from JSON links");
+            // Import validation (from Throne) refuses defaults without a server or key; both forms still have to agree.
+            check(plain.size() == encoded.size(), "registered native exports import from JSON links");
             if (!plain.isEmpty() && !encoded.isEmpty()) check(plain.first()->outbound->ExportToJson() == encoded.first()->outbound->ExportToJson(), "native export settings retained identically");
         }
         const QJsonObject relay{{"type", "qwdtt"}, {"peer", "203.0.113.8:56000"}, {"password", "secret"}, {"device_id", "persisted"}};
@@ -560,12 +585,12 @@ int TestQwdttImport() {
         check(Subscription::UnwrapProviderLink(wrapped) == "https://link.flagman.click/sub/example", "SSConnect unwraps without fetching its HTML");
         check(Subscription::UnwrapProviderLink(wrapped + "&q=second").isEmpty(), "duplicate wrapper payload rejected");
         check(Subscription::UnwrapProviderLink("https://ssconnect.app:444/?q=secret").isEmpty(), "nonstandard wrapper port rejected");
-        const QByteArray masqueLink = "masque://MHcCAQEEKey%2BWith%2FSlash@162.159.198.2:443?publickey=Peer%2BPublic%2FKey&address=172.16.0.2%2C2001%3Adb8%3A%3A1&network=h2&sni=4pda.to#MASQUE%20h2";
+        const QByteArray masqueLink = "masque://MHcCAQEEKey%2BWith%2FSlash%3D%3D@162.159.198.2:443?publickey=Peer%2BPublic%2FKey%3D&address=172.16.0.2%2C2001%3Adb8%3A%3A1&network=h2&sni=4pda.to#MASQUE%20h2";
         const auto imported = parse(masqueLink);
         check(imported.size() == 1, "MASQUE clipboard URI imports");
         if (imported.size() == 1) {
             const auto *m = imported.first()->Masque();
-            check(m && m->private_key == "MHcCAQEEKey+With/Slash" && m->peer_public_key == "Peer+Public/Key" &&
+            check(m && m->private_key == "MHcCAQEEKey+With/Slash==" && m->peer_public_key == "Peer+Public/Key=" &&
                 m->http_version == 2 && m->tls->server_name == "4pda.to" && m->address == QStringList{"172.16.0.2/32","2001:db8::1/128"}, "MASQUE preserves escaped keys, addresses, HTTP/2 and SNI");
             Configs::masque roundtrip;
             check(roundtrip.ParseFromLink(imported.first()->outbound->ExportToLink()) && roundtrip.ExportToJson() == imported.first()->outbound->ExportToJson(), "MASQUE URI round trip");
@@ -587,7 +612,7 @@ awg: &awg
 msq: &msq
   type: masque
   private-key: MASQUEPrivateKey
-  public-key: MASQUEPublicKey
+  public-key: MASQUEPublicKey=
   ip: 172.16.0.2
   ipv6: 2001:db8::2
 proxies:
@@ -737,7 +762,7 @@ proxies:
             auto *o = dynamic_cast<Configs::wdttplus *>(legacy.first()->outbound.get());
             check(o && o->server == "192.0.2.6" && o->server_port == 56000 && o->password == "secret" && o->hashes == QStringList{hash},
                   "plain WDTT link fields become the profile");
-            check(o && o->legacy && o->DisplayType() == "WDTT" && o->wgPort == 56001 && o->localPort == 9000, "a plain wdtt:// profile shows as WDTT and keeps its ports");
+            check(o && o->legacy && o->DisplayType() == "WDTT · qWDTT (WG)" && o->wgPort == 56001 && o->localPort == 9000, "a plain wdtt:// profile shows as WDTT and keeps its ports");
             check(o && o->ExportToLink() == "wdtt://192.0.2.6:56000:56001:9000:secret:" + hash, "a WDTT profile is shared in its own link form");
             Configs::wdttplus stored;
             check(o && stored.ParseFromJson(o->ExportToJson()) && stored.legacy && stored.wgPort == 56001, "the WDTT mark survives storage");

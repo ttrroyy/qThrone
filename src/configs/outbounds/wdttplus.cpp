@@ -97,7 +97,7 @@ bool wdttplus::ParseFromLink(const QString &link) {
     auto value = link.trimmed();
     if (!value.startsWith("wdtt://", Qt::CaseInsensitive)) return false;
     value.remove(0, 7);
-    if (!value.contains(':')) {
+    if (!value.contains(':') && !value.startsWith("connect?", Qt::CaseInsensitive)) {
         // wdtt://<base64 JSON> of the WDTT panel: ip|add, dtls, pass|id, hash, name|ps|vpn, did; WG listens on dtls+1.
         const auto json = QJsonDocument::fromJson(QByteArray::fromBase64(value.section('#', 0, 0).toLatin1())).object();
         const auto text = [&json](std::initializer_list<const char *> keys) {
