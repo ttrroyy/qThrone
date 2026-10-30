@@ -128,6 +128,7 @@ func prepareTestEnvContext(testCtx context.Context, current bool, needXray bool,
 
 	box, cancel, err := boxmain.Create([]byte(coreConfig), boxCtx.publish, func(options *option.Options) {
 		applyAutoRedirectMark(options, autoRedirectMark.Load())
+		probe.LimitWireGuardWorkers(options)
 	})
 	if err != nil {
 		unwind()

@@ -87,29 +87,16 @@ void DataViewHtmlGenerator::setVpnEndpointStatus(const QString &summary, const Q
     vpnEndpoint_.visible = !summary.isEmpty();
 }
 
-void DataViewHtmlGenerator::addPendingRestartReason(const QString &reason) {
+void DataViewHtmlGenerator::setPendingRestartReasons(const QStringList &reasons) {
     QMutexLocker lk(&mu_);
-    QString trimmed = reason.trimmed();
-    if (trimmed.isEmpty()) trimmed = QObject::tr("Settings");
-    if (!pendingRestart_.reasons.contains(trimmed)) {
-        if (pendingRestart_.reasons.size() < 4) {
-            pendingRestart_.reasons << trimmed;
-        } else if (pendingRestart_.reasons.last() != QStringLiteral("...")) {
-            pendingRestart_.reasons << QStringLiteral("...");
-        }
-    }
-    pendingRestart_.visible = true;
+    pendingRestart_.reasons = reasons;
+    pendingRestart_.visible = !reasons.isEmpty();
 }
-
-void DataViewHtmlGenerator::clearPendingRestart() {
-    QMutexLocker lk(&mu_);
-    pendingRestart_ = {};
-}
-
 bool DataViewHtmlGenerator::hasPendingRestart() const {
     QMutexLocker lk(&mu_);
     return pendingRestart_.visible;
 }
+
 bool DataViewHtmlGenerator::hasPriorityNotice() const {
     QMutexLocker lk(&mu_);
     return pendingRestart_.visible || download_.visible ||

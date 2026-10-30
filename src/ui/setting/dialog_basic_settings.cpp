@@ -4,12 +4,15 @@
 #include "include/ui/widget/json/SchemaStore.h"
 #include "include/ui/setting/ThemeManager.hpp"
 #include "include/ui/setting/Icon.hpp"
-#include "include/global/GuiUtils.hpp"
+#include "include/ui/utils/GuiUtils.hpp"
 #include "include/global/Configs.hpp"
-#include "include/global/HTTPRequestHelper.hpp"
 #include "include/global/DeviceDetailsHelper.hpp"
+#include "include/global/ExitLookup.hpp"
+#include "include/global/Validation.hpp"
 #include "include/database/entities/Group.h"
-#include "include/scanner/ScanManager.h"
+#include "include/engine/services/AssetUpdates.h"
+#include "include/engine/services/BackupArchive.h"
+#include "include/ui/utils/ValidationForm.h"
 
 #include <QStyleFactory>
 #include <QFileDialog>
@@ -17,16 +20,10 @@
 #include <QMessageBox>
 #include <QPixmap>
 #include <QTimer>
-#include <QBrush>
-#include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <qfontdatabase.h>
-#include <QDateTime>
-#include <QDataStream>
-#include <QJsonDocument>
 #include <QJsonObject>
-#include <QSysInfo>
 #include <QDir>
 #include <QStandardPaths>
 #include <QUuid>
@@ -43,16 +40,200 @@
 #include <QPushButton>
 #include <QSslSocket>
 #include <QStandardItemModel>
+#include <QFile>
+#include <QFormLayout>
+#include <QLineEdit>
+#include <QLocale>
+#include <QPointer>
+#include <QProgressDialog>
+#include <QScrollBar>
+#include <QSysInfo>
+#include <QTreeWidget>
+#include <QUrl>
 
 #include <algorithm>
+#include <limits>
 
 #include "include/sys/UrlScheme.hpp"
 #include "include/ui/mainwindow.h"
 #include "include/ui/setting/DiagnosticsTab.h"
+#include "include/ui/utils/NativeFileDialog.h"
+
+namespace {
+    constexpr int kBasicSettingsMinAutoUpdate = 30;
+    constexpr int kBasicSettingsMaxAutoUpdate = 525600;
+
+    // The test runners read a bare integer; anything else, "3s" included, becomes 0.
+    QString basicSettingsMillisError(const QString &text, int example, bool zeroIsDefault) {
+        if (const auto ms = Validation::ToInt(text); ms && *ms >= (zeroIsDefault ? 0 : 1) && *ms <= std::numeric_limits<int>::max()) return {};
+        if (zeroIsDefault)
+            return DialogBasicSettings::tr("Enter a whole number of milliseconds, for example %1 (without a unit), or 0 for the default.").arg(example);
+        return DialogBasicSettings::tr("Enter a whole number of milliseconds, for example %1 (without a unit).").arg(example);
+    }
+
+    // GroupUpdater sends only values below 1000 characters without line breaks, and silently falls back otherwise.
+    QString basicSettingsHeaderValueError(const QString &text) {
+        if (text.size() < 1000 && !text.contains(QLatin1Char('\n')) && !text.contains(QLatin1Char('\r'))) return {};
+        return DialogBasicSettings::tr("Must be shorter than 1000 characters, on a single line.");
+    }
+
+    // The keys GroupUpdater's applyCustomHwidParams reads; it skips anything else without a word.
+    QString basicSettingsHwidParamsError(const QString &text) {
+        static const QStringList keys = {QStringLiteral("hwid"), QStringLiteral("os"), QStringLiteral("osversion"), QStringLiteral("model")};
+        for (const auto &item : Validation::Items(text, Validation::Split::Comma)) {
+            const auto eq = item.indexOf(QLatin1Char('='));
+            const auto value = eq > 0 ? item.mid(eq + 1).trimmed() : QString();
+            if (eq > 0 && keys.contains(item.left(eq).trimmed().toLower()) && !value.isEmpty() && basicSettingsHeaderValueError(value).isEmpty())
+                continue;
+            return DialogBasicSettings::tr("Unknown or malformed parameter \"%1\". Use hwid=…, os=…, osVersion=…, model=… separated by commas.")
+                .arg(item.size() > 40 ? item.left(39) + QChar(0x2026) : item);
+        }
+        return {};
+    }
+
+    // Same per-line wording as Validation::Form::bindLines, which takes only a QPlainTextEdit.
+    QString basicSettingsRegexLinesError(const QString &text) {
+        const auto lines = text.split(QLatin1Char('\n'));
+        QString first;
+        int bad = 0;
+        for (qsizetype i = 0; i < lines.size(); ++i) {
+            const auto line = lines[i].trimmed();
+            const auto problem = Validation::Regex(line);
+            if (problem.isEmpty()) continue;
+            if (bad++ == 0) {
+                first = QCoreApplication::translate("Validation", "Line %1 (\"%2\"): %3")
+                            .arg(QString::number(i + 1), line.size() > 40 ? line.left(39) + QChar(0x2026) : line, problem);
+            }
+        }
+        if (bad > 1) first += QLatin1Char(' ') + QCoreApplication::translate("Validation", "%n more line(s) have problems.", nullptr, bad - 1);
+        return first;
+    }
+
+    // Underlines the lines that do not compile; extra selections stay off the undo stack.
+    void basicSettingsMarkRegexLines(QTextEdit *edit) {
+        QList<QTextEdit::ExtraSelection> selections;
+        QTextCharFormat format;
+        format.setUnderlineStyle(QTextCharFormat::WaveUnderline);
+        format.setUnderlineColor(themeManager()->tokens.danger.isValid() ? themeManager()->tokens.danger : QColor(Qt::red));
+        for (QTextBlock block = edit->document()->begin(); block.isValid(); block = block.next()) {
+            if (Validation::Regex(block.text()).isEmpty()) continue;
+            QTextEdit::ExtraSelection selection;
+            selection.cursor = QTextCursor(block);
+            selection.cursor.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+            selection.format = format;
+            selections.append(selection);
+        }
+        edit->setExtraSelections(selections);
+    }
+
+    // BackupArchive answers in English with these texts; the dialog shows their translations.
+    const char *const kBasicSettingsBackupErrors[] = {
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "Failed to create database snapshot: %1"),
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "Failed to read database snapshot."),
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "Cannot write to: %1"),
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "Cannot open backup file: %1"),
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "Not a valid qThrone backup file."),
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "Unsupported backup format version: %1.\nThis backup may have been created with a newer version of the application."),
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "The backup file is damaged or incomplete."),
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "This backup file does not contain any restorable data."),
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "Failed to create temporary file for restore."),
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "The backup's database is damaged: %1"),
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "Failed to restore database: %1"),
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "There is nothing to back up"),
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "A subscription update is running; try again when it finishes."),
+    };
+
+    QString basicSettingsBackupError(const QString &error) {
+        for (const char *source : kBasicSettingsBackupErrors) {
+            const auto text = QString::fromUtf8(source);
+            const auto at = text.indexOf(QLatin1String("%1"));
+            if (at < 0) {
+                if (error == text) return DialogBasicSettings::tr(source);
+                continue;
+            }
+            const auto prefix = text.left(at);
+            const auto suffix = text.mid(at + 2);
+            if (error.size() >= prefix.size() + suffix.size() && error.startsWith(prefix) && error.endsWith(suffix))
+                return DialogBasicSettings::tr(source).arg(error.mid(prefix.size(), error.size() - prefix.size() - suffix.size()));
+        }
+        return error;
+    }
+
+    Configs::BackupParts basicSettingsCheckedParts(const Ui::DialogBasicSettings *ui) {
+        Configs::BackupParts parts;
+        parts.profiles = ui->backup_inc_profiles->isChecked();
+        parts.routes = ui->backup_inc_routes->isChecked();
+        parts.settings = ui->backup_inc_settings->isChecked();
+        parts.otp = ui->backup_inc_otp->isChecked();
+        parts.ipLists = ui->backup_inc_ip_lists->isChecked();
+        parts.icons = ui->backup_inc_icons->isChecked();
+        return parts;
+    }
+
+    // Text a WebDAV server or another device wrote, for plain-text display only.
+    QString basicSettingsRemoteText(const QString &text) {
+        return text.simplified().left(200);
+    }
+
+    QString basicSettingsPlatformName(const QString &platform) {
+        if (platform == QLatin1String("winnt")) return QStringLiteral("Windows");
+        if (platform == QLatin1String("linux")) return QStringLiteral("Linux");
+        if (platform == QLatin1String("darwin")) return QStringLiteral("macOS");
+        if (platform == QLatin1String("android")) return QStringLiteral("Android");
+        return basicSettingsRemoteText(platform);
+    }
+
+    QString basicSettingsPartsText(const QStringList &parts) {
+        QStringList shown;
+        for (const auto &part : parts) {
+            QString label;
+            if (part == QLatin1String("profiles")) label = DialogBasicSettings::tr("Profiles");
+            else if (part == QLatin1String("routes")) label = DialogBasicSettings::tr("Routing profiles");
+            else if (part == QLatin1String("settings")) label = DialogBasicSettings::tr("Settings");
+            else if (part == QLatin1String("otp")) label = DialogBasicSettings::tr("OTP profiles");
+            else if (part == QLatin1String("ip_lists")) label = DialogBasicSettings::tr("IP lists and scans");
+            else if (part == QLatin1String("icons")) label = DialogBasicSettings::tr("Custom icons");
+            if (!label.isEmpty() && !shown.contains(label)) shown << label;
+        }
+        return shown.join(QStringLiteral(", "));
+    }
+
+    // Window-modal busy indicator without a cancel button; the caller closes it when the worker reports back.
+    QPointer<QProgressDialog> basicSettingsWebDavProgress(QWidget *parent, const QString &text) {
+        auto *progress = new QProgressDialog(text, QString(), 0, 0, parent);
+        progress->setWindowTitle(QStringLiteral("WebDAV"));
+        progress->setWindowModality(Qt::WindowModal);
+        progress->setMinimumDuration(0);
+        progress->setAutoClose(false);
+        progress->setAutoReset(false);
+        progress->setAttribute(Qt::WA_DeleteOnClose);
+        progress->show();
+        return progress;
+    }
+
+    // Non-blocking, and plain text because it may carry what a server sent.
+    void basicSettingsWebDavMessage(QWidget *parent, QMessageBox::Icon icon, const QString &title, const QString &text) {
+        auto *box = new QMessageBox(icon, title, text, QMessageBox::Ok, parent);
+        box->setTextFormat(Qt::PlainText);
+        box->setAttribute(Qt::WA_DeleteOnClose);
+        box->open();
+    }
+}
+
+struct DialogBasicSettings::WebDavChooser {
+    QPointer<QDialog> dialog;
+    QTreeWidget *tree = nullptr;
+    QLabel *note = nullptr;
+    QPushButton *restore = nullptr;
+    QPushButton *remove = nullptr;
+    QList<Engine::WebDavBackup::Entry> entries;
+};
 
 DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     : QDialog(parent), ui(new Ui::DialogBasicSettings) {
     ui->setupUi(this);
+    form = new Validation::Form(this);
+    form->attachStatus(ui->buttonBox);
     ADD_ASTERISK(this);
 
     ui->inbound_socks_port_l->setText(ui->inbound_socks_port_l->text().replace("Socks", "Mixed (SOCKS+HTTP)"));
@@ -68,6 +249,17 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     D_LOAD_INT(test_concurrent)
     D_LOAD_STRING(test_latency_url)
     D_LOAD_STRING(direct_test_url)
+    D_LOAD_BOOL(exit_country_lookup)
+    ui->exit_lookup_provider->addItem(tr("Automatic"), Configs_network::ExitLookupAutoId);
+    for (const auto &provider : Configs_network::ExitLookupProviders()) ui->exit_lookup_provider->addItem(provider.label, provider.id);
+    ui->exit_lookup_provider->setCurrentIndex(
+        std::max(0, ui->exit_lookup_provider->findData(Configs::dataManager->settingsRepo->exit_lookup_provider)));
+    ui->label_exit_lookup_provider->setEnabled(ui->exit_country_lookup->isChecked());
+    ui->exit_lookup_provider->setEnabled(ui->exit_country_lookup->isChecked());
+    connect(ui->exit_country_lookup, &QCheckBox::toggled, this, [this](bool enabled) {
+        ui->label_exit_lookup_provider->setEnabled(enabled);
+        ui->exit_lookup_provider->setEnabled(enabled);
+    });
     D_LOAD_BOOL(disable_tray)
     ui->reset_proxy_on_disable_sp->setChecked(Configs::dataManager->settingsRepo->reset_proxy_on_disable_sp);
     ui->url_timeout->setText(Int2String(Configs::dataManager->settingsRepo->url_test_timeout_ms));
@@ -98,17 +290,7 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
                        tr("Could not register the handler for throne:// links."));
     connectAssociation(Association::ConfigFiles, ui->file_assoc_auto_register, ui->file_assoc_install, ui->file_assoc_uninstall,
                        tr("Could not register the config file associations."));
-#ifdef Q_OS_MACOS
-    // LaunchServices registers the scheme from the bundle's Info.plist, so there is nothing of ours to add or take back.
-    ui->url_scheme_install->hide();
-    ui->url_scheme_uninstall->hide();
-#endif
-    if (!UrlScheme_IsSupported(Association::ConfigFiles)) {
-        ui->file_assoc_auto_register->hide();
-        ui->file_assoc_status->hide();
-        ui->file_assoc_install->hide();
-        ui->file_assoc_uninstall->hide();
-    }
+    for (auto *widget : UnavailableWidgets(ui)) widget->hide();
     ui->url_scheme_box->setEnabled(UrlScheme_IsSupported(Association::Links));
     refreshUrlSchemeStatus();
 
@@ -129,12 +311,6 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
         }
     });
 
-#ifndef Q_OS_WIN
-    ui->proxy_scheme_l->hide();
-    ui->proxy_scheme->hide();
-    ui->windows_no_admin->hide();
-#endif
-
     ui->max_log_line->setText(QString::number(Configs::dataManager->settingsRepo->max_log_line));
     ui->log_level->setCurrentText(Configs::dataManager->settingsRepo->log_level);
     ui->xray_loglevel->setCurrentText(Configs::dataManager->settingsRepo->xray_log_level);
@@ -145,9 +321,6 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     ui->log_include_regex->setText(Configs::dataManager->settingsRepo->log_include_regex.join("\n"));
     ui->log_exclude_regex->setText(Configs::dataManager->settingsRepo->log_exclude_regex.join("\n"));
     applyRegexHighlighting();
-
-    connect(ui->log_include_regex, &QTextEdit::textChanged, this, [this] { applyRegexHighlighting(); });
-    connect(ui->log_exclude_regex, &QTextEdit::textChanged, this, [this] { applyRegexHighlighting(); });
 
     ui->connection_statistics->setChecked(Configs::dataManager->settingsRepo->enable_stats);
     ui->disable_traffic_aggregation->setChecked(Configs::dataManager->settingsRepo->disable_traffic_aggregation);
@@ -199,7 +372,7 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     connect(ui->select_custom_icon, &QPushButton::clicked, this, [=, this] {
         auto n = QMessageBox::information(this, "Custom Icon Manual", tr(Configs::Information::CustomIconManual.toStdString().c_str()), QMessageBox::Open | QMessageBox::Cancel);
         if (n == QMessageBox::Open) {
-            auto fileNames = QFileDialog::getOpenFileNames(this,
+            auto fileNames = NativeFileDialog::getOpenFileNames(this,
                 tr("Select png icons"), QDir::homePath(), tr("Image Files (*.png)"));
             QString errors;
             for (const auto& fileName : fileNames) {
@@ -269,6 +442,7 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     ui->dns_in_port->setText(Int2String(Configs::dataManager->settingsRepo->core_dns_in_port));
 
     ui->core_box_clash_listen_addr->setText(Configs::dataManager->settingsRepo->core_box_clash_listen_addr);
+    ui->core_box_clash_listen_addr->setPlaceholderText(tr("127.0.0.1 (default)"));
     ui->core_box_clash_api->setValidator(new QIntValidator(1, 65535, ui->core_box_clash_api));
     ui->core_box_clash_api->setText(Configs::dataManager->settingsRepo->core_box_clash_api > 0
                                         ? Int2String(Configs::dataManager->settingsRepo->core_box_clash_api)
@@ -324,11 +498,13 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
     ui->disable_priv_req->setChecked(Configs::dataManager->settingsRepo->disable_privilege_req);
     ui->windows_no_admin->setChecked(Configs::dataManager->settingsRepo->disable_run_admin);
     ui->mozilla_cert->setChecked(Configs::dataManager->settingsRepo->use_mozilla_certs);
+    D_LOAD_BOOL(xray_use_system_ca)
     D_LOAD_BOOL(kill_switch)
 
     D_LOAD_BOOL(skip_cert)
 
     ui->tabWidget->addTab(new DiagnosticsTab(ui->tabWidget), tr("Diagnostics"));
+    bindValidation();
 
     auto resetDefaults = new QPushButton(tr("Восстановить настройки по умолчанию"), ui->tab_backup);
     resetDefaults->setObjectName("restore_defaults");
@@ -368,27 +544,94 @@ DialogBasicSettings::~DialogBasicSettings() {
     delete ui;
 }
 
-static void highlightRegexLines(QTextEdit *edit) {
-    if (!edit || !edit->document()) return;
-    edit->blockSignals(true);
-    QTextDocument *doc = edit->document();
-    QRegularExpression validator;
-    for (int i = 0; i < doc->blockCount(); ++i) {
-        QTextBlock block = doc->findBlockByNumber(i);
-        QString line = block.text();
-        QTextBlockFormat fmt = block.blockFormat();
-        if (line.trimmed().isEmpty()) {
-            fmt.setBackground(Qt::NoBrush);
-            QTextCursor cur(block);
-            cur.setBlockFormat(fmt);
-            continue;
+void DialogBasicSettings::bindValidation() {
+    using namespace Validation;
+    const QStringList http = {QStringLiteral("http"), QStringLiteral("https")};
+    const auto refreshOn = [this](QAbstractButton *toggle) { connect(toggle, &QAbstractButton::toggled, form, [this] { form->refresh(); }); };
+
+    form->bind(ui->inbound_address, Rules::Ip());
+    form->bind(ui->inbound_socks_port, Rules::Port());
+    // Only the URL test treats 0 as its default; the download/upload test would time out at once.
+    form->bind(ui->test_timeout, [](const QString &text) { return basicSettingsMillisError(text, 5000, false); }).label(tr("Speed test timeout"));
+    form->bind(ui->simple_down_url, Rules::Url(http, Empty::Required)).label(ui->label_16->text())
+        .when([this] { return ui->speedtest_mode->currentIndex() == 3; });
+    connect(ui->speedtest_mode, &QComboBox::currentIndexChanged, form, [this] { form->refresh(); });
+    form->bind(ui->test_latency_url, Rules::Url(http, Empty::Required)).label(ui->label_13->text());
+    form->bind(ui->direct_test_url, Rules::Url(http)).label(ui->label_direct_test_url->text());
+    form->bind(ui->test_concurrent, Rules::Int(0, 499, Empty::Required)).label(ui->label_14->text());
+    form->bind(ui->url_timeout, [](const QString &text) { return basicSettingsMillisError(text, 3000, true); }).label(tr("URL test timeout"));
+
+    struct PortUse {
+        QLineEdit *edit;
+        QString name;
+        std::function<bool()> used;
+    };
+    const QList<PortUse> ports = {
+        {ui->inbound_socks_port, tr("Mixed inbound"),
+         [this] { return !ui->disable_mixed_inbound->isChecked() && !ui->random_listen_port->isChecked(); }},
+        {ui->dns_in_port, tr("DNS server"), [] { return true; }},
+        {ui->core_box_clash_api, tr("Clash API"), [this] { return !ui->core_box_clash_api->text().trimmed().isEmpty(); }},
+        {ui->core_box_api_port, tr("sing-box API"), [this] { return !ui->core_box_api_port->text().trimmed().isEmpty(); }},
+    };
+    for (qsizetype i = 0; i < ports.size(); ++i) {
+        for (qsizetype j = i + 1; j < ports.size(); ++j) {
+            form->addRule({ports[i].edit, ports[j].edit}, [a = ports[i], b = ports[j]] {
+                if (!a.used() || !b.used()) return QString();
+                const auto port = ToInt(a.edit->text());
+                if (!port || *port <= 0 || port != ToInt(b.edit->text())) return QString();
+                return tr("Port %1 is already used by: %2. Choose a different port.").arg(QString::number(*port), b.name);
+            }, nullptr, Severity::Error, ports[i].name);
         }
-        validator.setPattern(line);
-        fmt.setBackground(QBrush(validator.isValid() ? Qt::darkGreen : Qt::darkRed));
-        QTextCursor cur(block);
-        cur.setBlockFormat(fmt);
     }
-    edit->blockSignals(false);
+    refreshOn(ui->disable_mixed_inbound);
+    refreshOn(ui->random_listen_port);
+
+    form->bind(ui->max_log_line, Rules::Int(1, std::numeric_limits<int>::max(), Empty::Required)).label(ui->label_17->text());
+    for (QTextEdit *edit : {static_cast<QTextEdit *>(ui->log_include_regex), static_cast<QTextEdit *>(ui->log_exclude_regex)})
+        form->addRule({edit}, [edit] {
+            basicSettingsMarkRegexLines(edit);
+            return basicSettingsRegexLinesError(edit->toPlainText());
+        });
+
+    form->bind(ui->user_agent, [](const QString &text) { return basicSettingsHeaderValueError(text); });
+    form->bind(ui->sub_custom_hwid_params, [](const QString &text) { return basicSettingsHwidParamsError(text); });
+    form->bind(ui->sub_auto_update, Rules::Int(kBasicSettingsMinAutoUpdate, kBasicSettingsMaxAutoUpdate, Empty::Required))
+        .when([this] { return ui->sub_auto_update_enable->isChecked(); });
+    form->bind(ui->route_auto_update, Rules::Int(kBasicSettingsMinAutoUpdate, kBasicSettingsMaxAutoUpdate, Empty::Required))
+        .when([this] { return ui->route_auto_update_enable->isChecked(); });
+    refreshOn(ui->sub_auto_update_enable);
+    refreshOn(ui->route_auto_update_enable);
+
+    form->bind(ui->dns_in_port, Rules::Port());
+    const auto clashLabel = [this](const QLabel *label) { return QStringLiteral("%1 %2").arg(ui->clash_api_box->title(), label->text()); };
+    form->bind(ui->core_box_clash_listen_addr, Rules::Host(Empty::Allowed)).label(clashLabel(ui->core_box_clash_listen_addr_l));
+    form->bind(ui->core_box_clash_api, Rules::Port(Empty::Allowed)).label(clashLabel(ui->core_box_clash_api_l));
+    form->bind(ui->core_box_api_port, Rules::Port(Empty::Allowed))
+        .label(QStringLiteral("%1 %2").arg(ui->api_service_box->title(), ui->core_box_api_port_l->text()));
+
+    form->bind(ui->ntp_server, Rules::Host(Empty::Allowed)).label(tr("NTP server"));
+    // The core turns port 0 into 123.
+    form->bind(ui->ntp_port, [](const QString &text) { return ToInt(text) == 0 ? QString() : Port(text, Empty::Allowed); }).label(tr("NTP port"));
+
+    form->bind(ui->xray_geoip_url, Rules::Url(http)).label(ui->label_xray_geoip_url->text());
+    form->bind(ui->xray_geosite_url, Rules::Url(http)).label(ui->label_xray_geosite_url->text());
+
+    form->markAll();
+}
+
+QList<QWidget *> DialogBasicSettings::UnavailableWidgets(const Ui::DialogBasicSettings *ui) {
+    QList<QWidget *> widgets;
+#ifdef Q_OS_MACOS
+    // LaunchServices registers the scheme from the bundle's Info.plist, so there is nothing of ours to add or take back.
+    widgets << ui->url_scheme_install << ui->url_scheme_uninstall;
+#endif
+    if (!UrlScheme_IsSupported(Association::ConfigFiles)) {
+        widgets << ui->file_assoc_auto_register << ui->file_assoc_status << ui->file_assoc_install << ui->file_assoc_uninstall;
+    }
+#ifndef Q_OS_WIN
+    widgets << ui->proxy_scheme_l << ui->proxy_scheme << ui->windows_no_admin;
+#endif
+    return widgets;
 }
 
 void DialogBasicSettings::refreshUrlSchemeStatus() {
@@ -408,8 +651,8 @@ void DialogBasicSettings::refreshUrlSchemeStatus() {
 }
 
 void DialogBasicSettings::applyRegexHighlighting() {
-    highlightRegexLines(ui->log_include_regex);
-    highlightRegexLines(ui->log_exclude_regex);
+    basicSettingsMarkRegexLines(ui->log_include_regex);
+    basicSettingsMarkRegexLines(ui->log_exclude_regex);
 }
 
 QJsonObject DialogBasicSettings::formStateWithoutDecoration() const {
@@ -429,6 +672,7 @@ QJsonObject DialogBasicSettings::formStateWithoutDecoration() const {
 }
 
 void DialogBasicSettings::accept() {
+    if (!form->validateAll()) return;
     // Decoration-only edits do not pass through the network settings save path.
     if (initialFormState == formStateWithoutDecoration() && initialCustomInbound == CACHE.custom_inbound &&
         !CACHE.needRestart && !CACHE.updateDisableTray && !CACHE.updateTrayIcon &&
@@ -441,7 +685,7 @@ void DialogBasicSettings::accept() {
     Configs::dataManager->settingsRepo->seasonal_decoration = ui->seasonal_decoration->currentData().toString();
     bool needChoosePort = false;
 
-    D_SAVE_STRING(inbound_address)
+    Configs::dataManager->settingsRepo->inbound_address = ui->inbound_address->text().trimmed();
     Configs::dataManager->settingsRepo->custom_inbound = CACHE.custom_inbound;
     D_SAVE_INT(inbound_socks_port)
     if (!Configs::dataManager->settingsRepo->random_inbound_port && ui->random_listen_port->isChecked())
@@ -450,8 +694,10 @@ void DialogBasicSettings::accept() {
     }
     Configs::dataManager->settingsRepo->random_inbound_port = ui->random_listen_port->isChecked();
     D_SAVE_INT(test_concurrent)
-    D_SAVE_STRING(test_latency_url)
+    Configs::dataManager->settingsRepo->test_latency_url = ui->test_latency_url->text().trimmed();
     Configs::dataManager->settingsRepo->direct_test_url = ui->direct_test_url->text().trimmed();
+    D_SAVE_BOOL(exit_country_lookup)
+    Configs::dataManager->settingsRepo->exit_lookup_provider = ui->exit_lookup_provider->currentData().toString();
     D_SAVE_BOOL(disable_tray)
     Configs::dataManager->settingsRepo->proxy_scheme = ui->proxy_scheme->currentText().toLower();
     Configs::dataManager->settingsRepo->speed_test_mode = ui->speedtest_mode->currentIndex();
@@ -482,15 +728,8 @@ void DialogBasicSettings::accept() {
     Configs::dataManager->settingsRepo->log_include_keyword = SplitAndTrim(ui->log_include_keyword->toPlainText(), "\n", false);
     Configs::dataManager->settingsRepo->log_exclude_keyword = SplitAndTrim(ui->log_exclude_keyword->toPlainText(), "\n", false);
 
-    Configs::dataManager->settingsRepo->log_include_regex.clear();
-    Configs::dataManager->settingsRepo->log_exclude_regex.clear();
-    QRegularExpression regexValidator;
-    for (QStringList log_include_lines = SplitAndTrim(ui->log_include_regex->toPlainText(), "\n", false); const QString &line : log_include_lines) {
-        if (regexValidator.setPattern(line); regexValidator.isValid()) Configs::dataManager->settingsRepo->log_include_regex << line;
-    }
-    for (QStringList log_exclude_lines = SplitAndTrim(ui->log_exclude_regex->toPlainText(), "\n", false); const QString &line : log_exclude_lines) {
-        if (regexValidator.setPattern(line); regexValidator.isValid()) Configs::dataManager->settingsRepo->log_exclude_regex << line;
-    }
+    Configs::dataManager->settingsRepo->log_include_regex = SplitAndTrim(ui->log_include_regex->toPlainText(), "\n", false);
+    Configs::dataManager->settingsRepo->log_exclude_regex = SplitAndTrim(ui->log_exclude_regex->toPlainText(), "\n", false);
 
     Configs::dataManager->settingsRepo->enable_stats = ui->connection_statistics->isChecked();
     Configs::dataManager->settingsRepo->disable_traffic_aggregation = ui->disable_traffic_aggregation->isChecked();
@@ -516,10 +755,6 @@ void DialogBasicSettings::accept() {
     Configs::dataManager->settingsRepo->log_font_family = logFontFamily;
     Configs::dataManager->settingsRepo->log_font_size = logFontSize;
 
-    if (Configs::dataManager->settingsRepo->max_log_line <= 0) {
-        Configs::dataManager->settingsRepo->max_log_line = 500;
-    }
-
     // The PeriodicRunner reads these intervals live; no timer needs restarting.
 
     Configs::dataManager->settingsRepo->user_agent = ui->user_agent->text().trimmed();
@@ -531,7 +766,7 @@ void DialogBasicSettings::accept() {
     D_SAVE_BOOL(sub_show_change_popup)
     D_SAVE_BOOL(net_insecure)
     D_SAVE_BOOL(sub_send_hwid)
-    D_SAVE_STRING(sub_custom_hwid_params)
+    Configs::dataManager->settingsRepo->sub_custom_hwid_params = ui->sub_custom_hwid_params->text().trimmed();
     D_SAVE_INT_ENABLE(sub_auto_update, sub_auto_update_enable)
     D_SAVE_BOOL(sub_respect_server_interval)
     D_SAVE_INT_ENABLE(route_auto_update, route_auto_update_enable)
@@ -547,8 +782,13 @@ void DialogBasicSettings::accept() {
         Configs::dataManager->settingsRepo->core_box_api_secret = secret;
 
     Configs::dataManager->settingsRepo->xray_vless_preference = static_cast<Configs::Xray::XrayVlessPreference>(ui->vless_xray_pref->currentIndex());
-    Configs::dataManager->settingsRepo->xray_geoip_url = ui->xray_geoip_url->currentText().trimmed();
-    Configs::dataManager->settingsRepo->xray_geosite_url = ui->xray_geosite_url->currentText().trimmed();
+    // An empty field means the provider shown as its placeholder; the download at profile start has no fallback of its own.
+    const auto geoAssetUrl = [](const QComboBox *combo) {
+        const auto url = combo->currentText().trimmed();
+        return url.isEmpty() ? combo->lineEdit()->placeholderText() : url;
+    };
+    Configs::dataManager->settingsRepo->xray_geoip_url = geoAssetUrl(ui->xray_geoip_url);
+    Configs::dataManager->settingsRepo->xray_geosite_url = geoAssetUrl(ui->xray_geosite_url);
 
     Configs::dataManager->settingsRepo->enable_ntp = ui->ntp_enable->isChecked();
     Configs::dataManager->settingsRepo->ntp_server_address = ui->ntp_server->text().trimmed();
@@ -563,6 +803,7 @@ void DialogBasicSettings::accept() {
     if (Configs::dataManager->settingsRepo->disable_run_admin != ui->windows_no_admin->isChecked()) CACHE.updateDisableAdmin = true;
     Configs::dataManager->settingsRepo->disable_run_admin = ui->windows_no_admin->isChecked();
     Configs::dataManager->settingsRepo->use_mozilla_certs = ui->mozilla_cert->isChecked();
+    D_SAVE_BOOL(xray_use_system_ca)
     const bool killSwitchChanged = Configs::dataManager->settingsRepo->kill_switch != ui->kill_switch->isChecked();
     D_SAVE_BOOL(kill_switch)
 
@@ -580,32 +821,6 @@ void DialogBasicSettings::accept() {
     QDialog::accept();
 }
 
-// v1 archives carry no "parts" metadata and are read back as full snapshots.
-static constexpr quint32 BACKUP_FORMAT_VERSION = 2;
-static constexpr int BACKUP_CONTENT_VERSION = 2;
-
-static Configs::BackupParts BackupPartsFromMeta(quint32 formatVersion, const QJsonObject& meta,
-                                                const QMap<QString, QByteArray>& files) {
-    Configs::BackupParts p;
-    bool hasIcons = false;
-    for (auto it = files.constBegin(); it != files.constEnd(); ++it) {
-        if (it.key().startsWith("icons/")) { hasIcons = true; break; }
-    }
-    if (formatVersion >= 2 && meta.contains("parts")) {
-        const QJsonObject po = meta["parts"].toObject();
-        p.profiles = po["profiles"].toBool() && files.contains("database");
-        p.routes = po["routes"].toBool() && files.contains("database");
-        p.settings = po["settings"].toBool() && files.contains("database");
-        p.otp = po["otp"].toBool() && files.contains("database");
-        p.ipLists = po["ipLists"].toBool() && files.contains("database");
-        p.icons = po["icons"].toBool() && hasIcons;
-    } else {
-        p.profiles = p.routes = p.settings = files.contains("database");
-        p.icons = hasIcons;
-    }
-    return p;
-}
-
 void DialogBasicSettings::downloadXrayGeoAsset(const QString &url, const QString &fileName) {
     const QString effectiveUrl = url.trimmed();
     if (effectiveUrl.isEmpty()) {
@@ -613,20 +828,31 @@ void DialogBasicSettings::downloadXrayGeoAsset(const QString &url, const QString
             tr("Please enter a URL for %1 first.").arg(fileName));
         return;
     }
-    MW_show_log(tr("Downloading Xray geo asset: %1").arg(fileName));
-    // DownloadAsset drives a blocking event loop; don't capture the dialog, it may close first.
-    runOnNewThread([effectiveUrl, fileName] {
-        const auto err = NetworkRequestHelper::DownloadAsset(effectiveUrl, fileName);
-        runOnUiThread([err, fileName] {
-            if (err.isEmpty()) {
-                MW_show_log(QObject::tr("Downloaded Xray geo asset: %1").arg(fileName));
-                GetMainWindow()->showNotice(QObject::tr("%1 was downloaded successfully.").arg(fileName));
-            } else {
-                MessageBoxWarning(QObject::tr("Download geo asset"),
-                    QObject::tr("Failed to download %1:\n%2").arg(fileName, err));
-            }
-        });
+
+    Engine::AssetUpdates::GeoRequest request;
+    if (fileName == QLatin1String("geoip.dat")) {
+        request.files = {Engine::AssetUpdates::GeoFile::GeoIp};
+        request.geoipUrl = effectiveUrl;
+    } else {
+        request.files = {Engine::AssetUpdates::GeoFile::GeoSite};
+        request.geositeUrl = effectiveUrl;
+    }
+    // Don't capture the dialog, it may close first.
+    const bool started = Engine::AssetUpdates::UpdateGeoAssets(request, [fileName](const QList<Engine::AssetUpdates::GeoFileResult> &results) {
+        const QString err = results.isEmpty() ? QString() : results.first().error;
+        if (!results.isEmpty() && err.isEmpty()) {
+            GetMainWindow()->showNotice(QObject::tr("%1 was downloaded successfully.").arg(fileName));
+        } else {
+            MessageBoxWarning(QObject::tr("Download geo asset"),
+                QObject::tr("Failed to download %1:\n%2").arg(fileName, err));
+        }
     });
+    // Refused only while this same file is downloading; the other file may download alongside.
+    if (!started) {
+        QMessageBox::warning(this, tr("Download geo asset"), tr("A geo asset download is already running."));
+        return;
+    }
+    MW_show_log(tr("Downloading Xray geo asset: %1").arg(fileName));
 }
 
 void DialogBasicSettings::rememberGeoAssetUrl(QComboBox *combo, const QString &url, QStringList &history) {
@@ -664,13 +890,8 @@ void DialogBasicSettings::on_xray_geosite_download_clicked() {
 }
 
 void DialogBasicSettings::on_backup_create_clicked() {
-    Configs::BackupParts parts;
-    parts.profiles = ui->backup_inc_profiles->isChecked();
-    parts.routes = ui->backup_inc_routes->isChecked();
-    parts.settings = ui->backup_inc_settings->isChecked();
-    parts.otp = ui->backup_inc_otp->isChecked();
-    parts.ipLists = ui->backup_inc_ip_lists->isChecked();
-    parts.icons = ui->backup_inc_icons->isChecked();
+    if (webDavBusy) return;
+    const Configs::BackupParts parts = basicSettingsCheckedParts(ui);
 
     if (!parts.any()) {
         QMessageBox::warning(this, tr("Create Backup"),
@@ -678,9 +899,9 @@ void DialogBasicSettings::on_backup_create_clicked() {
         return;
     }
 
-    if (parts.settings) Configs::dataManager->settingsRepo->Save();
+    Engine::BackupArchive::Prepare(parts);
 
-    QString filePath = QFileDialog::getSaveFileName(
+    QString filePath = NativeFileDialog::getSaveFileName(
         this,
         tr("Create Backup"),
         QDir::homePath() + "/qThrone-backup.thrbackup",
@@ -688,75 +909,10 @@ void DialogBasicSettings::on_backup_create_clicked() {
     );
     if (filePath.isEmpty()) return;
 
-    QMap<QString, QByteArray> files;
-
-    if (parts.anyDb()) {
-        QString tempDbPath = QDir::temp().filePath("Thr_backup_tmp.db");
-        QFile::remove(tempDbPath);
-
-        try {
-            Configs::dataManager->getDatabase().backupSelective(tempDbPath.toStdString(), parts);
-        } catch (std::exception& e) {
-            QFile::remove(tempDbPath);
-            QMessageBox::critical(this, tr("Backup Failed"),
-                tr("Failed to create database snapshot: %1").arg(e.what()));
-            return;
-        }
-
-        QFile tempDbFile(tempDbPath);
-        if (!tempDbFile.open(QIODevice::ReadOnly)) {
-            QFile::remove(tempDbPath);
-            QMessageBox::critical(this, tr("Backup Failed"), tr("Failed to read database snapshot."));
-            return;
-        }
-        files["database"] = tempDbFile.readAll();
-        tempDbFile.close();
-        QFile::remove(tempDbPath);
-    }
-
-    if (parts.icons) {
-        QDir iconsDir("icons");
-        if (iconsDir.exists()) {
-            for (const QFileInfo& entry : iconsDir.entryInfoList(QDir::Files)) {
-                QFile iconFile(entry.absoluteFilePath());
-                if (iconFile.open(QIODevice::ReadOnly)) {
-                    files["icons/" + entry.fileName()] = iconFile.readAll();
-                }
-            }
-        }
-    }
-
-    QFile outFile(filePath);
-    if (!outFile.open(QIODevice::WriteOnly)) {
-        QMessageBox::critical(this, tr("Backup Failed"),
-            tr("Cannot write to: %1").arg(filePath));
+    if (const auto error = Engine::BackupArchive::Build(parts, filePath); !error.isEmpty()) {
+        QMessageBox::critical(this, tr("Backup Failed"), basicSettingsBackupError(error));
         return;
     }
-
-    QDataStream stream(&outFile);
-    stream.setByteOrder(QDataStream::LittleEndian);
-    stream.setVersion(QDataStream::Qt_6_0);
-
-    stream.writeRawData("THRN", 4);
-    stream << BACKUP_FORMAT_VERSION;
-
-    QJsonObject partsObj;
-    partsObj["profiles"] = parts.profiles;
-    partsObj["routes"] = parts.routes;
-    partsObj["settings"] = parts.settings;
-    partsObj["otp"] = parts.otp;
-    partsObj["ipLists"] = parts.ipLists;
-    partsObj["icons"] = parts.icons;
-
-    QJsonObject meta;
-    meta["backup_version"] = BACKUP_CONTENT_VERSION;
-    meta["created_at"] = QDateTime::currentDateTime().toString(Qt::TextDate);
-    meta["platform"] = QSysInfo::kernelType();
-    meta["parts"] = partsObj;
-    stream << QString::fromUtf8(QJsonDocument(meta).toJson(QJsonDocument::Compact));
-
-    stream << files;
-    outFile.close();
 
     QStringList included;
     if (parts.profiles) included << tr("Profiles");
@@ -772,63 +928,40 @@ void DialogBasicSettings::on_backup_create_clicked() {
 }
 
 void DialogBasicSettings::on_backup_restore_clicked() {
-    QString filePath = QFileDialog::getOpenFileName(
+    if (webDavBusy) return;
+    QString filePath = NativeFileDialog::getOpenFileName(
         this,
         tr("Restore Backup"),
         QDir::homePath(),
         tr("qThrone Backup (*.thrbackup)")
     );
     if (filePath.isEmpty()) return;
+    restoreBackupFile(filePath, {});
+}
 
-    QFile inFile(filePath);
-    if (!inFile.open(QIODevice::ReadOnly)) {
-        QMessageBox::critical(this, tr("Restore Failed"),
-            tr("Cannot open backup file: %1").arg(filePath));
+void DialogBasicSettings::restoreBackupFile(const QString &filePath, const QString &fallbackDeviceName) {
+    Engine::BackupArchive::Info info;
+    if (const auto error = Engine::BackupArchive::Inspect(filePath, &info); !error.isEmpty()) {
+        QMessageBox::critical(this, tr("Restore Failed"), basicSettingsBackupError(error));
         return;
     }
-
-    QDataStream stream(&inFile);
-    stream.setByteOrder(QDataStream::LittleEndian);
-    stream.setVersion(QDataStream::Qt_6_0);
-
-    char magic[4];
-    if (stream.readRawData(magic, 4) != 4 || strncmp(magic, "THRN", 4) != 0) {
-        QMessageBox::critical(this, tr("Restore Failed"),
-            tr("Not a valid qThrone backup file."));
-        return;
-    }
-
-    quint32 formatVersion;
-    stream >> formatVersion;
-    if (formatVersion < 1 || formatVersion > BACKUP_FORMAT_VERSION) {
-        QMessageBox::critical(this, tr("Restore Failed"),
-            tr("Unsupported backup format version: %1.\nThis backup may have been created with a newer version of the application.")
-                .arg(formatVersion));
-        return;
-    }
-
-    QString metaJson;
-    stream >> metaJson;
-    QJsonObject meta = QJsonDocument::fromJson(metaJson.toUtf8()).object();
-    QString createdAt = meta["created_at"].toString();
-
-    QMap<QString, QByteArray> files;
-    stream >> files;
-    inFile.close();
-
-    Configs::BackupParts avail = BackupPartsFromMeta(formatVersion, meta, files);
-    if (!avail.any()) {
-        QMessageBox::critical(this, tr("Restore Failed"),
-            tr("This backup file does not contain any restorable data."));
-        return;
-    }
+    const Configs::BackupParts avail = info.available;
+    const QString createdAt = info.createdAt;
+    const QString createdBy = basicSettingsRemoteText(info.deviceName.isEmpty() ? fallbackDeviceName : info.deviceName);
 
     QDialog dlg(this);
     dlg.setWindowTitle(tr("Restore Backup"));
     auto* layout = new QVBoxLayout(&dlg);
+    if (!createdBy.isEmpty()) {
+        auto *creator = new QLabel(tr("Created by: %1").arg(createdBy), &dlg);
+        creator->setTextFormat(Qt::PlainText);
+        creator->setWordWrap(true);
+        layout->addWidget(creator);
+    }
     auto* header = new QLabel(
         tr("Backup created on %1.\nSelect which parts to restore:")
             .arg(createdAt.isEmpty() ? tr("unknown date") : createdAt), &dlg);
+    header->setTextFormat(Qt::PlainText);
     header->setWordWrap(true);
     layout->addWidget(header);
 
@@ -860,7 +993,7 @@ void DialogBasicSettings::on_backup_restore_clicked() {
 
     auto* warn = new QLabel(
         tr("Each selected part replaces the current data. This cannot be undone.\n"
-           "Throne will restart to complete the restore."), &dlg);
+           "qThrone will restart to complete the restore."), &dlg);
     warn->setWordWrap(true);
     layout->addWidget(warn);
 
@@ -886,49 +1019,13 @@ void DialogBasicSettings::on_backup_restore_clicked() {
         return;
     }
 
-    int skippedRules = 0;
-    if (chosen.anyDb()) {
-        QString tempDbPath = QDir::temp().filePath("Thr_restore_tmp.db");
-        QFile::remove(tempDbPath);
-        QFile tempDbFile(tempDbPath);
-        if (!tempDbFile.open(QIODevice::WriteOnly)) {
-            QMessageBox::critical(this, tr("Restore Failed"),
-                tr("Failed to create temporary file for restore."));
-            return;
-        }
-        tempDbFile.write(files["database"]);
-        tempDbFile.close();
-
-        // A running scan would otherwise keep writing its progress and results over the restored rows.
-        Scanner::ScanManager::instance()->StopAll(false);
-        try {
-            skippedRules = Configs::dataManager->getDatabase().restoreSelective(tempDbPath.toStdString(), chosen);
-        } catch (std::exception& e) {
-            QFile::remove(tempDbPath);
-            QMessageBox::critical(this, tr("Restore Failed"),
-                tr("Failed to restore database: %1").arg(e.what()));
-            return;
-        }
-        QFile::remove(tempDbPath);
+    // Apply keeps the device-local settings; the window restores every other one, only the API also keeps this host's keys.
+    Engine::BackupArchive::ApplyResult result;
+    if (const auto error = Engine::BackupArchive::Apply(filePath, chosen, {}, &result); !error.isEmpty()) {
+        QMessageBox::critical(this, tr("Restore Failed"), basicSettingsBackupError(error));
+        return;
     }
-
-    if (chosen.icons) {
-        QDir iconsDir("icons");
-        iconsDir.mkpath(".");
-        for (auto it = files.constBegin(); it != files.constEnd(); ++it) {
-            if (it.key().startsWith("icons/")) {
-                QString iconName = it.key().mid(6);
-                if (iconName.isEmpty()) continue;
-                QFile iconFile(iconsDir.filePath(iconName));
-                if (iconFile.open(QIODevice::WriteOnly)) {
-                    iconFile.write(it.value());
-                }
-            }
-        }
-    }
-
-    // The exit path's settingsRepo->Save() would write the stale in-memory values back over the restore.
-    if (chosen.settings) Configs::dataManager->settingsRepo->noSave = true;
+    const int skippedRules = result.skippedRules;
 
     QString done = tr("Backup restored successfully. qThrone will now restart for the changes to take effect.");
     if (skippedRules > 0)
@@ -936,5 +1033,338 @@ void DialogBasicSettings::on_backup_restore_clicked() {
     QMessageBox::information(this, tr("Restore Complete"), done);
     MW_dialog_message(MwMessage::RestartProgram, {});
     QDialog::reject();
+}
+
+bool DialogBasicSettings::webDavReady(const QString &title) {
+    if (webDavBusy) return false;
+    if (!Configs::dataManager->settingsRepo->webdav_server.trimmed().isEmpty()) return true;
+    QMessageBox::information(this, title, tr("Enter your WebDAV server in WebDAV Settings first."));
+    showWebDavSettings();
+    return false;
+}
+
+void DialogBasicSettings::on_webdav_settings_clicked() {
+    if (webDavBusy) return;
+    showWebDavSettings();
+}
+
+void DialogBasicSettings::showWebDavSettings() {
+    const auto &settings = *Configs::dataManager->settingsRepo;
+    auto *dlg = new QDialog(this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setWindowTitle(tr("WebDAV Settings"));
+    auto *layout = new QVBoxLayout(dlg);
+    auto *form = new QFormLayout();
+    auto *server = new QLineEdit(settings.webdav_server, dlg);
+    server->setPlaceholderText(QStringLiteral("https://cloud.example.com/remote.php/dav/files/me/"));
+    server->setMinimumWidth(server->fontMetrics().horizontalAdvance(server->placeholderText()) + 24);
+    auto *user = new QLineEdit(settings.webdav_user, dlg);
+    auto *pass = new QLineEdit(settings.webdav_pass, dlg);
+    pass->setEchoMode(QLineEdit::Password);
+    auto *folder = new QLineEdit(settings.webdav_path, dlg);
+    folder->setPlaceholderText(QStringLiteral("qThrone"));
+    auto *device = new QLineEdit(settings.device_name, dlg);
+    device->setPlaceholderText(QSysInfo::machineHostName());
+    form->addRow(tr("Server URL"), server);
+    form->addRow(tr("Username"), user);
+    form->addRow(tr("Password"), pass);
+    form->addRow(tr("Folder"), folder);
+    form->addRow(tr("Device name"), device);
+    layout->addLayout(form);
+    auto *useProxy = new QCheckBox(tr("Connect through the proxy"), dlg);
+    useProxy->setChecked(settings.webdav_use_proxy);
+    layout->addWidget(useProxy);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel, dlg);
+    auto *test = buttons->addButton(tr("Test"), QDialogButtonBox::ActionRole);
+    layout->addWidget(buttons);
+
+    const auto fields = [server, user, pass, folder, useProxy] {
+        Engine::WebDavBackup::Config config;
+        config.server = server->text().trimmed();
+        config.user = user->text().trimmed();
+        config.pass = pass->text();
+        config.path = folder->text().trimmed();
+        config.useProxy = useProxy->isChecked();
+        return config;
+    };
+    connect(test, &QPushButton::clicked, dlg, [this, dlg, test, fields] {
+        if (webDavBusy) return;
+        webDavBusy = true;
+        test->setEnabled(false);
+        const QPointer<DialogBasicSettings> self(this);
+        const QPointer<QDialog> target(dlg);
+        const QPointer<QPushButton> button(test);
+        const auto progress = basicSettingsWebDavProgress(dlg, tr("Testing the connection..."));
+        runOnNewThread([self, target, button, progress, config = fields()] {
+            const QString error = Engine::WebDavBackup::Test(config);
+            runOnUiThread([self, target, button, progress, error] {
+                if (progress) progress->close();
+                if (self) self->webDavBusy = false;
+                if (button) button->setEnabled(true);
+                if (!target) return;
+                if (error.isEmpty()) {
+                    basicSettingsWebDavMessage(target, QMessageBox::Information, tr("WebDAV Settings"), tr("Connected. The backup folder is ready."));
+                } else {
+                    basicSettingsWebDavMessage(target, QMessageBox::Warning, tr("WebDAV Settings"), tr("Connection failed:\n%1").arg(error));
+                }
+            });
+        });
+    });
+    connect(buttons, &QDialogButtonBox::accepted, dlg, [dlg, fields, device] {
+        const auto config = fields();
+        const QString scheme = QUrl(config.server).scheme().toLower();
+        if (!config.server.isEmpty() && scheme != QLatin1String("http") && scheme != QLatin1String("https")) {
+            basicSettingsWebDavMessage(dlg, QMessageBox::Warning, tr("WebDAV Settings"), tr("The server URL must start with http:// or https://."));
+            return;
+        }
+        auto &saved = *Configs::dataManager->settingsRepo;
+        saved.webdav_server = config.server;
+        saved.webdav_user = config.user;
+        saved.webdav_pass = config.pass;
+        saved.webdav_path = config.path;
+        saved.webdav_use_proxy = config.useProxy;
+        saved.device_name = device->text().trimmed();
+        saved.Save();
+        dlg->accept();
+    });
+    connect(buttons, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+    dlg->open();
+}
+
+void DialogBasicSettings::on_webdav_upload_clicked() {
+    const QString title = tr("Upload to WebDAV");
+    if (!webDavReady(title)) return;
+    const Configs::BackupParts parts = basicSettingsCheckedParts(ui);
+    if (!parts.any()) {
+        QMessageBox::warning(this, title, tr("Select at least one part to include in the backup."));
+        return;
+    }
+
+    Engine::BackupArchive::Prepare(parts);
+    const auto config = Engine::WebDavBackup::FromSettings();
+    const QString tempPath = Engine::BackupArchive::TempPath(QStringLiteral("webdav-"));
+    webDavBusy = true;
+    const QPointer<DialogBasicSettings> self(this);
+    const auto progress = basicSettingsWebDavProgress(this, tr("Uploading the backup..."));
+    runOnNewThread([self, progress, parts, config, tempPath, title] {
+        Configs::BackupParts written;
+        QString fileName;
+        QString indexWarning;
+        QString error = Engine::BackupArchive::Build(parts, tempPath, &written);
+        const bool built = error.isEmpty();
+        if (built) {
+            error = Engine::WebDavBackup::Upload(config, tempPath, Engine::BackupArchive::PartNames(written), &fileName, &indexWarning);
+        }
+        QFile::remove(tempPath);
+        runOnUiThread([self, progress, title, built, error, fileName, indexWarning] {
+            if (progress) progress->close();
+            if (!self) return;
+            self->webDavBusy = false;
+            if (!error.isEmpty()) {
+                basicSettingsWebDavMessage(self, QMessageBox::Critical, title,
+                                           built ? tr("Upload failed:\n%1").arg(error) : basicSettingsBackupError(error));
+                return;
+            }
+            if (indexWarning.isEmpty()) {
+                basicSettingsWebDavMessage(self, QMessageBox::Information, title, tr("Backup uploaded:\n%1").arg(fileName));
+            } else {
+                basicSettingsWebDavMessage(self, QMessageBox::Warning, title,
+                                           tr("Backup uploaded, but the backup list could not be updated: %1").arg(indexWarning));
+            }
+        });
+    });
+}
+
+void DialogBasicSettings::on_webdav_restore_clicked() {
+    if (!webDavReady(tr("Restore from WebDAV"))) return;
+    loadWebDavBackups(nullptr);
+}
+
+void DialogBasicSettings::loadWebDavBackups(const std::shared_ptr<WebDavChooser> &chooser, const QString &notice) {
+    const auto config = Engine::WebDavBackup::FromSettings();
+    webDavBusy = true;
+    const QPointer<DialogBasicSettings> self(this);
+    QWidget *parent = this;
+    if (chooser && chooser->dialog) parent = chooser->dialog;
+    const auto progress = basicSettingsWebDavProgress(parent, tr("Loading the backup list..."));
+    runOnNewThread([self, chooser, progress, config, notice] {
+        QList<Engine::WebDavBackup::Entry> entries;
+        QString indexWarning;
+        const QString error = Engine::WebDavBackup::List(config, &entries, &indexWarning);
+        runOnUiThread([self, chooser, progress, notice, entries, indexWarning, error] {
+            if (progress) progress->close();
+            if (!self) return;
+            self->webDavBusy = false;
+            if (chooser && !chooser->dialog) return;
+            if (!error.isEmpty()) {
+                QString text = tr("Could not list the backups:\n%1").arg(error);
+                if (!notice.isEmpty()) text += QStringLiteral("\n\n") + notice;
+                basicSettingsWebDavMessage(chooser ? static_cast<QWidget *>(chooser->dialog) : self.data(), QMessageBox::Critical,
+                                           tr("Restore from WebDAV"), text);
+                return;
+            }
+            if (!chooser) {
+                self->showWebDavBackups(entries, indexWarning);
+                return;
+            }
+            QStringList note;
+            if (!notice.isEmpty()) note << notice;
+            if (!indexWarning.isEmpty()) note << tr("The backup list could not be read: %1").arg(indexWarning);
+            self->fillWebDavChooser(*chooser, entries, note.join(QLatin1Char('\n')));
+        });
+    });
+}
+
+void DialogBasicSettings::showWebDavBackups(const QList<Engine::WebDavBackup::Entry> &entries, const QString &indexWarning) {
+    const QString title = tr("Restore from WebDAV");
+    if (entries.isEmpty()) {
+        basicSettingsWebDavMessage(this, QMessageBox::Information, title, tr("There are no backups in the WebDAV folder yet."));
+        return;
+    }
+
+    auto chooser = std::make_shared<WebDavChooser>();
+    auto *dlg = new QDialog(this);
+    dlg->setAttribute(Qt::WA_DeleteOnClose);
+    dlg->setWindowTitle(title);
+    chooser->dialog = dlg;
+    auto *layout = new QVBoxLayout(dlg);
+    chooser->tree = new QTreeWidget(dlg);
+    chooser->tree->setRootIsDecorated(false);
+    chooser->tree->setUniformRowHeights(true);
+    chooser->tree->setSelectionMode(QAbstractItemView::SingleSelection);
+    chooser->tree->setHeaderLabels({tr("Created"), tr("Device"), tr("Platform"), tr("Version"), tr("Parts"), tr("Size")});
+    layout->addWidget(chooser->tree);
+    chooser->note = new QLabel(dlg);
+    chooser->note->setTextFormat(Qt::PlainText);
+    chooser->note->setWordWrap(true);
+    layout->addWidget(chooser->note);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, dlg);
+    chooser->restore = buttons->addButton(tr("Restore"), QDialogButtonBox::ActionRole);
+    chooser->remove = buttons->addButton(tr("Delete"), QDialogButtonBox::ActionRole);
+    chooser->restore->setDefault(true);
+    layout->addWidget(buttons);
+
+    connect(chooser->tree, &QTreeWidget::currentItemChanged, dlg, [chooser](QTreeWidgetItem *current) {
+        chooser->restore->setEnabled(current != nullptr);
+        chooser->remove->setEnabled(current != nullptr);
+    });
+    connect(chooser->tree, &QTreeWidget::itemDoubleClicked, dlg, [this, chooser] { restoreWebDavBackup(chooser); });
+    connect(chooser->restore, &QPushButton::clicked, dlg, [this, chooser] { restoreWebDavBackup(chooser); });
+    connect(chooser->remove, &QPushButton::clicked, dlg, [this, chooser] { deleteWebDavBackup(chooser); });
+    connect(buttons, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
+
+    fillWebDavChooser(*chooser, entries, indexWarning.isEmpty() ? QString() : tr("The backup list could not be read: %1").arg(indexWarning));
+    int width = 2 * chooser->tree->frameWidth() + chooser->tree->verticalScrollBar()->sizeHint().width() +
+                layout->contentsMargins().left() + layout->contentsMargins().right();
+    for (int column = 0; column < chooser->tree->columnCount(); ++column) {
+        chooser->tree->resizeColumnToContents(column);
+        width += chooser->tree->columnWidth(column);
+    }
+    QSize size = dlg->sizeHint().expandedTo(QSize(width, 0));
+    if (const QScreen *scr = screen()) size = size.boundedTo(scr->availableGeometry().size() - QSize(48, 72));
+    dlg->resize(size);
+    dlg->open();
+}
+
+void DialogBasicSettings::fillWebDavChooser(WebDavChooser &chooser, const QList<Engine::WebDavBackup::Entry> &entries, const QString &note) {
+    const QString thisDevice = Engine::BackupArchive::ThisDevice().id;
+    const QLocale locale;
+    chooser.entries = entries;
+    chooser.tree->clear();
+    for (qsizetype i = 0; i < entries.size(); ++i) {
+        const auto &entry = entries.at(i);
+        QString device = basicSettingsRemoteText(entry.deviceName);
+        if (device.isEmpty()) device = tr("Unknown device");
+        if (!entry.deviceId.isEmpty() && entry.deviceId == thisDevice) device = tr("%1 (this device)").arg(device);
+        auto *item = new QTreeWidgetItem(chooser.tree);
+        item->setText(0, entry.createdAt.isValid() ? locale.toString(entry.createdAt.toLocalTime(), QLocale::ShortFormat) : tr("Unknown"));
+        item->setText(1, device);
+        item->setText(2, basicSettingsPlatformName(entry.platform));
+        item->setText(3, basicSettingsRemoteText(entry.appVersion));
+        item->setText(4, basicSettingsPartsText(entry.parts));
+        item->setText(5, entry.size >= 0 ? locale.formattedDataSize(entry.size) : QString());
+        item->setTextAlignment(5, Qt::AlignRight | Qt::AlignVCenter);
+        item->setData(0, Qt::UserRole, static_cast<int>(i));
+    }
+    chooser.note->setText(note);
+    chooser.note->setVisible(!note.isEmpty());
+    const bool any = chooser.tree->topLevelItemCount() > 0;
+    if (any) chooser.tree->setCurrentItem(chooser.tree->topLevelItem(0));
+    chooser.restore->setEnabled(any);
+    chooser.remove->setEnabled(any);
+}
+
+void DialogBasicSettings::restoreWebDavBackup(const std::shared_ptr<WebDavChooser> &chooser) {
+    if (webDavBusy || !chooser->dialog) return;
+    const auto *item = chooser->tree->currentItem();
+    const int row = item != nullptr ? item->data(0, Qt::UserRole).toInt() : -1;
+    if (row < 0 || row >= chooser->entries.size()) return;
+    const auto entry = chooser->entries.at(row);
+
+    const auto config = Engine::WebDavBackup::FromSettings();
+    const QString tempPath = Engine::BackupArchive::TempPath(QStringLiteral("webdav-"));
+    webDavBusy = true;
+    const QPointer<DialogBasicSettings> self(this);
+    const QPointer<QDialog> dialog(chooser->dialog);
+    const auto progress = basicSettingsWebDavProgress(chooser->dialog, tr("Downloading the backup..."));
+    runOnNewThread([self, dialog, progress, config, entry, tempPath] {
+        const QString error = Engine::WebDavBackup::Download(config, entry, tempPath);
+        runOnUiThread([self, dialog, progress, entry, tempPath, error] {
+            if (progress) progress->close();
+            if (!self) {
+                QFile::remove(tempPath);
+                return;
+            }
+            self->webDavBusy = false;
+            if (!error.isEmpty()) {
+                basicSettingsWebDavMessage(dialog ? static_cast<QWidget *>(dialog) : self.data(), QMessageBox::Critical,
+                                           tr("Restore from WebDAV"), tr("Could not download the backup:\n%1").arg(error));
+                return;
+            }
+            if (dialog) dialog->close();
+            self->restoreBackupFile(tempPath, entry.indexed ? entry.deviceName : QString());
+            QFile::remove(tempPath);
+        });
+    });
+}
+
+void DialogBasicSettings::deleteWebDavBackup(const std::shared_ptr<WebDavChooser> &chooser) {
+    if (webDavBusy || !chooser->dialog) return;
+    const auto *item = chooser->tree->currentItem();
+    const int row = item != nullptr ? item->data(0, Qt::UserRole).toInt() : -1;
+    if (row < 0 || row >= chooser->entries.size()) return;
+    const auto entry = chooser->entries.at(row);
+
+    auto *confirm = new QMessageBox(QMessageBox::Question, tr("Delete Backup"),
+                                    tr("Delete this backup from the WebDAV server? This cannot be undone.\n\n%1").arg(basicSettingsRemoteText(entry.file)),
+                                    QMessageBox::Yes | QMessageBox::No, chooser->dialog.data());
+    confirm->setTextFormat(Qt::PlainText);
+    confirm->setDefaultButton(QMessageBox::No);
+    confirm->setAttribute(Qt::WA_DeleteOnClose);
+    connect(confirm->button(QMessageBox::Yes), &QAbstractButton::clicked, chooser->dialog.data(), [this, chooser, entry] {
+        if (webDavBusy || !chooser->dialog) return;
+        const auto config = Engine::WebDavBackup::FromSettings();
+        webDavBusy = true;
+        const QPointer<DialogBasicSettings> self(this);
+        const auto progress = basicSettingsWebDavProgress(chooser->dialog, tr("Deleting the backup..."));
+        runOnNewThread([self, chooser, progress, config, entry] {
+            QString indexWarning;
+            const QString error = Engine::WebDavBackup::Delete(config, entry, &indexWarning);
+            runOnUiThread([self, chooser, progress, error, indexWarning] {
+                if (progress) progress->close();
+                if (!self) return;
+                self->webDavBusy = false;
+                if (!chooser->dialog) return;
+                if (!error.isEmpty()) {
+                    basicSettingsWebDavMessage(chooser->dialog, QMessageBox::Critical, tr("Delete Backup"),
+                                               tr("Could not delete the backup:\n%1").arg(error));
+                    return;
+                }
+                self->loadWebDavBackups(chooser, indexWarning.isEmpty() ? QString()
+                                                                        : tr("Backup deleted, but the backup list could not be updated: %1").arg(indexWarning));
+            });
+        });
+    });
+    confirm->open();
 }
 

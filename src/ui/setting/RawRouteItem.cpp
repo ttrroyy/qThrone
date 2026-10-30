@@ -5,7 +5,9 @@
 #include "include/database/GroupsRepo.h"
 #include "include/ui/widget/json/JsonIssueList.h"
 #include "include/ui/widget/json/SchemaStore.h"
+#include "include/ui/setting/RouteDnsEditor.h"
 #include "include/ui/setting/ThemeManager.hpp"
+#include "include/ui/utils/ValidationForm.h"
 
 #include <QAbstractItemView>
 #include <QCheckBox>
@@ -18,11 +20,15 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QMap>
+#include <QMessageBox>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QStringListModel>
+#include <QTabWidget>
 #include <QTextBlock>
+
+#include <algorithm>
 
 RawRouteEdit::RawRouteEdit(QWidget* parent) : JsonCodeEdit(parent) {
     completer = new QCompleter(this);
@@ -113,18 +119,27 @@ RawRouteItem::RawRouteItem(QWidget* parent, const std::shared_ptr<Configs::Route
     form->addRow(tr("Name"), nameEdit);
     layout->addLayout(form);
 
+    auto* tabs = new QTabWidget(this);
+    auto* routePage = new QWidget(tabs);
+    auto* routeLayout = new QVBoxLayout(routePage);
+    tabs->addTab(routePage, tr("Route"));
+    dnsEditor = new RouteDnsEditor(*chain, tabs);
+    tabs->addTab(dnsEditor, tr("DNS"));
+    layout->addWidget(tabs, 1);
+
     preventCheck = new QCheckBox(tr("Prevent modifications"), this);
     preventCheck->setChecked(chain->preventModifications);
     preventCheck->setToolTip(tr("Use the route object exactly as written (outbound ids are still resolved to tags).\n"
-                                "Throne will NOT add its DNS-hijack or xray bridge plumbing, so DNS, chained/xray\n"
-                                "outbounds and other Throne features may break. For advanced users only."));
-    layout->addWidget(preventCheck);
+                                "qThrone will NOT add its DNS-hijack or xray bridge plumbing, so DNS, chained/xray\n"
+                                "outbounds and other qThrone features may break. For advanced users only."));
+    routeLayout->addWidget(preventCheck);
 
     jsonEdit = new RawRouteEdit(this);
     if (auto validator = JsonEdit::SingBoxValidator(JsonEdit::SingBox::Route)) {
         // Throne writes profile ids where sing-box writes outbound tags; TranslateRawOutbounds swaps them at build time.
         validator->AllowExtraType(QStringLiteral("outbound"), JsonEdit::ValueType::Number);
         validator->AllowExtraType(QStringLiteral("final"), JsonEdit::ValueType::Number);
+        routeValidator = validator;
         jsonEdit->setValidator(validator);
     }
     jsonEdit->setPlainText(chain->rawRoute.isEmpty()
@@ -138,7 +153,7 @@ RawRouteItem::RawRouteItem(QWidget* parent, const std::shared_ptr<Configs::Route
                          "  \"final\": -1\n"
                          "}")
         : chain->rawRoute);
-    layout->addWidget(jsonEdit, 1);
+    routeLayout->addWidget(jsonEdit, 1);
 
     QList<QPair<QString, QString>> items;
     items.append({QStringLiteral("proxy"), QString::number(-1)});
@@ -159,10 +174,10 @@ RawRouteItem::RawRouteItem(QWidget* parent, const std::shared_ptr<Configs::Route
 
     issueList = new JsonEdit::JsonIssueList(this);
     issueList->attach(jsonEdit);
-    layout->addWidget(issueList);
+    routeLayout->addWidget(issueList);
 
     validateLabel = new QLabel(this);
-    layout->addWidget(validateLabel);
+    routeLayout->addWidget(validateLabel);
     const auto refreshStatus = [this] {
         validateLabel->setText(jsonEdit->statusText());
         const auto &tk = themeManager()->tokens;
@@ -184,6 +199,11 @@ RawRouteItem::RawRouteItem(QWidget* parent, const std::shared_ptr<Configs::Route
     bottom->addWidget(buttons);
     layout->addLayout(bottom);
 
+    dnsForm = new Validation::Form(this);
+    dnsForm->attachStatus(buttons);
+    dnsEditor->bindTo(dnsForm);
+    dnsForm->markAll();
+
     connect(buttons, &QDialogButtonBox::accepted, this, &RawRouteItem::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
 
@@ -191,6 +211,7 @@ RawRouteItem::RawRouteItem(QWidget* parent, const std::shared_ptr<Configs::Route
 }
 
 void RawRouteItem::accept() {
+    if (!dnsForm->validateAll()) return;
     chain->name = nameEdit->text().trimmed();
     if (chain->name.isEmpty()) {
         MessageBoxWarning(tr("Invalid operation"), tr("Cannot create Route Profile with empty name"));
@@ -201,9 +222,21 @@ void RawRouteItem::accept() {
         MessageBoxWarning(tr("Invalid route"), tr("The route must be a valid JSON object"));
         return;
     }
+    // setValidator re-checks right away.
+    if (routeValidator != nullptr) jsonEdit->setValidator(routeValidator);
+    const auto problems = std::count_if(jsonEdit->issues().cbegin(), jsonEdit->issues().cend(),
+                                        [](const JsonEdit::Issue& issue) { return issue.severity == JsonEdit::Severity::Error; });
+    if (problems > 0) {
+        QMessageBox box(QMessageBox::Warning, tr("Raw routing profile"),
+                        tr("The route has %n schema problem(s), and the core will likely refuse to start with it. Save anyway?", "", static_cast<int>(problems)),
+                        QMessageBox::Save | QMessageBox::Cancel, this);
+        box.setDefaultButton(QMessageBox::Cancel);
+        if (box.exec() != QMessageBox::Save) return;
+    }
     chain->isRaw = true;
     chain->preventModifications = preventCheck->isChecked();
     chain->rawRoute = QJsonObject2QString(doc.object(), false);
+    dnsEditor->applyTo(*chain);
     emit settingsChanged(chain);
     QDialog::accept();
 }

@@ -1,6 +1,10 @@
 #include "include/ui/profile/edit_ssh.h"
 #include <QFileDialog>
 
+#include "include/global/Utils.hpp"
+#include "include/ui/utils/ValidationForm.h"
+#include "include/ui/utils/NativeFileDialog.h"
+
 EditSSH::EditSSH(QWidget *parent) : QWidget(parent), ui(new Ui::EditSSH) {
     ui->setupUi(this);
 }
@@ -23,10 +27,11 @@ void EditSSH::onStart(std::shared_ptr<Configs::Profile> _ent) {
     ui->client_version->setText(outbound->client_version);
 
     connect(ui->choose_pk, &QPushButton::clicked, this, [=,this] {
-        auto fn = QFileDialog::getOpenFileName(this, QObject::tr("Select"), QDir::currentPath(),
-                                               "", nullptr, QFileDialog::Option::ReadOnly);
+        auto fn = NativeFileDialog::getOpenFileName(this, QObject::tr("Select"), QDir::currentPath(),
+                                                    "", nullptr, QFileDialog::Option::ReadOnly);
         if (!fn.isEmpty()) {
             ui->private_key_path->setText(fn);
+            if (form) form->revalidate(ui->private_key_path);
         }
     });
 }
@@ -39,11 +44,28 @@ bool EditSSH::onEnd() {
     outbound->private_key = ui->private_key->toPlainText();
     outbound->private_key_path = ui->private_key_path->text().trimmed();
     outbound->private_key_passphrase = ui->private_key_pass->text();
-    if (!ui->host_key->text().trimmed().isEmpty()) outbound->host_key = ui->host_key->text().split(",");
-    else outbound->host_key = {};
-    if (!ui->host_key_algs->text().trimmed().isEmpty()) outbound->host_key_algorithms = ui->host_key_algs->text().split(",");
-    else outbound->host_key_algorithms = {};
+    outbound->host_key = SplitAndTrim(ui->host_key->text(), ",", false);
+    outbound->host_key_algorithms = SplitAndTrim(ui->host_key_algs->text(), ",", false);
     outbound->client_version = ui->client_version->text().trimmed();
 
+    return true;
+}
+
+void EditSSH::bindValidation(Validation::Form &form) {
+    using namespace Validation;
+    using namespace Configs::Checks;
+    this->form = &form;
+    form.bind(ui->host_key, Rules::List(Split::Comma, SshHostKey), this);
+    form.bind(ui->client_version, SshClientVersion, this).warning();
+    form.addRule({ui->private_key}, [this] { return SshPrivateKey(ui->private_key->toPlainText()); }, this);
+    form.addRule({ui->password, ui->private_key, ui->private_key_path}, [this] {
+        return SshAuthentication(ui->password->text(), ui->private_key->toPlainText(), ui->private_key_path->text());
+    }, this, Severity::Warning);
+    form.addRule({ui->private_key, ui->private_key_path}, [this] {
+        return SshKeySources(ui->private_key->toPlainText(), ui->private_key_path->text());
+    }, this, Severity::Warning);
+}
+
+bool EditSSH::serverPortOptional() {
     return true;
 }

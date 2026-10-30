@@ -5,8 +5,10 @@
 
 #include <atomic>
 
+#include "include/engine/EditLocks.h"
 #include "include/global/Configs.hpp"
 #include "include/ui/setting/RouteItem.h"
+#include "include/ui/utils/ValidationForm.h"
 #include "ui_dialog_manage_routes.h"
 #include "include/database/entities/RouteProfile.h"
 #include "include/database/entities/Group.h"
@@ -28,6 +30,11 @@ public:
 private:
     Ui::DialogManageRoutes *ui;
     QMap<int, Configs::SubscriptionOptions> providerDrafts;
+
+    Validation::Form* form = nullptr;
+
+    Engine::EditLock settingsLock{Engine::EditTarget::Settings};
+    Engine::EditLock routesLock{Engine::EditTarget::Routes};
 
     RouteItem* routeChainWidget;
 

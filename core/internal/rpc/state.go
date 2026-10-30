@@ -8,6 +8,7 @@ import (
 	"qThroneCore/internal/boxbox"
 	"qThroneCore/internal/xray"
 
+	"github.com/sagernet/sing-box/option"
 	"github.com/xtls/xray-core/core"
 )
 
@@ -29,7 +30,6 @@ var xrayGate *xray.Gate
 // One gate per opaque full config; never merged into the sidecar above.
 var xrayFullGates []*xray.Gate
 
-var needUnsetDNS bool
 
 var stopEgressForwardingWatch func()
 
@@ -47,10 +47,11 @@ func currentInstance() (*boxbox.Box, context.CancelFunc) {
 	return boxInstance, instanceCancel
 }
 
-func setBoxInstance(box *boxbox.Box, cancel context.CancelFunc) {
+func setBoxInstance(box *boxbox.Box, cancel context.CancelFunc, routeRules []option.Rule) {
 	stateMu.Lock()
 	defer stateMu.Unlock()
 	boxInstance, instanceCancel = box, cancel
+	connRules.reset(box, routeRules)
 }
 
 func setXray(instance *core.Instance, gate *xray.Gate) {

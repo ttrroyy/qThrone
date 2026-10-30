@@ -54,7 +54,6 @@ namespace Configs {
         int imported_count = 0;
         bool refreshing_group_list = false;
         bool refreshing_group = false;
-        std::atomic<int> resolve_count = 0;
 
         QStringList argv = {};
         bool flag_use_appdata = false;
@@ -69,6 +68,9 @@ namespace Configs {
         QString test_latency_url = "http://www.google.com/generate_204";
         // Fetched WITHOUT any proxy, so it must be reachable directly; empty falls back to the OS.
         QString direct_test_url = "";
+        // Both keys are shared with the Android app's settings table; the provider is a Configs_network::ExitLookupProviders() id.
+        bool exit_country_lookup = true;
+        QString exit_lookup_provider = "auto";
         int url_test_timeout_ms = 5000;
         bool disable_tray = false;
         int test_concurrent = 32;
@@ -76,7 +78,14 @@ namespace Configs {
         int current_group = 0;
         QString mux_protocol = "smux";
         bool mux_padding = false;
+        // "max_streams" pools by mux_concurrency streams per connection, "max_connections" by the two below.
+        QString mux_mode = "max_streams";
         int mux_concurrency = 8;
+        int mux_max_connections = 4;
+        int mux_min_streams = 4;
+        bool mux_brutal = false;
+        int mux_brutal_up_mbps = 0;
+        int mux_brutal_down_mbps = 0;
         bool mux_default_on = false;
         // "built-in" = sing-box tls.fragment, "custom" = hiddify dialer-level tls_fragment.
         QString fragment_implementation = "built-in";
@@ -124,6 +133,13 @@ namespace Configs {
         QString splitter_state = "";
         bool enable_stats = true;
         int stats_tab = 0; // either connection or log
+        // LiveChartState of the traffic graph; keys are Stats::TrafficLine keys.
+        QStringList traffic_graph_hidden = {};
+        // Bit 0 hides download, bit 1 upload.
+        int traffic_graph_hidden_dirs = 0;
+        int traffic_graph_range = 1;
+        bool traffic_graph_smooth = true;
+        bool traffic_graph_markers = true;
         // Stats::ConnectionSort; 0 == Stats::Default, the core's own ordering.
         int connection_sort = 0;
         bool connection_sort_asc = false;
@@ -177,10 +193,21 @@ namespace Configs {
         // Remote API
         bool remote_api_enable = false;
         bool remote_api_lan = false;
+        bool remote_api_admin_lan = false;
         int remote_api_port = 9095;
         QString remote_api_key = "";
         // CIDRs separated by commas or whitespace; empty allows every LAN address.
         QString remote_api_allow = "";
+
+        // WebDAV backup and this device's identity: device-local, see BackupArchive::DeviceLocalSettingKeys().
+        QString webdav_server = "";
+        QString webdav_user = "";
+        QString webdav_pass = "";
+        QString webdav_path = "Throne";
+        bool webdav_use_proxy = false;
+        // Generated on first use; an empty name means the host name.
+        QString device_id = "";
+        QString device_name = "";
 
         // Remember
         bool remember_system_proxy = false;
@@ -199,6 +226,9 @@ namespace Configs {
         bool remote_dns_disable_ipv6 = false;
         QString direct_dns = "localhost";
         bool direct_dns_disable_ipv6 = false;
+        // Servers typed into the remote / direct DNS fields, newest first.
+        QStringList remote_dns_history = {};
+        QStringList direct_dns_history = {};
         int dns_cache_capacity = 65536;
         bool dns_disable_cache = false;
         bool dns_disable_expire = false;
@@ -308,6 +338,8 @@ namespace Configs {
         QString xray_log_level = "warning";
         int xray_mux_concurrency = 8;
         bool xray_mux_default_on = false;
+        // Xray otherwise trusts only its built-in root certificates.
+        bool xray_use_system_ca = false;
         Xray::XrayVlessPreference xray_vless_preference = Xray::XhttpAndReality;
         // Fetched on demand into GetBasePath(), which the core exposes to Xray via XRAY_LOCATION_ASSET.
         QString xray_geoip_url = "https://github.com/Loyalsoldier/v2ray-rules-dat/raw/release/geoip.dat";

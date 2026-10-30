@@ -6,6 +6,8 @@
 #include <QColor>
 #include <memory>
 
+#include "include/database/entities/GroupSort.h"
+
 namespace Configs {
     class Profile;
 }
@@ -63,6 +65,12 @@ public:
 
     // Null if the profile could not be loaded; valid until the next model change.
     const FilterKey *filterKeyAt(int row) const;
+
+    // -1 for a method no column shows.
+    static int columnOfSort(GroupSortMethod::GroupSortMethod method);
+
+    // Raw for a column that does not sort.
+    static GroupSortMethod::GroupSortMethod sortOfColumn(int column);
 
 private:
     QHash<int, QPair<int, QString>> testStates;

@@ -8,6 +8,8 @@ namespace Ui {
 class EditWireguardAmnezia;
 }
 
+namespace Validation { class Form; }
+
 class EditWireguardAmnezia : public QDialog
 {
     Q_OBJECT
@@ -21,6 +23,11 @@ public slots:
     void accept() override;
 
 private:
+    void generateSignature();
+
+    void bindValidation();
+
     Ui::EditWireguardAmnezia *ui;
     std::shared_ptr<Configs::Profile> ent;
+    Validation::Form *form = nullptr;
 };

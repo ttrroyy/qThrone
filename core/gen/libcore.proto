@@ -26,6 +26,7 @@ service LibcoreService {
   //
   rpc GenWgKeyPair(EmptyReq) returns (GenWgKeyPairResponse);
   rpc WarpRegister(WarpRegisterRequest) returns (WarpRegisterResponse);
+  rpc GenQuicSignature(GenQuicSignatureRequest) returns (GenQuicSignatureResponse);
 
   rpc InstallDashboard(InstallDashboardRequest) returns (ErrorResp);
   //
@@ -47,6 +48,7 @@ service LibcoreService {
   rpc ScanURLTest(ScanURLTestRequest) returns (TestResp);
   rpc ScanCheckNetwork(ScanCheckNetworkRequest) returns (ScanCheckNetworkResponse);
   rpc ParseRuleSet(ParseRuleSetRequest) returns (ParseRuleSetResponse);
+  rpc ResolveDomains(ResolveDomainsRequest) returns (ResolveDomainsResponse);
 }
 
 message EmptyReq {}
@@ -250,6 +252,8 @@ message ConnectionMetaData {
   repeated string chain = 12;                        // outbound chain, for later use
   optional int64 closed_at = 13 [default = 0];       // 0 while live
   optional string source = 14 [default = ""];        // client address "ip:port", empty when unknown
+  optional string rule = 15 [default = ""];          // matched route rule as sing-box prints it, empty when routed by final
+  optional string rule_item = 16 [default = ""];     // the rule's entries that matched, e.g. "domain_suffix=github.com"; empty when unknown
 }
 
 // Ids come from a previous QueryConnections; ones that already closed are a
@@ -265,6 +269,14 @@ message CloseConnectionsResponse {
 
 message IsPrivilegedResponse {
   optional bool has_privilege = 1 [default = false];
+  // Linux: /dev/net/tun opened read-write. Unset elsewhere.
+  optional bool tun_device = 2;
+  // Linux: CAP_NET_ADMIN in the effective set. Unset elsewhere.
+  optional bool net_admin = 3;
+  // Linux: euid 0 and CAP_NET_ADMIN; macOS: euid 0. Unset on Windows.
+  optional bool kill_switch_privilege = 4;
+  // The first failing reason, plain English; empty when nothing failed.
+  optional string detail = 5;
 }
 
 message GetDefaultInterfaceResponse {
@@ -384,6 +396,15 @@ message WarpRegisterResponse {
   optional string peer_public_key = 8 [default = ""]; // wireguard: base64 x25519; masque: base64 SPKI DER (PEM armor stripped)
   optional string endpoint = 9 [default = ""];        // host:port (IPv6 bracketed)
   repeated int32 reserved = 10;                       // wireguard client_id bytes
+}
+
+message GenQuicSignatureRequest {
+  optional string domain = 1 [default = ""];
+}
+
+message GenQuicSignatureResponse {
+  optional string error = 1 [default = ""];
+  repeated string packets = 2; // AmneziaWG I1.. in order, each "<b 0x…>"
 }
 
 // One member of a running auto-selector group. Everything the UI needs to
@@ -652,4 +673,22 @@ message ParseRuleSetResponse {
   // Inverted and AND rules: they do not describe a set of addresses.
   optional int32 skipped_rules = 3 [default = 0];
   optional int32 version = 4 [default = 0];
+}
+
+// Looked up through dns-direct, the resolver the core dials servers with, never the OS resolver.
+message ResolveDomainsRequest {
+  repeated string domains = 1;
+  // A probe box config, started only when the running profile has no dns-direct (or none runs).
+  optional string config = 2 [default = ""];
+}
+
+message ResolveDomainsResponse {
+  // In request order.
+  repeated ResolvedDomain results = 1;
+}
+
+message ResolvedDomain {
+  optional string domain = 1 [default = ""];
+  repeated string addresses = 2;
+  optional string error = 3 [default = ""];
 }

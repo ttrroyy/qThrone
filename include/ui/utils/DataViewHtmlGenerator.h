@@ -80,12 +80,10 @@ public:
 
     void setVpnEndpointStatus(const QString &summary, const QString &detail, bool problem);
 
-    void addPendingRestartReason(const QString &reason);
-
-    void clearPendingRestart();
-
     bool hasPendingRestart() const;
     bool hasPriorityNotice() const;
+    // An empty list hides the panel.
+    void setPendingRestartReasons(const QStringList &reasons);
 
     void setScannerPanel(const QList<ScannerPanelItem> &items);
 

@@ -199,6 +199,38 @@ Release note:
         <source>Select</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>Proxy</source>
+        <translation>پروکسی</translation>
+    </message>
+    <message>
+        <source>Direct</source>
+        <translation>مستقیم</translation>
+    </message>
+    <message>
+        <source>Other outbounds</source>
+        <translation>خروجی‌های دیگر</translation>
+    </message>
+    <message>
+        <source>Download stalled: no data arrived for %1 seconds.</source>
+        <translation>دانلود متوقف شد: به مدت %1 ثانیه داده‌ای دریافت نشد.</translation>
+    </message>
+    <message>
+        <source>Throne needs at least one group.</source>
+        <translation>Throne دست‌کم به یک گروه نیاز دارد.</translation>
+    </message>
+    <message>
+        <source>This group&apos;s subscription is being updated. Try again when it finishes.</source>
+        <translation>اشتراک این گروه در حال به‌روزرسانی است. پس از پایان آن دوباره تلاش کنید.</translation>
+    </message>
+    <message>
+        <source>Close the editor of this group or of one of its profiles first.</source>
+        <translation>ابتدا ویرایشگر این گروه یا یکی از پروفایل‌های آن را ببندید.</translation>
+    </message>
+    <message>
+        <source>This group no longer exists.</source>
+        <translation>این گروه دیگر وجود ندارد.</translation>
+    </message>
 </context>
 <context>
     <name>DialogBasicSettings</name>
@@ -559,6 +591,34 @@ Release note:
     <message><source>Disabled</source><translation>غیرفعال</translation></message>
     <message><source>Halloween</source><translation>هالووین</translation></message>
     <message><source>New Year</source><translation>سال نو</translation></message>
+    <message>
+        <source>A geo asset download is already running.</source>
+        <translation>دانلود داده‌های جغرافیایی در حال انجام است.</translation>
+    </message>
+    <message>
+        <source>The backup file is damaged or incomplete.</source>
+        <translation>فایل پشتیبان آسیب دیده یا ناقص است.</translation>
+    </message>
+    <message>
+        <source>There is nothing to back up</source>
+        <translation>چیزی برای پشتیبان‌گیری وجود ندارد</translation>
+    </message>
+    <message>
+        <source>A subscription update is running; try again when it finishes.</source>
+        <translation>به‌روزرسانی اشتراک در حال انجام است؛ پس از پایان آن دوباره تلاش کنید.</translation>
+    </message>
+    <message>
+        <source>The backup&apos;s database is damaged: %1</source>
+        <translation>پایگاه دادهٔ پشتیبان آسیب دیده است: %1</translation>
+    </message>
+    <message>
+        <source>Trust System Certificates in Xray</source>
+        <translation>اعتماد Xray به گواهی‌های سیستم</translation>
+    </message>
+    <message>
+        <source>Xray verifies servers only against its built-in root certificates. Turn this on to also trust the certificates installed in the system, such as a company or self-signed root. A profile or Xray config that sets useSystemCA itself keeps its own value.</source>
+        <translation>Xray سرورها را فقط با گواهی‌های ریشهٔ داخلی خودش بررسی می‌کند. با روشن کردن این گزینه، گواهی‌های نصب‌شده در سیستم، مانند گواهی ریشهٔ سازمانی یا خودامضا، نیز معتبر شمرده می‌شوند. پروفایل یا پیکربندی Xray که خودش useSystemCA را تعیین کرده باشد، مقدار خودش را نگه می‌دارد.</translation>
+    </message>
 </context>
 <context>
     <name>DialogEditGroup</name>
@@ -921,6 +981,162 @@ Release note:
         <source>Reality short id. Accept only one value.</source>
         <translation type="unfinished"></translation>
     </message>
+    <message>
+        <source>This profile was deleted while you were editing it.</source>
+        <translation>این پروفایل در حین ویرایش شما حذف شد.</translation>
+    </message>
+    <message>
+        <source>Storage</source>
+        <translation>فضای ذخیره‌سازی</translation>
+    </message>
+    <message>
+        <source>Tuning</source>
+        <translation>تنظیم دقیق</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>سرویس</translation>
+    </message>
+    <message>
+        <source>Folder</source>
+        <translation>پوشه</translation>
+    </message>
+    <message>
+        <source>Client ID</source>
+        <translation>شناسهٔ کلاینت</translation>
+    </message>
+    <message>
+        <source>Client Secret</source>
+        <translation>رمز کلاینت</translation>
+    </message>
+    <message>
+        <source>Refresh Token</source>
+        <translation>توکن تازه‌سازی</translation>
+    </message>
+    <message>
+        <source>Secrets</source>
+        <translation>رمزها</translation>
+    </message>
+    <message>
+        <source>Template</source>
+        <translation>قالب</translation>
+    </message>
+    <message>
+        <source>Front Address</source>
+        <translation>نشانی جلویی</translation>
+    </message>
+    <message>
+        <source>Front Port</source>
+        <translation>درگاه جلویی</translation>
+    </message>
+    <message>
+        <source>Segment Bytes</source>
+        <translation>بایت هر بخش</translation>
+    </message>
+    <message>
+        <source>Flush Interval</source>
+        <translation>فاصلهٔ ارسال</translation>
+    </message>
+    <message>
+        <source>Poll Interval</source>
+        <translation>فاصلهٔ بررسی</translation>
+    </message>
+    <message>
+        <source>Max Poll Interval</source>
+        <translation>بیشینهٔ فاصلهٔ بررسی</translation>
+    </message>
+    <message>
+        <source>Eager Window</source>
+        <translation>پنجرهٔ بررسی فعال</translation>
+    </message>
+    <message>
+        <source>Hole Timeout</source>
+        <translation>مهلت بخش گم‌شده</translation>
+    </message>
+    <message>
+        <source>Session TTL</source>
+        <translation>عمر نشست</translation>
+    </message>
+    <message>
+        <source>Concurrency</source>
+        <translation>هم‌زمانی</translation>
+    </message>
+    <message>
+        <source>Google Drive folder ID</source>
+        <translation>شناسهٔ پوشهٔ Google Drive</translation>
+    </message>
+    <message>
+        <source>A directory path</source>
+        <translation>مسیر یک پوشه</translation>
+    </message>
+    <message>
+        <source>Where both ends exchange the stream: google-drive uses a Google Drive folder, template any HTTP storage API described by Template, local a folder on this machine.</source>
+        <translation>جایی که دو طرف جریان را مبادله می‌کنند: google-drive از یک پوشهٔ Google Drive استفاده می‌کند، template از هر API ذخیره‌سازی HTTP که در قالب توصیف شده باشد، و local از پوشه‌ای روی همین دستگاه.</translation>
+    </message>
+    <message>
+        <source>google-drive: the folder ID. local: a directory path. template: read as {folder}.</source>
+        <translation>google-drive: شناسهٔ پوشه. local: مسیر یک پوشه. template: به‌صورت {folder} خوانده می‌شود.</translation>
+    </message>
+    <message>
+        <source>The Google Drive OAuth client ID.</source>
+        <translation>شناسهٔ کلاینت OAuth برای Google Drive.</translation>
+    </message>
+    <message>
+        <source>The Google Drive OAuth client secret.</source>
+        <translation>رمز کلاینت OAuth برای Google Drive.</translation>
+    </message>
+    <message>
+        <source>The OAuth refresh token for the Google account that owns the folder.</source>
+        <translation>توکن تازه‌سازی OAuth برای حساب Google که مالک پوشه است.</translation>
+    </message>
+    <message>
+        <source>Values the template reads as {secret0}, {secret1}, …, separated by commas.</source>
+        <translation>مقدارهایی که قالب به‌صورت {secret0}، {secret1}، … می‌خواند، جداشده با ویرگول.</translation>
+    </message>
+    <message>
+        <source>The storage API&apos;s auth, put, get, list and delete operations, as JSON.</source>
+        <translation>عملیات auth، put، get، list و delete در API ذخیره‌سازی، به‌صورت JSON.</translation>
+    </message>
+    <message>
+        <source>Optional domain front: the storage API is dialed at this address while TLS still names the API host.</source>
+        <translation>دامنهٔ جلویی اختیاری: اتصال به API ذخیره‌سازی از طریق این نشانی برقرار می‌شود، در حالی که TLS همچنان نام میزبان API را می‌برد.</translation>
+    </message>
+    <message>
+        <source>Port of the front address. Default: 443.</source>
+        <translation>درگاه نشانی جلویی. پیش‌فرض: 443.</translation>
+    </message>
+    <message>
+        <source>Largest upload per file, in bytes. Default: 524288; Xray caps it at 16 MiB.</source>
+        <translation>بیشترین حجم بارگذاری در هر فایل، بر حسب بایت. پیش‌فرض: 524288؛ Xray آن را حداکثر ۱۶ مبی‌بایت می‌کند.</translation>
+    </message>
+    <message>
+        <source>How long writes are gathered before an upload, in milliseconds. Default: 20.</source>
+        <translation>مدت جمع‌آوری نوشته‌ها پیش از بارگذاری، بر حسب میلی‌ثانیه. پیش‌فرض: 20.</translation>
+    </message>
+    <message>
+        <source>Shortest wait between checks for new files, in milliseconds. Default: 50.</source>
+        <translation>کوتاه‌ترین فاصله میان بررسی فایل‌های تازه، بر حسب میلی‌ثانیه. پیش‌فرض: 50.</translation>
+    </message>
+    <message>
+        <source>Longest wait between checks while the stream is idle, in milliseconds. Default: 500.</source>
+        <translation>بلندترین فاصله میان بررسی‌ها هنگامی که جریان بیکار است، بر حسب میلی‌ثانیه. پیش‌فرض: 500.</translation>
+    </message>
+    <message>
+        <source>How long after traffic polling stays at the shortest wait, in milliseconds. Default: 2000.</source>
+        <translation>مدتی که پس از ترافیک، بررسی با کوتاه‌ترین فاصله ادامه می‌یابد، بر حسب میلی‌ثانیه. پیش‌فرض: 2000.</translation>
+    </message>
+    <message>
+        <source>How long a missing segment is waited for before the stream fails, in milliseconds. Default: 30000.</source>
+        <translation>مدت انتظار برای یک بخش گم‌شده پیش از شکست جریان، بر حسب میلی‌ثانیه. پیش‌فرض: 30000.</translation>
+    </message>
+    <message>
+        <source>How long an idle session lives before its files are cleaned up, in seconds. Default: 300.</source>
+        <translation>مدت زنده ماندن یک نشست بیکار پیش از پاک شدن فایل‌هایش، بر حسب ثانیه. پیش‌فرض: 300.</translation>
+    </message>
+    <message>
+        <source>Parallel storage requests per stream. Default: 8; Xray caps it at 64.</source>
+        <translation>درخواست‌های هم‌زمان به فضای ذخیره‌سازی در هر جریان. پیش‌فرض: 8؛ Xray آن را حداکثر 64 می‌کند.</translation>
+    </message>
 </context>
 <context>
     <name>DialogIntegration</name>
@@ -955,6 +1171,14 @@ Release note:
     <message>
         <source>Shortcuts</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Allow management from the local network</source>
+        <translation>اجازهٔ مدیریت از شبکهٔ محلی</translation>
+    </message>
+    <message>
+        <source>Lets devices on the local network import, delete, change settings, back up and restore through the Throne API. This device can always do so.</source>
+        <translation>به دستگاه‌های شبکهٔ محلی اجازه می‌دهد از طریق Throne API وارد کنند، حذف کنند، تنظیمات را تغییر دهند، پشتیبان بگیرند و بازیابی کنند. این دستگاه همیشه می‌تواند این کارها را انجام دهد.</translation>
     </message>
 </context>
 <context>
@@ -1974,6 +2198,10 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
         <source>Remove %1?</source>
         <translation>حذف %1?</translation>
     </message>
+    <message>
+        <source>This group was deleted while you were editing it.</source>
+        <translation>این گروه در حین ویرایش شما حذف شد.</translation>
+    </message>
 </context>
 <context>
     <name>JsonEditor</name>
@@ -2285,10 +2513,6 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
         <translation>%1 مورد کپی شد</translation>
     </message>
     <message>
-        <source>Config copied</source>
-        <translation>کانفیگ کپی شد</translation>
-    </message>
-    <message>
         <source>QR Code not found</source>
         <translation>کد QR یافت نشد</translation>
     </message>
@@ -2359,6 +2583,22 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
     <message>
         <source>Cancel</source>
         <translation>لغو کردن</translation>
+    </message>
+    <message>
+        <source>Leftover Tun adapter</source>
+        <translation>آداپتور Tun باقی‌مانده</translation>
+    </message>
+    <message>
+        <source>Windows was still holding the Tun adapter from an earlier session that did not close cleanly. Starting the profile again usually works; if it keeps failing, restart Windows.
+
+Error: %1</source>
+        <translation>ویندوز هنوز آداپتور Tun یک نشست قبلی را که به‌درستی بسته نشده بود نگه داشته بود. معمولاً آغاز دوبارهٔ نمایه کار می‌کند؛ اگر باز هم ناموفق بود، ویندوز را دوباره راه‌اندازی کنید.
+
+خطا: %1</translation>
+    </message>
+    <message>
+        <source>Start Again</source>
+        <translation>آغاز دوباره</translation>
     </message>
     <message>
         <source>Add new Group</source>
@@ -2581,12 +2821,12 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
         <translation>خطای بازگشت توقف</translation>
     </message>
     <message>
-        <source>Copy core config</source>
-        <translation>کپی پیکربندی هسته</translation>
+        <source>Copy</source>
+        <translation>کپی</translation>
     </message>
     <message>
-        <source>Copy test config</source>
-        <translation>کپی پیکربندی تست</translation>
+        <source>Copied</source>
+        <translation>کپی شد</translation>
     </message>
     <message>
         <source>Cannot start</source>
@@ -2669,6 +2909,60 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
     <message>
         <source>Generate the WARP config in Routing Settings before enabling it.</source>
         <translation>پیش از فعال‌سازی، پیکربندی WARP را در تنظیمات مسیریابی بسازید.</translation>
+        <source>Export config</source>
+        <translation>استخراج پیکربندی</translation>
+    </message>
+    <message>
+        <source>Proxy</source>
+        <translation>پروکسی</translation>
+    </message>
+    <message>
+        <source>Direct</source>
+        <translation>مستقیم</translation>
+    </message>
+    <message>
+        <source>route</source>
+        <translation>مسیر</translation>
+    </message>
+    <message>
+        <source>aux</source>
+        <translation>کمکی</translation>
+    </message>
+    <message>
+        <source>Traffic statistics are disabled</source>
+        <translation>آمار ترافیک غیرفعال است</translation>
+    </message>
+    <message>
+        <source>Untick “Disable Traffic Stats” in Basic Settings → Miscellaneous to record speeds again.</source>
+        <translation>تیک «غیرفعال کردن آمار ترافیک» را در تنظیمات پایه ← متفرقه بردارید تا سرعت‌ها دوباره ثبت شوند</translation>
+    </message>
+    <message>
+        <source>Open Traffic Statistics…</source>
+        <translation>باز کردن آمار ترافیک…</translation>
+    </message>
+    <message>
+        <source>This group was deleted while you were editing it.</source>
+        <translation>این گروه در حین ویرایش شما حذف شد.</translation>
+    </message>
+    <message>
+        <source>The Xray config &quot;%1&quot; needs &quot;%2&quot;, but the installed %3 does not contain it.</source>
+        <translation>پیکربندی Xray «%1» به «%2» نیاز دارد، اما %3 نصب‌شده آن را ندارد.</translation>
+    </message>
+    <message>
+        <source>The Xray config &quot;%1&quot; needs geo data files that are not installed: %2. Download them under Basic Settings &gt; Miscellaneous &gt; Xray Geo Assets.</source>
+        <translation>پیکربندی Xray «%1» به فایل‌های دادهٔ جغرافیایی نصب‌نشده نیاز دارد: %2. آن‌ها را از «تنظیمات پایه &gt; متفرقه &gt; داده‌های جغرافیایی Xray» دانلود کنید.</translation>
+    </message>
+    <message>
+        <source>Geo asset files are already being downloaded.</source>
+        <translation>فایل‌های داده‌های جغرافیایی در حال دانلود هستند.</translation>
+    </message>
+    <message>
+        <source>Update is unavailable while a background Throne (PID %1) runs from this installation; stop it first.</source>
+        <translation>تا زمانی که یک Throne پس‌زمینه (PID %1) از همین نصب اجرا می‌شود، به‌روزرسانی در دسترس نیست؛ ابتدا آن را متوقف کنید.</translation>
+    </message>
+    <message>
+        <source>Kill switch is blocking traffic</source>
+        <translation>Kill switch در حال مسدود کردن ترافیک است</translation>
     </message>
 </context>
 <context>
@@ -2887,14 +3181,114 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
     </message>
 </context>
 <context>
-    <name>SpeedWidget</name>
+    <name>LiveChart</name>
     <message>
-        <source>Proxy</source>
-        <translation>پروکسی</translation>
+        <source>Down</source>
+        <translation>دانلود</translation>
     </message>
     <message>
-        <source>Direct</source>
-        <translation>مستقیم</translation>
+        <source>Up</source>
+        <translation>آپلود</translation>
+    </message>
+    <message>
+        <source>Waiting for traffic</source>
+        <translation>در انتظار ترافیک</translation>
+    </message>
+    <message>
+        <source>The graph fills in once a second while a profile is running.</source>
+        <translation>تا زمانی که یک نمایه در حال اجراست، نمودار هر ثانیه به‌روز می‌شود</translation>
+    </message>
+    <message>
+        <source>All lines are hidden</source>
+        <translation>همه خطوط پنهان هستند</translation>
+    </message>
+    <message>
+        <source>Click an outbound or a direction in the legend to show it.</source>
+        <translation>برای نمایش، روی یک خروجی یا جهت در راهنما کلیک کنید</translation>
+    </message>
+    <message>
+        <source>Total</source>
+        <translation>مجموع</translation>
+    </message>
+    <message>
+        <source>peak of %1 s</source>
+        <translation>اوج در %1 ثانیه</translation>
+    </message>
+    <message>
+        <source>Stopped</source>
+        <translation>متوقف شد</translation>
+    </message>
+    <message>
+        <source>Not running</source>
+        <translation>در حال اجرا نیست</translation>
+    </message>
+    <message>
+        <source>Started %1</source>
+        <translation>شروع %1</translation>
+    </message>
+    <message>
+        <source>Switched to %1</source>
+        <translation>تغییر به %1</translation>
+    </message>
+    <message>
+        <source>Smooth lines</source>
+        <translation>خطوط نرم</translation>
+    </message>
+    <message>
+        <source>Profile events</source>
+        <translation>رویدادهای نمایه</translation>
+    </message>
+    <message>
+        <source>Show all lines</source>
+        <translation>نمایش همه خطوط</translation>
+    </message>
+    <message>
+        <source>Clear history</source>
+        <translation>پاک کردن تاریخچه</translation>
+    </message>
+</context>
+<context>
+    <name>Engine::CoreSupervisor</name>
+    <message>
+        <source>Throne could not open the local channel the core connects to (%1), so no profile can start.</source>
+        <translation>Throne نتوانست کانال محلی‌ای را که هسته به آن وصل می‌شود باز کند (%1)، بنابراین هیچ نمایه‌ای نمی‌تواند شروع شود.</translation>
+    </message>
+    <message>
+        <source>Core unavailable</source>
+        <translation>هسته در دسترس نیست</translation>
+    </message>
+    <message>
+        <source>The core did not connect within %1 s, restarting it.</source>
+        <translation>هسته ظرف %1 ثانیه وصل نشد، در حال راه‌اندازی مجدد آن.</translation>
+    </message>
+    <message>
+        <source>The core keeps exiting, so it is no longer restarted. Use Restart Core to try again.</source>
+        <translation>هسته مدام متوقف می‌شود، بنابراین دیگر دوباره راه‌اندازی نمی‌شود. برای تلاش دوباره از «Restart Core» استفاده کنید.</translation>
+    </message>
+</context>
+<context>
+    <name>StartStopButton</name>
+    <message>
+        <source>Kill switch is blocking traffic</source>
+        <translation>Kill switch در حال مسدود کردن ترافیک است</translation>
+    </message>
+</context>
+<context>
+    <name>GuiStartup</name>
+    <message>
+        <source>Throne is running in the background</source>
+        <translation>Throne در پس‌زمینه در حال اجراست</translation>
+    </message>
+    <message>
+        <source>A background Throne (PID %1) is running on this computer (data directory: %2). Tun mode is unavailable here while it runs; stop it or use thronectl.</source>
+        <translation>یک Throne پس‌زمینه (PID %1) روی این رایانه در حال اجراست (پوشه داده: %2). تا زمانی که اجرا می‌شود، حالت Tun در اینجا در دسترس نیست؛ آن را متوقف کنید یا از thronectl استفاده کنید.</translation>
+    </message>
+</context>
+<context>
+    <name>Engine::ConnectionManager</name>
+    <message>
+        <source>A background Throne (PID %1) owns Tun on this computer; stop it or use thronectl.</source>
+        <translation>حالت Tun روی این رایانه در اختیار یک Throne پس‌زمینه (PID %1) است؛ آن را متوقف کنید یا از thronectl استفاده کنید.</translation>
     </message>
 </context>
 <context>

@@ -31,5 +31,7 @@ namespace Configs {
         QString ExportToLink() override;
         QJsonObject ExportToJson() override;
         BuildResult Build() override;
+        // Keep Default resolves to defaultOn.
+        QJsonObject BuildMux(bool defaultOn);
     };
 }

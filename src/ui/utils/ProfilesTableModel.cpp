@@ -289,6 +289,30 @@ int ProfilesTableModel::indexOfProfile(int id) {
     return -1;
 }
 
+int ProfilesTableModel::columnOfSort(GroupSortMethod::GroupSortMethod method) {
+    switch (method) {
+    case GroupSortMethod::ByType:
+    case GroupSortMethod::BySecurity: return ColType;
+    case GroupSortMethod::ByAddress: return ColAddress;
+    case GroupSortMethod::ByName: return ColName;
+    case GroupSortMethod::ByTestResult:
+    case GroupSortMethod::ByLatency: return ColTestResult;
+    case GroupSortMethod::ByTraffic: return ColTraffic;
+    default: return -1;
+    }
+}
+
+GroupSortMethod::GroupSortMethod ProfilesTableModel::sortOfColumn(int column) {
+    switch (column) {
+    case ColType: return GroupSortMethod::ByType;
+    case ColAddress: return GroupSortMethod::ByAddress;
+    case ColName: return GroupSortMethod::ByName;
+    case ColTestResult: return GroupSortMethod::ByTestResult;
+    case ColTraffic: return GroupSortMethod::ByTraffic;
+    default: return GroupSortMethod::Raw;
+    }
+}
+
 QString ProfilesTableModel::rowLabel(int sourceRow, int displayRow) const {
     if (sourceRow < 0 || sourceRow >= m_profileIds.size()) return {};
     int id = m_profileIds[sourceRow];

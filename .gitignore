@@ -93,3 +93,4 @@ srslist.h
 script/seasonal_sources/__pycache__/
 script/seasonal_hd/__pycache__/
 script/seasonal_hd/sources/__pycache__/
+.qtcreator

@@ -18,7 +18,7 @@ namespace Configs {
     }
 
     namespace SingboxOptions {
-        inline QStringList SniffProtocols = {"http", "tls", "quic", "stun", "dns", "bittorrent", "dtls", "ssh", "rdp"};
+        inline QStringList SniffProtocols = {"http", "tls", "quic", "stun", "dns", "bittorrent", "dtls", "ssh", "rdp", "ntp"};
         inline QStringList ActionTypes = {"route", "reject", "hijack-dns", "route-options", "sniff", "resolve"};
         inline QStringList rejectMethods = {"default", "drop", "reply"};
     }
@@ -31,8 +31,8 @@ namespace Configs {
 
     namespace Information {
         inline QString SimpleRuleInfo = "You can add rules with the following format:\ndomain:<your-domain>\nsuffix:<your-domain-suffix>\nkeyword:<your-domain-keyword>\nregex:<your-domain-keyword>\nruleset:<ruleset-name> or ruleset:<remote-ruleset-URL>\nip:<ip-cidr>\nprocessName:<process name>\nprocessPath:<process path>\nRules are validated on tab change or when pressing trying to save and exit.";
-        inline QString CustomIconManual = "To choose custom icons, you need to choose png images with an equal width and height (eg 512*512). Their names should be of \n(Off.png, Proxy.png, Throne.png, Tun.png) So that each will be used in the appropriate state of the app. \nYou can provide a subset of the said images and only the corresponding states will be using them.\nIt is suggested that each image's size be less than 100KB.";
-        inline QStringList iconNames = {"Off.png", "Proxy.png", "Throne.png", "Tun.png"};
+        inline QString CustomIconManual = "To choose custom icons, you need to choose png images with an equal width and height (eg 512*512). Their names should be of \n(Off.png, Proxy.png, qThrone.png, Tun.png) So that each will be used in the appropriate state of the app. \nYou can provide a subset of the said images and only the corresponding states will be using them.\nIt is suggested that each image's size be less than 100KB.";
+        inline QStringList iconNames = {"Off.png", "Proxy.png", "qThrone.png", "Tun.png"};
     }
 
     namespace TestConfig

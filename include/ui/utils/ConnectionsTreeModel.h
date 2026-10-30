@@ -26,6 +26,7 @@ struct ConnectionLeafItem : public TreeItem {
     QString key;
     QString destText;
     QString protocolText;
+    QString outboundText;
     int count = 0;
     QStringList connectionIds;
     long long upload = 0;
@@ -44,6 +45,7 @@ struct ProcessGroupItem : public TreeItem {
     long long totalDownloadSpeed = 0;
     int totalConnections = 0;
     QString commonOutbound;
+    QString commonOutboundText;
     bool sameOutbound = true;
     QString commonSource;
     bool sameSource = true;
@@ -89,6 +91,11 @@ public:
     void setConnections(const QList<Stats::ConnectionMetadata> &connections, Stats::ConnectionSort sort, bool ascending);
 
     static QString displayProcessName(const QString &processName);
+    // The menu's "Matched: <entries> → <proxy|direct|server>": the rule's entries that matched, else the whole rule,
+    // else "final", shortened to maxGraphemes.
+    static QString matchedRuleText(const Stats::ConnectionMetadata &meta, int maxGraphemes);
+    // The same in full, naming the server and its tag.
+    static QString matchedRuleToolTip(const Stats::ConnectionMetadata &meta);
 
     bool isProcessIndex(const QModelIndex &index) const;
     QString processNameAt(const QModelIndex &index) const;

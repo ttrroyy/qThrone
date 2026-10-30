@@ -1325,6 +1325,34 @@ Throne will restart to complete the restore.</source>
     <message><source>Disabled</source><translation>关闭</translation></message>
     <message><source>Halloween</source><translation>万圣节</translation></message>
     <message><source>New Year</source><translation>新年</translation></message>
+    <message>
+        <source>A geo asset download is already running.</source>
+        <translation>地理资源下载已在进行中。</translation>
+    </message>
+    <message>
+        <source>The backup file is damaged or incomplete.</source>
+        <translation>备份文件已损坏或不完整。</translation>
+    </message>
+    <message>
+        <source>There is nothing to back up</source>
+        <translation>没有可备份的内容</translation>
+    </message>
+    <message>
+        <source>A subscription update is running; try again when it finishes.</source>
+        <translation>正在更新订阅；请在完成后重试。</translation>
+    </message>
+    <message>
+        <source>The backup&apos;s database is damaged: %1</source>
+        <translation>备份中的数据库已损坏：%1</translation>
+    </message>
+    <message>
+        <source>Trust System Certificates in Xray</source>
+        <translation>Xray 信任系统证书</translation>
+    </message>
+    <message>
+        <source>Xray verifies servers only against its built-in root certificates. Turn this on to also trust the certificates installed in the system, such as a company or self-signed root. A profile or Xray config that sets useSystemCA itself keeps its own value.</source>
+        <translation>Xray 仅使用内置根证书验证服务器。开启后还会信任系统中安装的证书，例如公司或自签名根证书。自行设置了 useSystemCA 的配置文件或 Xray 配置保留其自身的值。</translation>
+    </message>
 </context>
 <context>
     <name>DialogEditGroup</name>
@@ -2544,6 +2572,162 @@ Throne will restart to complete the restore.</source>
         <source>XHTTP maxConnections cannot be specified together with maxConcurrency.</source>
         <translation>XHTTP 中 maxConnections 不能与 maxConcurrency 同时指定。</translation>
     </message>
+    <message>
+        <source>This profile was deleted while you were editing it.</source>
+        <translation>此配置在您编辑时已被删除。</translation>
+    </message>
+    <message>
+        <source>Storage</source>
+        <translation>存储</translation>
+    </message>
+    <message>
+        <source>Tuning</source>
+        <translation>调优</translation>
+    </message>
+    <message>
+        <source>Service</source>
+        <translation>服务</translation>
+    </message>
+    <message>
+        <source>Folder</source>
+        <translation>文件夹</translation>
+    </message>
+    <message>
+        <source>Client ID</source>
+        <translation>客户端 ID</translation>
+    </message>
+    <message>
+        <source>Client Secret</source>
+        <translation>客户端密钥</translation>
+    </message>
+    <message>
+        <source>Refresh Token</source>
+        <translation>刷新令牌</translation>
+    </message>
+    <message>
+        <source>Secrets</source>
+        <translation>密钥</translation>
+    </message>
+    <message>
+        <source>Template</source>
+        <translation>模板</translation>
+    </message>
+    <message>
+        <source>Front Address</source>
+        <translation>前置地址</translation>
+    </message>
+    <message>
+        <source>Front Port</source>
+        <translation>前置端口</translation>
+    </message>
+    <message>
+        <source>Segment Bytes</source>
+        <translation>分段字节数</translation>
+    </message>
+    <message>
+        <source>Flush Interval</source>
+        <translation>刷新间隔</translation>
+    </message>
+    <message>
+        <source>Poll Interval</source>
+        <translation>轮询间隔</translation>
+    </message>
+    <message>
+        <source>Max Poll Interval</source>
+        <translation>最大轮询间隔</translation>
+    </message>
+    <message>
+        <source>Eager Window</source>
+        <translation>积极轮询窗口</translation>
+    </message>
+    <message>
+        <source>Hole Timeout</source>
+        <translation>缺段超时</translation>
+    </message>
+    <message>
+        <source>Session TTL</source>
+        <translation>会话存活时间</translation>
+    </message>
+    <message>
+        <source>Concurrency</source>
+        <translation>并发数</translation>
+    </message>
+    <message>
+        <source>Google Drive folder ID</source>
+        <translation>Google Drive 文件夹 ID</translation>
+    </message>
+    <message>
+        <source>A directory path</source>
+        <translation>目录路径</translation>
+    </message>
+    <message>
+        <source>Where both ends exchange the stream: google-drive uses a Google Drive folder, template any HTTP storage API described by Template, local a folder on this machine.</source>
+        <translation>双方交换数据流的位置：google-drive 使用 Google Drive 文件夹，template 使用模板所描述的任意 HTTP 存储 API，local 使用本机上的文件夹。</translation>
+    </message>
+    <message>
+        <source>google-drive: the folder ID. local: a directory path. template: read as {folder}.</source>
+        <translation>google-drive：文件夹 ID。local：目录路径。template：作为 {folder} 读取。</translation>
+    </message>
+    <message>
+        <source>The Google Drive OAuth client ID.</source>
+        <translation>Google Drive 的 OAuth 客户端 ID。</translation>
+    </message>
+    <message>
+        <source>The Google Drive OAuth client secret.</source>
+        <translation>Google Drive 的 OAuth 客户端密钥。</translation>
+    </message>
+    <message>
+        <source>The OAuth refresh token for the Google account that owns the folder.</source>
+        <translation>拥有该文件夹的 Google 账号的 OAuth 刷新令牌。</translation>
+    </message>
+    <message>
+        <source>Values the template reads as {secret0}, {secret1}, …, separated by commas.</source>
+        <translation>模板以 {secret0}、{secret1}… 读取的值，用逗号分隔。</translation>
+    </message>
+    <message>
+        <source>The storage API&apos;s auth, put, get, list and delete operations, as JSON.</source>
+        <translation>存储 API 的 auth、put、get、list 和 delete 操作，以 JSON 表示。</translation>
+    </message>
+    <message>
+        <source>Optional domain front: the storage API is dialed at this address while TLS still names the API host.</source>
+        <translation>可选的域前置：通过此地址连接存储 API，而 TLS 仍使用 API 的主机名。</translation>
+    </message>
+    <message>
+        <source>Port of the front address. Default: 443.</source>
+        <translation>前置地址的端口。默认：443。</translation>
+    </message>
+    <message>
+        <source>Largest upload per file, in bytes. Default: 524288; Xray caps it at 16 MiB.</source>
+        <translation>每个文件的最大上传量，单位为字节。默认：524288；Xray 将其上限设为 16 MiB。</translation>
+    </message>
+    <message>
+        <source>How long writes are gathered before an upload, in milliseconds. Default: 20.</source>
+        <translation>上传前收集写入数据的时长，单位为毫秒。默认：20。</translation>
+    </message>
+    <message>
+        <source>Shortest wait between checks for new files, in milliseconds. Default: 50.</source>
+        <translation>检查新文件的最短间隔，单位为毫秒。默认：50。</translation>
+    </message>
+    <message>
+        <source>Longest wait between checks while the stream is idle, in milliseconds. Default: 500.</source>
+        <translation>数据流空闲时检查的最长间隔，单位为毫秒。默认：500。</translation>
+    </message>
+    <message>
+        <source>How long after traffic polling stays at the shortest wait, in milliseconds. Default: 2000.</source>
+        <translation>有流量后保持最短轮询间隔的时长，单位为毫秒。默认：2000。</translation>
+    </message>
+    <message>
+        <source>How long a missing segment is waited for before the stream fails, in milliseconds. Default: 30000.</source>
+        <translation>在数据流失败前等待缺失分段的时长，单位为毫秒。默认：30000。</translation>
+    </message>
+    <message>
+        <source>How long an idle session lives before its files are cleaned up, in seconds. Default: 300.</source>
+        <translation>空闲会话在其文件被清理前的存活时长，单位为秒。默认：300。</translation>
+    </message>
+    <message>
+        <source>Parallel storage requests per stream. Default: 8; Xray caps it at 64.</source>
+        <translation>每个数据流的并行存储请求数。默认：8；Xray 将其上限设为 64。</translation>
+    </message>
 </context>
 <context>
     <name>DialogEndpointDetails</name>
@@ -2675,6 +2859,14 @@ Throne will restart to complete the restore.</source>
         <location filename="Throne-1.3.1/include/ui/setting/dialog_integration.ui" line="96"/>
         <source>Shortcuts</source>
         <translation>快捷键</translation>
+    </message>
+    <message>
+        <source>Allow management from the local network</source>
+        <translation>允许从局域网进行管理</translation>
+    </message>
+    <message>
+        <source>Lets devices on the local network import, delete, change settings, back up and restore through the Throne API. This device can always do so.</source>
+        <translation>允许局域网中的设备通过 Throne API 导入、删除、更改设置、备份和恢复。本设备始终可以执行这些操作。</translation>
     </message>
 </context>
 <context>
@@ -8034,6 +8226,77 @@ Improves hole-punching reliability. Requires IPv4.</source>
         <source>Remove %1?</source>
         <translation>删除 %1 吗?</translation>
     </message>
+    <message>
+        <source>This group was deleted while you were editing it.</source>
+        <translation>此分组在您编辑时已被删除。</translation>
+    </message>
+</context>
+<context>
+    <name>LiveChart</name>
+    <message>
+        <source>Down</source>
+        <translation>下载</translation>
+    </message>
+    <message>
+        <source>Up</source>
+        <translation>上传</translation>
+    </message>
+    <message>
+        <source>Waiting for traffic</source>
+        <translation>等待流量</translation>
+    </message>
+    <message>
+        <source>The graph fills in once a second while a profile is running.</source>
+        <translation>配置档运行时，图表每秒更新一次。</translation>
+    </message>
+    <message>
+        <source>All lines are hidden</source>
+        <translation>所有曲线均已隐藏</translation>
+    </message>
+    <message>
+        <source>Click an outbound or a direction in the legend to show it.</source>
+        <translation>点击图例中的出站或方向即可显示。</translation>
+    </message>
+    <message>
+        <source>Total</source>
+        <translation>合计</translation>
+    </message>
+    <message>
+        <source>peak of %1 s</source>
+        <translation>%1 秒内峰值</translation>
+    </message>
+    <message>
+        <source>Stopped</source>
+        <translation>已停止</translation>
+    </message>
+    <message>
+        <source>Not running</source>
+        <translation>未在运行</translation>
+    </message>
+    <message>
+        <source>Started %1</source>
+        <translation>已启动 %1</translation>
+    </message>
+    <message>
+        <source>Switched to %1</source>
+        <translation>已切换到 %1</translation>
+    </message>
+    <message>
+        <source>Smooth lines</source>
+        <translation>平滑曲线</translation>
+    </message>
+    <message>
+        <source>Profile events</source>
+        <translation>配置档事件</translation>
+    </message>
+    <message>
+        <source>Show all lines</source>
+        <translation>显示所有曲线</translation>
+    </message>
+    <message>
+        <source>Clear history</source>
+        <translation>清除历史</translation>
+    </message>
 </context>
 <context>
     <name>MainWindow</name>
@@ -8243,9 +8506,8 @@ Improves hole-punching reliability. Requires IPv4.</source>
         <translation>清除本组测试结果</translation>
     </message>
     <message>
-        <location filename="Throne-1.3.1/include/ui/mainwindow.ui" line="926"/>
-        <source>Export Sing-box config</source>
-        <translation>导出 Sing-box 配置</translation>
+        <source>Export config</source>
+        <translation>导出配置</translation>
     </message>
     <message>
         <location filename="Throne-1.3.1/include/ui/mainwindow.ui" line="934"/>
@@ -8477,11 +8739,6 @@ Improves hole-punching reliability. Requires IPv4.</source>
         <location filename="Throne-1.3.1/include/ui/mainwindow.ui" line="1296"/>
         <source>Refresh Column Widths</source>
         <translation>刷新列宽</translation>
-    </message>
-    <message>
-        <location filename="Throne-1.3.1/include/ui/mainwindow.ui" line="1301"/>
-        <source>Export Xray config</source>
-        <translation>导出 Xray 配置</translation>
     </message>
     <message>
         <location filename="Throne-1.3.1/include/ui/mainwindow.ui" line="1306"/>
@@ -9019,6 +9276,22 @@ Error: %1</source>
         <translation>取消</translation>
     </message>
     <message>
+        <source>Leftover Tun adapter</source>
+        <translation>残留的 Tun 适配器</translation>
+    </message>
+    <message>
+        <source>Windows was still holding the Tun adapter from an earlier session that did not close cleanly. Starting the profile again usually works; if it keeps failing, restart Windows.
+
+Error: %1</source>
+        <translation>Windows 仍占用着上一次未正常关闭的会话留下的 Tun 适配器。通常再次启动该配置档即可；如果仍然失败，请重启 Windows。
+
+错误: %1</translation>
+    </message>
+    <message>
+        <source>Start Again</source>
+        <translation>再次启动</translation>
+    </message>
+    <message>
         <location filename="Throne-1.3.1/src/ui/mainWindow/mainwindow_profile_lifecycle.cpp" line="321"/>
         <source>[Auto selector] Running the best %1 of %2 ranked profiles.</source>
         <translation>[自动选择器] 正在运行排名最优的 %1 / %2 个配置档。</translation>
@@ -9132,22 +9405,12 @@ Error: %1</source>
         <translation>复制了 %1 项</translation>
     </message>
     <message>
-        <location filename="Throne-1.3.1/src/ui/mainWindow/mainwindow_profiles.cpp" line="193"/>
-        <location filename="Throne-1.3.1/src/ui/mainWindow/mainwindow_setup.cpp" line="1028"/>
-        <source>Config copied</source>
-        <translation>配置已复制</translation>
+        <source>Copy</source>
+        <translation>复制</translation>
     </message>
     <message>
-        <location filename="Throne-1.3.1/src/ui/mainWindow/mainwindow_profiles.cpp" line="194"/>
-        <location filename="Throne-1.3.1/src/ui/mainWindow/mainwindow_setup.cpp" line="1029"/>
-        <source>Copy core config</source>
-        <translation>复制核心配置</translation>
-    </message>
-    <message>
-        <location filename="Throne-1.3.1/src/ui/mainWindow/mainwindow_profiles.cpp" line="195"/>
-        <location filename="Throne-1.3.1/src/ui/mainWindow/mainwindow_setup.cpp" line="1030"/>
-        <source>Copy test config</source>
-        <translation>复制测试配置</translation>
+        <source>Copied</source>
+        <translation>已复制</translation>
     </message>
     <message>
         <location filename="Throne-1.3.1/src/ui/mainWindow/mainwindow_profiles.cpp" line="305"/>
@@ -9550,6 +9813,48 @@ Error: %1</source>
     <message>
         <source>Generate the WARP config in Routing Settings before enabling it.</source>
         <translation>请先在路由设置中生成 WARP 配置，然后再启用。</translation>
+        <source>route</source>
+        <translation>路由</translation>
+    </message>
+    <message>
+        <source>aux</source>
+        <translation>辅助</translation>
+    </message>
+    <message>
+        <source>Traffic statistics are disabled</source>
+        <translation>流量统计已禁用</translation>
+    </message>
+    <message>
+        <source>Untick “Disable Traffic Stats” in Basic Settings → Miscellaneous to record speeds again.</source>
+        <translation>在“基本设置 → 杂项”中取消勾选“禁用流量统计”即可重新记录速度。</translation>
+    </message>
+    <message>
+        <source>Open Traffic Statistics…</source>
+        <translation>打开流量统计…</translation>
+    </message>
+    <message>
+        <source>This group was deleted while you were editing it.</source>
+        <translation>此分组在您编辑时已被删除。</translation>
+    </message>
+    <message>
+        <source>The Xray config &quot;%1&quot; needs &quot;%2&quot;, but the installed %3 does not contain it.</source>
+        <translation>Xray 配置“%1”需要“%2”，但已安装的 %3 中没有它。</translation>
+    </message>
+    <message>
+        <source>The Xray config &quot;%1&quot; needs geo data files that are not installed: %2. Download them under Basic Settings &gt; Miscellaneous &gt; Xray Geo Assets.</source>
+        <translation>Xray 配置“%1”需要未安装的地理数据文件：%2。请在“基本设置 &gt; 杂项 &gt; Xray 地理资源”中下载。</translation>
+    </message>
+    <message>
+        <source>Geo asset files are already being downloaded.</source>
+        <translation>地理资源文件正在下载中。</translation>
+    </message>
+    <message>
+        <source>Update is unavailable while a background Throne (PID %1) runs from this installation; stop it first.</source>
+        <translation>从此安装目录运行的后台 Throne（PID %1）仍在运行，无法更新；请先停止它。</translation>
+    </message>
+    <message>
+        <source>Kill switch is blocking traffic</source>
+        <translation>Kill Switch 正在阻断流量</translation>
     </message>
 </context>
 <context>
@@ -11107,6 +11412,34 @@ Release note:
         <source>Ignore</source>
         <translation>忽略</translation>
     </message>
+    <message>
+        <source>Proxy</source>
+        <translation>代理</translation>
+    </message>
+    <message>
+        <source>Other outbounds</source>
+        <translation>其他出站</translation>
+    </message>
+    <message>
+        <source>Download stalled: no data arrived for %1 seconds.</source>
+        <translation>下载停滞：%1 秒内未收到数据。</translation>
+    </message>
+    <message>
+        <source>Throne needs at least one group.</source>
+        <translation>Throne 至少需要一个分组。</translation>
+    </message>
+    <message>
+        <source>This group&apos;s subscription is being updated. Try again when it finishes.</source>
+        <translation>此分组的订阅正在更新。请在更新完成后重试。</translation>
+    </message>
+    <message>
+        <source>Close the editor of this group or of one of its profiles first.</source>
+        <translation>请先关闭此分组或其某个配置的编辑器。</translation>
+    </message>
+    <message>
+        <source>This group no longer exists.</source>
+        <translation>此分组已不存在。</translation>
+    </message>
 </context>
 <context>
     <name>QPlatformTheme</name>
@@ -11692,21 +12025,6 @@ Remove that endpoint from this routing profile as well?</source>
     </message>
 </context>
 <context>
-    <name>SpeedWidget</name>
-    <message>
-        <location filename="Throne-1.3.1/3rdparty/qv2ray/v2/ui/widgets/speedchart/SpeedWidget.cpp" line="186"/>
-        <location filename="Throne-1.3.1/3rdparty/qv2ray/v2/ui/widgets/speedchart/SpeedWidget.cpp" line="187"/>
-        <source>Proxy</source>
-        <translation>代理</translation>
-    </message>
-    <message>
-        <location filename="Throne-1.3.1/3rdparty/qv2ray/v2/ui/widgets/speedchart/SpeedWidget.cpp" line="189"/>
-        <location filename="Throne-1.3.1/3rdparty/qv2ray/v2/ui/widgets/speedchart/SpeedWidget.cpp" line="190"/>
-        <source>Direct</source>
-        <translation>直连</translation>
-    </message>
-</context>
-<context>
     <name>StartStopButton</name>
     <message>
         <location filename="Throne-1.3.1/src/ui/widget/StartStopButton.cpp" line="60"/>
@@ -11732,6 +12050,10 @@ Remove that endpoint from this routing profile as well?</source>
         <location filename="Throne-1.3.1/src/ui/widget/StartStopButton.cpp" line="64"/>
         <source>Stopping…</source>
         <translation>正在停止…</translation>
+    </message>
+    <message>
+        <source>Kill switch is blocking traffic</source>
+        <translation>Kill Switch 正在阻断流量</translation>
     </message>
 </context>
 <context>
@@ -11891,5 +12213,40 @@ Remove that endpoint from this routing profile as well?</source>
     <name>EditSSTP</name>
     <message><source>Use VPN server DNS</source><translation>使用 VPN 服务器的 DNS</translation></message>
     <message><source>Use DNS received from this VPN server for remote queries. Other routing rules and saved DNS settings stay unchanged.</source><translation>使用此 VPN 服务器提供的 DNS 处理远程查询。其他路由规则和已保存的 DNS 设置保持不变。</translation></message>
+    <name>Engine::CoreSupervisor</name>
+    <message>
+        <source>Throne could not open the local channel the core connects to (%1), so no profile can start.</source>
+        <translation>Throne 无法打开核心用于连接的本地通道（%1），因此无法启动任何配置档。</translation>
+    </message>
+    <message>
+        <source>Core unavailable</source>
+        <translation>核心不可用</translation>
+    </message>
+    <message>
+        <source>The core did not connect within %1 s, restarting it.</source>
+        <translation>核心未在 %1 秒内连接，正在重启。</translation>
+    </message>
+    <message>
+        <source>The core keeps exiting, so it is no longer restarted. Use Restart Core to try again.</source>
+        <translation>核心反复退出，已不再自动重启。请使用“重启核心”重试。</translation>
+    </message>
+</context>
+<context>
+    <name>GuiStartup</name>
+    <message>
+        <source>Throne is running in the background</source>
+        <translation>Throne 正在后台运行</translation>
+    </message>
+    <message>
+        <source>A background Throne (PID %1) is running on this computer (data directory: %2). Tun mode is unavailable here while it runs; stop it or use thronectl.</source>
+        <translation>此计算机上正在运行后台 Throne（PID %1，数据目录：%2）。它运行期间此处无法使用 Tun 模式；请停止它或使用 thronectl。</translation>
+    </message>
+</context>
+<context>
+    <name>Engine::ConnectionManager</name>
+    <message>
+        <source>A background Throne (PID %1) owns Tun on this computer; stop it or use thronectl.</source>
+        <translation>此计算机上的 Tun 由后台 Throne（PID %1）占用；请停止它或使用 thronectl。</translation>
+    </message>
 </context>
 </TS>

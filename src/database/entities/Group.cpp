@@ -3,7 +3,10 @@
 #include "include/configs/generate.h"
 #include "include/database/ProfilesRepo.h"
 #include "include/global/Configs.hpp"
-#include <QRegularExpression> 
+#include <QRegularExpression>
+#include <QSet>
+
+#include <bit>
 
 namespace Configs
 {
@@ -154,94 +157,251 @@ namespace Configs
         return 0.0;
     }
 
-    bool Group::SortProfiles(GroupSortAction sortAction) {
-        if (!mutex.tryLock()) {
-            return false;
+    namespace {
+        bool sortReads(GroupSortMethod::GroupSortMethod method, SortInput input) {
+            switch (method) {
+                case GroupSortMethod::Raw:
+                case GroupSortMethod::ById:
+                    return false;
+                case GroupSortMethod::ByTestResult:
+                case GroupSortMethod::ByLatency:
+                    return input == SortInput::Membership || input == SortInput::TestResult;
+                case GroupSortMethod::ByTraffic:
+                    return input == SortInput::Membership || input == SortInput::Traffic;
+                default:
+                    return input == SortInput::Membership || input == SortInput::Config;
+            }
         }
-        auto allProfs = dataManager->profilesRepo->GetProfileBatch(profiles); // to warm up the cache
-        switch (sortAction.method) {
-            case GroupSortMethod::Raw: {
-                break;
-            }
-            case GroupSortMethod::ById: {
-                break;
-            }
-            case GroupSortMethod::ByAddress:
-            case GroupSortMethod::ByName:
-            case GroupSortMethod::ByTestResult:
-            case GroupSortMethod::ByLatency:
-            case GroupSortMethod::ByTraffic:
-            case GroupSortMethod::BySecurity:
-            case GroupSortMethod::ByType: {
-                auto get_latency_for_sort = [](const std::shared_ptr<Profile>& prof) {
-                    auto i = prof->latency;
-                    if (i == 0) i = 100000;
-                    if (i < 0) i = 99999;
-                    return i;
-                };
-                // Resolved once up front: an endpoint source may query the IP lists.
-                QHash<int, QString> addresses;
-                if (sortAction.method == GroupSortMethod::ByAddress) {
-                    for (const auto &profile : dataManager->profilesRepo->GetProfileBatch(profiles))
-                        if (profile != nullptr) addresses.insert(profile->id, DisplayEffectiveAddress(profile));
+
+        // Fields a method leaves unset stay equal, so one comparison serves every method.
+        struct SortKey {
+            bool missing = false;
+            int level = 0;
+            double number = 0;
+            QString text;
+        };
+
+        int latencyForSort(int latency) {
+            if (latency == 0) return 100000;
+            if (latency < 0) return 99999;
+            return latency;
+        }
+
+        class SortRule {
+        public:
+            SortRule(const Group &group, GroupSortAction action)
+                : group(group), method(action.method), descending(action.descending) {
+                if (method == GroupSortMethod::ByType || method == GroupSortMethod::BySecurity) {
+                    method = dataManager->settingsRepo->show_config_security && group.type_sort_by == typeBy::bySecurity
+                                 ? GroupSortMethod::BySecurity
+                                 : GroupSortMethod::ByType;
                 }
-                std::ranges::sort(profiles,
-                                  [&](int a, int b) {
-                                      auto profA = dataManager->profilesRepo->GetProfile(a);
-                                      auto profB = dataManager->profilesRepo->GetProfile(b);
-                                      QString ms_a;
-                                      QString ms_b;
-                                      if (sortAction.method == GroupSortMethod::ByType) {
-                                          ms_a = profA->outbound->DisplayType();
-                                          ms_b = profB->outbound->DisplayType();
-                                      } else if (sortAction.method == GroupSortMethod::ByName) {
-                                          ms_a = profA->outbound->name;
-                                          ms_b = profB->outbound->name;
-                                      } else if (sortAction.method == GroupSortMethod::ByAddress) {
-                                          ms_a = addresses.value(a);
-                                          ms_b = addresses.value(b);
-                                      } else if (sortAction.method == GroupSortMethod::BySecurity) {
-                                          auto secA = profA->outbound->EffectiveSecurity();
-                                          auto secB = profB->outbound->EffectiveSecurity();
-                                          if (secA.level != secB.level) {
-                                              return sortAction.descending ? secA.level > secB.level
-                                                                           : secA.level < secB.level;
-                                          }
-                                          ms_a = secA.transport + secA.label;
-                                          ms_b = secB.transport + secB.label;
-                                      } else if (sortAction.method == GroupSortMethod::ByTestResult || sortAction.method == GroupSortMethod::ByLatency) {
-                                          if (test_sort_by == testBy::latency || sortAction.method == GroupSortMethod::ByLatency) {
-                                              return sortAction.descending ? get_latency_for_sort(profA) > get_latency_for_sort(profB) : get_latency_for_sort(profA) < get_latency_for_sort(profB);
-                                          }
-                                          if (test_sort_by == testBy::dlSpeed) {
-                                              return sortAction.descending ? bitrateToBps(profA->dl_speed) > bitrateToBps(profB->dl_speed) : bitrateToBps(profA->dl_speed) < bitrateToBps(profB->dl_speed);
-                                          }
-                                          if (test_sort_by == testBy::ulSpeed) {
-                                              return sortAction.descending ? bitrateToBps(profA->ul_speed) > bitrateToBps(profB->ul_speed) : bitrateToBps(profA->ul_speed) < bitrateToBps(profB->ul_speed);
-                                          }
-                                          if (test_sort_by == testBy::ipOut) {
-                                              return sortAction.descending ? profA->ip_out > profB->ip_out : profA->ip_out < profB->ip_out;
-                                          }
-                                      } else if (sortAction.method == GroupSortMethod::ByTraffic) {
-                                          if (traffic_sort_by == trafficBy::total) {
-                                              auto totalA = profA->traffic_downlink + profA->traffic_uplink;
-                                              auto totalB = profB->traffic_downlink + profB->traffic_uplink;
-                                              return sortAction.descending ? totalA > totalB  : totalA < totalB;
-                                          }
-                                          if (traffic_sort_by == trafficBy::dl) {
-                                              return sortAction.descending ? profA->traffic_downlink > profB->traffic_downlink : profA->traffic_downlink < profB->traffic_downlink;
-                                          }
-                                          if (traffic_sort_by == trafficBy::ul) {
-                                              return sortAction.descending ? profA->traffic_uplink > profB->traffic_uplink : profA->traffic_uplink < profB->traffic_uplink;
-                                          }
-                                      }
-                                      return sortAction.descending ? ms_a > ms_b : ms_a < ms_b;
-                                  });
-                break;
+                byLatency = method == GroupSortMethod::ByLatency
+                            || (method == GroupSortMethod::ByTestResult && group.test_sort_by == testBy::latency);
+            }
+
+            [[nodiscard]] SortKey keyOf(const std::shared_ptr<Profile> &profile) const {
+                SortKey key;
+                if (profile == nullptr || profile->outbound == nullptr) {
+                    key.missing = true;
+                } else if (method == GroupSortMethod::ByType) {
+                    key.text = profile->outbound->DisplayType();
+                } else if (method == GroupSortMethod::ByName) {
+                    key.text = profile->outbound->name;
+                } else if (method == GroupSortMethod::ByAddress) {
+                    key.text = DisplayEffectiveAddress(profile);
+                } else if (method == GroupSortMethod::BySecurity) {
+                    const auto security = profile->outbound->EffectiveSecurity();
+                    key.level = static_cast<int>(security.level);
+                    key.text = security.transport + security.label;
+                } else if (byLatency) {
+                    key.number = latencyForSort(profile->latency);
+                } else if (method == GroupSortMethod::ByTestResult) {
+                    if (group.test_sort_by == testBy::dlSpeed) key.number = bitrateToBps(profile->dl_speed);
+                    else if (group.test_sort_by == testBy::ulSpeed) key.number = bitrateToBps(profile->ul_speed);
+                    else key.text = profile->ip_out;
+                } else if (method == GroupSortMethod::ByTraffic) {
+                    if (group.traffic_sort_by == trafficBy::dl) key.number = static_cast<double>(profile->traffic_downlink);
+                    else if (group.traffic_sort_by == trafficBy::ul) key.number = static_cast<double>(profile->traffic_uplink);
+                    else key.number = static_cast<double>(profile->traffic_downlink + profile->traffic_uplink);
+                }
+                return key;
+            }
+
+            // A profile that cannot be loaded goes last in either direction.
+            [[nodiscard]] bool less(const SortKey &a, const SortKey &b) const {
+                if (a.missing != b.missing) return b.missing;
+                return descending ? ascending(b, a) : ascending(a, b);
+            }
+
+        private:
+            static bool ascending(const SortKey &a, const SortKey &b) {
+                if (a.level != b.level) return a.level < b.level;
+                if (a.number != b.number) return a.number < b.number;
+                return a.text < b.text;
+            }
+
+            const Group &group;
+            GroupSortMethod::GroupSortMethod method;
+            bool descending;
+            bool byLatency = false;
+        };
+
+        class SortKeys {
+        public:
+            explicit SortKeys(const SortRule &rule) : rule(rule) {}
+
+            void load(const QList<int> &ids) {
+                QList<int> absent;
+                for (int id : ids) {
+                    if (!keys.contains(id)) absent << id;
+                }
+                if (absent.isEmpty()) return;
+                for (const auto &profile : dataManager->profilesRepo->GetProfileBatch(absent)) {
+                    keys.insert(profile->id, rule.keyOf(profile));
+                }
+                for (int id : absent) {
+                    if (!keys.contains(id)) keys.insert(id, rule.keyOf(nullptr));
+                }
+            }
+
+            // The id must be loaded already.
+            [[nodiscard]] const SortKey &at(int id) const { return keys.constFind(id).value(); }
+
+            // A copy: loading one more key can rehash the table under a held reference.
+            SortKey get(int id) {
+                load({id});
+                return at(id);
+            }
+
+            [[nodiscard]] bool less(int a, int b) const { return rule.less(at(a), at(b)); }
+
+        private:
+            const SortRule &rule;
+            QHash<int, SortKey> keys;
+        };
+
+        constexpr int kSortAttempts = 3;
+
+        enum class Commit { Moved, Unchanged, Stale };
+
+        // The keys were read unlocked, so a change that landed meanwhile means sorting again.
+        Commit commit(Group &group, const QList<int> &snapshot, GroupSortAction action, QList<int> order) {
+            QMutexLocker locker(&group.mutex);
+            if (group.profiles != snapshot || group.sort != action) return Commit::Stale;
+            if (order == group.profiles) return Commit::Unchanged;
+            group.profiles = std::move(order);
+            return Commit::Moved;
+        }
+    }
+
+    bool Group::SortReads(SortInput input) const {
+        return sortReads(sort.method, input);
+    }
+
+    bool Group::KeepsSorted() const {
+        return SortReads(SortInput::Membership);
+    }
+
+    void Group::SetSort(GroupSortAction action) {
+        QMutexLocker locker(&mutex);
+        sort = action;
+    }
+
+    bool Group::SortProfiles(GroupSortAction action) {
+        SetSort(action);
+        return Resort();
+    }
+
+    bool Group::Resort() {
+        for (int attempt = 0; attempt < kSortAttempts; ++attempt) {
+            QList<int> snapshot;
+            GroupSortAction action;
+            {
+                QMutexLocker locker(&mutex);
+                if (!KeepsSorted()) return false;
+                snapshot = profiles;
+                action = sort;
+            }
+
+            const SortRule rule(*this, action);
+            SortKeys keys(rule);
+            keys.load(snapshot);
+            // Stable, so a re-sort leaves rows with equal keys where they were.
+            QList<int> order = snapshot;
+            std::ranges::stable_sort(order, [&keys](int a, int b) { return keys.less(a, b); });
+
+            switch (commit(*this, snapshot, action, std::move(order))) {
+                case Commit::Moved: return true;
+                case Commit::Unchanged: return false;
+                case Commit::Stale: break;
             }
         }
-        mutex.unlock();
-        return true;
+        return false;
+    }
+
+    bool Group::Reposition(const QList<int> &changed) {
+        if (changed.isEmpty()) return false;
+        const QSet<int> changedSet(changed.cbegin(), changed.cend());
+        for (int attempt = 0; attempt < kSortAttempts; ++attempt) {
+            QList<int> snapshot;
+            GroupSortAction action;
+            {
+                QMutexLocker locker(&mutex);
+                if (!KeepsSorted()) return false;
+                snapshot = profiles;
+                action = sort;
+            }
+
+            const qsizetype count = snapshot.size();
+            QList<qsizetype> positions;
+            for (qsizetype i = 0; i < count; ++i) {
+                if (changedSet.contains(snapshot[i])) positions << i;
+            }
+            if (positions.isEmpty()) return false;
+            // A full sort loads each row once, a reinsertion about log2(n) rows one by one.
+            const auto probes = static_cast<qsizetype>(std::bit_width(static_cast<quint64>(count))) + 4;
+            if (positions.size() * probes >= count) return Resort();
+
+            const SortRule rule(*this, action);
+            SortKeys keys(rule);
+            QList<int> around;
+            for (const auto i : positions) {
+                around << snapshot[i];
+                if (i > 0) around << snapshot[i - 1];
+                if (i + 1 < count) around << snapshot[i + 1];
+            }
+            keys.load(around);
+            // The rest was sorted before, so the whole list still is when every changed row fits its neighbours.
+            const bool inPlace = std::ranges::all_of(positions, [&](qsizetype i) {
+                return (i == 0 || !keys.less(snapshot[i], snapshot[i - 1]))
+                       && (i + 1 == count || !keys.less(snapshot[i + 1], snapshot[i]));
+            });
+            if (inPlace) return false;
+
+            // Lift every changed row, not just the misplaced ones: a fitting row's neighbour may be leaving too.
+            QList<int> order;
+            order.reserve(count);
+            for (int id : snapshot) {
+                if (!changedSet.contains(id)) order << id;
+            }
+            for (const auto i : positions) {
+                const int id = snapshot[i];
+                const auto key = keys.get(id);
+                // After equal keys, where a stable sort leaves a row that came last.
+                const auto at = std::upper_bound(order.cbegin(), order.cend(), key, [&](const SortKey &k, int other) {
+                    return rule.less(k, keys.get(other));
+                });
+                order.insert(at, id);
+            }
+
+            switch (commit(*this, snapshot, action, std::move(order))) {
+                case Commit::Moved: return true;
+                case Commit::Unchanged: return false;
+                case Commit::Stale: break;
+            }
+        }
+        return false;
     }
 
     bool Group::AddProfile(int ID)

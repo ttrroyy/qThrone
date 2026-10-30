@@ -9,10 +9,10 @@ DEST=${DEST:-$PWD/deployment/android}
 
 mkdir -p "$DEST"
 
-#### Go: core/mobile -> ThroneCore.aar ####
+#### Go: core/mobile -> qThroneCore.aar ####
 pushd core
 VERSION_SINGBOX=$(go list -m -f '{{.Version}}' github.com/sagernet/sing-box)
-gomobile bind -v -o "$DEST/ThroneCore.aar" -target "$TARGET" -androidapi 24 -javapkg=io.throneproj -libname=throne -trimpath \
+gomobile bind -v -o "$DEST/qThroneCore.aar" -target "$TARGET" -androidapi 24 -javapkg=io.throneproj -libname=throne -trimpath \
   -ldflags "-s -w -checklinkname=0 -X github.com/sagernet/sing-box/constant.Version=${VERSION_SINGBOX} -X runtime.godebugDefault=multipathtcp=0" \
   -tags "$TAGS" ./mobile
 popd
