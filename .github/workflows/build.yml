@@ -190,7 +190,7 @@ jobs:
         uses: actions/cache@v6.1.0
         with:
           path: artifacts.tgz
-          key: CommonCache-${{ matrix.cross_os }}-${{ matrix.cross_arch }}-${{ hashFiles('script/build_go.sh', 'script/build_openflux.sh', 'script/openflux/**', 'script/build_olcrtc.sh', 'script/olcrtc/**', 'script/build_dnstunnels.sh', 'script/openfluxkey/**', 'script/build_wdttplus.sh', 'script/dnstun/**', 'script/masterdns/**', 'script/cottendns/**', 'script/soar/**',  'script/s3bypass/**', 'script/fetch_pinned_source.py', 'transport-sources.lock.json', 'core/**', 'qwdtt/**', 'sstp/**') }}-${{ matrix.go_version }}
+          key: CommonCache-${{ matrix.cross_os }}-${{ matrix.cross_arch }}-${{ hashFiles('script/build_go.sh', 'script/build_openflux.sh', 'script/openflux/**', 'script/build_olcrtc.sh', 'script/olcrtc/**', 'script/build_dnstunnels.sh', 'script/openfluxkey/**', 'script/build_wdttplus.sh', 'script/tune_wdttplus_netstack.py', 'script/dnstun/**', 'script/masterdns/**', 'script/cottendns/**', 'script/soar/**',  'script/s3bypass/**', 'script/fetch_pinned_source.py', 'transport-sources.lock.json', 'core/**', 'qwdtt/**', 'sstp/**') }}-${{ matrix.go_version }}
       - name: Install Golang
         if: steps.cache-common.outputs.cache-hit != 'true'
         uses: actions/setup-go@v7.0.0

@@ -82,5 +82,6 @@ func startRawNetstack(conf string) (*rawPacketDevice, *netstack.Net, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	tuneNetstack(network)
 	return &rawPacketDevice{tun: dev}, network, nil
 }

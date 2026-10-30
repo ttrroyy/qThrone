@@ -156,6 +156,7 @@ namespace Configs {
                 if (key == "privatekey") private_key = value;
                 else if (key == "address") address += value.replace(" ", "").split(",", Qt::SkipEmptyParts); // WARP writes IPv4 and IPv6 as separate lines
                 else if (key == "mtu") mtu = value.toInt();
+                else if (key == "dns") dns += value.replace(" ", "").split(",", Qt::SkipEmptyParts);
                 else if (key == "publickey") peer->public_key = value;
                 else if (key == "presharedkey" || key == "preshared_key" || key == "psk") peer->pre_shared_key = value;
                 else if (key == "persistentkeepalive" || key == "persistent_keepalive") peer->persistent_keepalive = value;
@@ -236,6 +237,7 @@ namespace Configs {
         if (query.hasQueryItem("use_system_interface")) system = QueryValue(query, "use_system_interface") == "true";
         if (query.hasQueryItem("workers")) worker_count = QueryValue(query, "workers").toInt();
         if (query.hasQueryItem("udp_timeout")) udp_timeout = QueryValue(query, "udp_timeout");
+        if (query.hasQueryItem("dns")) dns = QueryValue(query, "dns").replace(" ", "").split(",", Qt::SkipEmptyParts);
 
         if (QueryValue(query, "enable_amnezia") == "true") enable_amnezia = true;
         if (query.hasQueryItem("jc")) jc = QueryValue(query, "jc").toInt(), enable_amnezia = true;
@@ -321,6 +323,7 @@ namespace Configs {
         if (object.contains("system")) system = object["system"].toBool();
         if (object.contains("worker_count")) worker_count = object["worker_count"].toInt();
         if (object.contains("udp_timeout")) udp_timeout = object["udp_timeout"].toString();
+        if (object.contains("dns")) dns = QJsonArray2QListString(object["dns"].toArray());
         if (object.contains("amnezia_wg")) AmneziaFromJson(object["amnezia_wg"].toObject());
         if (object.contains("obfs")) ObfsFromJson(object["obfs"].toObject());
         FixAddress();
@@ -347,6 +350,7 @@ namespace Configs {
         if (system) query.addQueryItem("use_system_interface", "true");
         if (worker_count > 0) query.addQueryItem("workers", QString::number(worker_count));
         if (!udp_timeout.isEmpty()) query.addQueryItem("udp_timeout", udp_timeout);
+        if (!dns.isEmpty()) query.addQueryItem("dns", dns.join(","));
 
         if (enable_amnezia) {
             query.addQueryItem("enable_amnezia", "true");
@@ -389,6 +393,12 @@ namespace Configs {
         return url.toString(QUrl::FullyEncoded);
     }
 
+    QString wireguard::DnsServer() const {
+        static const QRegularExpression ipv4(R"(^\d{1,3}(\.\d{1,3}){3}$)");
+        for (const auto &server : dns) if (ipv4.match(server).hasMatch()) return server;
+        return {};
+    }
+
     QJsonObject wireguard::ExportToJson() {
         QJsonObject object;
         object["type"] = "wireguard";
@@ -400,6 +410,7 @@ namespace Configs {
         if (system) object["system"] = system;
         if (worker_count > 0) object["worker_count"] = worker_count;
         if (!udp_timeout.isEmpty()) object["udp_timeout"] = udp_timeout;
+        if (!dns.isEmpty()) object["dns"] = QListStr2QJsonArray(dns);
         
         auto amneziaObj = AmneziaToJson();
         if (!amneziaObj.isEmpty()) object["amnezia_wg"] = amneziaObj;

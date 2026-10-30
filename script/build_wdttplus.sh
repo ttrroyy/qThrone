@@ -9,6 +9,8 @@ if [ ! -d wdttplus-source/.git ]; then
     python3 script/fetch_pinned_source.py https://github.com/Ivan4537/WDTT-Plus.git "$wdttplus_revision" wdttplus-source
 fi
 test "$(git -C wdttplus-source rev-parse HEAD)" = "$wdttplus_revision"
+# Idempotent: a reused checkout keeps the patch from the previous build.
+grep -q tuneNetstack wdttplus-source/go_client/socks_wg.go || python3 script/tune_wdttplus_netstack.py qwdtt wdttplus-source/go_client
 pushd wdttplus-source/go_client
 CGO_ENABLED=0 "$GOCMD" build -buildvcs=false -trimpath -ldflags='-s -w -checklinkname=0' -o "$DEST/wdttplus-client$suffix" .
 popd

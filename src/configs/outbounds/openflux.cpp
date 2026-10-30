@@ -148,7 +148,7 @@ QString openflux::Validate() const {
         if (type == "direct") {
             if (!negotiate) return QStringLiteral("OpenFlux: прямое подключение работает только в режиме сессии");
             if (!validDial(t["dial"].toString())) return QStringLiteral("OpenFlux: неверный адрес сервера");
-        } else if (t["url"].toString().trimmed().isEmpty()) {
+        } else if (type != "telemost" && t["url"].toString().trimmed().isEmpty()) { // Telemost without a link starts a new conference
             return QStringLiteral("OpenFlux: укажите ссылку для канала %1").arg(type);
         }
     }

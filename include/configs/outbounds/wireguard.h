@@ -34,6 +34,10 @@ namespace Configs
         bool system = false;
         int worker_count = 0;
         QString udp_timeout;
+        // The INI `DNS =` resolvers; the official clients resolve through them, and some servers only forward what they resolved.
+        QStringList dns;
+        // The first IPv4 DNS resolver, or "" (shortcut: IPv6-only DNS lines are ignored, add them if a server needs it).
+        QString DnsServer() const;
 
         // AmneziaWG: jc/jmin/jmax and s1-s4 are integers; h1-h4 (magic headers) and i1-i5 (signature packets) are strings.
         bool enable_amnezia = false;

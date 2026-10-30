@@ -168,6 +168,7 @@ func startUserspaceWireGuard(conf string) (*device.Device, *netstack.Net, error)
 	if err != nil {
 		return nil, nil, fmt.Errorf("CreateNetTUN: %w", err)
 	}
+	tuneNetstack(tnet)
 	dev := device.NewDevice(tunDev, conn.NewDefaultBind(), device.NewLogger(device.LogLevelError, "[WG-SOCKS] "))
 	if err := dev.IpcSet(cfg.ipcRequest()); err != nil {
 		dev.Close()

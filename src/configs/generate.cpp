@@ -238,6 +238,8 @@ namespace Configs {
             // The main-profile tunnel set to Strict tunnel DNS; its resolvers take every remote query.
             QString vpnStrictTag;
             QString sstpDnsTag;
+            // The main WireGuard profile's own DNS line, used as the remote resolver.
+            QString wireguardDns;
             bool warpTcpOnly = false;
             QList<QString> xrayIngressTags;
             QList<QString> singIngressTags;
@@ -1072,7 +1074,8 @@ namespace Configs {
             if (!ctx.forTest) {
                 // The authenticated SSTP bridge resolves this alias using only negotiated VPN resolvers.
                 auto remoteDnsObj = ctx.sstpDnsTag.isEmpty()
-                    ? buildDnsObj(ctx, ctx.providerRouting.isEmpty() ? settings.remote_dns : Subscription::ProviderRouting::Dns(ctx.providerRouting, "Remote", "https://cloudflare-dns.com/dns-query"))
+                    // A WireGuard exit resolves through its own DNS line, as the official clients do.
+                    ? buildDnsObj(ctx, !ctx.wireguardDns.isEmpty() ? ctx.wireguardDns : ctx.providerRouting.isEmpty() ? settings.remote_dns : Subscription::ProviderRouting::Dns(ctx.providerRouting, "Remote", "https://cloudflare-dns.com/dns-query"))
                     : QJsonObject{{"type", "tcp"}, {"server", "127.0.0.53"}, {"server_port", 53}};
                 // overwrite remote dns to TCP based since Xray is shit
                 if (ctx.proxyUsesXray && ( remoteDnsObj.value("type").toString() == "udp" || remoteDnsObj.value("type").toString() == "quic" )) {
@@ -1594,6 +1597,10 @@ namespace Configs {
                 if (tag == tags::proxy || tag == tags::warpBypass) {
                     const auto *sstp = dynamic_cast<Configs::sstp *>(ent->outbound.get());
                     if (sstp != nullptr && sstp->useServerDNS) ctx.sstpDnsTag = tag;
+                }
+                if (tag == tags::proxy) {
+                    if (const auto *wg = dynamic_cast<Configs::wireguard *>(ent->outbound.get()); wg != nullptr && !wg->DnsServer().isEmpty())
+                        ctx.wireguardDns = wg->DnsServer();
                 }
                 if (addressableHop && (ent->type == "openvpn" || ent->type == "openconnect")) {
                     ctx.result->vpnEndpointProfiles.insert(tag, ent->id);
