@@ -26,7 +26,7 @@ namespace Engine {
         virtual void speedTestProgress(const QString &profileName, const libcore::SpeedTestResult &result) = 0;
         virtual void testedProfilesChanged(const QList<int> &profileIds) = 0;
         // Row state of the profile table: 0 idle, 1 latency, 2 speed. Main thread; headless has no rows.
-        virtual void testStateChanged(const QList<int> &profileIds, int state) { Q_UNUSED(profileIds); Q_UNUSED(state); }
+        virtual void testStateChanged(const QList<int> &profileIds, int state, const QString &country = {}, const QString &text = {}) { Q_UNUSED(profileIds); Q_UNUSED(state); Q_UNUSED(country); Q_UNUSED(text); }
         // A repeated press restarts these rows' latency test; their spinner keeps running. Main thread.
         virtual void testRestarting(const QList<int> &profileIds) { Q_UNUSED(profileIds); }
     };

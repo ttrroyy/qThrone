@@ -176,8 +176,8 @@ namespace Engine {
             if (auto *target = m_target.load()) target->testedProfilesChanged(profileIds);
         }
 
-        void testStateChanged(const QList<int> &profileIds, int state) override {
-            if (auto *target = m_target.load()) target->testStateChanged(profileIds, state);
+        void testStateChanged(const QList<int> &profileIds, int state, const QString &country, const QString &text) override {
+            if (auto *target = m_target.load()) target->testStateChanged(profileIds, state, country, text);
         }
 
         void testRestarting(const QList<int> &profileIds) override {

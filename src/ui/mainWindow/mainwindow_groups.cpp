@@ -241,6 +241,7 @@ void MainWindow::show_group_tab_menu(const QPoint &p) {
             if (!EditProviderRouting(options, this) || options.ToJson() == before) return;
             clickedGroup->sub_options = options;
             Configs::dataManager->groupsRepo->Save(clickedGroup);
+            const auto running = runningSnapshot();
             const bool affectsRunning = running && running->gid == clickedGroup->id;
             MW_dialog_message(MwMessage::GroupsChanged, affectsRunning ? QStringList{MwArg::RestartProxy} : QStringList{});
         });

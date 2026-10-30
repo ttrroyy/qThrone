@@ -619,7 +619,7 @@ private:
 
     void testedProfilesChanged(const QList<int> &profileIds) override;
 
-    void testStateChanged(const QList<int> &profileIds, int state) override;
+    void testStateChanged(const QList<int> &profileIds, int state, const QString &country = {}, const QString &text = {}) override;
 
     void testRestarting(const QList<int> &profileIds) override;
 

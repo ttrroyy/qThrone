@@ -582,9 +582,9 @@ void MainWindow::url_test_current() {
     });
 }
 
-void MainWindow::testStateChanged(const QList<int> &profileIds, int state)
+void MainWindow::testStateChanged(const QList<int> &profileIds, int state, const QString &country, const QString &text)
 {
-    profilesTableModel->setTestState(profileIds, state);
+    profilesTableModel->setTestState(profileIds, state, country, text);
 }
 
 void MainWindow::testRestarting(const QList<int> &profileIds)
