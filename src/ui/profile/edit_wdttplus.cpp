@@ -31,7 +31,7 @@ EditWdttPlus::EditWdttPlus(QWidget *parent) : QWidget(parent) {
     hashSource = new QComboBox(this);
     hashSource->setObjectName("wdttPlusHashSource");
     hashSource->addItem(QStringLiteral("Вручную"), "manual");
-    hashSource->addItem(QStringLiteral("Авто"), "auto");
+    hashSource->addItem(QStringLiteral("Созданные в клиенте"), "auto");
     qobject_cast<QStandardItemModel *>(hashSource->model())->item(1)->setEnabled(Configs::dataManager->settingsRepo->vk_relay_linked);
     hashSource->setToolTip(QStringLiteral("«Авто» берёт звонки из привязки аккаунта VK механизмом qWDTT. WDTT Plus подключается к ним и не входит в аккаунт VK."));
     form->addRow(QStringLiteral("Источник хешей"), hashSource);

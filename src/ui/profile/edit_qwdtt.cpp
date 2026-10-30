@@ -31,7 +31,7 @@ EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
     form->addRow(tr("Password"), password);
     hashSource = new QComboBox(this);
     hashSource->addItem(QStringLiteral("Вручную"), "manual");
-    hashSource->addItem(QStringLiteral("Авто"), "auto");
+    hashSource->addItem(QStringLiteral("Созданные в клиенте"), "auto");
     hashSource->setObjectName("qwdttHashSource");
     qobject_cast<QStandardItemModel *>(hashSource->model())
         ->item(1)

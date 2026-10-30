@@ -31,10 +31,10 @@ EditCSQTT::EditCSQTT(QWidget *parent) : QWidget(parent) {
     hashSource = new QComboBox(this);
     hashSource->setObjectName("csqttHashSource");
     hashSource->addItem(QStringLiteral("Вручную"), "manual");
-    hashSource->addItem(QStringLiteral("Авто"), "auto");
+    hashSource->addItem(QStringLiteral("Созданные в клиенте"), "auto");
     hashSource->addItem(QStringLiteral("Авто JS"), "auto_js");
     qobject_cast<QStandardItemModel *>(hashSource->model())->item(1)->setEnabled(Configs::dataManager->settingsRepo->vk_relay_linked);
-    hashSource->setToolTip(QStringLiteral("«Авто» получает хеши через привязку qWDTT. «Авто JS» использует токен этой же привязки или токен из ссылки."));
+    hashSource->setToolTip(QStringLiteral("«Созданные в клиенте» берёт хеши, созданные в этом клиенте через привязку VK, и при нехватке создаёт новые. «Авто JS» использует токен этой же привязки или токен из ссылки."));
     form->addRow(QStringLiteral("Источник хешей"), hashSource);
     autoHashCount = new QSpinBox(this);
     autoHashCount->setRange(1, 6);
