@@ -57,9 +57,8 @@
 
 int TestQwdttImport() {
     qInstallMessageHandler(nullptr);
-    const auto previousLogger = MW_show_log;
-    MW_show_log = [](const QString &message) { qWarning().noquote() << message; };
-    const auto restoreLogger = qScopeGuard([previousLogger] { MW_show_log = previousLogger; });
+    SetUserLogSink([](const QString &message) { qWarning().noquote() << message; });
+    const auto restoreLogger = qScopeGuard([] { SetUserLogSink(nullptr); });
     // This entry point runs before normal application/database initialization.
     // Configuration generation needs repositories, all owned by this fixture.
     QTemporaryDir fixture;
@@ -170,10 +169,9 @@ int TestQwdttImport() {
         }
     }
     {
-        const auto previousCallback = MW_dialog_message;
         QStringList flags;
-        MW_dialog_message = [&flags](MwMessage, QStringList changes) { flags = changes; };
-        const auto restoreCallback = qScopeGuard([previousCallback] { MW_dialog_message = previousCallback; });
+        SetDialogMessageSink([&flags](MwMessage, const QStringList &changes) { flags = changes; });
+        const auto restoreCallback = qScopeGuard([] { SetDialogMessageSink(nullptr); });
         DialogBasicSettings dialog;
         auto *selector = dialog.findChild<QComboBox *>("seasonal_decoration");
         check(selector && selector->count() == 6 && selector->findData("auto") >= 0 && selector->findData("none") >= 0, "four manual seasons, Auto and Disabled");

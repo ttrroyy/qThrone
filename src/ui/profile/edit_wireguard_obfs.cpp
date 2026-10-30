@@ -2,7 +2,7 @@
 
 #include <QCheckBox>
 
-#include "include/global/GuiUtils.hpp"
+#include "include/ui/utils/GuiUtils.hpp"
 #include "include/global/Utils.hpp"
 
 EditWireguardObfs::EditWireguardObfs(QWidget *parent, const std::shared_ptr<Configs::Profile> &_ent)

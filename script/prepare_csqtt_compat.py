@@ -98,3 +98,12 @@ mod mobile_compat_tests {
 }
 '''
 p.write_text(source, encoding="utf-8", newline="\n")
+
+# The Android VPN descriptor channel uses Linux-only socket flags; on macOS it takes the stub like Windows.
+tun = root / "rust-client/tun.rs"
+tun_source = tun.read_text(encoding="utf-8")
+linux = 'any(target_os = "linux", target_os = "android")'
+assert tun_source.count("#[cfg(unix)]") == 3 and tun_source.count("#[cfg(not(unix))]") == 2 and tun_source.count("#[cfg(all(test, unix))]") == 1
+tun_source = (tun_source.replace("#[cfg(all(test, unix))]", f"#[cfg(all(test, {linux}))]")
+              .replace("#[cfg(not(unix))]", f"#[cfg(not({linux}))]").replace("#[cfg(unix)]", f"#[cfg({linux})]"))
+tun.write_text(tun_source, encoding="utf-8", newline="\n")

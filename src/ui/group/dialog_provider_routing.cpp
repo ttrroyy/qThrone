@@ -1,6 +1,6 @@
 #include "include/ui/group/dialog_provider_routing.h"
 #include "include/configs/sub/ProviderRouting.h"
-#include "include/global/GuiUtils.hpp"
+#include "include/ui/utils/GuiUtils.hpp"
 #include "include/global/Utils.hpp"
 #include <QApplication>
 #include <QCheckBox>
