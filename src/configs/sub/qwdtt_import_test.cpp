@@ -268,16 +268,8 @@ int TestQwdttImport() {
         check(parse(link.toUtf8()).size() == 1 && parse(QJsonDocument(profile.ExportToJson()).toJson()).size() == 1, "SSTP clipboard/file and subscription dispatch");
         {
             // AmneziaVPN exports keep "DNS = $PRIMARY_DNS, $SECONDARY_DNS" and the values in dns1/dns2.
-            const QString conf = "[Interface]
-Address = 10.8.1.2/32
-DNS = $PRIMARY_DNS, $SECONDARY_DNS
-PrivateKey = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-"
-                                 "[Peer]
-PublicKey = BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=
-AllowedIPs = 0.0.0.0/0
-Endpoint = 192.0.2.10:51820
-";
+            const QString conf = "[Interface]\nAddress = 10.8.1.2/32\nDNS = $PRIMARY_DNS, $SECONDARY_DNS\nPrivateKey = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n"
+                                 "[Peer]\nPublicKey = BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=\nAllowedIPs = 0.0.0.0/0\nEndpoint = 192.0.2.10:51820\n";
             const auto amnezia = [&conf](QJsonObject root) {
                 root["containers"] = QJsonArray{QJsonObject{{"container", "amnezia-awg"}, {"awg", QJsonObject{{"last_config", conf}}}}};
                 return "vpn://" + QJsonDocument(root).toJson(QJsonDocument::Compact).toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
