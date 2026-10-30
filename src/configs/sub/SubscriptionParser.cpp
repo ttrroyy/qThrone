@@ -1393,22 +1393,34 @@ namespace Subscription {
                         if (!cObj[key].isObject()) continue;
                         const auto protoObj = cObj[key].toObject();
                         QString conf;
+                        QJsonObject lastObj;
                         if (protoObj["last_config"].isString()) {
                             const auto lc = protoObj["last_config"].toString();
                             const auto innerDoc = QJsonDocument::fromJson(lc.toUtf8());
+                            if (innerDoc.isObject()) lastObj = innerDoc.object();
                             if (innerDoc.isObject() && innerDoc.object().contains("config")) {
                                 conf = innerDoc.object()["config"].toString();
                             } else {
                                 conf = lc;
                             }
                         } else if (protoObj["last_config"].isObject()) {
-                            conf = protoObj["last_config"].toObject()["config"].toString();
+                            lastObj = protoObj["last_config"].toObject();
+                            conf = lastObj["config"].toString();
                         }
                         if (conf.isEmpty()) continue;
                         // AmneziaVPN fills "DNS = $PRIMARY_DNS, $SECONDARY_DNS" from the export's dns1/dns2 (its defaults when absent).
                         const auto dns1 = root["dns1"].toString().trimmed(), dns2 = root["dns2"].toString().trimmed();
                         conf.replace("$PRIMARY_DNS", dns1.isEmpty() ? QStringLiteral("1.1.1.1") : dns1)
                             .replace("$SECONDARY_DNS", dns2.isEmpty() ? QStringLiteral("1.0.0.1") : dns2);
+
+                        // The MTU sits beside the config (AmneziaVPN default 1376: AWG padding does not fit WireGuard's 1420).
+                        static const QRegularExpression mtuLine(R"((?im)^\s*MTU\s*=)"), interfaceLine(R"((?im)^\s*\[Interface\]\s*$)");
+                        if (const auto probe = conf.toUtf8(); hasWireGuardSections(scan::view(probe)) && !mtuLine.match(conf).hasMatch()) {
+                            const auto value = lastObj["mtu"];
+                            const int given = value.isString() ? value.toString().trimmed().toInt() : value.toInt();
+                            const int mtu = given >= 576 && given <= 65535 ? given : 1376;
+                            if (const auto m = interfaceLine.match(conf); m.hasMatch()) conf.insert(m.capturedEnd(), "\nMTU = " + QString::number(mtu));
+                        }
 
                         auto bytes = conf.toUtf8();
                         const bool isWg = hasWireGuardSections(scan::view(bytes));

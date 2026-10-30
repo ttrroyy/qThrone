@@ -276,7 +276,7 @@ int TestQwdttImport() {
             };
             const auto withDns = parse(amnezia({{"dns1", "172.29.172.254"}, {"dns2", "10.8.1.1"}}));
             const auto *wg = withDns.size() == 1 ? dynamic_cast<Configs::wireguard *>(withDns.first()->outbound.get()) : nullptr;
-            check(wg && wg->dns == QStringList{"172.29.172.254", "10.8.1.1"} && wg->DnsServer() == "172.29.172.254", "Amnezia export fills its DNS placeholders");
+            check(wg && wg->dns == QStringList{"172.29.172.254", "10.8.1.1"} && wg->DnsServer() == "172.29.172.254" && wg->mtu == 1376, "Amnezia export fills its DNS placeholders and default MTU");
             const auto defaults = parse(amnezia({}));
             wg = defaults.size() == 1 ? dynamic_cast<Configs::wireguard *>(defaults.first()->outbound.get()) : nullptr;
             check(wg && wg->dns == QStringList{"1.1.1.1", "1.0.0.1"}, "Amnezia export without DNS fields takes Amnezia defaults");
