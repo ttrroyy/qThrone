@@ -51,21 +51,6 @@ namespace Configs {
 
         db.exec("CREATE INDEX IF NOT EXISTS idx_profiles_name ON profiles(name)");
         db.exec("CREATE TABLE IF NOT EXISTS transport_devices (identity TEXT PRIMARY KEY, device_id TEXT NOT NULL)");
-
-        // 1.5 and 1.5.1 opened plain wdtt:// links as WDTT Plus, which lost the RAW/WG mode and could not connect: back to qWDTT.
-        try {
-            QList<QPair<int, QJsonObject>> restored;
-            auto rows = db.query("SELECT id, outbound_json FROM profiles WHERE type = 'wdttplus'");
-            while (rows && rows->executeStep()) {
-                const auto doc = QJsonDocument::fromJson(QByteArray(rows->getColumn(1).getText()));
-                if (const auto profile = Configs::wdttplus::LegacyToQwdtt(doc.object()); !profile.isEmpty()) restored.append({rows->getColumn(0).getInt(), profile});
-            }
-            for (const auto &[id, profile] : restored)
-                db.exec("UPDATE profiles SET type = 'qwdtt', outbound_json = ? WHERE id = ?",
-                        QJsonDocument(profile).toJson(QJsonDocument::Compact).toStdString(), id);
-        } catch (const std::exception &e) {
-            qWarning() << "legacy WDTT restore failed:" << e.what();
-        }
     }
 
     namespace {

@@ -734,28 +734,30 @@ proxies:
             }
         }
         const auto legacy = parse(("WDTT://192.0.2.6:56000:56001:9000:secret:" + hash).toUtf8());
-        check(legacy.size() == 1 && legacy.first()->type == "qwdtt", "a plain wdtt:// link opens as qWDTT, whatever the scheme's case");
+        check(legacy.size() == 1 && legacy.first()->type == "wdttplus", "a plain wdtt:// link runs on WDTT Plus, whatever the scheme's case");
         if (legacy.size() == 1) {
-            auto *o = dynamic_cast<Configs::qwdtt *>(legacy.first()->outbound.get());
-            check(o && o->server == "192.0.2.6" && o->server_port == 56000 && o->password == "secret" && o->hashes == QStringList{hash} && o->mode == "wg",
-                  "plain WDTT link fields become a qWDTT profile in WG mode");
-            check(o && o->legacy && o->DisplayType() == "WDTT (WG)" && o->wgPort == 56001 && o->localPort == 9000, "a plain wdtt:// profile shows as WDTT and keeps its ports");
+            auto *o = dynamic_cast<Configs::wdttplus *>(legacy.first()->outbound.get());
+            check(o && o->server == "192.0.2.6" && o->server_port == 56000 && o->password == "secret" && o->hashes == QStringList{hash},
+                  "plain WDTT link fields become the profile");
+            check(o && o->legacy && o->DisplayType() == "WDTT" && o->wgPort == 56001 && o->localPort == 9000, "a plain wdtt:// profile shows as WDTT and keeps its ports");
             check(o && o->ExportToLink() == "wdtt://192.0.2.6:56000:56001:9000:secret:" + hash, "a WDTT profile is shared in its own link form");
-            Configs::qwdtt stored;
+            Configs::wdttplus stored;
             check(o && stored.ParseFromJson(o->ExportToJson()) && stored.legacy && stored.wgPort == 56001, "the WDTT mark survives storage");
+        }
+        {
+            const auto panel = parse(("wdtt://192.0.2.6:56000:56001:0:secret:" + hash + "#NL").toUtf8());
+            auto *o = panel.size() == 1 ? dynamic_cast<Configs::wdttplus *>(panel.first()->outbound.get()) : nullptr;
+            check(o && o->localPort == 9000 && o->name == "NL", "a panel link with local port 0 takes the default port");
+            const QJsonObject payload{{"vpn", "VPN"}, {"name", "NL"}, {"ip", "192.0.2.7"}, {"dtls", 56010}, {"raw", 56013}, {"pass", "tg_1"}, {"hash", hash}, {"did", "dev-1"}};
+            const auto link = "wdtt://" + QJsonDocument(payload).toJson(QJsonDocument::Compact).toBase64();
+            const auto json = parse(QByteArray(link).toBase64());
+            auto *j = json.size() == 1 ? dynamic_cast<Configs::wdttplus *>(json.first()->outbound.get()) : nullptr;
+            check(j && j->legacy && j->server == "192.0.2.7" && j->server_port == 56010 && j->wgPort == 56011 && j->localPort == 9000
+                  && j->password == "tg_1" && j->hashes == QStringList{hash} && j->name == "NL" && j->deviceID == "dev-1",
+                  "a base64 subscription of WDTT panel JSON links imports as WDTT");
         }
         Configs::qwdtt notPlus;
         check(!notPlus.ParseFromLink("wdtt://connect?v=1&host=192.0.2.5&dtls=56000&wg=56001&local=9000&password=p"), "qWDTT leaves wdtt://connect to WDTT Plus");
-        {
-            const QJsonObject stored{{"type", "wdttplus"}, {"legacy", true}, {"tag", "Home"}, {"server", "192.0.2.6"}, {"server_port", 56000},
-                {"wg_port", 56001}, {"local_port", 9000}, {"password", "secret"}, {"hashes", QJsonArray{hash}}, {"workers", 18}};
-            const auto restored = Configs::wdttplus::LegacyToQwdtt(stored);
-            check(restored["type"] == "qwdtt" && restored["tag"] == "Home" && restored["server"] == "192.0.2.6" && restored["mode"] == "wg"
-                  && restored["password"] == "secret" && restored["legacy"] == true && restored["local_port"] == 9000, "a WDTT profile stored by 1.5 runs on the qWDTT client and stays WDTT");
-            auto plus = stored;
-            plus.remove("legacy");
-            check(Configs::wdttplus::LegacyToQwdtt(plus).isEmpty(), "real WDTT Plus profiles stay WDTT Plus");
-        }
         for (const auto *bad : {"wdtt://connect?v=2&host=192.0.2.5&dtls=56000&wg=56001&local=9000&password=p",
                                 "wdtt://connect?v=1&host=192.0.2.5&dtls=56000&wg=56001&local=9000&password=p&max_workers=40",
                                 "wdtt://connect?v=1&host=&dtls=56000&wg=56001&local=9000&password=p",
@@ -781,7 +783,7 @@ proxies:
               "a WDTT Plus refresh keeps the user's hashes, workers and device");
         // A file of links and a QR picture reach the same parser: WDTT and WDTT Plus are recognised both ways.
         const auto file = parse(("wdtt://192.0.2.6:56000:56001:9000:secret:" + hash + "\ncsqtt://connect?v=2&host=203.0.113.7&peer=46000&password=s").toUtf8());
-        check(file.size() == 2 && file[0]->type == "qwdtt" && file[1]->type == "csqtt", "a file with a WDTT link and a CSQTT link imports both");
+        check(file.size() == 2 && file[0]->type == "wdttplus" && file[1]->type == "csqtt", "a file with a WDTT link and a CSQTT link imports both");
         const auto shared = "wdtt://connect?v=1&host=192.0.2.5&dtls=56000&wg=56001&local=9000&password=p&hashes=" + hash + "&name=QR";
         const auto decoded = QrDecoder().decode(ShareBlocks::QrImage(shared).convertToFormat(QImage::Format_Grayscale8));
         check(decoded.size() == 1 && decoded.first() == shared, "the QR code of a WDTT Plus link decodes back to the link");

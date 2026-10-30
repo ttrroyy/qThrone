@@ -84,9 +84,9 @@ namespace Subscription {
         };
 
         constexpr Protocol kProtocols[] = {
-            // wdtt://connect is WDTT Plus; the plain wdtt://host:dtls:wg:local:pass link is qWDTT, as before 1.5.
-            {"wdttplus", {"wdtt://connect"}, {"wdttplus"}, {}},
-            {"qwdtt", {"qwdtt://", "qwdtt:config", "wdtt://"}, {"qwdtt", "wdtt"}, {}},
+            // Every wdtt:// link speaks the original WDTT protocol, which WDTT Plus runs with all its workers; qwdtt:// is qWDTT.
+            {"wdttplus", {"wdtt://"}, {"wdttplus"}, {}},
+            {"qwdtt", {"qwdtt://", "qwdtt:config"}, {"qwdtt", "wdtt"}, {}},
             {"csqtt", {"csqtt://"}, {"csqtt"}, {}},
             // The wlruscfd/openflux-server fork's links, before the original's openflux://v1/.
             {"openfluxkey", {"openflux://import"}, {"openfluxkey"}, {}},
@@ -793,7 +793,7 @@ namespace Subscription {
             // Bot exports wrap share links in Markdown code spans.
             if (line.size() >= 2 && line.front() == '`' && line.back() == '`') {
                 auto unwrapped = scan::trim(line.substr(1, line.size() - 2));
-                if (const auto type = typeForScheme(unwrapped); type && std::string_view(type) == "qwdtt") line = unwrapped;
+                if (const auto type = typeForScheme(unwrapped); type && (std::string_view(type) == "qwdtt" || std::string_view(type) == "wdttplus")) line = unwrapped;
             }
             if (line.starts_with("//") || line.starts_with("#") || line.size() < 2) return;
 

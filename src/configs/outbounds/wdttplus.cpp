@@ -58,16 +58,6 @@ QString wdttplus::DeviceInfo() {
     return QString::fromUtf8(QJsonDocument(info).toJson(QJsonDocument::Compact));
 }
 
-QJsonObject wdttplus::LegacyToQwdtt(const QJsonObject &object) {
-    if (object["type"].toString() != "wdttplus" || !object["legacy"].toBool(false)) return {};
-    auto copy = object;
-    copy["type"] = "qwdtt";
-    // A plain wdtt:// profile stays WDTT: its ports and the legacy mark carry over.
-    for (const auto *key : {"max_workers", "workers"}) copy.remove(key);
-    qwdtt profile;
-    return profile.ParseFromJson(copy) ? profile.ExportToJson() : QJsonObject{};
-}
-
 bool wdttplus::ParseFromJson(const QJsonObject &object) {
     if (object["type"].toString() != "wdttplus") return false;
     outbound::ParseFromJson(object);
@@ -103,8 +93,22 @@ bool wdttplus::ParseFromLink(const QString &link) {
     auto value = link.trimmed();
     if (!value.startsWith("wdtt://", Qt::CaseInsensitive)) return false;
     value.remove(0, 7);
+    if (!value.contains(':')) {
+        // wdtt://<base64 JSON> of the WDTT panel: ip|add, dtls, pass|id, hash, name|ps|vpn, did; WG listens on dtls+1.
+        const auto json = QJsonDocument::fromJson(QByteArray::fromBase64(value.section('#', 0, 0).toLatin1())).object();
+        const auto text = [&json](std::initializer_list<const char *> keys) {
+            for (const auto *key : keys) if (const auto s = json[key].toString().trimmed(); !s.isEmpty()) return s;
+            return QString();
+        };
+        const int dtls = json["dtls"].toInt(56000);
+        if (text({"ip", "add"}).isEmpty() || !wdttValidPort(dtls)) return false;
+        QJsonObject object{{"type", "wdttplus"}, {"legacy", true}, {"server", text({"ip", "add"})}, {"server_port", dtls}, {"wg_port", dtls + 1},
+            {"local_port", 9000}, {"password", text({"pass", "id"})}, {"hashes", text({"hash"})}, {"tag", text({"name", "ps", "vpn"})}};
+        if (const auto did = text({"did"}); !did.isEmpty()) object["device_id"] = did;
+        return ParseFromJson(object);
+    }
     if (!value.startsWith("connect?", Qt::CaseInsensitive)) {
-        // wdtt://<server>:<dtls>:<wg>:<local>:<password>[:<hashes>][#name], the original WDTT form.
+        // wdtt://<server>:<dtls>:<wg>:<local>:<password>[:<hashes>][#name], the original WDTT form; 0 ports take the defaults.
         QString label;
         if (const int fragment = value.indexOf('#'); fragment >= 0) { label = wdttDecode(value.mid(fragment + 1)); value.truncate(fragment); }
         const auto parts = value.split(':');
@@ -112,8 +116,8 @@ bool wdttplus::ParseFromLink(const QString &link) {
         bool dtlsOK, wgOK, localOK;
         const int dtls = parts[1].toInt(&dtlsOK), wg = parts[2].toInt(&wgOK), local = parts[3].toInt(&localOK);
         if (!dtlsOK || !wgOK || !localOK || parts[0].isEmpty() || parts[4].isEmpty()) return false;
-        return ParseFromJson({{"type", "wdttplus"}, {"legacy", true}, {"server", parts[0]}, {"server_port", dtls}, {"wg_port", wg},
-            {"local_port", local}, {"password", wdttDecode(parts[4])}, {"hashes", parts.size() == 6 ? wdttDecode(parts[5]) : QString()}, {"tag", label}});
+        return ParseFromJson({{"type", "wdttplus"}, {"legacy", true}, {"server", parts[0]}, {"server_port", dtls}, {"wg_port", wg ? wg : dtls + 1},
+            {"local_port", local ? local : 9000}, {"password", wdttDecode(parts[4])}, {"hashes", parts.size() == 6 ? wdttDecode(parts[5]) : QString()}, {"tag", label}});
     }
     // wdtt://connect?v=1&host&dtls&wg&local&password&hashes[&name][&max_workers], as its TransferCodec builds it.
     QString label;
