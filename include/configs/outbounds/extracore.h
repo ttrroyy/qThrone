@@ -1,4 +1,5 @@
 #pragma once
+#include <typeinfo>
 #include <QCoreApplication>
 #include "include/configs/common/Outbound.h"
 
@@ -100,6 +101,8 @@ namespace Configs
         void Validate(Validation::Issues &issues) override
         {
             outbound::Validate(issues);
+            // Native transports (SSTP, qWDTT, CSQTT, DNS tunnels...) fill the core path, arguments and SOCKS port in Prepare().
+            if (typeid(*this) != typeid(extracore)) return;
             const auto report = [&issues](const QString &field, const QString &message, const QString &value = {}) {
                 if (!message.isEmpty()) issues << Validation::Issue{Validation::Severity::Error, field, message, value};
             };
