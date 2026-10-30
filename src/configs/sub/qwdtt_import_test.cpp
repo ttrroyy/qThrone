@@ -739,6 +739,10 @@ proxies:
             auto *o = dynamic_cast<Configs::qwdtt *>(legacy.first()->outbound.get());
             check(o && o->server == "192.0.2.6" && o->server_port == 56000 && o->password == "secret" && o->hashes == QStringList{hash} && o->mode == "wg",
                   "plain WDTT link fields become a qWDTT profile in WG mode");
+            check(o && o->legacy && o->DisplayType() == "WDTT (WG)" && o->wgPort == 56001 && o->localPort == 9000, "a plain wdtt:// profile shows as WDTT and keeps its ports");
+            check(o && o->ExportToLink() == "wdtt://192.0.2.6:56000:56001:9000:secret:" + hash, "a WDTT profile is shared in its own link form");
+            Configs::qwdtt stored;
+            check(o && stored.ParseFromJson(o->ExportToJson()) && stored.legacy && stored.wgPort == 56001, "the WDTT mark survives storage");
         }
         Configs::qwdtt notPlus;
         check(!notPlus.ParseFromLink("wdtt://connect?v=1&host=192.0.2.5&dtls=56000&wg=56001&local=9000&password=p"), "qWDTT leaves wdtt://connect to WDTT Plus");
@@ -747,7 +751,7 @@ proxies:
                 {"wg_port", 56001}, {"local_port", 9000}, {"password", "secret"}, {"hashes", QJsonArray{hash}}, {"workers", 18}};
             const auto restored = Configs::wdttplus::LegacyToQwdtt(stored);
             check(restored["type"] == "qwdtt" && restored["tag"] == "Home" && restored["server"] == "192.0.2.6" && restored["mode"] == "wg"
-                  && restored["password"] == "secret", "a WDTT profile stored by 1.5 becomes qWDTT again");
+                  && restored["password"] == "secret" && restored["legacy"] == true && restored["local_port"] == 9000, "a WDTT profile stored by 1.5 runs on the qWDTT client and stays WDTT");
             auto plus = stored;
             plus.remove("legacy");
             check(Configs::wdttplus::LegacyToQwdtt(plus).isEmpty(), "real WDTT Plus profiles stay WDTT Plus");

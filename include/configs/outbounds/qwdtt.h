@@ -25,13 +25,17 @@ namespace Configs {
         QString captchaMode = "auto";
         QString goDNS = "yandex";
         QString deviceID;
+        // Imported from a plain wdtt://host:dtls:wg:local:pass link: shown as WDTT and shared in that form.
+        bool legacy = false;
+        int wgPort = 56001;
+        int localPort = 9000;
 
         bool ParseFromLink(const QString &link) override;
         bool ParseFromJson(const QJsonObject &object) override;
         QJsonObject ExportToJson() override;
         QJsonObject ExportIdentity() override;
         QString ExportToLink() override;
-        QString DisplayType() override { return mode == "wg" ? "qWDTT (WG)" : "qWDTT (RAW)"; }
+        QString DisplayType() override { return QString(legacy ? "WDTT" : "qWDTT") + (mode == "wg" ? " (WG)" : " (RAW)"); }
         SecurityInfo GetSecurity() override { return {"RTP AEAD", turnTCP ? "TURN TCP" : "TURN UDP", SecurityLevel::Secure}; }
         QString Prepare();
         BuildResult Build() override;

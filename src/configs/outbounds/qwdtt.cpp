@@ -98,6 +98,9 @@ bool qwdtt::ParseFromJson(const QJsonObject &o) {
     captchaMode = o["captcha_mode"].toString("auto");
     goDNS = o["go_dns"].toString("yandex");
     if (!o["device_id"].toString().isEmpty()) deviceID = o["device_id"].toString();
+    legacy = o["legacy"].toBool(false);
+    wgPort = o["wg_port"].toInt(56001);
+    localPort = o["local_port"].toInt(9000);
     const auto h = o.contains("hashes") ? o["hashes"] : o["vkHashes"];
     QStringList values;
     if (h.isArray()) { for (const auto &v : h.toArray()) values.append(v.toString()); }
@@ -105,7 +108,7 @@ bool qwdtt::ParseFromJson(const QJsonObject &o) {
     hashes = NormalizeHashes(values).mid(0, 4);
     workers = NormalizeWorkers(workers, hashSource == "auto" ? autoHashCount : hashes.size());
     // Empty hashes are editable after importing Android profiles using global hashes.
-    return !server.isEmpty() && validPort(server_port) && validPort(rawPort) && hashes.size() <= 4 && (mode == "raw" || mode == "wg") && (vkAnonPath == "vkcalls" || vkAnonPath == "legacy") && (captchaMode == "auto" || captchaMode == "wv" || captchaMode == "rjs");
+    return !server.isEmpty() && validPort(server_port) && validPort(rawPort) && validPort(wgPort) && validPort(localPort) && hashes.size() <= 4 && (mode == "raw" || mode == "wg") && (vkAnonPath == "vkcalls" || vkAnonPath == "legacy") && (captchaMode == "auto" || captchaMode == "wv" || captchaMode == "rjs");
 }
 
 bool qwdtt::ParseFromLink(const QString &link) {
@@ -145,21 +148,29 @@ bool qwdtt::ParseFromLink(const QString &link) {
     bool ok;
     const int p = parts[1].toInt(&ok);
     if (!ok || !validPort(p)) return false;
-    QJsonObject o{{"type", "qwdtt"}, {"peer", peerString(parts[0], p)},
+    const int wg = parts[2].toInt(&ok);
+    if (!ok || !validPort(wg)) return false;
+    const int local = parts[3].toInt(&ok);
+    if (!ok || !validPort(local)) return false;
+    QJsonObject o{{"type", "qwdtt"}, {"legacy", true}, {"peer", peerString(parts[0], p)}, {"wg_port", wg}, {"local_port", local},
                   {"name", label}, {"password", QUrl::fromPercentEncoding(parts[4].toUtf8())}};
     if (parts.size() == 6) o["hashes"] = QUrl::fromPercentEncoding(parts[5].toUtf8());
     return ParseFromJson(o);
 }
 
 QJsonObject qwdtt::ExportToJson() {
-    return {{"type", "qwdtt"}, {"tag", name}, {"server", server}, {"server_port", server_port},
+    QJsonObject o{{"type", "qwdtt"}, {"tag", name}, {"server", server}, {"server_port", server_port},
             {"password", password}, {"hashes", QJsonArray::fromStringList(hashes)}, {"mode", mode},
             {"raw_port", rawPort}, {"workers", workers}, {"turn_tcp", turnTCP},
             {"obfs", obfs}, {"go_dns", goDNS}, {"device_id", deviceID},
             {"vk_anon_path", vkAnonPath}, {"captcha_mode", captchaMode}, {"manual_hashes_override", manualRelayHashes}, {"hash_source", hashSource}, {"auto_hash_count", autoHashCount}};
+    if (legacy) { o["legacy"] = true; o["wg_port"] = wgPort; o["local_port"] = localPort; }
+    return o;
 }
 QJsonObject qwdtt::ExportIdentity() { auto o = ExportToJson(); o.remove("tag"); o.remove("device_id"); o.remove("hashes"); o.remove("workers"); o.remove("manual_hashes_override"); return o; }
 QString qwdtt::ExportToLink() {
+    if (legacy) return "wdtt://" + server + ":" + QString::number(server_port) + ":" + QString::number(wgPort) + ":" + QString::number(localPort) + ":"
+        + QString::fromLatin1(QUrl::toPercentEncoding(password)) + ":" + hashes.join(',') + (name.isEmpty() ? "" : "#" + QString::fromLatin1(QUrl::toPercentEncoding(name)));
     QUrl u("qwdtt://config");
     QUrlQuery q;
     // Android uses form encoding: encode literal '+' so it survives import there.
