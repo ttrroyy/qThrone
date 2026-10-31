@@ -10,7 +10,6 @@ print("- В профиле CSQTT можно выбрать версию клие
 print("- Обновление подписки сохраняет выбранные движок WDTT и версию CSQTT.")
 print("- Исправлено определение собственного TUN-адаптера qthrone-tun.")
 print("- Конфиги AmneziaVPN (`vpn://`) берут DNS из самого экспорта: раньше строка `DNS = $PRIMARY_DNS, $SECONDARY_DNS` оставалась неподставленной, и WireGuard/AmneziaWG резолвил через удалённый DNS по умолчанию, который такие серверы часто не пропускают. Сайты не открывались, хотя туннель поднимался. Также берётся MTU из экспорта (по умолчанию 1376, как в AmneziaVPN): с прежним 1420 крупные пакеты AmneziaWG терялись и страницы висели.")
-print("- Ссылки WDTT Plus `wdtt://connect?...` снова импортируются как WDTT Plus.")
 print("- Конфиги WireGuard и AmneziaWG из файла или QR без строки `MTU` получают 1280, как в официальных приложениях WireGuard и AmneziaWG для Android. С прежним 1420 на многих серверах крупные пакеты терялись, и страницы не открывались, хотя туннель и DNS работали. Если строка `MTU` есть, берётся она.")
 print()
 print(f"Основа: Throne {version['throne_version']}, коммит [{version['throne_commit'][:8]}](https://github.com/throneproj/Throne/commit/{version['throne_commit']}).")
