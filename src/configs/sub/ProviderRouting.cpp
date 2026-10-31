@@ -289,6 +289,19 @@ QJsonObject SourceDocument(const Configs::SubscriptionOptions &options) {
     }
     return document;
 }
+std::shared_ptr<Configs::RouteProfile> ImportedProfile(const Command &command) {
+    auto profile = Profile(command.document, command.provider);
+    profile->rawRoute = QString::fromUtf8(QJsonDocument(QJsonObject{{"provider", command.provider}, {"profile", command.document}}).toJson(QJsonDocument::Compact));
+    return profile;
+}
+bool Stored(const Configs::RouteProfile &profile, QJsonObject &document) {
+    if (profile.isRaw) return false;
+    const auto stored = QJsonDocument::fromJson(profile.rawRoute.toUtf8()).object();
+    const auto provider = stored.value("provider").toString();
+    if (provider != "Happ" && provider != "Incy") return false;
+    document = stored.value("profile").toObject();
+    return !document.isEmpty();
+}
 std::shared_ptr<Configs::RouteProfile> Profile(const QJsonObject &doc, const QString &provider) {
     auto profile = Configs::RouteProfile::GetDefaultChain();
     profile->name = doc.value("Name").toString(provider + " Default");

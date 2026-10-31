@@ -881,7 +881,10 @@ namespace Configs {
                 severity = Severity::Warning;
             }
         } else if (attr == "rule_set") {
-            if (!routeRuleKnownRuleSet(value) && !routeRuleRuleSetUrl(value))
+            if (value.startsWith("geosite:") || value.startsWith("geoip:")) {
+                message = QCoreApplication::translate("Validation", "A category of the geosite.dat or geoip.dat of a Happ / Incy routing profile; other routing profiles cannot load it.");
+                severity = Severity::Warning;
+            } else if (!routeRuleKnownRuleSet(value) && !routeRuleRuleSetUrl(value))
                 message = QCoreApplication::translate("Validation", "Unknown rule-set. Use a built-in name such as geosite-google, or an http(s) URL of a binary .srs file.");
         } else if (attr == "override_address") {
             message = routeRuleOverrideAddressProblem(value);

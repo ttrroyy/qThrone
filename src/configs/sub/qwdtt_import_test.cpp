@@ -307,6 +307,22 @@ int TestQwdttImport() {
             hy2.protocol_version = "2";
             check(hy2.DisplayProtocol() == "Hysteria 2", "Hysteria 2 is named by version");
         }
+        {
+            const QJsonObject routing{{"Name", "RoscomVPN"}, {"GlobalProxy", "true"}, {"ProxySites", QJsonArray{"geosite:github", "domain:example.org"}},
+                                      {"Geositeurl", "https://example.invalid/geosite.dat"}};
+            const auto deeplink = "happ://routing/onadd/" + QString::fromLatin1(QJsonDocument(routing).toJson(QJsonDocument::Compact).toBase64());
+            QString fatal, warnings;
+            bool oldArray = false;
+            const auto imported = Configs::RouteProfile::FromShareInput(deeplink, &fatal, &warnings, &oldArray);
+            QJsonObject stored;
+            check(imported && imported->name == "RoscomVPN" && !imported->isRaw && Subscription::ProviderRouting::Stored(*imported, stored) &&
+                      stored.value("Geositeurl").toString() == "https://example.invalid/geosite.dat",
+                  "a Happ routing deep link imports as a routing profile that keeps its document");
+            bool geosite = false;
+            if (imported) for (const auto &rule : imported->Rules) geosite = geosite || rule->rule_set.contains("geosite:github");
+            check(geosite, "the imported profile keeps its geosite: categories");
+            check(!Configs::RouteProfile::FromShareInput("happ://routing/off", &fatal, &warnings, &oldArray), "routing off is refused outside a subscription");
+        }
         check(!restored.ParseFromLink("sstp://user:pass@vpn.example.org:0") && !restored.ParseFromLink("sstp://user@vpn.example.org"), "SSTP rejects invalid ports and missing credentials");
         const auto challenge = QByteArray("{\"outbounds\":[{\"server\":\"127.0.0.1\",\"tag\":\"HWID missing\"}]}");
         check(Subscription::RequiresHwid(challenge) && Subscription::RequiresHwid(challenge.toBase64()), "HWID-required placeholder is recognized before import");

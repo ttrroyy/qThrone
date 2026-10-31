@@ -1,3 +1,4 @@
+#include "include/configs/sub/ProviderRouting.h"
 #include "include/ui/mainwindow.h"
 
 #include <algorithm>
@@ -258,6 +259,10 @@ void MainWindow::handle_addsub(const QString &url, const QString &name) {
 void MainWindow::import_or_handle_deeplink(const QString &text) {
     if (const QString trimmed = text.trimmed(); trimmed.startsWith("throne://")) {
         handle_deeplink_impl(trimmed);
+        return;
+    } else if (Subscription::ProviderRouting::IsLink(trimmed)) {
+        // A Happ / Incy routing link becomes a routing profile, as on Android.
+        handle_import_route(trimmed);
         return;
     }
     import_text(text);

@@ -142,7 +142,8 @@ RawRouteItem::RawRouteItem(QWidget* parent, const std::shared_ptr<Configs::Route
         routeValidator = validator;
         jsonEdit->setValidator(validator);
     }
-    jsonEdit->setPlainText(chain->rawRoute.isEmpty()
+    // A structured profile's rawRoute may hold an imported Happ / Incy document, not a route.
+    jsonEdit->setPlainText(!chain->isRaw || chain->rawRoute.isEmpty()
         ? QStringLiteral("{\n"
                          "  \"rules\": [\n"
                          "    {\n"

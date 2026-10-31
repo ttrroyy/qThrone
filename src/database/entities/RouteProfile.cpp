@@ -4,6 +4,7 @@
 #include <QJsonDocument>
 #include <QUrlQuery>
 #include "include/database/entities/RouteProfile.h"
+#include "include/configs/sub/ProviderRouting.h"
 #include <array>
 #include <iostream>
 #include <optional>
@@ -709,6 +710,20 @@ namespace Configs {
         if (text.isEmpty()) {
             fatalError->append("Empty input");
             return nullptr;
+        }
+
+        if (Subscription::ProviderRouting::IsLink(text)) {
+            Subscription::ProviderRouting::Command command;
+            QString error;
+            if (!Subscription::ProviderRouting::Parse(text, command, error)) {
+                fatalError->append(error);
+                return nullptr;
+            }
+            if (command.document.isEmpty()) {
+                fatalError->append("Routing off is only supported for a subscription");
+                return nullptr;
+            }
+            return Subscription::ProviderRouting::ImportedProfile(command);
         }
 
         if (text.startsWith("throne://route/", Qt::CaseInsensitive)) {

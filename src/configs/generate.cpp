@@ -1883,6 +1883,8 @@ namespace Configs {
                     // needs the provider's original Geo categories. Recover the
                     // saved source for older settings with the synthetic off item.
                 }
+                // An imported Happ / Incy routing profile supplies them otherwise.
+                if (geoDocument.isEmpty()) geoDocument = ctx.providerRouting;
                 ctx.error = Subscription::ProviderRouting::ResolveXrayGeo(geoDocument, userXrayConfig);
                 if (!ctx.error.isEmpty()) return ingressTag;
                 // A pre-probed 0 means the caller's probe failed; re-probe rather than bake in a dead port.
@@ -3089,6 +3091,16 @@ namespace Configs {
                 if (ent->outbound->IsXrayFullConfig()) {
                     ctx.route = RouteProfile::GetDefaultChain();
                 } else ctx.error = Subscription::ProviderRouting::ResolveGeo(*ctx.route, ctx.providerRouting);
+                if (!ctx.error.isEmpty()) { ctx.result->error = ctx.error; return ctx.result; }
+            }
+        }
+        if (!ctx.route) {
+            const auto current = dataManager->routesRepo->GetRouteProfile(dataManager->settingsRepo->current_route_id);
+            if (QJsonObject document; current && Subscription::ProviderRouting::Stored(*current, document)) {
+                ctx.providerRouting = document;
+                // A copy: resolving the Geo categories rewrites the rule-sets.
+                ctx.route = ent->outbound->IsXrayFullConfig() ? RouteProfile::GetDefaultChain() : std::make_shared<RouteProfile>(*current);
+                if (!ent->outbound->IsXrayFullConfig()) ctx.error = Subscription::ProviderRouting::ResolveGeo(*ctx.route, document);
                 if (!ctx.error.isEmpty()) { ctx.result->error = ctx.error; return ctx.result; }
             }
         }

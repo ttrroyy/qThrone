@@ -23,6 +23,9 @@ bool Parse(const QString &input, Command &command, QString &error, const QString
 Payload Extract(const QByteArray &body, const QString &header = {}, bool ignore = false);
 void Apply(Configs::SubscriptionOptions &options, const QList<Command> &commands);
 std::shared_ptr<Configs::RouteProfile> Profile(const QJsonObject &document, const QString &provider);
+// A Happ / Incy routing link imported as a routing profile of its own keeps its document in rawRoute (isRaw stays off).
+std::shared_ptr<Configs::RouteProfile> ImportedProfile(const Command &command);
+bool Stored(const Configs::RouteProfile &profile, QJsonObject &document);
 QString GeoUrl(const QJsonObject &document, const QString &kind);
 QString PrepareGeo(const QJsonObject &document, const QString &kind, QString &path, bool force = false);
 // Downloads the Geo files of the imported routing right away and reports the outcome bottom right.
