@@ -259,7 +259,8 @@ DialogEditProfile::~DialogEditProfile() {
 
 void DialogEditProfile::setupTypeList() {
     const auto addType = [this](const QString &t) {
-        ui->type->addItem(t == "qwdtt" ? QStringLiteral("qWDTT") : t == "csqtt" ? QStringLiteral("CSQTT") : t == "wdttplus" ? QStringLiteral("WDTT Plus") : Configs::dataManager->profilesRepo->NewProfile(t)->outbound->DisplayType(), t);
+        // The two VLESS engines are picked here, so only this list names the engine.
+        ui->type->addItem(t == "qwdtt" ? QStringLiteral("qWDTT") : t == "csqtt" ? QStringLiteral("CSQTT") : t == "wdttplus" ? QStringLiteral("WDTT Plus") : t == "xrayvless" ? QStringLiteral("VLESS (Xray)") : Configs::dataManager->profilesRepo->NewProfile(t)->outbound->DisplayType(), t);
     };
     for (const auto *t: {"qwdtt", "csqtt", "wdttplus", "openflux", "openfluxkey", "olcrtc", "masterdns", "cottendns", "soar", "vaydns", "dnstt", "slipstream", "s3bypass", "sstp", "autoselector", "socks", "http", "shadowsocks", "trojan", "vmess", "vless", "xrayvless",
                          "hysteria", "tuic", "juicity", "naive", "trusttunnel", "anytls", "mieru", "snell",

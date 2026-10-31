@@ -647,7 +647,7 @@ namespace Configs
     QString Custom::DisplayXrayType() const {
         auto protocol = DisplayXrayOutbound()["protocol"].toString();
         if (protocol.isEmpty()) return "Custom Xray Config";
-        if (protocol == "vless") return "VLESS (Xray)";
+        if (protocol == "vless") return "VLESS";
         // Xray's hysteria is always version 2.
         if (protocol == "hysteria" || protocol == "hysteria2" || protocol == "hy2") return "Hysteria 2";
         if (protocol != "custom") {

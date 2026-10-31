@@ -365,11 +365,11 @@ int TestQwdttImport() {
         const auto profiles = parse(xray);
         check(profiles.size() == 1 && profiles.first()->Custom() && profiles.first()->Custom()->IsXrayFullConfig(), "single full Xray object preserves routing");
         if (!profiles.isEmpty() && profiles.first()->Custom()) {
-            check(profiles.first()->outbound->DisplayType() == "VLESS (Xray)" && profiles.first()->outbound->DisplayAddress() == "example.net:443", "full Xray profile displays actual protocol and address");
+            check(profiles.first()->outbound->DisplayType() == "VLESS" && profiles.first()->outbound->DisplayAddress() == "example.net:443", "full Xray profile displays actual protocol and address");
             check(profiles.first()->Custom()->config.contains("WHITELIST"), "full Xray import keeps provider category");
         }
         const auto balanced = parse(R"([{"remarks":"Auto","outbounds":[{"protocol":"vless","tag":"server1","settings":{"vnext":[{"address":"example.net","port":443,"users":[{"id":"00000000-0000-0000-0000-000000000001"}]}]},"streamSettings":{"sockopt":{"dialerProxy":"front"}}}],"routing":{"balancers":[{"tag":"auto","selector":["server"],"strategy":{"type":"leastPing"}}],"rules":[{"type":"field","balancerTag":"auto","network":"tcp,udp"}]},"observatory":{"subjectSelector":["server"]}}])");
-        check(balanced.size() == 1 && balanced.first()->Custom() && balanced.first()->outbound->DisplayType() == "VLESS (Xray)" && balanced.first()->Custom()->config.contains("dialerProxy") && balanced.first()->Custom()->config.contains("observatory"), "subscription displays actual protocol and preserves Xray balancers and chain settings");
+        check(balanced.size() == 1 && balanced.first()->Custom() && balanced.first()->outbound->DisplayType() == "VLESS" && balanced.first()->Custom()->config.contains("dialerProxy") && balanced.first()->Custom()->config.contains("observatory"), "subscription displays actual protocol and preserves Xray balancers and chain settings");
         auto group = Configs::GroupsRepo::NewGroup(); group->name = "Provider test";
         auto isolated = document; isolated["DirectSites"] = QJsonArray{"full:example.org"}; isolated["FakeDNS"] = false;
         PR::Apply(group->sub_options, {PR::Command{"Happ", true, false, isolated}});
@@ -569,7 +569,7 @@ int TestQwdttImport() {
             }
             if (!plain.isEmpty()) {
                 const auto label = plain.first()->outbound->DisplayType();
-                check(protocol == "vless" ? label == "VLESS (Xray)" : !label.contains("Xray"), "only the native VLESS engine label is appended");
+                check(!label.contains("Xray"), "labels name the protocol, not the engine");
                 if (protocol.startsWith("hysteria")) check(label.startsWith("Hysteria"), "original Hysteria label restored");
             }
         }

@@ -44,7 +44,7 @@ namespace Configs {
         std::shared_ptr<xrayMultiplex> GetXrayMultiplex() override { return multiplex; }
 
         QString DisplayType() override {
-            return "VLESS (Xray)";
+            return "VLESS";
         }
         SecurityInfo GetSecurity() override;
         void StripForeignState(Validation::Issues &issues) override;
