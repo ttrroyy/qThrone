@@ -117,6 +117,8 @@ namespace Configs
         QString GetAddress() override;
         QString DisplayAddress() override;
         QString DisplayType() override;
+
+        QString AmneziaVersion() const;
         SecurityInfo GetSecurity() override;
         bool IsEndpoint() override;
 

@@ -123,10 +123,14 @@ QVariant ProfilesTableModel::data(const QModelIndex &index, int role) const {
         switch (index.column()) {
         case ColType: {
             if (!profile->outbound) return QString();
-            auto type = profile->outbound->DisplayType();
+            auto type = profile->outbound->DisplayProtocol();
             if (Configs::dataManager->settingsRepo->show_config_security) {
-                auto sec = profile->outbound->DisplaySecurity();
-                if (!sec.isEmpty()) type += QStringLiteral(" (%1)").arg(sec);
+                // Stream protocols already name their transport and security; only the warning is left to add.
+                if (profile->outbound->StreamProtocol()) {
+                    if (profile->outbound->EffectiveSecurity().isDangerous()) type = QStringLiteral("⚠️ ") + type;
+                } else if (auto sec = profile->outbound->DisplaySecurity(); !sec.isEmpty()) {
+                    type += QStringLiteral(" (%1)").arg(sec);
+                }
             }
             return type;
         }

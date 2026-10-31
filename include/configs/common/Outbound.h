@@ -123,6 +123,12 @@ namespace Configs
 
         QString DisplaySecurity();
 
+        // Whether the profile rides a stream transport (VLESS, VMess, Trojan), so the list names transport and security.
+        virtual bool StreamProtocol() { return HasTransport() || IsXray(); }
+
+        // The profile list label: "VLESS / XHTTP / Reality", "Trojan / TCP / TLS"; other protocols show DisplayType() alone.
+        QString DisplayProtocol();
+
     protected:
         SecurityInfo SecurityFromTLS(const QString& transport);
 

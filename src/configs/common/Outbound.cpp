@@ -204,6 +204,16 @@ namespace Configs {
         return text;
     }
 
+    QString outbound::DisplayProtocol()
+    {
+        const auto type = DisplayType();
+        if (!StreamProtocol()) return type;
+        const auto info = GetSecurity();
+        QStringList parts{type, info.transport.isEmpty() ? QStringLiteral("TCP") : info.transport};
+        if (!info.label.isEmpty() && info.label != QObject::tr("Raw")) parts << info.label;
+        return parts.join(QStringLiteral(" / "));
+    }
+
     bool outbound::ParseFromLink(const QString& link)
     {
         auto url = QUrl(link);

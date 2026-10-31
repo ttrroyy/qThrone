@@ -686,7 +686,24 @@ namespace Configs {
     }
 
     QString wireguard::DisplayType() {
-        return "WireGuard";
+        return enable_amnezia ? "AWG " + AmneziaVersion() : QStringLiteral("WireGuard");
+    }
+
+    // The AmneziaWG generation the parameters belong to, by the markers the AmneziaVPN client itself checks.
+    QString wireguard::AmneziaVersion() const {
+        if (random_trailers || disable_cookies) return "3.1";
+        for (const auto& value : {header_protection_key, content_padding_addition, rekey_after_time, rekey_timeout, reject_after_time,
+                                  keepalive_timeout, max_handshake_attempts}) {
+            if (!value.trimmed().isEmpty()) return "3.0";
+        }
+        if (s3 > 0 || s4 > 0) return "2.0";
+        for (const auto& header : {h1, h2, h3, h4}) {
+            if (header.contains(u'-')) return "2.0";
+        }
+        for (const auto& signature : {i1, i2, i3, i4, i5}) {
+            if (!signature.trimmed().isEmpty()) return "1.5";
+        }
+        return "1.0";
     }
 
     SecurityInfo wireguard::GetSecurity() {

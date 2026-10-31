@@ -763,7 +763,7 @@ namespace Configs {
 
     QString hysteria::DisplayType()
     {
-        return "Hysteria";
+        return protocol_version == "2" ? "Hysteria 2" : "Hysteria";
     }
 
     SecurityInfo hysteria::GetSecurity()

@@ -11,6 +11,9 @@
 #include "include/configs/outbounds/csqtt.h"
 #include "include/configs/outbounds/wdttplus.h"
 #include "include/configs/outbounds/wireguard.h"
+#include "include/configs/outbounds/vless.h"
+#include "include/configs/outbounds/trojan.h"
+#include "include/configs/outbounds/hysteria.h"
 #include "include/configs/outbounds/openflux.h"
 #include "include/configs/outbounds/olcrtc.h"
 #include "include/configs/outbounds/dnstunnel.h"
@@ -283,6 +286,26 @@ int TestQwdttImport() {
             Configs::wireguard awg, plainWg;
             check(awg.ParseFromLink(QString(conf).replace("[Peer]", "Jc = 4\nS1 = 20\n[Peer]")) && awg.mtu == 1280, "an AmneziaWG file without MTU runs at 1280");
             check(plainWg.ParseFromLink(QString(conf).replace("DNS = $PRIMARY_DNS, $SECONDARY_DNS\n", "")) && plainWg.mtu == 1280, "a WireGuard file without MTU runs at 1280");
+            check(plainWg.DisplayProtocol() == "WireGuard" && awg.DisplayProtocol() == "AWG 1.0", "WireGuard and AmneziaWG are named apart");
+            awg.h1 = "100-200";
+            check(awg.DisplayType() == "AWG 2.0", "header ranges mark AmneziaWG 2.0");
+            awg.header_protection_key = "MzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzM=";
+            check(awg.DisplayType() == "AWG 3.0", "header protection marks AmneziaWG 3.0");
+            awg.random_trailers = true;
+            check(awg.DisplayType() == "AWG 3.1", "random trailers mark AmneziaWG 3.1");
+        }
+        {
+            Configs::vless reality;
+            reality.tls->enabled = true;
+            reality.tls->reality->enabled = true;
+            check(reality.DisplayProtocol() == "VLESS / TCP / Reality", "VLESS names its transport and security");
+            Configs::Trojan grpc;
+            grpc.tls->enabled = true;
+            grpc.transport->type = "grpc";
+            check(grpc.DisplayProtocol() == "Trojan / gRPC / TLS", "Trojan names its transport and security");
+            Configs::hysteria hy2;
+            hy2.protocol_version = "2";
+            check(hy2.DisplayProtocol() == "Hysteria 2", "Hysteria 2 is named by version");
         }
         check(!restored.ParseFromLink("sstp://user:pass@vpn.example.org:0") && !restored.ParseFromLink("sstp://user@vpn.example.org"), "SSTP rejects invalid ports and missing credentials");
         const auto challenge = QByteArray("{\"outbounds\":[{\"server\":\"127.0.0.1\",\"tag\":\"HWID missing\"}]}");
@@ -523,7 +546,7 @@ int TestQwdttImport() {
                   "subscription hashes replace their slots and the user's hashes after them stay");
         }
         const auto hy = parse(R"({"remarks":"HY2","outbounds":[{"protocol":"freedom","tag":"direct"},{"protocol":"hysteria","tag":"hy","settings":{"address":"hy.example","port":443}}],"routing":{"balancers":[{"tag":"auto","selector":["hy"]}],"rules":[{"balancerTag":"auto"}]}})");
-        check(hy.size() == 1 && hy.first()->outbound->DisplayType() == "Hysteria" && hy.first()->outbound->DisplayAddress() == "hy.example:443", "JSON Hysteria2 retains its protocol and address despite embedded balancers");
+        check(hy.size() == 1 && hy.first()->outbound->DisplayType() == "Hysteria 2" && hy.first()->outbound->DisplayAddress() == "hy.example:443", "JSON Hysteria2 retains its protocol and address despite embedded balancers");
         for (const auto &protocol : QStringList{"vless", "vmess", "trojan", "shadowsocks", "socks", "http", "wireguard"}) {
             Configs::Custom custom;
             custom.type = Configs::Custom::CustomXrayFullConfig;
@@ -533,7 +556,7 @@ int TestQwdttImport() {
         Configs::Custom singBox;
         singBox.type = Configs::Custom::CustomFullConfig;
         singBox.config = R"({"outbounds":[{"type":"direct","tag":"direct"},{"type":"selector","tag":"auto","outbounds":["hy"]},{"type":"hysteria2","tag":"hy","server":"native.example","server_port":443}],"route":{"final":"auto"}})";
-        check(singBox.DisplayType() == "Hysteria" && singBox.DisplayAddress() == "native.example:443", "sing-box JSON resolves selected proxy protocol and address");
+        check(singBox.DisplayType() == "Hysteria 2" && singBox.DisplayAddress() == "native.example:443", "sing-box JSON resolves selected proxy protocol and address");
     }
     {
         for (const auto &protocol : QStringList{"vless", "vmess", "trojan", "shadowsocks", "socks", "http", "wireguard", "hysteria", "hysteria2"}) {
@@ -547,7 +570,7 @@ int TestQwdttImport() {
             if (!plain.isEmpty()) {
                 const auto label = plain.first()->outbound->DisplayType();
                 check(protocol == "vless" ? label == "VLESS (Xray)" : !label.contains("Xray"), "only the native VLESS engine label is appended");
-                if (protocol.startsWith("hysteria")) check(label == "Hysteria", "original Hysteria label restored");
+                if (protocol.startsWith("hysteria")) check(label.startsWith("Hysteria"), "original Hysteria label restored");
             }
         }
         for (const auto &type : QStringList{"socks", "http", "shadowsocks", "vmess", "vless", "xrayvless", "trojan", "hysteria", "tuic", "anytls", "wireguard", "masque", "tailscale", "ssh", "naive", "mieru", "snell", "shadowtls", "juicity", "trusttunnel", "openvpn", "openconnect", "chain", "autoselector", "extracore", "custom"}) {
@@ -570,7 +593,7 @@ int TestQwdttImport() {
             for (const auto &body : {bytes, QByteArray("throne://add/") + bytes.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)}) {
                 const auto imported = parse(body);
                 check(imported.size() == 4, "mixed qWDTT CSQTT HY2 and full Xray documents preserve every entry");
-                if (imported.size() == 4) check(imported[0]->type == "qwdtt" && imported[1]->outbound->DisplayType() == "Hysteria" && imported[2]->type == "csqtt" && imported[3]->Custom() && imported[3]->Custom()->IsXrayFullConfig(), "mixed array order and full routing retained");
+                if (imported.size() == 4) check(imported[0]->type == "qwdtt" && imported[1]->outbound->DisplayType() == "Hysteria 2" && imported[2]->type == "csqtt" && imported[3]->Custom() && imported[3]->Custom()->IsXrayFullConfig(), "mixed array order and full routing retained");
             }
         }
     }

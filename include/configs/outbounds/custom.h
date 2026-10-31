@@ -76,6 +76,8 @@ namespace Configs
 
         bool IsXray() override { return type == CustomXrayOutbound; }
 
+        bool StreamProtocol() override;
+
         bool IsXrayFullConfig() override { return type == CustomXrayFullConfig; }
 
         // Raw addresses (callers filter literal IPs) for sing-box's direct-DNS carve-out.

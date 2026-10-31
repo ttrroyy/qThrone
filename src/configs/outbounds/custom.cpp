@@ -636,11 +636,20 @@ namespace Configs
         return protocol;
     }
 
+    bool Custom::StreamProtocol() {
+        QString protocol;
+        if (type == CustomOutbound || type == CustomFullConfig) protocol = DisplaySingBoxOutbound()["type"].toString();
+        else if (type == CustomXrayOutbound || type == CustomXrayFullConfig) protocol = DisplayXrayOutbound()["protocol"].toString();
+        protocol = protocol.toLower();
+        return protocol == "vless" || protocol == "vmess" || protocol == "trojan";
+    }
+
     QString Custom::DisplayXrayType() const {
         auto protocol = DisplayXrayOutbound()["protocol"].toString();
         if (protocol.isEmpty()) return "Custom Xray Config";
         if (protocol == "vless") return "VLESS (Xray)";
-        if (protocol == "hysteria2" || protocol == "hy2") protocol = "hysteria";
+        // Xray's hysteria is always version 2.
+        if (protocol == "hysteria" || protocol == "hysteria2" || protocol == "hy2") return "Hysteria 2";
         if (protocol != "custom") {
             std::shared_ptr<outbound> native(NewOutboundByType(protocol));
             if (native && !native->invalid) {
