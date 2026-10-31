@@ -84,7 +84,9 @@
 
 Версия для Android - [qThroneMobile](https://github.com/ttrroyy/qThroneMobile).
 
-## Поддержать проект
+## Обсуждение и поддержка
+
+[Группа в Telegram](https://t.me/raw_comm)
 
 Понравилось - ставь ⭐ репозиторию: это помогает другим найти проект.
 
