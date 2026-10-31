@@ -728,7 +728,7 @@ jobs:
           RELEASE_GIT_TAG=$(python3 -c 'import re,sys; assert re.fullmatch(r"\d+\.\d+(?:\.\d+)?(?:-(?:alpha|beta|rc)\.\d+)?",sys.argv[1]); print("v"+sys.argv[1])' "$RELEASE_TAG")
           args=()
           if [[ "$RELEASE_KIND" == p ]]; then args+=(--prerelease); fi
-          title="qThrone $RELEASE_TAG"
+          title="$RELEASE_TAG"
           gh release create "$RELEASE_GIT_TAG" deployment/* \
             --target "$RELEASE_SHA" --title "$title" \
             --notes-file "$RUNNER_TEMP/release-notes.md" "${args[@]}"
