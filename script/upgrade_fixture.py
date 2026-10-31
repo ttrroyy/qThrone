@@ -35,7 +35,8 @@ snapshot = {
     'profiles': connection.execute('SELECT id,type,name,gid,outbound_json FROM profiles WHERE id IN (901,902) ORDER BY id').fetchall(),
     'group': connection.execute('SELECT id,name,url,skip_auto_update,profiles_json FROM groups WHERE id=901').fetchall(),
     'settings': connection.execute("SELECT key,value FROM settings WHERE key IN ('test_url','allow_beta_update') ORDER BY key").fetchall(),
-    'routes': connection.execute('SELECT * FROM route_profiles WHERE id=901').fetchall(),
+    # Named columns: an upgrade may add new ones (Throne's per-profile DNS), which is not a change of what was stored.
+    'routes': connection.execute('SELECT id,name,default_outbound_id FROM route_profiles WHERE id=901').fetchall(),
 }
 snapshot = json.loads(json.dumps(snapshot))
 connection.close()
@@ -43,7 +44,9 @@ expected = root.parent / 'upgrade-fixture.json'
 if action == 'seed':
     expected.write_text(json.dumps(snapshot))
 elif action == 'verify':
-    assert snapshot == json.loads(expected.read_text()), 'Profiles, subscriptions, settings or routing changed during upgrade'
+    before = json.loads(expected.read_text())
+    changed = {key: {'before': before.get(key), 'after': snapshot.get(key)} for key in snapshot if snapshot.get(key) != before.get(key)}
+    assert not changed, 'Profiles, subscriptions, settings or routing changed during upgrade: ' + json.dumps(changed)
     assert (root / 'config/upgrade-sentinel.txt').read_text() == 'preserve portable configuration'
     assert (root / 'profiles/upgrade-sentinel.txt').read_text() == 'preserve portable profiles'
     print('RAW/WG profiles, subscription, routing and settings survived the upgrade')
