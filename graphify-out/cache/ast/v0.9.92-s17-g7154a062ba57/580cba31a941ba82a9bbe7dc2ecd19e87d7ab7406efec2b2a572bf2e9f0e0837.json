@@ -1,0 +1,1 @@
+{"nodes": [{"id": "pkg_qthroneupdater", "label": "qThroneUpdater", "file_type": "code", "type": "package", "ecosystem": "go", "source_file": "updater/go.mod", "source_location": "L1"}], "edges": []}

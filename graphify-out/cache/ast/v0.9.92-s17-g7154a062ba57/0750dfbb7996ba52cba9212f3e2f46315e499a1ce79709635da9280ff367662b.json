@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_core_internal_winipcfg_mksyscall_go", "label": "mksyscall.go", "file_type": "code", "source_file": "core/internal/winipcfg/mksyscall.go", "source_location": "L1"}], "edges": [], "raw_calls": [], "go_imports": {}, "go_type_table": {"path": "$graphify-root$/core/internal/winipcfg/mksyscall.go", "table": {}}}

@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_3rdparty_simple_protobuf_test_custom_output_dir_include_openapi_h", "label": "openapi.h", "file_type": "code", "source_file": "3rdparty/simple-protobuf/test/custom-output-dir/include/openapi.h", "source_location": "L1"}], "edges": [], "raw_calls": []}

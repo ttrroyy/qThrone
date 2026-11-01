@@ -117,13 +117,21 @@ QString download(const QJsonObject &doc, const QString &kind, QString &path, boo
     options.directWhenDisconnected = true;
     options.transferTimeoutMs = 30000;
     const auto response = NetworkRequestHelper::HttpGet(address, options);
-    if (!response.error.isEmpty())
+    // An older valid copy beats a failed start: the tunnel being replaced may be the one that is down.
+    const bool keepCache = !force && cached.size() > 0 && validGeoFile(path);
+    if (!response.error.isEmpty()) {
+        if (keepCache) return {};
         return QObject::tr("Could not download %1 from %2: %3").arg(kind, address, response.error);
-    if (response.data.isEmpty())
+    }
+    if (response.data.isEmpty()) {
+        if (keepCache) return {};
         return QObject::tr("Empty Geo file: %1").arg(address);
+    }
     QSet<QString> categories;
-    if (!geoCategories(response.data, categories))
+    if (!geoCategories(response.data, categories)) {
+        if (keepCache) return {};
         return QObject::tr("Invalid or incomplete Geo database from %1. The previous cache was preserved.").arg(address);
+    }
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly) || file.write(response.data) != response.data.size() || !file.commit())
         return QObject::tr("Could not save Geo file: %1").arg(path);

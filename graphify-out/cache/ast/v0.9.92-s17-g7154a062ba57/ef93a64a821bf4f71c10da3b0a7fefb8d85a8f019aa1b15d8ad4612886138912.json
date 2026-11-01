@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_core_internal_sysdns_sysdns_go", "label": "sysdns.go", "file_type": "code", "source_file": "core/internal/sysdns/sysdns.go", "source_location": "L1"}], "edges": [], "raw_calls": [], "go_imports": {}, "go_type_table": {"path": "$graphify-root$/core/internal/sysdns/sysdns.go", "table": {}}}
