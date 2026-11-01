@@ -685,6 +685,42 @@ class LongPress : public QObject {
     std::function<void()> onLong, onClick;
 };
 
+// Puts [hashes] into the chosen qWDTT, CSQTT and WDTT Plus profiles as their own (manual) hashes.
+void ApplyHashesToProfiles(QWidget *parent, const QStringList &hashes, QLabel *status) {
+    QList<std::shared_ptr<Configs::Profile>> profiles;
+    for (const auto *type : {"qwdtt", "csqtt", "wdttplus"}) for (int id : Configs::dataManager->profilesRepo->GetProfileIdsByType(type))
+        if (auto profile = Configs::dataManager->profilesRepo->GetProfile(id)) profiles << profile;
+    if (profiles.isEmpty()) { status->setText("Нет профилей qWDTT, CSQTT или WDTT Plus"); return; }
+    QDialog dialog(parent);
+    dialog.setWindowTitle("Применить к профилям");
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *list = new QListWidget(&dialog);
+    for (const auto &profile : profiles) {
+        auto *item = new QListWidgetItem(profile->outbound->DisplayTypeAndName(), list);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(Qt::Unchecked);
+    }
+    layout->addWidget(list, 1);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    buttons->button(QDialogButtonBox::Ok)->setText("Применить");
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    dialog.resize(460, 380);
+    if (dialog.exec() != QDialog::Accepted) return;
+    int applied = 0;
+    for (int i = 0; i < profiles.size(); i++) {
+        if (list->item(i)->checkState() != Qt::Checked) continue;
+        const auto &profile = profiles[i];
+        // The profile editors' slots: CSQTT has six, the others four.
+        if (auto *relay = dynamic_cast<Configs::qwdtt *>(profile->outbound.get())) { relay->hashes = hashes.mid(0, 4); relay->hashSource = "manual"; }
+        if (auto *relay = dynamic_cast<Configs::wdttplus *>(profile->outbound.get())) { relay->hashes = hashes.mid(0, 4); relay->hashSource = "manual"; }
+        if (auto *relay = dynamic_cast<Configs::csqtt *>(profile->outbound.get())) { relay->hashes = hashes.mid(0, 6); relay->hashSource = "manual"; }
+        if (Configs::dataManager->profilesRepo->Save(profile)) applied++;
+    }
+    if (applied) status->setText(QString("Хеши применены к профилям: %1").arg(applied));
+}
+
 void ShowHashGenerator(QWidget *parent) {
     constexpr int maxHashes = 30;
     QDialog dialog(parent);
@@ -701,7 +737,9 @@ void ShowHashGenerator(QWidget *parent) {
     add->setFixedWidth(40);
     auto *selectAll = new QPushButton("Выбрать все", &dialog);
     auto *removeSelected = new QPushButton("Удалить", &dialog);
+    auto *applySelected = new QPushButton("Применить к профилям", &dialog);
     top->addWidget(add);
+    top->addWidget(applySelected);
     top->addWidget(selectAll);
     top->addWidget(removeSelected);
     auto *list = new QListWidget(&dialog);
@@ -803,7 +841,14 @@ void ShowHashGenerator(QWidget *parent) {
         selectAll->setVisible(state->selecting);
         removeSelected->setVisible(state->selecting);
         removeSelected->setEnabled(!state->busy && !state->checked.isEmpty());
+        applySelected->setVisible(state->selecting);
+        applySelected->setEnabled(!state->busy && !state->checked.isEmpty());
     };
+    QObject::connect(applySelected, &QPushButton::clicked, &dialog, [=, &dialog] {
+        QStringList chosen;
+        for (const auto &hash : state->hashes) if (state->checked.contains(hash)) chosen << hash;
+        ApplyHashesToProfiles(&dialog, chosen, status);
+    });
     QObject::connect(selectAll, &QPushButton::clicked, &dialog, [=] {
         state->checked = QSet<QString>(state->hashes.begin(), state->hashes.end());
         (*rebuild)();
