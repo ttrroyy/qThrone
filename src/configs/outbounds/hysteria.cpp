@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QJsonArray>
+#include <QRegularExpression>
 #include <QUrlQuery>
 #include <include/global/Utils.hpp>
 
@@ -16,6 +17,13 @@
 namespace Configs {
     namespace {
         constexpr qint64 kHysteriaMinHopNs = 5LL * 1000 * 1000 * 1000;
+
+        // Share links write the port-hopping interval as bare seconds ("10"); the core needs a unit ("10s").
+        QString hopSeconds(const QString &raw) {
+            const auto value = raw.trimmed();
+            static const QRegularExpression digits("^[0-9]+$");
+            return digits.match(value).hasMatch() ? value + "s" : value;
+        }
 
         // Without a diagnostics scope (DB loads, clones) a parse keeps every value as it always did.
         bool hysteriaKeep(const QString &field, const QString &value, const Validation::Rule &rule) {
@@ -316,7 +324,7 @@ namespace Configs {
             }
             if (obfs_type == "gecko") hysteriaDropBadGeckoSizes(min_packet_size, max_packet_size);
             if (query.hasQueryItem("hop_interval_max")) {
-                const auto value = query.queryItemValue("hop_interval_max").trimmed();
+                const auto value = hopSeconds(query.queryItemValue("hop_interval_max"));
                 if (hysteriaKeep("hop_interval_max", value, Validation::Rules::Duration())) hop_interval_max = value;
             }
             if (query.hasQueryItem("bbr_profile")) {
@@ -332,7 +340,7 @@ namespace Configs {
             if (hysteriaKeep(key, value, Validation::Rules::Int(0, std::numeric_limits<int>::max()))) *target = value.toInt();
         }
         if (query.hasQueryItem("hop_interval")) {
-            const auto value = query.queryItemValue("hop_interval").trimmed();
+            const auto value = hopSeconds(query.queryItemValue("hop_interval"));
             if (hysteriaKeep("hop_interval", value, Validation::Rules::Duration())) hop_interval = value;
         }
         if (query.hasQueryItem("mport")) {
@@ -388,7 +396,7 @@ namespace Configs {
             server_ports = JsonStringList(object["server_ports"], "server_ports");
         }
         if (object.contains("hop_interval")) {
-            const auto value = object["hop_interval"].toString().trimmed();
+            const auto value = hopSeconds(object["hop_interval"].toString());
             if (hysteriaKeep("hop_interval", value, Validation::Rules::Duration())) hop_interval = value;
         }
         if (object.contains("up_mbps")) up_mbps = object["up_mbps"].toInt();
@@ -433,7 +441,7 @@ namespace Configs {
             if (object.contains("obfsPassword")) obfs = object["obfsPassword"].toString();
             if (object.contains("password")) password = object["password"].toString();
             if (object.contains("hop_interval_max")) {
-                const auto value = object["hop_interval_max"].toString().trimmed();
+                const auto value = hopSeconds(object["hop_interval_max"].toString());
                 if (hysteriaKeep("hop_interval_max", value, Validation::Rules::Duration())) hop_interval_max = value;
             }
             if (object.contains("bbr_profile")) {

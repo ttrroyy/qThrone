@@ -306,6 +306,9 @@ int TestQwdttImport() {
             Configs::hysteria hy2;
             hy2.protocol_version = "2";
             check(hy2.DisplayProtocol() == "Hysteria 2", "Hysteria 2 is named by version");
+            Configs::hysteria hop;
+            check(hop.ParseFromLink("hy2://pass@203.0.113.9:443/?insecure=1&hop_interval=10&sni=example.com#hop") && hop.hop_interval == "10s",
+                  "Hysteria 2 link hop_interval in bare seconds gets a unit");
         }
         {
             const QJsonObject routing{{"Name", "RoscomVPN"}, {"GlobalProxy", "true"}, {"ProxySites", QJsonArray{"geosite:github", "domain:example.org"}},
