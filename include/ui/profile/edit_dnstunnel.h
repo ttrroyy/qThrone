@@ -21,7 +21,7 @@ private:
     QString kind;
     QFormLayout *form;
     QLineEdit *domain, *pubkey, *mkey, *idleTimeout, *keepalive, *user, *password, *soarCountry;
-    QPlainTextEdit *cert, *resolvers, *privateKey;
+    QPlainTextEdit *cert, *resolvers, *privateKey, *masterOptions;
     QComboBox *encryption, *recordType, *congestion, *backend, *method, *soarTransport;
     QCheckBox *dnsttCompat, *authoritative, *soarDiscovery;
     QSpinBox *clientIdSize, *keepAliveInterval;

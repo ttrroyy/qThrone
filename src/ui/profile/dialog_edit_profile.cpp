@@ -28,6 +28,7 @@
 #include "include/ui/profile/edit_openconnect.h"
 #include "include/ui/profile/edit_openvpn.h"
 #include "include/ui/profile/edit_shadowsocks.h"
+#include "include/ui/profile/edit_shadowsocksr.h"
 #include "include/ui/profile/edit_shadowtls.h"
 #include "include/ui/profile/edit_snell.h"
 #include "include/ui/profile/edit_socks.h"
@@ -81,6 +82,7 @@ EditorFactory editorFactory(const QString &type) {
         {"socks", makeEditor<EditSocks>},
         {"http", makeEditor<EditHttp>},
         {"shadowsocks", makeEditor<EditShadowSocks>},
+        {"shadowsocksr", makeEditor<EditShadowsocksR>},
         {"trojan", makeEditor<EditTrojan>},
         {"vmess", makeEditor<EditVMess>},
         {"vless", makeEditor<EditVless>},
@@ -262,7 +264,7 @@ void DialogEditProfile::setupTypeList() {
         // The two VLESS engines are picked here, so only this list names the engine.
         ui->type->addItem(t == "qwdtt" ? QStringLiteral("qWDTT") : t == "csqtt" ? QStringLiteral("CSQTT") : t == "wdttplus" ? QStringLiteral("WDTT Plus") : t == "xrayvless" ? QStringLiteral("VLESS (Xray)") : Configs::dataManager->profilesRepo->NewProfile(t)->outbound->DisplayType(), t);
     };
-    for (const auto *t: {"qwdtt", "csqtt", "wdttplus", "openflux", "openfluxkey", "olcrtc", "masterdns", "cottendns", "soar", "vaydns", "dnstt", "slipstream", "s3bypass", "sstp", "autoselector", "socks", "http", "shadowsocks", "trojan", "vmess", "vless", "xrayvless",
+    for (const auto *t: {"qwdtt", "csqtt", "wdttplus", "openflux", "openfluxkey", "olcrtc", "masterdns", "cottendns", "soar", "vaydns", "dnstt", "slipstream", "s3bypass", "sstp", "autoselector", "socks", "http", "shadowsocks", "shadowsocksr", "trojan", "vmess", "vless", "xrayvless",
                          "hysteria", "tuic", "juicity", "naive", "trusttunnel", "anytls", "mieru", "snell",
                          "shadowtls", "wireguard", "masque", "openvpn", "openconnect", "tailscale", "ssh", "direct"}) {
         addType(t);

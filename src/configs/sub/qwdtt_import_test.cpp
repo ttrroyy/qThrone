@@ -58,6 +58,7 @@
 #include "include/ui/widget/SeasonalDecoration.hpp"
 #include "include/ui/setting/dialog_basic_settings.h"
 #include "include/configs/outbounds/sstp.h"
+#include "include/configs/outbounds/shadowsocksr.h"
 
 int TestQwdttImport() {
     qInstallMessageHandler(nullptr);
@@ -257,6 +258,29 @@ int TestQwdttImport() {
         Subscription::ParseDocument(body, sink);
         return profiles;
     };
+    {
+        Configs::shadowsocksr profile, restored;
+        profile.server = "2001:db8::1"; profile.server_port = 8388;
+        profile.password = QStringLiteral("пароль:+/"); profile.name = QStringLiteral("Тест SSR");
+        profile.protocol = "auth_aes128_sha1"; profile.protocol_param = "42:secret";
+        profile.obfs = "tls1.2_ticket_auth"; profile.obfs_param = "example.com";
+        const auto json = profile.ExportToJson();
+        check(restored.ParseFromLink(profile.ExportToLink()) && restored.ExportToJson() == json, "SSR URI preserves IPv6, Unicode and parameters");
+        auto legacy = json; legacy.remove("type");
+        const auto body = QJsonDocument(json).toJson(QJsonDocument::Compact);
+        for (const auto &input : QList<QByteArray>{profile.ExportToLink().toUtf8(), body, '[' + body + ']',
+                 "{\"outbounds\":[" + body + "]}", QJsonDocument(QJsonObject{{"configs", QJsonArray{legacy}}}).toJson(),
+                 profile.ExportToLink().toUtf8().toBase64(), profile.ExportJsonLink().toUtf8()}) {
+            const auto imported = parse(input);
+            check(imported.size() == 1 && imported.first()->type == "shadowsocksr" && imported.first()->outbound->ExportToJson() == json,
+                  "SSR editable profile imports through every subscription format");
+        }
+        const auto clash = parse("proxies:\n  - {name: SSR, type: ssr, server: 192.0.2.1, port: 8388, cipher: aes-256-cfb, password: secret, protocol: auth_chain_a, protocol-param: '42:secret', obfs: http_simple, obfs-param: example.com}\n");
+        auto *out = clash.size() == 1 ? dynamic_cast<Configs::shadowsocksr *>(clash.first()->outbound.get()) : nullptr;
+        check(out && out->protocol_param == "42:secret" && out->obfs_param == "example.com", "SSR Clash fields survive import");
+        check(!profile.ParseFromLink("ssr://invalid!"), "SSR rejects invalid base64");
+        check(profile.Build().object["type"].toString() == "shadowsocksr", "SSR builds as a native core outbound");
+    }
     {
         const auto link = QStringLiteral("sstp://user%40example:p%3A%2B%2F%40ss@[2001:db8::1]:444?sni=vpn.example.org&insecure=1#SSTP%20test");
         Configs::sstp profile, restored;
@@ -1178,6 +1202,12 @@ proxies:
             const auto again = first ? read(tunnel(first)->ExportToLink()) : nullptr;
             check(again && again->type == first->type && tunnel(again)->ExportToJson() == tunnel(first)->ExportToJson(), "DNS tunnel exported link reads back");
         }
+        Configs::dnstunnel advanced("masterdns");
+        check(advanced.ParseFromJson(QJsonObject{{"type", "masterdns"}, {"domain", "a.example.com., b.example.com"},
+                  {"mkey", "secret"}, {"encryption", 1}, {"resolvers", QJsonArray{"192.0.2.1:5353"}},
+                  {"options", QJsonObject{{"PACKET_DUPLICATION_COUNT", 3}, {"MTU_TEST_TIMEOUT", 2.5}}}}), "MasterDNS accepts multiple domains and client options");
+        const auto sharedAdvanced = read(advanced.ExportToLink());
+        check(sharedAdvanced && tunnel(sharedAdvanced)->ExportToJson() == advanced.ExportToJson(), "DNS sharing preserves resolvers and client options");
         if (dnstt && tunnel(dnstt)->Prepare().isEmpty()) {
             const auto prepared = QJsonDocument::fromJson(tunnel(dnstt)->extraCoreConf.toUtf8()).object();
             check(prepared["backend"].toString() == "dnstt" && prepared["tunnel_backend"].toObject()["type"].toString() == "ssh"

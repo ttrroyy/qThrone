@@ -2,6 +2,7 @@
 #include "include/configs/outbounds/dnstunnel.h"
 #include <QFormLayout>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QRegularExpression>
 
 EditDnsTunnel::EditDnsTunnel(QWidget *parent) : QWidget(parent) {
@@ -20,6 +21,8 @@ EditDnsTunnel::EditDnsTunnel(QWidget *parent) : QWidget(parent) {
     const QStringList methods{QStringLiteral("Нет"), "XOR", "ChaCha20", "AES-128-GCM", "AES-192-GCM", "AES-256-GCM"};
     for (int i = 0; i < methods.size(); ++i) encryption->addItem(methods[i], i);
     resolvers = multiline(3);
+    masterOptions = multiline(5);
+    masterOptions->setPlaceholderText("{\n  \"PACKET_DUPLICATION_COUNT\": 3,\n  \"MTU_TEST_TIMEOUT\": 2.0\n}");
     recordType = new QComboBox(this);
     for (const auto &type : Configs::dnstunnel::RecordTypes()) recordType->addItem(type.toUpper(), type);
     dnsttCompat = new QCheckBox(QStringLiteral("Совместимость с DNSTT"), this);
@@ -49,6 +52,7 @@ EditDnsTunnel::EditDnsTunnel(QWidget *parent) : QWidget(parent) {
     form->addRow(QStringLiteral("Ключ шифрования"), mkey);
     form->addRow(QStringLiteral("Шифрование"), encryption);
     form->addRow(QStringLiteral("DNS-резолверы"), resolvers);
+    form->addRow(QStringLiteral("Дополнительные параметры MasterDNS (JSON)"), masterOptions);
     form->addRow(QStringLiteral("Тип DNS-записи"), recordType);
     form->addRow(QString(), dnsttCompat);
     form->addRow(QStringLiteral("Размер ClientID, байт"), clientIdSize);
@@ -78,6 +82,8 @@ void EditDnsTunnel::updateFields() {
     const bool dnstt = kind == "dnstt", vaydns = kind == "vaydns", slip = kind == "slipstream", soar = kind == "soar";
     // MasterDNS and CottenDNS take a key and method; Soar a public key; none of the three a server-side service.
     const bool keyed = kind == "masterdns" || kind == "cottendns", master = keyed || soar;
+    setRowVisible(masterOptions, kind == "masterdns");
+    masterOptions->setToolTip(QStringLiteral("Балансировка резолверов, MTU, дублирование и тайм-ауты. Пусто: настройки движка."));
     setRowVisible(pubkey, dnstt || vaydns || soar);
     pubkey->setPlaceholderText(soar ? QStringLiteral("Ed25519 в base64, 44 символа") : QStringLiteral("64 шестнадцатеричных символа"));
     for (QWidget *field : std::initializer_list<QWidget *>{soarDiscovery, soarCountry, soarTransport}) setRowVisible(field, soar);
@@ -112,6 +118,7 @@ void EditDnsTunnel::onStart(std::shared_ptr<Configs::Profile> profile) {
     QStringList list;
     for (const auto &value : d["resolvers"].toArray()) list << value.toString();
     resolvers->setPlainText(list.join('\n'));
+    masterOptions->setPlainText(d["options"].toObject().isEmpty() ? QString() : QString::fromUtf8(QJsonDocument(d["options"].toObject()).toJson()));
     recordType->setCurrentIndex(qMax(0, recordType->findData(d["record_type"].toString("txt"))));
     dnsttCompat->setChecked(d["dnstt_compat"].toBool());
     clientIdSize->setValue(d["clientid_size"].toInt(2));
@@ -138,6 +145,18 @@ bool EditDnsTunnel::onEnd() {
     if (!o) return false;
     // Fields this editor has no control for (from a link or JSON) are kept.
     auto d = o->data;
+    if (kind == "masterdns") {
+        const auto text = masterOptions->toPlainText().trimmed();
+        if (text.isEmpty()) d.remove("options");
+        else {
+            const auto options = QJsonDocument::fromJson(text.toUtf8());
+            if (!options.isObject()) {
+                MessageBoxWarning(Configs::dnstunnel::Title(kind), QStringLiteral("Дополнительные параметры должны быть объектом JSON"));
+                return false;
+            }
+            d["options"] = options.object();
+        }
+    }
     for (const auto *key : {"domain", "pubkey", "cert", "mkey", "encryption", "resolvers", "record_type", "dnstt_compat",
                             "clientid_size", "idle_timeout", "keepalive", "authoritative", "congestion_control", "keep_alive_interval", "backend"})
         d.remove(QString::fromLatin1(key));

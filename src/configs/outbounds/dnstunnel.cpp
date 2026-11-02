@@ -211,6 +211,11 @@ bool dnstunnel::ParseFromJson(const QJsonObject &o) {
     name = o["name"].toString(o["tag"].toString());
     auto domain = data["domain"].toString().trimmed();
     while (domain.endsWith('.')) domain.chop(1);
+    if (kind == "masterdns" || kind == "cottendns") {
+        auto domains = domain.split(QRegularExpression("[,\\s]+"), Qt::SkipEmptyParts);
+        for (auto &item : domains) while (item.endsWith('.')) item.chop(1);
+        domain = domains.join(',');
+    }
     data["domain"] = domain;
     if (!Keyed(kind) && !data.contains("backend")) data["backend"] = QJsonObject{{"type", "socks"}};
     if (Keyed(kind)) data.remove("backend");
@@ -221,7 +226,10 @@ bool dnstunnel::ParseFromJson(const QJsonObject &o) {
 QString dnstunnel::Validate() const {
     const auto domain = data["domain"].toString();
     static const QRegularExpression hex64("^[0-9a-fA-F]{64}$");
-    if (domain.isEmpty() || domain.size() > 253 || domain.contains(QRegularExpression("[\\s/]"))) return QStringLiteral("%1: укажите домен туннеля").arg(Title(kind));
+    const auto domains = kind == "masterdns" || kind == "cottendns" ? domain.split(',') : QStringList{domain};
+    for (const auto &item : domains)
+        if (item.isEmpty() || item.size() > 253 || item.contains(QRegularExpression("[\\s/]"))) return QStringLiteral("%1: укажите домен туннеля").arg(Title(kind));
+    if (data.contains("options") && !data["options"].isObject()) return QStringLiteral("Дополнительные параметры должны быть объектом JSON");
     if ((kind == "dnstt" || kind == "vaydns") && !hex64.match(data["pubkey"].toString()).hasMatch())
         return QStringLiteral("%1: публичный ключ сервера — 64 шестнадцатеричных символа").arg(Title(kind));
     if (kind == "masterdns" || kind == "cottendns") {
@@ -285,6 +293,7 @@ bool dnstunnel::parseDnst(const QString &body) {
         QJsonObject o{{"type", transport["type"].toString()}, {"name", json["tag"].toString()}};
         for (auto it = transport.begin(); it != transport.end(); ++it)
             if (it.key() != "type") o[it.key()] = it.value();
+        if (json.contains("resolvers")) o["resolvers"] = json["resolvers"].toArray();
         if (!json["backend"].toObject().isEmpty()) o["backend"] = json["backend"].toObject();
         return ParseFromJson(o);
     }
@@ -396,6 +405,7 @@ bool dnstunnel::ParseWhiteDnsProfile(const QJsonObject &json, QString scheme) {
     const auto method = serverObject.contains("encryption_method") ? serverObject["encryption_method"].toInt(1) : serverObject["encryptionMethod"].toInt(1);
     QJsonObject o{{"type", scheme == "cottendns" ? "cottendns" : "masterdns"}, {"name", profile["name"].toString()},
                   {"domain", domains.join(',')}, {"mkey", key}, {"encryption", method}};
+    if (profile.contains("resolvers")) o["resolvers"] = profile["resolvers"].toArray();
     // WhiteDNS's own settings of the profile, as the engine needs them (the compatibility preset among them).
     if (scheme == "cottendns" && profile["cottenSettings"].isObject()) o["cotten"] = profile["cottenSettings"].toObject();
     return ParseFromJson(o);
@@ -418,6 +428,7 @@ QString dnstunnel::exportWhiteDns() const {
         if (!data["cotten"].toObject().isEmpty()) profile["cottenSettings"] = data["cotten"].toObject();
     }
     profile["server"] = serverObject;
+    if (!data["resolvers"].toArray().isEmpty()) profile["resolvers"] = data["resolvers"].toArray();
     const QJsonObject json{{"schema", "whitedns.profile"}, {"version", 1}, {"import_type", kind}, {"profile", profile}};
     return kind + "://" + QString::fromLatin1(QJsonDocument(json).toJson(QJsonDocument::Compact)
                                               .toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
@@ -436,13 +447,15 @@ QJsonObject dnstunnel::ExportIdentity() { auto o = ExportToJson(); o.remove("nam
 QString dnstunnel::ExportToLink() {
     const auto &d = data;
     if (!Validate().isEmpty()) return {};
-    if (kind == "cottendns" || kind == "soar") return exportWhiteDns();
+    if ((kind == "cottendns" || kind == "soar") && d["options"].toObject().isEmpty()) return exportWhiteDns();
     const auto backend = d["backend"].toObject();
-    if (!d["cert"].toString().isEmpty() || !backend["pk"].toString().isEmpty()) {
+    if (!d["cert"].toString().isEmpty() || !backend["pk"].toString().isEmpty() || !d["resolvers"].toArray().isEmpty() ||
+        !d["options"].toObject().isEmpty() || d["domain"].toString().contains(',') || kind == "slipstream") {
         QJsonObject transport{{"type", kind}};
         for (auto it = data.begin(); it != data.end(); ++it)
             if (it.key() != "backend" && it.key() != "resolvers") transport[it.key()] = it.value();
         QJsonObject json{{"transport", transport}, {"backend", kind == "masterdns" ? QJsonObject{{"type", "socks"}} : backend}};
+        if (!d["resolvers"].toArray().isEmpty()) json["resolvers"] = d["resolvers"].toArray();
         if (!name.isEmpty()) json["tag"] = name;
         return dnstPrefix + QString::fromLatin1(QJsonDocument(json).toJson(QJsonDocument::Compact)
                                                 .toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));

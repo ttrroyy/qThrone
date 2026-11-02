@@ -308,6 +308,8 @@ set(PROJECT_SOURCES
         src/ui/profile/edit_autoselector.cpp
         include/ui/profile/edit_autoselector.ui
         include/ui/profile/edit_shadowsocks.h
+        include/ui/profile/edit_shadowsocksr.h
+        src/ui/profile/edit_shadowsocksr.cpp
         src/ui/profile/edit_shadowsocks.cpp
         include/ui/profile/edit_shadowsocks.ui
         include/ui/profile/edit_vmess.h
@@ -592,6 +594,7 @@ set(PROJECT_SOURCES
         include/configs/outbounds/socks.h
         include/configs/outbounds/http.h
         include/configs/outbounds/shadowsocks.h
+        include/configs/outbounds/shadowsocksr.h
         include/configs/outbounds/vmess.h
         include/configs/outbounds/trojan.h
         include/configs/outbounds/hysteria.h
@@ -613,6 +616,7 @@ set(PROJECT_SOURCES
         src/configs/outbounds/http.cpp
         src/configs/outbounds/hysteria.cpp
         src/configs/outbounds/shadowsocks.cpp
+        src/configs/outbounds/shadowsocksr.cpp
         src/configs/outbounds/socks.cpp
         src/configs/outbounds/ssh.cpp
         src/configs/outbounds/tailscale.cpp

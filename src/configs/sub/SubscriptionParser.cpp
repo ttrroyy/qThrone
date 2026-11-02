@@ -108,6 +108,7 @@ namespace Subscription {
             {"socks", {"socks5://", "socks4://", "socks4a://", "socks://"}, {"socks"}, {"socks5"}},
             {"http", {"http://", "https://"}, {"http"}, {"http"}},
             {"shadowsocks", {"ss://"}, {"shadowsocks"}, {"ss"}},
+            {"shadowsocksr", {"ssr://"}, {"shadowsocksr", "ssr"}, {"ssr"}},
             {"vmess", {"vmess://"}, {"vmess"}, {"vmess"}},
             {"vless", {"vless://"}, {"vless"}, {"vless"}},
             {"trojan", {"trojan://"}, {"trojan"}, {"trojan"}},
@@ -128,7 +129,7 @@ namespace Subscription {
         const char *typeForScheme(std::string_view link) {
             for (const auto &p : kProtocols) {
                 for (const char *scheme : p.schemes) {
-                    if (scheme != nullptr && ((std::string_view(p.type) == "qwdtt" || std::string_view(p.type) == "csqtt" || std::string_view(p.type) == "wdttplus")
+                    if (scheme != nullptr && ((std::string_view(p.type) == "qwdtt" || std::string_view(p.type) == "csqtt" || std::string_view(p.type) == "wdttplus" || std::string_view(p.type) == "shadowsocksr")
                         ? scan::startsWithNoCase(link, scheme) : link.starts_with(scheme))) return p.type;
                 }
             }
@@ -385,20 +386,20 @@ namespace Subscription {
                 const auto obj = doc.object();
                 if (obj.contains("outbounds")) {
                     for (const auto &item : obj["outbounds"].toArray()) {
-                        if (item.isObject() && item.toObject().contains("protocol")) return XraySubType::outboundInJson;
+                        if (item.isObject() && item.toObject().contains("protocol") && !item.toObject().contains("type")) return XraySubType::outboundInJson;
                     }
                 }
-                if (obj.contains("protocol")) return XraySubType::outboundObject;
+                if (obj.contains("protocol") && !obj.contains("type") && !(obj.contains("server") && obj.contains("method"))) return XraySubType::outboundObject;
                 return XraySubType::invalid;
             }
             if (doc.isArray() && !doc.array().empty()) {
                 const auto first = doc.array().first();
                 if (first.isObject()) {
                     const auto obj = first.toObject();
-                    if (obj.contains("protocol")) return XraySubType::outboundJsonArray;
+                    if (obj.contains("protocol") && !obj.contains("type") && !(obj.contains("server") && obj.contains("method"))) return XraySubType::outboundJsonArray;
                     if (obj.contains("outbounds")) {
                         for (const auto &item : obj["outbounds"].toArray()) {
-                            if (item.isObject() && item.toObject().contains("protocol")) return XraySubType::configJsonArray;
+                            if (item.isObject() && item.toObject().contains("protocol") && !item.toObject().contains("type")) return XraySubType::configJsonArray;
                         }
                     }
                 }
@@ -889,6 +890,7 @@ namespace Subscription {
                 const auto object = doc.object();
                 const bool wrapper = !object.contains("type") && !object.contains("protocol") && !object.contains("outbounds");
                 if (wrapper && object["profiles"].isArray()) { entries = object["profiles"].toArray(); list = true; }
+                else if (wrapper && object["configs"].isArray()) { entries = object["configs"].toArray(); list = true; }
                 else if (wrapper && object["servers"].isArray() && !object.contains("version")) { entries = object["servers"].toArray(); list = true; }
             }
             if (list) {
@@ -914,7 +916,10 @@ namespace Subscription {
             if (nativeType.isEmpty() && object.contains("peer")) nativeType = "qwdtt";
             if (nativeType == "wdtt") nativeType = "qwdtt";
             if (nativeType == "hysteria2") nativeType = "hysteria";
-            if (!nativeType.isEmpty() && !object.contains("protocol") &&
+            if (nativeType == "ssr") nativeType = "shadowsocksr";
+            if (nativeType.isEmpty() && object.contains("server") && object.contains("method") &&
+                (object.contains("protocol") || object.contains("obfs"))) nativeType = "shadowsocksr";
+            if (!nativeType.isEmpty() && (!object.contains("protocol") || nativeType == "shadowsocksr" || nativeType == "ssr") &&
                 !object.contains("outbounds") && !object.contains("endpoints")) {
                 auto ent = Configs::ProfilesRepo::NewProfile(nativeType);
                 if (!ent->outbound->invalid) {

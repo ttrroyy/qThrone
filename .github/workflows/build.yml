@@ -9,6 +9,10 @@ on:
       publish:
         description: "r for normal release, p for prerelease, leave empty to not publish anything"
         required: false
+      skip_ui_tests:
+        description: "Build artifacts without the UI self-test"
+        type: boolean
+        default: false
       common_run_id:
         description: "Reuse unchanged Go artifacts from a completed build; start at the GUI stage"
         required: false
@@ -139,7 +143,7 @@ jobs:
           go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.12
           go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
           protoc -I gen --go_out=gen --go-grpc_out=gen gen/libcore.proto
-          go test -race ./internal/process ./internal/rpc ./internal/probe ./internal/relay ./internal/parentcheck ./internal/providergeo
+          go test -race ./internal/process ./internal/rpc ./internal/probe ./internal/relay ./internal/parentcheck ./internal/providergeo ./internal/ssr
           # TrustTunnel races QUIC against its HTTP/2 fallback like the official client.
           CGO_ENABLED=0 go test -tags with_quic,with_utls,with_purego github.com/xchacha20-poly1305/sing-trusttunnel
           go vet ./internal/process ./internal/rpc ./internal/relay ./internal/parentcheck ./internal/providergeo
@@ -456,7 +460,7 @@ jobs:
           cd ..
           ./script/deploy_linux64_system_qt.sh
       - name: Test qWDTT clipboard and subscription import
-        if: contains(matrix.platform, 'ubuntu') && matrix.qt_version == '6.2.0'
+        if: ${{ !inputs.skip_ui_tests && contains(matrix.platform, 'ubuntu') && matrix.qt_version == '6.2.0' }}
         env:
           QT_QPA_PLATFORM: offscreen
           THRONE_SEASONAL_PREVIEW_DIR: ${{ runner.temp }}/seasonal-preview
