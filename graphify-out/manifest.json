@@ -2478,9 +2478,9 @@
     "semantic_hash": ""
   },
   "script/release_notes.py": {
-    "mtime": 1793631115.8229172,
-    "seen": 1793632735.3029006,
-    "ast_hash": "4736c6433d6f2e36cbf4bcc288c350a7",
+    "mtime": 1793634883.663123,
+    "seen": 1793634947.7918184,
+    "ast_hash": "076de459767c499a5cbb36b6d91a81ee",
     "semantic_hash": ""
   },
   "script/s3bypass/main.go": {
