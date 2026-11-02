@@ -6,9 +6,9 @@
     "semantic_hash": ""
   },
   "core/go.mod": {
-    "mtime": 1793631942.6968348,
-    "seen": 1793632735.3023193,
-    "ast_hash": "125be6b51abb9a78b3119d7b7543b556",
+    "mtime": 1793633457.327454,
+    "seen": 1793633681.067202,
+    "ast_hash": "9c269f60e90d594aa09ad5ef847430ce",
     "semantic_hash": ""
   },
   "core/internal/amnezia/signature.go": {
@@ -1020,33 +1020,33 @@
     "semantic_hash": ""
   },
   "core/internal/xray/constructor.go": {
-    "mtime": 1793631115.7478068,
-    "seen": 1793632735.3023193,
-    "ast_hash": "088e02448cdd941071449deb1395a853",
+    "mtime": 1793633373.9595413,
+    "seen": 1793633681.067202,
+    "ast_hash": "ca0b3aa06a1145546f0382f5117031a0",
     "semantic_hash": ""
   },
   "core/internal/xray/gate.go": {
-    "mtime": 1793631115.7489011,
-    "seen": 1793632735.3023193,
-    "ast_hash": "6b35dcd4a3153a2a2903ec3c7676a444",
+    "mtime": 1793633373.995509,
+    "seen": 1793633681.067202,
+    "ast_hash": "a045d5979a9cfa88f77bddc11362001e",
     "semantic_hash": ""
   },
   "core/internal/xray/gate_ports_other.go": {
-    "mtime": 1793631115.7489011,
-    "seen": 1793632735.3023193,
-    "ast_hash": "7c4668f849866d00f822efb48a69df28",
+    "mtime": 1793633374.0298977,
+    "seen": 1793633681.067202,
+    "ast_hash": "beb89a3831e58c8f56bc090cc385628e",
     "semantic_hash": ""
   },
   "core/internal/xray/gate_ports_reuse.go": {
-    "mtime": 1793631115.7494118,
-    "seen": 1793632735.3023193,
-    "ast_hash": "b26c7e7039ec1d2e392fa20ac237ee2b",
+    "mtime": 1793633374.0631175,
+    "seen": 1793633681.067202,
+    "ast_hash": "6b558997d82a6e1f9f8b92c4a34c1bbf",
     "semantic_hash": ""
   },
   "core/internal/xray/gate_test.go": {
-    "mtime": 1793631115.7499702,
-    "seen": 1793632735.3023193,
-    "ast_hash": "8f131fdb02faeace5170e6fa487c8cb1",
+    "mtime": 1793633374.0957434,
+    "seen": 1793633681.067202,
+    "ast_hash": "937b5128ed0bba87f43d90be181638ac",
     "semantic_hash": ""
   },
   "core/internal/xraydns/resolver.go": {
@@ -1104,9 +1104,9 @@
     "semantic_hash": ""
   },
   "core/mobile/instance.go": {
-    "mtime": 1793631115.7551715,
-    "seen": 1793632735.3023193,
-    "ast_hash": "16fa7b25957575b80ca199e2bf3fefb3",
+    "mtime": 1793633374.1297693,
+    "seen": 1793633681.067202,
+    "ast_hash": "d398e8516a7337db4f9549b3e704d624",
     "semantic_hash": ""
   },
   "core/mobile/iterator.go": {
@@ -1116,9 +1116,9 @@
     "semantic_hash": ""
   },
   "core/mobile/log.go": {
-    "mtime": 1793631115.7556975,
-    "seen": 1793632735.3023193,
-    "ast_hash": "90f60688f01212646257093768b4b57a",
+    "mtime": 1793633374.1981826,
+    "seen": 1793633681.067202,
+    "ast_hash": "012811441b0ff34e14c913956167a533",
     "semantic_hash": ""
   },
   "core/mobile/mobile.go": {
@@ -1188,9 +1188,9 @@
     "semantic_hash": ""
   },
   "core/mobile/xray.go": {
-    "mtime": 1793631115.7605777,
-    "seen": 1793632735.3023193,
-    "ast_hash": "56bf5b2b8bc0dd8e7328cfc4f1225972",
+    "mtime": 1793633374.1652014,
+    "seen": 1793633681.067202,
+    "ast_hash": "bcba42bbe6e521532868e2baf401a87a",
     "semantic_hash": ""
   },
   "core/third_party/sing-trusttunnel/client.go": {
