@@ -1208,6 +1208,30 @@ proxies:
                   {"options", QJsonObject{{"PACKET_DUPLICATION_COUNT", 3}, {"MTU_TEST_TIMEOUT", 2.5}}}}), "MasterDNS accepts multiple domains and client options");
         const auto sharedAdvanced = read(advanced.ExportToLink());
         check(sharedAdvanced && tunnel(sharedAdvanced)->ExportToJson() == advanced.ExportToJson(), "DNS sharing preserves resolvers and client options");
+        const QByteArray nativeToml = R"(DOMAINS = [
+            'a.example.com', # primary
+            "b.example.com",
+        ]
+        ENCRYPTION_KEY = 'secret#key'
+        MTU_TEST_TIMEOUT = 2.5
+        PACKET_DUPLICATION_COUNT = 3
+        BASE_ENCODE_DATA = false
+        SOCKS5_PASS = "local-secret"
+        LOCAL_DNS_ENABLED = true
+        )";
+        const QByteArray nativeJson = R"({"DOMAINS":["a.example.com","b.example.com"],"ENCRYPTION_KEY":"secret#key",
+            "MTU_TEST_TIMEOUT":2.5,"PACKET_DUPLICATION_COUNT":3,"BASE_ENCODE_DATA":false,
+            "SOCKS5_PASS":"local-secret","LOCAL_DNS_ENABLED":true})";
+        for (const auto &input : {nativeToml, nativeJson}) {
+            const auto imported = parse(input);
+            auto *out = imported.size() == 1 ? tunnel(imported.first()) : nullptr;
+            const auto options = out ? out->data["options"].toObject() : QJsonObject{};
+            check(out && out->data["mkey"].toString() == "secret#key" && options["MTU_TEST_TIMEOUT"].toDouble() == 2.5
+                  && options["PACKET_DUPLICATION_COUNT"].toInt() == 3 && options["BASE_ENCODE_DATA"].isBool()
+                  && !options.contains("SOCKS5_PASS") && !options.contains("LOCAL_DNS_ENABLED"), "MasterDNS native options keep their types without local credentials");
+            const auto shared = out ? read(out->ExportToLink()) : nullptr;
+            check(shared && tunnel(shared)->ExportToJson() == out->ExportToJson(), "MasterDNS native configuration survives sharing");
+        }
         if (dnstt && tunnel(dnstt)->Prepare().isEmpty()) {
             const auto prepared = QJsonDocument::fromJson(tunnel(dnstt)->extraCoreConf.toUtf8()).object();
             check(prepared["backend"].toString() == "dnstt" && prepared["tunnel_backend"].toObject()["type"].toString() == "ssh"

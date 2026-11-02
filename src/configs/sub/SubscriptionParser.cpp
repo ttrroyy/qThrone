@@ -574,20 +574,47 @@ namespace Subscription {
             return QJsonObject{{"type", "masterdns"}, {"name", label}, {"domain", list.join(',')}, {"mkey", key.trimmed()}, {"encryption", method}};
         }
 
+        QJsonObject masterDnsJson(const QJsonObject &object);
+
+        QString masterDnsTomlValue(const QString &text) {
+            static const QRegularExpression tokens(R"re("(?:\\.|[^"\\])*"|'[^']*'|#.*|,\s*(?=]))re");
+            QString result;
+            qsizetype cursor = 0;
+            auto matches = tokens.globalMatch(text);
+            while (matches.hasNext()) {
+                const auto match = matches.next();
+                result += text.mid(cursor, match.capturedStart() - cursor);
+                const auto token = match.captured();
+                if (token.startsWith('\'')) {
+                    const auto json = QJsonDocument(QJsonArray{token.mid(1, token.size() - 2)}).toJson(QJsonDocument::Compact);
+                    result += QString::fromUtf8(json.mid(1, json.size() - 2));
+                } else if (!token.startsWith('#') && !token.startsWith(',')) result += token;
+                cursor = match.capturedEnd();
+            }
+            return result + text.mid(cursor);
+        }
+
         QJsonObject masterDnsToml(std::string_view text) {
-            QMap<QString, QString> values;
+            QJsonObject values;
+            QString key, value;
+            bool valid = true;
             scan::forEachLine(text, [&](std::string_view raw) {
-                const auto line = QString::fromUtf8(raw.data(), static_cast<qsizetype>(raw.size())).section('#', 0, 0).trimmed();
-                const auto equals = line.indexOf('=');
-                if (equals > 0) values[line.left(equals).trimmed().toUpper()] = line.mid(equals + 1).trimmed();
+                const auto line = QString::fromUtf8(raw.data(), static_cast<qsizetype>(raw.size())).trimmed();
+                if (key.isEmpty()) {
+                    if (line.isEmpty() || line.startsWith('#')) return true;
+                    const auto equals = line.indexOf('=');
+                    if (equals <= 0) { valid = false; return false; }
+                    key = line.left(equals).trimmed().toUpper();
+                    value = line.mid(equals + 1);
+                } else value += '\n' + line;
+                const auto parsed = QJsonDocument::fromJson(('[' + masterDnsTomlValue(value) + ']').toUtf8());
+                if (!parsed.isArray()) return true;
+                if (parsed.array().size() != 1) { valid = false; return false; }
+                values[key] = parsed.array().first();
+                key.clear();
                 return true;
             });
-            if (!values.contains("DOMAINS") || !values.contains("ENCRYPTION_KEY")) return {};
-            auto key = values["ENCRYPTION_KEY"];
-            if (key.size() >= 2 && (key.startsWith('"') || key.startsWith('\'')) && key.back() == key.front()) key = key.mid(1, key.size() - 2);
-            bool ok = false;
-            const int method = values.value("DATA_ENCRYPTION_METHOD", "1").toInt(&ok);
-            return masterDnsProfile(values["DOMAINS"], key, ok ? method : 1, {});
+            return valid && key.isEmpty() ? masterDnsJson(values) : QJsonObject{};
         }
 
         // The whitedns.profile file (the JSON a masterdns:// or cottendns:// link carries) or MasterDnsVPN's JSON config.
@@ -600,7 +627,15 @@ namespace Subscription {
                 QStringList domains;
                 for (const auto &domain : object["DOMAINS"].toArray()) domains << domain.toString();
                 if (object["DOMAINS"].isString()) domains << object["DOMAINS"].toString();
-                return masterDnsProfile(domains.join(','), object["ENCRYPTION_KEY"].toString(), object["DATA_ENCRYPTION_METHOD"].toInt(1), {});
+                auto profile = masterDnsProfile(domains.join(','), object["ENCRYPTION_KEY"].toString(), object["DATA_ENCRYPTION_METHOD"].toInt(1), {});
+                if (profile.isEmpty()) return {};
+                static const QSet<QString> managedKeys{"DOMAINS", "ENCRYPTION_KEY", "DATA_ENCRYPTION_METHOD", "PROTOCOL_TYPE",
+                    "LISTEN_IP", "LISTEN_PORT", "SOCKS5_AUTH", "SOCKS5_USER", "SOCKS5_PASS", "RESOLVERS_FILE", "LOG_LEVEL"};
+                auto options = object;
+                for (auto it = object.constBegin(); it != object.constEnd(); ++it)
+                    if (managedKeys.contains(it.key()) || it.key().startsWith("LOCAL_DNS_")) options.remove(it.key());
+                if (!options.isEmpty()) profile["options"] = options;
+                return profile;
             }
             return {};
         }
