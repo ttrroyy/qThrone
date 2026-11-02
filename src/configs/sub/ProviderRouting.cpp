@@ -15,6 +15,7 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSaveFile>
+#include <QTemporaryFile>
 #include <QUrlQuery>
 
 namespace Subscription::ProviderRouting {
@@ -33,6 +34,7 @@ const QRegularExpression
     link(QStringLiteral("^(happ|incy)?://routing/(add|onadd|off)(?:/([^?#]*))?(?:\\?data=([^#]*))?(?:#.*)?$"),
          QRegularExpression::CaseInsensitiveOption);
 QMutex geoMutex;
+constexpr qint64 maxGeoBytes = 256LL * 1024 * 1024;
 QString digest(const QString &text) {
     return QString::fromLatin1(QCryptographicHash::hash(text.toUtf8(), QCryptographicHash::Sha256).toHex());
 }
@@ -61,32 +63,41 @@ QJsonObject decode(const QString &text) {
     return {};
 }
 QString geoFile(const QString &url) { return Configs::GetBasePath() + "/provider-geodata/" + digest(url) + ".dat"; }
-bool geoCategories(const QByteArray &data, QSet<QString> &categories) {
-    const auto number = [&](qsizetype &pos, qsizetype end, quint64 &value) {
+bool geoCategories(QFile &file, QSet<QString> &categories) {
+    const auto number = [&](qint64 end, quint64 &value) {
         value = 0;
-        for (int shift = 0; shift < 64 && pos < end; shift += 7) {
-            const auto byte = static_cast<unsigned char>(data[pos++]);
+        for (int shift = 0; shift < 64 && file.pos() < end; shift += 7) {
+            char c;
+            if (!file.getChar(&c)) return false;
+            const auto byte = static_cast<unsigned char>(c);
+            if (shift == 63 && (byte & 254)) return false;
             value |= quint64(byte & 127) << shift;
             if (!(byte & 128)) return true;
         }
         return false;
     };
-    qsizetype pos = 0;
-    while (pos < data.size()) {
+    const auto length = file.size();
+    if (length <= 0 || length > maxGeoBytes) return false;
+    while (file.pos() < length) {
         quint64 tag, size;
-        if (!number(pos, data.size(), tag) || tag != 10 || !number(pos, data.size(), size) || size > quint64(data.size() - pos)) return false;
-        const auto end = pos + qsizetype(size);
+        if (!number(length, tag) || tag != 10 || !number(length, size) || size > quint64(length - file.pos())) return false;
+        const auto end = file.pos() + qint64(size);
         QString code;
-        while (pos < end) {
-            if (!number(pos, end, tag) || !(tag >> 3)) return false;
+        while (file.pos() < end) {
+            if (!number(end, tag) || !(tag >> 3) || (tag >> 3) > ((1u << 29) - 1)) return false;
             switch (tag & 7) {
-            case 0: if (!number(pos, end, size)) return false; break;
-            case 1: if (end - pos < 8) return false; pos += 8; break;
-            case 5: if (end - pos < 4) return false; pos += 4; break;
+            case 0: if (!number(end, size)) return false; break;
+            case 1: if (end - file.pos() < 8 || !file.seek(file.pos() + 8)) return false; break;
+            case 5: if (end - file.pos() < 4 || !file.seek(file.pos() + 4)) return false; break;
             case 2:
-                if (!number(pos, end, size) || size > quint64(end - pos)) return false;
-                if ((tag >> 3) == 1) code = QString::fromUtf8(data.constData() + pos, qsizetype(size)).toUpper();
-                pos += qsizetype(size);
+                if (!number(end, size) || size > quint64(end - file.pos())) return false;
+                if ((tag >> 3) == 1) {
+                    if (size > 1024) return false;
+                    const auto name = file.read(qint64(size));
+                    const auto text = QString::fromUtf8(name);
+                    if (name.size() != qint64(size) || text.toUtf8() != name) return false;
+                    code = text.toUpper();
+                } else if (!file.seek(file.pos() + qint64(size))) return false;
                 break;
             default: return false;
             }
@@ -98,9 +109,9 @@ bool geoCategories(const QByteArray &data, QSet<QString> &categories) {
 }
 bool validGeoFile(const QString &path) {
     QFile file(path);
-    if (!file.open(QIODevice::ReadOnly) || file.size() > 64 * 1024 * 1024) return false;
+    if (!file.open(QIODevice::ReadOnly)) return false;
     QSet<QString> categories;
-    return geoCategories(file.readAll(), categories);
+    return geoCategories(file, categories);
 }
 QString download(const QJsonObject &doc, const QString &kind, QString &path, bool force) {
     const auto address = GeoUrl(doc, kind);
@@ -113,28 +124,36 @@ QString download(const QJsonObject &doc, const QString &kind, QString &path, boo
         return {};
     QDir().mkpath(cached.absolutePath());
     HttpGetOptions options;
-    options.maxBytes = 64 * 1024 * 1024;
+    options.maxBytes = maxGeoBytes;
     options.directWhenDisconnected = true;
     options.transferTimeoutMs = 30000;
-    const auto response = NetworkRequestHelper::HttpGet(address, options);
+    QTemporaryFile temp(cached.absolutePath() + "/.geo-XXXXXX");
+    if (!temp.open()) return QObject::tr("Could not save Geo file: %1").arg(path);
+    const auto response = NetworkRequestHelper::HttpGet(address, options, &temp);
     // An older valid copy beats a failed start: the tunnel being replaced may be the one that is down.
     const bool keepCache = !force && cached.size() > 0 && validGeoFile(path);
     if (!response.error.isEmpty()) {
         if (keepCache) return {};
         return QObject::tr("Could not download %1 from %2: %3").arg(kind, address, response.error);
     }
-    if (response.data.isEmpty()) {
+    if (temp.size() == 0) {
         if (keepCache) return {};
         return QObject::tr("Empty Geo file: %1").arg(address);
     }
     QSet<QString> categories;
-    if (!geoCategories(response.data, categories)) {
+    if (!temp.flush() || !temp.seek(0) || !geoCategories(temp, categories)) {
         if (keepCache) return {};
         return QObject::tr("Invalid or incomplete Geo database from %1. The previous cache was preserved.").arg(address);
     }
     QSaveFile file(path);
-    if (!file.open(QIODevice::WriteOnly) || file.write(response.data) != response.data.size() || !file.commit())
+    if (!temp.seek(0) || !file.open(QIODevice::WriteOnly))
         return QObject::tr("Could not save Geo file: %1").arg(path);
+    while (!temp.atEnd()) {
+        const auto chunk = temp.read(65536);
+        if (chunk.isEmpty() || file.write(chunk) != chunk.size())
+            return QObject::tr("Could not save Geo file: %1").arg(path);
+    }
+    if (!file.commit()) return QObject::tr("Could not save Geo file: %1").arg(path);
     return {};
 }
 } // namespace
@@ -443,7 +462,7 @@ QString ResolveXrayGeo(const QJsonObject &document, QJsonObject &config) {
         if (const auto error = PrepareGeo(doc, kind, source); !error.isEmpty())
             return error;
         QFile database(source);
-        if (!database.open(QIODevice::ReadOnly) || !geoCategories(database.readAll(), availableCategories[kind]))
+        if (!database.open(QIODevice::ReadOnly) || !geoCategories(database, availableCategories[kind]))
             return QObject::tr("Invalid Geo database: %1").arg(GeoUrl(doc, kind));
         files[kind] = QDir(Configs::GetBasePath()).relativeFilePath(source);
     }

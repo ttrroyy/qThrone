@@ -74,7 +74,7 @@ namespace Configs_network {
         return HttpGet(url, options);
     }
 
-    HTTPResponse NetworkRequestHelper::HttpGet(const QString &url, const HttpGetOptions &options) {
+    HTTPResponse NetworkRequestHelper::HttpGet(const QString &url, const HttpGetOptions &options, QIODevice *destination) {
         if (!QSslSocket::isProtocolSupported(options.tlsProtocol)) {
             return HTTPResponse{QObject::tr("The selected TLS version is not supported on this system.")};
         }
@@ -108,27 +108,50 @@ namespace Configs_network {
         });
         QByteArray body;
         bool tooLarge = false;
-        connect(_reply, &QNetworkReply::readyRead, _reply, [&] {
-            if (body.isEmpty()) {
+        qint64 received = 0;
+        QString writeError;
+        const auto consume = [&] {
+            if (tooLarge || !writeError.isEmpty()) return;
+            if (received == 0) {
                 const auto expected = _reply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
+                if (maxBytes > 0 && expected > maxBytes) {
+                    tooLarge = true;
+                    _reply->abort();
+                    return;
+                }
                 const qint64 reserveCap = maxBytes > 0 ? maxBytes : 256LL * 1024 * 1024;
-                if (expected > 0 && expected <= reserveCap) body.reserve(static_cast<qsizetype>(expected));
+                if (!destination && expected > 0 && expected <= reserveCap) body.reserve(static_cast<qsizetype>(expected));
             }
-            body += _reply->readAll();
-            if (maxBytes > 0 && body.size() > maxBytes) {
-                tooLarge = true;
-                _reply->abort();
+            while (_reply->bytesAvailable() > 0) {
+                const auto chunk = _reply->read(65536);
+                if (chunk.isEmpty()) break;
+                received += chunk.size();
+                if (maxBytes > 0 && received > maxBytes) {
+                    tooLarge = true;
+                    _reply->abort();
+                    return;
+                }
+                if (destination) {
+                    if (destination->write(chunk) != chunk.size()) {
+                        writeError = QObject::tr("Could not write downloaded file: %1").arg(destination->errorString());
+                        _reply->abort();
+                        return;
+                    }
+                } else body += chunk;
             }
-        });
+        };
+        connect(_reply, &QNetworkReply::readyRead, _reply, consume);
         QEventLoop loop;
         connect(_reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
         loop.exec();
-        body += _reply->readAll();
+        consume();
 
         HTTPResponse result;
         result.header = _reply->rawHeaderPairs();
         if (tooLarge) {
             result.error = QObject::tr("Response larger than %1 MB").arg(maxBytes / (1024 * 1024));
+        } else if (!writeError.isEmpty()) {
+            result.error = writeError;
         } else {
             result.error = _reply->error() == QNetworkReply::NetworkError::NoError ? "" : _reply->errorString();
             result.data = std::move(body);

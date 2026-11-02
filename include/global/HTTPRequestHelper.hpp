@@ -5,6 +5,7 @@
 #include <functional>
 
 class QNetworkProxy;
+class QIODevice;
 
 namespace Configs_network {
     struct HTTPResponse {
@@ -54,7 +55,8 @@ namespace Configs_network {
     public:
         static HTTPResponse HttpGet(const QString &url, bool useProxy = false);
 
-        static HTTPResponse HttpGet(const QString &url, const HttpGetOptions &options);
+        // A destination streams the body to disk; the caller validates and commits the file.
+        static HTTPResponse HttpGet(const QString &url, const HttpGetOptions &options, QIODevice *destination = nullptr);
 
         static QString GetHeader(const QList<QPair<QByteArray, QByteArray>> &header, const QString &name);
 

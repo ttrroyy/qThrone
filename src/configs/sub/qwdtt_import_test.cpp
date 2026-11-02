@@ -427,7 +427,25 @@ int TestQwdttImport() {
         const auto sourceURL = QStringLiteral("https://example.invalid/geo-fixture/") + fixture.path();
         const auto cache = Configs::GetBasePath() + "/provider-geodata/" + QString::fromLatin1(QCryptographicHash::hash(sourceURL.toUtf8(), QCryptographicHash::Sha256).toHex()) + ".dat";
         QDir().mkpath(QFileInfo(cache).absolutePath());
-        QFile cached(cache); check(cached.open(QIODevice::WriteOnly), "Geo fixture cache opens"); cached.write(QByteArray::fromHex("0a0b0a0957484954454c495354")); cached.close();
+        QFile cached(cache); check(cached.open(QIODevice::WriteOnly), "Geo fixture cache opens");
+        const auto varint = [](quint64 value) {
+            QByteArray bytes;
+            do {
+                const auto part = value & 127;
+                value >>= 7;
+                bytes.append(char(part | (value ? 128 : 0)));
+            } while (value);
+            return bytes;
+        };
+        // A sparse payload checks large databases without allocating one in the test process.
+        constexpr qint64 geoPayload = 70LL * 1024 * 1024;
+        const auto code = QByteArray::fromHex("0a0957484954454c495354");
+        const auto ignored = QByteArray(1, char(26)) + varint(geoPayload);
+        const auto header = QByteArray(1, char(10)) + varint(code.size() + ignored.size() + geoPayload);
+        const auto prefix = header + code + ignored;
+        check(cached.write(prefix) == prefix.size() && cached.seek(cached.pos() + geoPayload - 1) && cached.write("\0", 1) == 1,
+              "large Geo fixture cache is written without buffering the database");
+        cached.close();
         const auto cleanCache = qScopeGuard([cache] { QFile::remove(cache); });
         QJsonObject geoConfig{{"routing", QJsonObject{{"rules", QJsonArray{QJsonObject{{"domain", QJsonArray{"geosite:WHITELIST"}}}}}}}, {"dns", QJsonObject{{"hosts", QJsonObject{{"geosite:WHITELIST", "192.0.2.2"}}}}}};
         Configs::SubscriptionOptions geoOptions;
