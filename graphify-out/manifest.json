@@ -2784,9 +2784,9 @@
     "semantic_hash": ""
   },
   "src/configs/outbounds/http.cpp": {
-    "mtime": 1793631115.8438644,
-    "seen": 1793632735.3029006,
-    "ast_hash": "3dded5aec46f83e13d165c2232af5bc1",
+    "mtime": 1793725196.934889,
+    "seen": 1793725381.026794,
+    "ast_hash": "825223059ccf9a10b5d67005abe94086",
     "semantic_hash": ""
   },
   "src/configs/outbounds/hysteria.cpp": {
@@ -3000,9 +3000,9 @@
     "semantic_hash": ""
   },
   "src/configs/sub/qwdtt_import_test.cpp": {
-    "mtime": 1793654642.9576209,
-    "seen": 1793654728.207427,
-    "ast_hash": "441d61d0ab708a1c0aad433320cafeeb",
+    "mtime": 1793725198.4778452,
+    "seen": 1793725381.026794,
+    "ast_hash": "d7188a97c646da4d0374e16ead16f716",
     "semantic_hash": ""
   },
   "src/configs/sub/vpnFileImport.cpp": {
@@ -3552,9 +3552,9 @@
     "semantic_hash": ""
   },
   "version.json": {
-    "mtime": 1793629191.518069,
-    "seen": 1793632735.3034508,
-    "ast_hash": "3fe71b98b9954f1f5d507e41795d4bd8",
+    "mtime": 1793725199.5088649,
+    "seen": 1793725381.026794,
+    "ast_hash": "99829234fb7e71fcece25ba8d69485cb",
     "semantic_hash": ""
   },
   ".github/FUNDING.yml": {
@@ -3642,9 +3642,9 @@
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1793629191.517526,
-    "seen": 1793632735.3034508,
-    "ast_hash": "8a4e84f7407b8311d8192de09de810e2",
+    "mtime": 1793681083.6978545,
+    "seen": 1793725381.027796,
+    "ast_hash": "d7a141f20873768d12d0b2f21d7daa0a",
     "semantic_hash": ""
   },
   "core/third_party/sing-trusttunnel/.golangci.yml": {
@@ -6126,9 +6126,9 @@
     "semantic_hash": ""
   },
   "src/engine/EngineHost.cpp": {
-    "mtime": 1793632757.583426,
-    "seen": 1793632890.847445,
-    "ast_hash": "72f9ac18eb8a00712473b9aa9e1aa179",
+    "mtime": 1793725441.5464323,
+    "seen": 1793725574.873398,
+    "ast_hash": "742bcddb67cd4815a0525c9e227993a8",
     "semantic_hash": ""
   },
   "src/engine/Lifecycle.cpp": {
@@ -6834,9 +6834,9 @@
     "semantic_hash": ""
   },
   "src/ui/setting/dialog_vk_relay.cpp": {
-    "mtime": 1793632757.700528,
-    "seen": 1793632890.847445,
-    "ast_hash": "8054151058def576a0a05ad801aa255f",
+    "mtime": 1793725197.6012156,
+    "seen": 1793725381.026794,
+    "ast_hash": "360b393c13f2ee3454982dee01e6fe2c",
     "semantic_hash": ""
   },
   "src/ui/setting/dialog_vpn_settings.cpp": {
@@ -9648,9 +9648,9 @@
     "semantic_hash": ""
   },
   "release_notes_next.md": {
-    "mtime": 1793654213.974465,
-    "seen": 1793654479.1146555,
-    "ast_hash": "c731eaf4471f2573b5915b41df055713",
+    "mtime": 1793725441.7808475,
+    "seen": 1793725574.8744023,
+    "ast_hash": "20eada521b483ac3260ee92f34086ae0",
     "semantic_hash": ""
   }
 }

@@ -1043,6 +1043,11 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
     auto *accountForm = new QVBoxLayout(accountGroup);
     auto *identity = new QLabel("Проверка аккаунта…", accountGroup);
     accountForm->addWidget(identity);
+    auto *accountId = new QLabel(accountGroup);
+    accountId->setForegroundRole(QPalette::PlaceholderText);
+    accountId->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    accountId->hide();
+    accountForm->addWidget(accountId);
     auto *accountButtons = new QHBoxLayout;
     accountForm->addLayout(accountButtons);
     auto *link = new QPushButton("Привязать аккаунт VK", accountGroup);
@@ -1077,7 +1082,9 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
         if (event["type"] == "result") {
             const auto info = event["value"].toObject();
             const bool linked = info["linked"].toBool();
-            identity->setText(linked ? info["name"].toString() : "Аккаунт не привязан");
+            identity->setText(linked ? "Аккаунт привязан" : "Аккаунт не привязан");
+            accountId->setText(linked ? info["user"].toString() : QString());
+            accountId->setVisible(!accountId->text().isEmpty());
             settings->vk_relay_linked = linked;
             autoEnabled(source, linked);
             unlink->setEnabled(linked);
@@ -1112,6 +1119,8 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
                 source->setCurrentIndex(0);
                 autoEnabled(source, false);
                 identity->setText("Аккаунт не привязан");
+                accountId->clear();
+                accountId->hide();
                 unlink->setEnabled(false);
                 generate->setEnabled(false);
             }

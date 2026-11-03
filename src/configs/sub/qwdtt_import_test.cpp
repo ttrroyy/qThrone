@@ -59,6 +59,7 @@
 #include "include/ui/setting/dialog_basic_settings.h"
 #include "include/configs/outbounds/sstp.h"
 #include "include/configs/outbounds/shadowsocksr.h"
+#include "include/configs/outbounds/http.h"
 
 int TestQwdttImport() {
     qInstallMessageHandler(nullptr);
@@ -258,6 +259,31 @@ int TestQwdttImport() {
         Subscription::ParseDocument(body, sink);
         return profiles;
     };
+    {
+        for (const auto &link : {QByteArray("https://192.0.2.1:4443/#HTTPS%20proxy"),
+                                 QByteArray("https://user:password@192.0.2.1:443/?sni=proxy.example&allowInsecure=true"),
+                                 QByteArray("http://192.0.2.1:443/?security=tls&sni=proxy.example")}) {
+            const auto profiles = parse(link);
+            check(profiles.size() == 1 && profiles.first()->type == "http", "HTTPS imports as the HTTP outbound with TLS");
+            if (profiles.size() != 1) continue;
+            auto *proxy = profiles.first()->Http();
+            check(proxy && proxy->tls->enabled && proxy->DisplayType() == "HTTPS", "HTTPS label matches the enabled TLS transport");
+            if (!proxy) continue;
+            const auto built = proxy->Build();
+            check(built.error.isEmpty() && built.object["tls"].toObject()["enabled"].toBool(), "HTTPS core configuration retains TLS");
+            check(proxy->ExportToLink().startsWith("https://"), "HTTPS export retains the secure scheme");
+            Configs::http restored;
+            check(restored.ParseFromJson(proxy->ExportToJson()) && restored.tls->enabled &&
+                      restored.tls->server_name == proxy->tls->server_name && restored.tls->insecure == proxy->tls->insecure,
+                  "HTTPS storage round trip retains TLS and certificate settings");
+            Configs::http shared;
+            check(shared.ParseFromLink(proxy->ExportToLink()) && shared.ExportIdentity() == proxy->ExportIdentity(),
+                  "HTTPS share round trip retains transport and credentials");
+        }
+        Configs::http plain;
+        check(plain.ParseFromLink("http://192.0.2.1:8080") && !plain.tls->enabled && plain.DisplayType() == "HTTP" &&
+                  !plain.Build().object.contains("tls"), "plain HTTP stays unencrypted");
+    }
     {
         Configs::shadowsocksr profile, restored;
         profile.server = "2001:db8::1"; profile.server_port = 8388;

@@ -368,9 +368,8 @@ namespace Engine {
         if (changed(MwArg::NeedRestart)) {
             suggestRestartProxy = false;
         }
-        if (changed(MwArg::Vpn) && settings->spmode_vpn) {
-            if (interactive) policy()->settingsNeedTunRestart();
-            else MW_show_log(MainWindowTr::tr("Tun Settings changed") + ": " + MainWindowTr::tr("Restart Tun to take effect."));
+        if (changed(MwArg::Vpn) && settings->spmode_vpn && !interactive) {
+            MW_show_log(MainWindowTr::tr("Tun Settings changed") + ": " + MainWindowTr::tr("Restart Tun to take effect."));
         }
         if (changed(MwArg::ChoosePort) || suggestRestartProxy) {
             m_connection->noteRestartNeeded(changed(MwArg::Route) ? Engine::RestartReason::Routing : Engine::RestartReason::Settings);

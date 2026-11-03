@@ -125,7 +125,7 @@ namespace Configs {
 
     QString http::DisplayType()
     {
-        return "HTTP";
+        return tls->enabled ? "HTTPS" : "HTTP";
     }
 
     void http::Validate(Validation::Issues &issues)
