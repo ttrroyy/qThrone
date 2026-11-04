@@ -41,4 +41,38 @@ jobs:
           test -f "deployment/qThrone-$VERSION-windows64.zip"
           test -f "deployment/qThrone-$VERSION-macos-arm64.zip"
           python3 script/release_notes.py > "$RUNNER_TEMP/release-notes.md"
-          gh release create "v$VERSION" deployment/* --target "$GITHUB_SHA" --title "$VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"
+          TAG="v$VERSION"
+          retry() {
+            for attempt in 1 2 3; do
+              if "$@"; then return 0; fi
+              if [ "$attempt" -lt 3 ]; then sleep 10; fi
+            done
+            return 1
+          }
+          create_draft() {
+            gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --draft --target "$GITHUB_SHA" --title "$VERSION" --notes-file "$RUNNER_TEMP/release-notes.md"
+          }
+          retry create_draft
+          test "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = true
+          for asset in deployment/*; do
+            retry gh release upload "$TAG" "$asset" --clobber
+          done
+          RELEASE_ID=$(gh release view "$TAG" --json databaseId --jq .databaseId)
+          fetch_assets() {
+            gh api "repos/$GH_REPO/releases/$RELEASE_ID" > "$RUNNER_TEMP/release-assets.json"
+          }
+          retry fetch_assets
+          python3 -c '
+          import hashlib, json, sys
+          from pathlib import Path
+          release = json.load(open(sys.argv[1]))
+          remote = {asset["name"]: asset for asset in release["assets"]}
+          local = list(Path("deployment").iterdir())
+          assert len(remote) == len(local), "Incomplete release assets"
+          for path in local:
+              asset = remote[path.name]
+              assert asset["state"] == "uploaded" and asset["size"] == path.stat().st_size, path.name
+              with path.open("rb") as source:
+                  assert asset["digest"] == "sha256:" + hashlib.file_digest(source, "sha256").hexdigest(), path.name
+          ' "$RUNNER_TEMP/release-assets.json"
+          retry gh release edit "$TAG" --draft=false --latest
