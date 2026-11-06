@@ -177,7 +177,7 @@ namespace Engine {
         m_debugMode = (Configs::dataManager->settingsRepo->log_level == "debug");
 
         Configs::dataManager->settingsRepo->core_socket_name =
-            "rawlineIPC-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
+            "throneIPC-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
         m_server = new QLocalServer(this);
         m_server->setSocketOptions(QLocalServer::UserAccessOption);
         const bool listening = m_server->listen(Configs::dataManager->settingsRepo->core_socket_name);

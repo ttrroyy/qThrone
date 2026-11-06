@@ -45,10 +45,10 @@ static QString desktopFilePath() {
 // "rawline" is in no icon theme for the /opt and AppImage layouts, so unpack a copy and use an absolute path.
 static QString iconTarget() {
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    const QString path = dir + "/rawline.png";
+    const QString path = dir + "/qthrone.png";
     QDir().mkpath(dir);
     QFile::remove(path);
-    return QFile::copy(":/Throne/Throne.png", path) ? path : QStringLiteral("rawline");
+    return QFile::copy(":/Throne/Throne.png", path) ? path : QStringLiteral("qthrone");
 }
 
 struct DesktopEntry {
@@ -78,7 +78,7 @@ static void writeEntry(const QStringList &types) {
     if (types.isEmpty()) {
         QFile::remove(path);
         const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-        QFile::remove(dataDir + "/rawline.png");
+        QFile::remove(dataDir + "/qthrone.png");
         QDir().rmdir(dataDir);
     } else {
         QDir().mkpath(QFileInfo(path).absolutePath());

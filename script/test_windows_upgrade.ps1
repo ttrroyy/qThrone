@@ -42,7 +42,7 @@ public static class UpgradeTestWindow {
             if (owner != processId) return true;
             var title = new StringBuilder(1024);
             GetWindowText(window, title, title.Capacity);
-            if (!title.ToString().Contains("qThrone")) return true;
+            if (!title.ToString().Contains("qThrone") && !title.ToString().Contains("Rawline")) return true;
             sent = PostMessage(window, 0x0010, IntPtr.Zero, IntPtr.Zero);
             return !sent;
         }, IntPtr.Zero);
@@ -108,7 +108,7 @@ try {
         Wait-ForGuiAndCore $gui
         Close-TestGui $gui
         $text = Get-Content -LiteralPath $log -Raw
-        if (!$text.Contains("version   : $Version") -or !$text.Contains('Core Has Successfully Connected to qThrone!')) { throw 'Updated GUI/core IPC connection failed' }
+        if (!$text.Contains("version   : $Version") -or !$text.Contains('Core Has Successfully Connected to Rawline!')) { throw 'Updated GUI/core IPC connection failed' }
         if ((Get-FileHash -LiteralPath $executable).Hash -ne (Get-FileHash -LiteralPath $expectedExecutable).Hash) { throw 'Restarted executable differs from the new release' }
         python $fixture verify $app
         if ($LASTEXITCODE -ne 0) { throw 'User data was not preserved' }

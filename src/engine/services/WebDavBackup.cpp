@@ -153,7 +153,7 @@ namespace Engine::WebDavBackup {
                 QNetworkRequest request(r.url);
                 request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
                 request.setTransferTimeout(r.timeoutMs);
-                request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Rawline/") + QStringLiteral(NKR_VERSION));
+                request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("qThrone/") + QStringLiteral(NKR_VERSION));
                 if (r.withAuth && !auth_.isEmpty()) request.setRawHeader("Authorization", auth_);
                 if (insecure_) {
                     auto ssl = request.sslConfiguration();

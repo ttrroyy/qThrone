@@ -293,7 +293,7 @@ _no_core() {
 # _assert_clean_end TAG EXIT_LINE: Throne logged EXIT_LINE ("EXIT 0: SIGTERM"), ended its session cleanly, left no core.
 _assert_clean_end() {
     _log_has "$1.log" "$2"
-    docker exec "$C" grep -qF '===== Throne session end (clean) =====' "$D/config/logs/throne.log" ||
+    docker exec "$C" grep -qF '===== Rawline session end (clean) =====' "$D/config/logs/throne.log" ||
         fail "$D/config/logs/throne.log has no clean session end after Throne ($1) exited"
     if docker exec "$C" test -e "$D/config/logs/running.marker"; then
         fail "running.marker was left behind after Throne ($1) exited"

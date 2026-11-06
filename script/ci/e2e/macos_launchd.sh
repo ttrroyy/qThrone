@@ -42,8 +42,8 @@ M1_FG_API=127.0.0.1:19396
 M1_PROFILE_NAME=e2e-m1-socks
 M1_FIXTURE_URL="http://fixture.test:$M1_HTTP_PORT/"
 M1_CONNECT_RE="^CONNECT fixture\\.test:$M1_HTTP_PORT -> 127\\.0\\.0\\.1:$M1_HTTP_PORT ok\$"
-M1_SESSION_START='===== Throne session start ====='
-M1_SESSION_END='===== Throne session end (clean) ====='
+M1_SESSION_START='===== Rawline session start ====='
+M1_SESSION_END='===== Rawline session end (clean) ====='
 
 # A script's background job starts with SIGINT ignored, which Throne keeps (as for nohup); a terminal's foreground job does not.
 M1_EXEC_DEFAULT_SIGNALS='import os, signal, sys

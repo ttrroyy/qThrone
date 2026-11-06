@@ -81,7 +81,7 @@ int TestQwdttImport() {
         const auto savedAgent = settings->user_agent;
         const auto restoreAgent = qScopeGuard([&] { settings->user_agent = savedAgent; });
         settings->user_agent.clear();
-        if (settings->GetUserAgent() != QStringLiteral("Rawline/") + QStringLiteral(NKR_VERSION) ||
+        if (settings->GetUserAgent() != QStringLiteral("qThrone/") + QStringLiteral(NKR_VERSION) ||
             Subscription::ResolveIdentity(nullptr).userAgent != QStringLiteral("Happ/3.0 Rawline/") + QStringLiteral(NKR_VERSION)) {
             qWarning("Client/subscription User-Agent does not match the build version"); ++failures;
         }

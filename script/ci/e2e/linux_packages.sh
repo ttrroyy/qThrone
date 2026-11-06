@@ -152,7 +152,7 @@ pk_session_clean() {
     [ -f "$FILE_LOG" ] || fail "no $FILE_LOG after $1"
     cp "$FILE_LOG" "$copy"
     grep -qF 'EXIT 0: SIGTERM' "$copy" || fail "$FILE_LOG does not log 'EXIT 0: SIGTERM' after $1"
-    grep -qF '===== Throne session end (clean) =====' "$copy" || fail "$FILE_LOG has no clean session end after $1"
+    grep -qF '===== Rawline session end (clean) =====' "$copy" || fail "$FILE_LOG has no clean session end after $1"
     # KillMode=mixed SIGKILLs a leftover core anyway, so only Throne's own log shows that it reaped its core.
     grep -qE 'core process exited: code=-?[0-9]+ status=(normal|crash) \(during shutdown\)' "$copy" ||
         fail "$FILE_LOG has no 'core process exited ... (during shutdown)' line after $1: Throne did not stop and reap its core"

@@ -289,7 +289,7 @@ inside_main() {
     grep -qE 'core process exited: code=-?[0-9]+ status=(normal|crash) \(during shutdown\)' "$FILE_LOG" ||
         fail "$FILE_LOG has no 'core process exited ... (during shutdown)' line: Throne did not stop and reap its core"
     grep -qF 'EXIT 0: SIGTERM' "$FILE_LOG" || fail "$FILE_LOG does not log 'EXIT 0: SIGTERM'"
-    grep -qF '===== Throne session end (clean) =====' "$FILE_LOG" || fail "$FILE_LOG has no clean session end"
+    grep -qF '===== Rawline session end (clean) =====' "$FILE_LOG" || fail "$FILE_LOG has no clean session end"
     [ ! -e "$DATA/config/logs/running.marker" ] || fail "running.marker was left behind"
     assert_log_clean "$RUN_LOG" "$FILE_LOG"
     echo "L3 system-qt scenario passed"

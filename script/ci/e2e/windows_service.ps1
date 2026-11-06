@@ -69,7 +69,7 @@ $FixtureUrl = "http://fixture.test:$HttpPort/"
 $ConnectPattern = "^CONNECT fixture\.test:$HttpPort -> 127\.0\.0\.1:$HttpPort ok$"
 $SidSystem = 'S-1-5-18'
 $SidAdmins = 'S-1-5-32-544'
-$CleanEnd = '===== Throne session end (clean) ====='
+$CleanEnd = '===== Rawline session end (clean) ====='
 
 $Ctx = @{
     StartTime         = Get-Date

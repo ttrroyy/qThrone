@@ -419,7 +419,7 @@ namespace Configs {
 
     QString SettingsRepo::GetUserAgent(bool isDefault) const {
         if (user_agent.isEmpty() || isDefault) {
-            return QStringLiteral("Rawline/") + QStringLiteral(NKR_VERSION);
+            return QStringLiteral("qThrone/") + QStringLiteral(NKR_VERSION);
         }
         return user_agent;
     }
