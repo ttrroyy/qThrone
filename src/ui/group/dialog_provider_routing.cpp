@@ -183,7 +183,7 @@ bool EditProviderRouting(Configs::SubscriptionOptions &options, QWidget *parent)
     auto ignore = new QCheckBox(QObject::tr("Не импортировать маршрутизацию при обновлении подписки"));
     ignore->setChecked(changed.provider_ignore_import);
     layout->addWidget(ignore);
-    auto note = new QLabel(QObject::tr("Happ / Incy. Эти настройки применяются к серверам этой подписки. Для полного "
+    auto note = new QLabel(QObject::tr("Happ / Incy. Включённая маршрутизация подписки заменяет общую маршрутизацию для её серверов и не объединяется с ней. Эти настройки применяются к серверам этой подписки. Для полного "
                                        "Xray JSON сохраняется встроенная маршрутизация."));
     note->setWordWrap(true);
     layout->addWidget(note);

@@ -119,7 +119,11 @@ namespace Configs {
         if (auto headerObj = qStringListToJsonObject(headers); !headerObj.isEmpty()) object["headers"] = headerObj;
         const auto tlsResult = tls->Build();
         if (!tlsResult.error.isEmpty()) return {{}, tlsResult.error};
-        if (!tlsResult.object.isEmpty()) object["tls"] = tlsResult.object;
+        auto tlsObject = tlsResult.object;
+        // A bare https://ip link names no host a certificate could vouch for; verifying it can only fail.
+        if (!tlsObject.isEmpty() && IsIpAddress(server) && !tlsObject.contains("server_name") && !tlsObject.contains("certificate") && !tlsObject.contains("certificate_public_key_sha256"))
+            tlsObject["insecure"] = true;
+        if (!tlsObject.isEmpty()) object["tls"] = tlsObject;
         return {object, ""};
     }
 

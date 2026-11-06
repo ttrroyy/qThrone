@@ -135,6 +135,12 @@ func Run(input io.Reader, output io.Writer) (err error) {
 		if err == nil {
 			p.emit("result", "", value)
 		}
+	case "provider-decrypt":
+		var decrypted map[string]string
+		decrypted, err = decryptProviderLink(r.Value)
+		if err == nil {
+			p.emit("result", "", decrypted)
+		}
 	case "vk-login":
 		err = p.login(r)
 	case "vk-hashes":

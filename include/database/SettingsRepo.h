@@ -65,7 +65,7 @@ namespace Configs {
         // Persisted settings.
         QString mainWindowGeometry;
         QString log_level = "info";
-        QString test_latency_url = "http://www.google.com/generate_204";
+        QString test_latency_url = "https://www.google.com/generate_204";
         // Fetched WITHOUT any proxy, so it must be reachable directly; empty falls back to the OS.
         QString direct_test_url = "";
         // Both keys are shared with the Android app's settings table; the provider is a Configs_network::ExitLookupProviders() id.
@@ -113,6 +113,7 @@ namespace Configs {
         bool seasonal_auto_13_migrated = false;
         bool dns_optimistic_164_migrated = false;
         bool test_defaults_182_migrated = false;
+        bool test_url_https_199_migrated = false;
         int language = 0;
         QString font = "";
         int font_size = 0;

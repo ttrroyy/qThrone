@@ -10,11 +10,14 @@
 #include "include/configs/outbounds/dnstunnel.h"
 #include "include/configs/outbounds/s3bypass.h"
 #include "include/global/Utils.hpp"
+#include "include/global/Configs.hpp"
 
 #include <QCoreApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QElapsedTimer>
+#include <QProcess>
 #include <QRegularExpression>
 #include <QSet>
 #include <QUrl>
@@ -39,10 +42,41 @@ namespace Subscription {
         }
         return result;
     }
+    // happ://crypt.. and incy://crypt1 open in the core's helper, which holds the providers' public compatibility keys.
+    static QString decryptProviderLink(const QString &link) {
+        QProcess process;
+        process.start(Configs::FindCoreRealPath(), {"--relay"});
+        if (!process.waitForStarted(5000)) return {};
+        process.write(QJsonDocument(QJsonObject{{"operation", "provider-decrypt"}, {"value", link}}).toJson(QJsonDocument::Compact) + '
+');
+        QByteArray pending;
+        QElapsedTimer elapsed;
+        elapsed.start();
+        QString content;
+        while (content.isEmpty() && elapsed.elapsed() < 10000) {
+            process.waitForReadyRead(100);
+            pending += process.readAllStandardOutput();
+            qsizetype end;
+            bool failed = false;
+            while ((end = pending.indexOf('
+')) >= 0) {
+                const auto event = QJsonDocument::fromJson(pending.left(end)).object();
+                pending.remove(0, end + 1);
+                if (event["type"] == "result") content = event["value"].toObject()["content"].toString();
+                if (event["type"] == "error") failed = true;
+            }
+            if (failed || process.state() == QProcess::NotRunning) break;
+        }
+        process.closeWriteChannel();
+        if (!process.waitForFinished(1000)) process.kill();
+        return content;
+    }
+
     QString UnwrapProviderLink(const QString &text) {
         auto content = text.trimmed();
         if (content.size() > 1024 * 1024) return {};
         const QRegularExpression add("^(happ|incy)://(?:add|import)/(.*)$", QRegularExpression::CaseInsensitiveOption);
+        const QRegularExpression crypt("^(happ|incy)://crypt[0-9]*/", QRegularExpression::CaseInsensitiveOption);
         for (int depth = 0; depth < 8; ++depth) {
             const QUrl url(content);
             if (url.scheme() == "https" && (url.host() == "ssconnect.app" || url.host() == "www.ssconnect.app")) {
@@ -51,6 +85,9 @@ namespace Subscription {
                 const auto values = query.allQueryItemValues("q", QUrl::FullyDecoded);
                 if (values.size() != 1 || values.first().trimmed().isEmpty()) return {};
                 content = values.first().trimmed();
+            } else if (crypt.match(content).hasMatch()) {
+                content = decryptProviderLink(content);
+                if (content.isEmpty()) return {};
             } else if (const auto match = add.match(content); match.hasMatch()) {
                 content = match.captured(2);
                 if (!content.contains("://")) content = QUrl::fromPercentEncoding(content.toUtf8());

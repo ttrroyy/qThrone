@@ -1166,6 +1166,7 @@ namespace Subscription {
         }
 
         group->sub_info = subInfo;
+        if (!subInfo.title.isEmpty() && (group->name == QUrl(UnwrapProviderLink(group->url)).host() || group->name == group->url)) group->name = subInfo.title;
         ProviderRouting::Apply(group->sub_options, routing);
         ProviderRouting::PrepareGeoInBackground(routing);
         group->info.clear();

@@ -289,7 +289,7 @@ func (c *devTools) evaluate(expression string) (string, error) {
 	return r.Result.Value, e
 }
 func browserPath() string {
-	names := []string{"msedge", "google-chrome", "chromium", "chromium-browser", "chrome"}
+	names := []string{"msedge", "google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "chrome", "brave-browser"}
 	for _, name := range names {
 		if path, e := exec.LookPath(name); e == nil {
 			return path
@@ -297,9 +297,25 @@ func browserPath() string {
 	}
 	paths := []string{}
 	if runtime.GOOS == "windows" {
-		for _, root := range []string{os.Getenv("PROGRAMFILES"), os.Getenv("PROGRAMFILES(X86)"), os.Getenv("LOCALAPPDATA")} {
-			for _, tail := range []string{"Microsoft/Edge/Application/msedge.exe", "Google/Chrome/Application/chrome.exe"} {
+		// An elevated core or a stripped environment may lack these variables, so the usual places are named too.
+		for _, root := range []string{os.Getenv("PROGRAMFILES"), os.Getenv("PROGRAMFILES(X86)"), os.Getenv("LOCALAPPDATA"), `C:\Program Files`, `C:\Program Files (x86)`} {
+			if root == "" {
+				continue
+			}
+			for _, tail := range []string{"Microsoft/Edge/Application/msedge.exe", "Google/Chrome/Application/chrome.exe", "Chromium/Application/chrome.exe", "BraveSoftware/Brave-Browser/Application/brave.exe", "Yandex/YandexBrowser/Application/browser.exe"} {
 				paths = append(paths, filepath.Join(root, filepath.FromSlash(tail)))
+			}
+		}
+		// Installed elsewhere: Windows records the path under App Paths.
+		for _, exe := range []string{"chrome.exe", "msedge.exe", "brave.exe"} {
+			for _, hive := range []string{"HKLM", "HKCU"} {
+				out, e := exec.Command("reg", "query", hive+`\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\`+exe, "/ve").Output()
+				if e != nil {
+					continue
+				}
+				if _, value, found := strings.Cut(string(out), "REG_SZ"); found {
+					paths = append(paths, strings.Trim(strings.TrimSpace(value), `"`))
+				}
 			}
 		}
 	}
@@ -318,7 +334,7 @@ func (p *protocol) login(r Request) error {
 	previous, _ := readAccount()
 	path := browserPath()
 	if path == "" {
-		return fmt.Errorf("Для привязки VK установите Chrome, Chromium или Edge")
+		return fmt.Errorf("Браузер для входа в VK не найден: нужен Chrome, Edge, Chromium, Brave или Яндекс Браузер")
 	}
 	// A private, temporary profile avoids reading the user's existing browser sessions.
 	dir, e := os.MkdirTemp("", "qthrone-vk-")

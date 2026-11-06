@@ -264,6 +264,11 @@ namespace Configs {
     QJsonObject TlsForTransport(QJsonObject tls, const QString& transportType)
     {
         if (transportType == "quic" && !tls.contains("reality")) tls.remove("utls");
+        // Xray fixes ALPN by transport whatever a link says: a WebSocket cannot run over a negotiated h2, gRPC needs h2.
+        if (tls.contains("alpn")) {
+            if (transportType == "ws" || transportType == "httpupgrade") tls["alpn"] = QJsonArray{"http/1.1"};
+            if (transportType == "grpc") tls["alpn"] = QJsonArray{"h2"};
+        }
         return tls;
     }
 

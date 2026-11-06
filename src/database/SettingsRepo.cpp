@@ -34,6 +34,12 @@ namespace Configs {
             test_defaults_182_migrated = true;
             initialized = true;
         }
+        // 1.9.9 tests over HTTPS; an address the user picked stays as it is.
+        if (!test_url_https_199_migrated) {
+            if (test_latency_url == "http://www.google.com/generate_204") test_latency_url = "https://www.google.com/generate_204";
+            test_url_https_199_migrated = true;
+            initialized = true;
+        }
         // An empty secret disables authentication on the API service outright.
         if (core_box_api_secret.isEmpty()) {
             core_box_api_secret = QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-');
@@ -51,6 +57,7 @@ namespace Configs {
             {"seasonal_auto_13_migrated", &seasonal_auto_13_migrated},
             {"dns_optimistic_164_migrated", &dns_optimistic_164_migrated},
             {"test_defaults_182_migrated", &test_defaults_182_migrated},
+            {"test_url_https_199_migrated", &test_url_https_199_migrated},
             {"vk_relay_linked", &vk_relay_linked},
             {"disable_tray",                  &disable_tray},
             {"random_inbound_port",           &random_inbound_port},

@@ -16,7 +16,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
+	cdppage "github.com/chromedp/cdproto/page"
+	"github.com/chromedp/cdproto/target"
 	"github.com/chromedp/chromedp"
 )
 
@@ -101,7 +104,21 @@ func solveCaptcha(page string) (string, error) {
 	defer closeAlloc()
 	tab, closeTab := chromedp.NewContext(alloc)
 	defer closeTab()
-	if err := chromedp.Run(tab, network.Enable(), chromedp.Navigate(page)); err != nil {
+	// Chromium's first empty window can stay on screen beside the tab being driven; only one is left, in front.
+	if err := chromedp.Run(tab, network.Enable(), chromedp.ActionFunc(func(c context.Context) error {
+		current := chromedp.FromContext(c)
+		targets, e := chromedp.Targets(c)
+		if e != nil {
+			return e
+		}
+		browser := cdp.WithExecutor(c, current.Browser)
+		for _, other := range targets {
+			if other.Type == "page" && other.TargetID != current.Target.TargetID && other.URL == "about:blank" {
+				_ = target.CloseTarget(other.TargetID).Do(browser)
+			}
+		}
+		return cdppage.BringToFront().Do(c)
+	}), chromedp.Navigate(page)); err != nil {
 		if ctx.Err() != nil {
 			return "", ctx.Err()
 		}

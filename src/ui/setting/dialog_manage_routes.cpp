@@ -1,5 +1,11 @@
 #include "include/ui/setting/dialog_manage_routes.h"
 #include "include/ui/group/dialog_provider_routing.h"
+#include "include/configs/sub/ProviderRouting.h"
+#include <QComboBox>
+#include <QDialogButtonBox>
+#include <QJsonArray>
+#include <QLineEdit>
+#include <QPushButton>
 #include "include/database/GroupsRepo.h"
 #include <QListWidget>
 
@@ -418,7 +424,8 @@ DialogManageRoutes::DialogManageRoutes(QWidget *parent) : QDialog(parent), ui(ne
     ui->setupUi(this);
     auto subscriptions = new QWidget;
     auto subscriptionsLayout = new QVBoxLayout(subscriptions);
-    auto subscriptionNote = new QLabel(tr("Маршрутизация Happ / Incy хранится отдельно для каждой подписки. Выберите подписку для изменения её профилей, DNS и Geo."));
+    auto subscriptionNote = new QLabel(tr("Маршрутизация Happ / Incy хранится отдельно для каждой подписки. Выберите подписку для изменения её профилей, DNS и Geo. "
+                                            "Включённая маршрутизация подписки заменяет общую для серверов этой подписки и не объединяется с ней. Свой профиль Happ / Incy работает без подписки, как обычный профиль маршрутизации."));
     subscriptionNote->setWordWrap(true); subscriptionsLayout->addWidget(subscriptionNote);
     auto subscriptionList = new QListWidget; subscriptionsLayout->addWidget(subscriptionList);
     for (const int gid : Configs::dataManager->groupsRepo->GetGroupsTabOrder()) {
@@ -436,6 +443,39 @@ DialogManageRoutes::DialogManageRoutes(QWidget *parent) : QDialog(parent), ui(ne
     };
     connect(subscriptionEdit, &QPushButton::clicked, this, editSubscription);
     connect(subscriptionList, &QListWidget::itemDoubleClicked, this, [editSubscription](QListWidgetItem *) { editSubscription(); });
+    auto providerNew = new QPushButton(tr("Новый профиль Happ / Incy")); subscriptionsLayout->addWidget(providerNew);
+    connect(providerNew, &QPushButton::clicked, this, [this] {
+        QDialog editor(this);
+        editor.setWindowTitle(tr("Новый профиль Happ / Incy"));
+        auto layout = new QFormLayout(&editor);
+        auto name = new QLineEdit(&editor);
+        auto provider = new QComboBox(&editor); provider->addItems({"Happ", "Incy"});
+        auto global = new QCheckBox(tr("По умолчанию через прокси"), &editor); global->setChecked(true);
+        layout->addRow(tr("Название"), name); layout->addRow(tr("Формат"), provider); layout->addRow(global);
+        QList<QPair<QString, QPlainTextEdit *>> lists;
+        for (const auto &[key, label] : QList<QPair<QString, QString>>{{"ProxySites", tr("Сайты через прокси")}, {"ProxyIp", tr("IP через прокси")}, {"DirectSites", tr("Сайты напрямую")},
+                                                                     {"DirectIp", tr("IP напрямую")}, {"BlockSites", tr("Заблокированные сайты")}, {"BlockIp", tr("Заблокированные IP")}}) {
+            auto input = new QPlainTextEdit(&editor);
+            input->setPlaceholderText(tr("По одному в строке, например geosite:ru или domain:example.com"));
+            layout->addRow(label, input);
+            lists.append({key, input});
+        }
+        auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &editor);
+        layout->addRow(buttons);
+        connect(buttons, &QDialogButtonBox::accepted, &editor, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &editor, &QDialog::reject);
+        if (editor.exec() != QDialog::Accepted) return;
+        Subscription::ProviderRouting::Command command;
+        command.provider = provider->currentText();
+        command.document["Name"] = name->text().trimmed().isEmpty() ? command.provider + " Default" : name->text().trimmed();
+        command.document["GlobalProxy"] = global->isChecked() ? "true" : "false";
+        for (const auto &[key, input] : lists) {
+            QJsonArray items;
+            for (const auto &line : input->toPlainText().split('\n', Qt::SkipEmptyParts)) if (!line.trimmed().isEmpty()) items.append(line.trimmed());
+            command.document[key] = items;
+        }
+        applyImportedProfile(Subscription::ProviderRouting::ImportedProfile(command), false);
+    });
     ui->tabWidget->addTab(subscriptions, tr("Маршрутизация подписок"));
     form = new Validation::Form(this);
     form->attachStatus(ui->buttonBox);

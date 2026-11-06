@@ -836,7 +836,7 @@ namespace Configs {
                 }
                 const bool routedTransport = IsNativeTransport(neededEnt->type);
                 if ((neededEnt->outbound != nullptr && neededEnt->outbound->IsExtraCore() && !routedTransport) || isCustomFullConfig(neededEnt) || isXrayFullConfig(neededEnt)) {
-                    ctx.error = "Outbounds used in routing profile cannot use an extra core or be a custom full config";
+                    ctx.error = QObject::tr("The profile \"%1\" cannot be used in routing rules: it is a full config or runs in an extra core, so it only works as the main profile. Pick a regular profile.").arg(neededEnt->outbound ? neededEnt->outbound->name : QString());
                     return;
                 }
                 if (neededEnt->type == "chain") {

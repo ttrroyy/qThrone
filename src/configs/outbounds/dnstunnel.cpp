@@ -328,9 +328,21 @@ bool dnstunnel::parseDnst(const QString &body) {
 // SlipNet's export: base64 of pipe-separated fields; new versions only append, so positions hold.
 bool dnstunnel::parseSlipNet(const QString &body) {
     const auto f = QString::fromUtf8(dnsDecodeBase64(body.section('#', 0, 0))).split('|');
-    if (f.size() < 11 || !dnsSlipNetTypes().contains(f[1])) return false;
-    const auto [type, backendType] = dnsSlipNetTypes().value(f[1]);
+    if (f.size() < 11) return false;
     const auto field = [&f](int i) { return i < f.size() ? f[i] : QString(); };
+    // SlipNet 2.5.6: only plain Soar; Soar over SSH has no counterpart here.
+    if (f[1] == "soar") {
+        QJsonArray list;
+        for (const auto &item : field(4).split(',', Qt::SkipEmptyParts)) {
+            const auto parts = item.split(':');
+            if (parts.size() >= 2 && !parts[0].isEmpty()) list.append(parts[0] + ':' + parts[1]);
+        }
+        QJsonObject o{{"type", "soar"}, {"name", field(2)}, {"domain", field(3)}, {"pubkey", field(11)}, {"resolvers", list}};
+        o["soar"] = QJsonObject{{"discovery", field(79) == "1"}, {"country", field(80)}};
+        return ParseFromJson(o);
+    }
+    if (!dnsSlipNetTypes().contains(f[1])) return false;
+    const auto [type, backendType] = dnsSlipNetTypes().value(f[1]);
     const auto b64 = [&](int i) { return field(i).isEmpty() ? QString() : QString::fromUtf8(dnsDecodeBase64(field(i))); };
     QJsonArray resolvers;
     bool authoritative = false;
