@@ -18,6 +18,8 @@
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QApplication>
+#include <QClipboard>
 #include <QInputDialog>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -813,32 +815,23 @@ bool installed(const QJsonObject &server) { return !server["config"].toString().
 // The clients of a deployed FreeTurn server, as its app lists them: each has its own link and WireGuard peer.
 class FreeturnClients : public ServerScreen {
     QListWidget *list;
-    QJsonObject serverValue;
-    QHash<QListWidgetItem *, bool> owners;
 
-    void call(const QString &action, const QString &name, const std::function<void(const QJsonObject &)> &done) {
-        task->start({{"operation", "freeturn-admin"}, {"server", serverValue},
-            {"value", QString::fromUtf8(QJsonDocument(QJsonObject{{"action", action}, {"name", name}}).toJson(QJsonDocument::Compact))}},
-            [this, done](const QJsonObject &event) {
-                if (event["type"] == "result") done(event["value"].toObject());
-                if (event["type"] == "error") QMessageBox::warning(this, windowTitle(), event["text"].toString());
-            });
+    void request(const QString &action, const QString &name, const std::function<void(const QJsonObject &)> &done) {
+        call("freeturn-admin", {{"action", action}, {"name", name}}, [done](const QJsonValue &value) { done(value.toObject()); });
     }
     void reload() {
-        call("list", {}, [this](const QJsonObject &value) {
-            list->clear(); owners.clear();
+        request("list", {}, [this](const QJsonObject &value) {
+            list->clear();
             for (const auto &entry : value["clients"].toArray()) {
                 const auto client = entry.toObject();
                 auto *item = new QListWidgetItem(client["name"].toString() + (client["ip"].toString().isEmpty() ? QString() : " · " + client["ip"].toString()), list);
                 item->setData(Qt::UserRole, client["name"].toString());
-                owners[item] = client["self"].toBool();
+                item->setData(Qt::UserRole + 1, client["self"].toBool());
             }
         });
     }
-    void open(QListWidgetItem *item) {
-        const auto name = item->data(Qt::UserRole).toString();
-        const bool owner = owners.value(item);
-        call("show", name, [this, name, owner](const QJsonObject &value) {
+    void open(const QString &name, bool owner) {
+        request("show", name, [this, name, owner](const QJsonObject &value) {
             QMessageBox box(this);
             box.setWindowTitle(name);
             box.setText(value["link"].toString());
@@ -848,20 +841,24 @@ class FreeturnClients : public ServerScreen {
             box.addButton(QMessageBox::Close);
             box.exec();
             if (box.clickedButton() == copy) QApplication::clipboard()->setText(value["link"].toString());
-            if (remove && box.clickedButton() == remove) call("remove", name, [this](const QJsonObject &) { reload(); });
+            if (remove && box.clickedButton() == remove) request("remove", name, [this](const QJsonObject &) { reload(); });
         });
     }
 public:
-    FreeturnClients(QWidget *parent, const QJsonObject &value) : ServerScreen(parent, value, QStringLiteral("Клиенты FreeTurn")), serverValue(value) {
+    FreeturnClients(QWidget *parent, const QJsonObject &value) : ServerScreen(parent, value, QStringLiteral("Клиенты FreeTurn")) {
+        resize(460, 420);
         auto *body = new QVBoxLayout(this);
         list = new QListWidget(this);
         auto *add = new QPushButton(QStringLiteral("Добавить клиента"), this);
+        actions.append(add);
         body->addWidget(add);
+        body->addWidget(busy);
+        body->addWidget(status);
         body->addWidget(list);
-        connect(list, &QListWidget::itemActivated, this, [this](QListWidgetItem *item) { open(item); });
+        connect(list, &QListWidget::itemActivated, this, [this](QListWidgetItem *item) { open(item->data(Qt::UserRole).toString(), item->data(Qt::UserRole + 1).toBool()); });
         connect(add, &QPushButton::clicked, this, [this] {
             const auto name = QInputDialog::getText(this, windowTitle(), QStringLiteral("Имя клиента")).trimmed();
-            if (!name.isEmpty()) call("add", name, [this](const QJsonObject &) { reload(); });
+            if (!name.isEmpty()) request("add", name, [this](const QJsonObject &) { reload(); });
         });
         reload();
     }
