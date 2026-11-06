@@ -6,6 +6,7 @@
 #include "include/configs/ParseDiagnostics.h"
 #include "include/configs/common/utils.h"
 #include "include/configs/outbounds/custom.h"
+#include "include/global/Configs.hpp"
 #include "include/global/Utils.hpp"
 
 namespace Configs {
@@ -181,7 +182,11 @@ namespace Configs {
         settings["port"] = server_port;
         settings["id"] = uuid;
         settings["encryption"] = encryption;
-        if (!flow.isEmpty() && flow != "none") settings["flow"] = flow;
+        if (!flow.isEmpty() && flow != "none") {
+            // MASQUE WARP speaks QUIC to UDP/443, which XTLS Vision refuses unless told otherwise.
+            const auto *repo = dataManager ? dataManager->settingsRepo.get() : nullptr;
+            settings["flow"] = flow == "xtls-rprx-vision" && repo && repo->enable_warp && repo->warp_mode == "masque" ? flow + "-udp443" : flow;
+        }
         object["settings"] = settings;
         auto streamObj = withBindInterface(streamSetting->Build().object, dialFields->bind_interface);
         if (!streamObj.isEmpty()) object["streamSettings"] = streamObj;
