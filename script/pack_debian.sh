@@ -28,7 +28,7 @@ EOF
 cat >"$PKG/DEBIAN/postinst" <<-EOF
 cat >/usr/share/applications/qThrone.desktop<<-END
 [Desktop Entry]
-Name=qThrone
+Name=Rawline
 Comment=Qt based cross-platform GUI proxy configuration manager (backend: sing-box)
 Exec=sh -c "PATH=/opt/qThrone:\$PATH /opt/qThrone/qThrone -appdata"
 Icon=/opt/qThrone/qThrone.png

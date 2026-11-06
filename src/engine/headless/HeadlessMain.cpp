@@ -108,7 +108,7 @@ namespace Engine {
         QString headlessMainDbAdvice(const Configs::DbError &error, const QString &dbPath) {
             const int primary = headlessMainDbPrimary(error);
             if (primary == SQLITE_READONLY || primary == SQLITE_CANTOPEN) {
-                return QStringLiteral("make %1 and its -wal and -shm files writable by the user qThrone runs as").arg(dbPath);
+                return QStringLiteral("make %1 and its -wal and -shm files writable by the user Rawline runs as").arg(dbPath);
             }
             return QStringLiteral("move %1 and its -wal and -shm files aside to start with an empty database, or restore them from a "
                                   "file backup; if the API listener came from the settings, pass --api-listen until the restore")
@@ -116,7 +116,7 @@ namespace Engine {
         }
 
         // A return before exec() never emits aboutToQuit: without this the socket file stays, the next boot reports a crash,
-        // and once init() ran the core and the guard outlive Throne.
+        // and once init() ran the core and the guard outlive Rawline.
         class HeadlessEarlyExit {
         public:
             explicit HeadlessEarlyExit(InstanceServer &server) : m_server(server) {}
@@ -332,7 +332,7 @@ namespace Engine {
         QList<QByteArray> savedArgv;
         for (int i = 0; i < argc; i++) savedArgv << QByteArray(argv[i]);
         const qint64 bootParentPid = ::getppid();
-        // A closed journald or docker log pipe must fail the write, not kill Throne.
+        // A closed journald or docker log pipe must fail the write, not kill Rawline.
         ::signal(SIGPIPE, SIG_IGN);
 #else
         const qint64 bootParentPid = 0;
@@ -376,10 +376,10 @@ namespace Engine {
                 headlessMainPrint(stdout, HeadlessCli::HelpText(parser).trimmed());
                 return ExitCode::Ok;
             case HeadlessCli::ParseOutcome::Version:
-                headlessMainPrint(stdout, QStringLiteral("qThrone " NKR_VERSION));
+                headlessMainPrint(stdout, QStringLiteral("Rawline " NKR_VERSION));
                 return ExitCode::Ok;
             case HeadlessCli::ParseOutcome::Usage:
-                headlessMainPrint(stderr, message + QStringLiteral("\nThe options: qThrone --headless --help"));
+                headlessMainPrint(stderr, message + QStringLiteral("\nThe options: Rawline --headless --help"));
                 return ExitCode::Usage;
             case HeadlessCli::ParseOutcome::Run:
                 break;
@@ -422,7 +422,7 @@ namespace Engine {
         const auto claim = Bootstrap::ClaimDataDir(lock, dataDir, Bootstrap::InstanceServerName(dataDir.wd), "headless", {},
                                                    relaunchParent, false);
         if (claim.outcome == Bootstrap::ClaimOutcome::HandedOff) {
-            headlessMainPrint(stderr, QString("%1 is in use by an older qThrone, which answered on its instance socket").arg(wdText));
+            headlessMainPrint(stderr, QString("%1 is in use by an older Rawline, which answered on its instance socket").arg(wdText));
             return ExitCode::DataDirOwned;
         }
         if (claim.outcome != Bootstrap::ClaimOutcome::Owned) {
@@ -505,7 +505,7 @@ namespace Engine {
         QString restartWhy;
         const auto restartMode = HeadlessCli::EffectiveRestartMode(options.restartMode, env, bootParentPid, &restartWhy);
         QStringList bootFields{
-            QStringLiteral("qThrone " NKR_VERSION " headless"),
+            QStringLiteral("Rawline " NKR_VERSION " headless"),
             "PID " + QString::number(QCoreApplication::applicationPid()),
             "started by " + options.trigger,
             "data dir " + wdText + " (" + options.dataDirSource + ")",
@@ -585,7 +585,7 @@ namespace Engine {
 
         const auto bind = HeadlessApi::Bind();
         if (bind.exitCode != ExitCode::Ok) {
-            LOG_ERROR(QString("EXIT %1: the Throne API listener could not start").arg(bind.exitCode));
+            LOG_ERROR(QString("EXIT %1: the Rawline API listener could not start").arg(bind.exitCode));
             return bind.exitCode;
         }
         if (!bind.retry) mark(RuntimeStatus::ApiStep);
@@ -606,8 +606,8 @@ namespace Engine {
             HeadlessApi::StartBindRetry(
                 runtime.get(), [mark] { mark(RuntimeStatus::ApiStep); },
                 [rt = runtime.get()](int code) {
-                    rt->terminate(code, code == ExitCode::Config ? QStringLiteral("the Throne API listener could not start")
-                                                                 : QStringLiteral("the Throne API listen address never became available"));
+                    rt->terminate(code, code == ExitCode::Config ? QStringLiteral("the Rawline API listener could not start")
+                                                                 : QStringLiteral("the Rawline API listen address never became available"));
                 });
         }
         // ApiStep is already marked for that failure; mark() is idempotent.

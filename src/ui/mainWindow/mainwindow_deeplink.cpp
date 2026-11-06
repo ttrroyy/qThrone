@@ -26,6 +26,7 @@
 #include "include/engine/app/ExitController.h"
 #include "include/engine/connection/ConnectionManager.h"
 #include "include/global/Logger.hpp"
+#include "include/global/Utils.hpp"
 #include "include/global/PeriodicRunner.hpp"
 #include "include/sys/AutoRun.hpp"
 #include "include/sys/KillSwitch.hpp"
@@ -128,7 +129,7 @@ void MainWindow::importFromFiles(const QStringList &paths)
 
 void MainWindow::handle_deeplink_impl(const QString &url) {
     const QUrl u(url);
-    // QUrl lowercases the host, so "throne://AddSub/" arrives with host "addsub".
+    // QUrl lowercases the host, so "rawline://AddSub/" arrives with host "addsub".
     const QString cmd = u.host();
 
     if (cmd.compare("add", Qt::CaseInsensitive) == 0) {
@@ -257,7 +258,7 @@ void MainWindow::handle_addsub(const QString &url, const QString &name) {
 }
 
 void MainWindow::import_or_handle_deeplink(const QString &text) {
-    if (const QString trimmed = text.trimmed(); trimmed.startsWith("throne://")) {
+    if (const QString trimmed = CurrentLinkScheme(text.trimmed()); trimmed.startsWith("rawline://")) {
         handle_deeplink_impl(trimmed);
         return;
     } else if (Subscription::ProviderRouting::IsLink(trimmed)) {

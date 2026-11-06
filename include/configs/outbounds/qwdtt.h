@@ -5,7 +5,7 @@
 #include <QUuid>
 
 namespace Configs {
-    // Dedicated profile UI; execution uses Throne's existing extra-core lifecycle.
+    // Dedicated profile UI; execution uses Rawline's existing extra-core lifecycle.
     class qwdtt : public extracore {
     public:
         static int MaxWorkers(int hashCount) { return qBound(1, hashCount, 4) * 27; }

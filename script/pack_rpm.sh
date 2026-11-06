@@ -34,7 +34,7 @@ mkdir -p "$WORK"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS}
 
 cat >"$WORK/qThrone.desktop" <<-EOF
 [Desktop Entry]
-Name=qThrone
+Name=Rawline
 Comment=Qt based cross-platform GUI proxy configuration manager (backend: sing-box)
 Exec=sh -c "PATH=/opt/qThrone:\$PATH /opt/qThrone/qThrone -appdata"
 Icon=/opt/qThrone/qThrone.png

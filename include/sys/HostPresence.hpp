@@ -4,8 +4,8 @@
 
 #include <QString>
 
-// A host-wide marker that a headless Throne runs, whatever its data dir: the GUI warns, refuses Tun and refuses a self-update
-// from the same install while one lives. Windows: a named file mapping Global\ThroneHeadless (Local\ThroneHeadless
+// A host-wide marker that a headless Rawline runs, whatever its data dir: the GUI warns, refuses Tun and refuses a self-update
+// from the same install while one lives. Windows: a named file mapping Global\RawlineHeadless (Local\RawlineHeadless
 // without SeCreateGlobalPrivilege) holding the same JSON; it dies with its last handle, so it never goes stale.
 namespace Sys::HostPresence {
     struct Holder {

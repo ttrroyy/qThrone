@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
         if (!Sys::ServiceManager::StartServiceDispatcher()) {
             Engine::Bootstrap::AttachParentConsole();
             if (_fileno(stderr) >= 0) {
-                std::fputs("--service: qThrone was not started by the Windows Service Control Manager; install the service with "
+                std::fputs("--service: Rawline was not started by the Windows Service Control Manager; install the service with "
                            "install-service.bat, or run without --service\n", stderr);
                 std::fflush(stderr);
             }
@@ -142,18 +142,18 @@ int main(int argc, char* argv[]) {
     if (claim.outcome == Engine::Bootstrap::ClaimOutcome::HandedOff) return 0;
     if (claim.outcome == Engine::Bootstrap::ClaimOutcome::HeldByHeadless) {
         const auto pid = claim.ownerPid;
-        const QString text = pid > 0 ? QObject::tr("qThrone is running in the background (PID %1). Stop the service or use thronectl.").arg(pid)
-                                     : QObject::tr("qThrone is running in the background. Stop the service or use thronectl.");
+        const QString text = pid > 0 ? QObject::tr("Rawline is running in the background (PID %1). Stop the service or use thronectl.").arg(pid)
+                                     : QObject::tr("Rawline is running in the background. Stop the service or use thronectl.");
         std::fputs(qPrintable(QString("%1 Data directory: %2\n").arg(text, QDir::toNativeSeparators(wd.absolutePath()))), stderr);
-        if (!arguments.contains("-tray")) QMessageBox::information(nullptr, "qThrone", text);
+        if (!arguments.contains("-tray")) QMessageBox::information(nullptr, "Rawline", text);
         return 0;
     }
     if (claim.outcome == Engine::Bootstrap::ClaimOutcome::HeldByOther) {
         const auto pid = claim.ownerPid;
         // An autostart must not leave a box behind.
         if (!arguments.contains("-tray")) {
-            const QString who = pid > 0 ? QObject::tr("Another qThrone instance (PID %1)").arg(pid) : QObject::tr("Another qThrone instance");
-            QMessageBox::warning(nullptr, "qThrone", QObject::tr("%1 is using this data directory:\n%2").arg(who, QDir::toNativeSeparators(wd.absolutePath())));
+            const QString who = pid > 0 ? QObject::tr("Another Rawline instance (PID %1)").arg(pid) : QObject::tr("Another Rawline instance");
+            QMessageBox::warning(nullptr, "Rawline", QObject::tr("%1 is using this data directory:\n%2").arg(who, QDir::toNativeSeparators(wd.absolutePath())));
         }
         return 0;
     }
@@ -165,7 +165,7 @@ int main(int argc, char* argv[]) {
         const QString error = QString("Failed to start the instance server %1: %2").arg(serverName, server.errorString());
         std::fputs(qPrintable(error + '\n'), stderr);
         Engine::Bootstrap::WarnDroppedPayload(launchPayload);
-        QMessageBox::critical(nullptr, "qThrone", error);
+        QMessageBox::critical(nullptr, "Rawline", error);
         return 1;
     }
     // Not before this point: until the data dir is ours there is nothing to tear down, and the default action ends the waits above.
@@ -206,7 +206,7 @@ int main(int argc, char* argv[]) {
     Configs::dataManager->RunDeferredMaintenance();
 
     if (Logging::PreviousSessionCrashed()) {
-        MW_show_log(QObject::tr("[Warn] qThrone did not shut down cleanly last time. "
+        MW_show_log(QObject::tr("[Warn] Rawline did not shut down cleanly last time. "
                                 "Diagnostics were saved to: %1").arg(Logging::LogDir()));
     }
 

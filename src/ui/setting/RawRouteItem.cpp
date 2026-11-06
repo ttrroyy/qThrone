@@ -130,13 +130,13 @@ RawRouteItem::RawRouteItem(QWidget* parent, const std::shared_ptr<Configs::Route
     preventCheck = new QCheckBox(tr("Prevent modifications"), this);
     preventCheck->setChecked(chain->preventModifications);
     preventCheck->setToolTip(tr("Use the route object exactly as written (outbound ids are still resolved to tags).\n"
-                                "qThrone will NOT add its DNS-hijack or xray bridge plumbing, so DNS, chained/xray\n"
-                                "outbounds and other qThrone features may break. For advanced users only."));
+                                "Rawline will NOT add its DNS-hijack or xray bridge plumbing, so DNS, chained/xray\n"
+                                "outbounds and other Rawline features may break. For advanced users only."));
     routeLayout->addWidget(preventCheck);
 
     jsonEdit = new RawRouteEdit(this);
     if (auto validator = JsonEdit::SingBoxValidator(JsonEdit::SingBox::Route)) {
-        // Throne writes profile ids where sing-box writes outbound tags; TranslateRawOutbounds swaps them at build time.
+        // Rawline writes profile ids where sing-box writes outbound tags; TranslateRawOutbounds swaps them at build time.
         validator->AllowExtraType(QStringLiteral("outbound"), JsonEdit::ValueType::Number);
         validator->AllowExtraType(QStringLiteral("final"), JsonEdit::ValueType::Number);
         routeValidator = validator;

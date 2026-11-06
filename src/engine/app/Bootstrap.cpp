@@ -47,7 +47,7 @@
 #include <libproc.h>
 #endif
 
-#define LOCAL_SERVER_PREFIX "qthrone-"
+#define LOCAL_SERVER_PREFIX "rawline-"
 
 namespace Engine::Bootstrap {
     namespace {
@@ -126,7 +126,7 @@ namespace Engine::Bootstrap {
             struct stat st{};
             if (::lstat(QFile::encodeName(path).constData(), &st) != 0) return false;
             if (S_ISSOCK(st.st_mode) && st.st_uid == ::geteuid()) return true;
-            LOG_WARN(QString("%1 is not a socket of this user, so it is not taken for an older qThrone").arg(path));
+            LOG_WARN(QString("%1 is not a socket of this user, so it is not taken for an older Rawline").arg(path));
             return false;
 #else
             Q_UNUSED(serverName)
@@ -184,7 +184,7 @@ namespace Engine::Bootstrap {
     }
 
     void SetSoftwareNames() {
-        software_name = "qThrone";
+        software_name = "Rawline";
         software_core_name = "sing-box";
     }
 
@@ -323,7 +323,7 @@ namespace Engine::Bootstrap {
             }
             QThread::msleep(100);
         }
-        // A Throne older than the lock only answers on its socket; a restarted one would only find its exiting parent there.
+        // A Rawline older than the lock only answers on its socket; a restarted one would only find its exiting parent there.
         if (relaunchParent.gone() && (handOff || bootstrapLegacySocketIsOurs(serverName)) && InstanceServer::HandOff(serverName, payload)) {
             return {ClaimOutcome::HandedOff};
         }

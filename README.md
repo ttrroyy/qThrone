@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="docs/screenshots/icon-tun.png" width="128" alt="qThrone">
+<img src="docs/screenshots/icon-tun.png" width="128" alt="Rawline">
 
-# qThrone
+# Rawline
 
 **Клиент для Windows, Linux и macOS на ядрах sing-box и Xray**
 
-Форк [Throne](https://github.com/throneproj/Throne)
+Форк [Rawline](https://github.com/throneproj/Throne)
 
 ![Windows](https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
@@ -23,7 +23,7 @@
 Помимо стандартных протоколов sing-box и Xray поддерживает qWDTT, WDTT Plus, CSQTT 2.5.0 Legacy, SSTP, olcRTC, OpenFlux, DNSTT, VayDNS, SlipStream, MasterDNS, CottenDNS, Soar, S3 Bypass и обфускацию WireGuard (wg-obfuscator, Phobos, wgobfs) - с подписками, тестом пинга и раздельной маршрутизацией.
 
 <p align="center">
-  <img src="docs/screenshots/screenshot-main.png" width="800" alt="Главное окно qThrone с профилями разных протоколов">
+  <img src="docs/screenshots/screenshot-main.png" width="800" alt="Главное окно Rawline с профилями разных протоколов">
 </p>
 
 ## Скачать
@@ -74,7 +74,7 @@
 ## Благодарности
 
 - Ядра: [SagerNet/sing-box](https://github.com/SagerNet/sing-box), [XTLS/Xray-core](https://github.com/XTLS/Xray-core)
-- Основа клиента: [Throne](https://github.com/throneproj/Throne), [NekoRay](https://github.com/MatsuriDayo/nekoray)
+- Основа клиента: [Rawline](https://github.com/throneproj/Throne), [NekoRay](https://github.com/MatsuriDayo/nekoray)
 - VK и WebRTC: [proxy-turn-vk-android](https://github.com/SpaceNeuroX/proxy-turn-vk-android), [CSQTT 2.5.0 Legacy](https://github.com/ttrroyy/mrtt/releases/tag/v2.5.0-legacy), [WDTT Plus](https://github.com/Ivan4537/WDTT-Plus), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [OpenFlux](https://github.com/p1neappleXpress/OpenFlux)
 - DNS-туннели: [dnstt](https://www.bamsoftware.com/software/dnstt/), [VayDNS](https://github.com/net2share/vaydns), [slipstream-rust](https://github.com/Mygod/slipstream-rust), [MasterDnsVPN](https://github.com/masterking32/MasterDnsVPN), [CottenDNS](https://github.com/TaJirax/cottenDNS), [Soar](https://github.com/getlantern/soar), [dnst-url-spec](https://github.com/net2share/dnst-url-spec), [SlipNet](https://github.com/anonvector/SlipNet), [WhiteDNS](https://github.com/WhiteDNS/WhiteDNS-Android)
 - S3 Bypass и TrustTunnel: [s3-bypass](https://github.com/SpaceNeuroX/s3-bypass), [Xray-core-fedarisha](https://github.com/Fedarisha/Xray-core-fedarisha), [sing-trusttunnel](https://github.com/xchacha20-poly1305/sing-trusttunnel), [TrustTunnelClient](https://github.com/TrustTunnel/TrustTunnelClient)
@@ -82,7 +82,7 @@
 - Обфускация WireGuard: [wg-obfuscator](https://github.com/ClusterM/wg-obfuscator), [Phobos](https://github.com/Ground-Zerro/Phobos), [xt_wgobfs](https://github.com/infinet/xt_wgobfs), [rs-wgobfs](https://github.com/infinet/rs-wgobfs)
 - Прочее: [routeprofiles](https://github.com/throneproj/routeprofiles), [sing-box-dashboard](https://github.com/SagerNet/sing-box-dashboard)
 
-Версия для Android - [qThroneMobile](https://github.com/ttrroyy/qThroneMobile).
+Версия для Android - [RawlineMobile](https://github.com/ttrroyy/qThroneMobile).
 
 ## Обсуждение и поддержка
 

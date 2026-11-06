@@ -57,7 +57,7 @@ namespace Sys::HostTun {
 
     QString Conflict(const QString &tunIPv4Cidr, int dnsInPort) {
         if (const auto name = hostTunNamedInterface(); !name.isEmpty()) {
-            return QStringLiteral("the network interface %1 already exists: another qThrone (or another program) runs Tun on this "
+            return QStringLiteral("the network interface %1 already exists: another Rawline (or another program) runs Tun on this "
                                   "computer")
                 .arg(name);
         }
@@ -71,13 +71,13 @@ namespace Sys::HostTun {
                                           "tun_ipv4_cidr=CIDR)")
                         .arg(address.toString(), owner.humanReadableName());
                 }
-                return QStringLiteral("the Tun address %1 is already on the network interface %2: another qThrone or VPN runs on this "
+                return QStringLiteral("the Tun address %1 is already on the network interface %2: another Rawline or VPN runs on this "
                                       "computer; stop it or change tun_ipv4_cidr")
                     .arg(address.toString(), owner.humanReadableName());
             }
         }
         if (dnsInPort > 0 && dnsInPort <= 65535 && hostTunPortTaken(dnsInPort)) {
-            return QStringLiteral("port %1 on 127.0.0.1 (the core's DNS server, dns_in_port) is in use (another qThrone?); stop that "
+            return QStringLiteral("port %1 on 127.0.0.1 (the core's DNS server, dns_in_port) is in use (another Rawline?); stop that "
                                   "program or change dns_in_port")
                 .arg(dnsInPort);
         }

@@ -312,7 +312,7 @@ namespace Configs {
                            rebuild ? QString("; the database will be rebuilt at the next start") : QString()));
         PostNotice({NoticeLevel::Warning, QObject::tr("Traffic statistics paused"),
                     rebuild
-                        ? QObject::tr("The statistics database is unusable (%1). Statistics are paused for this session and the file will be rebuilt when qThrone restarts.").arg(what)
-                        : QObject::tr("Writing statistics keeps failing (%1). Statistics are paused until qThrone restarts.").arg(what)});
+                        ? QObject::tr("The statistics database is unusable (%1). Statistics are paused for this session and the file will be rebuilt when Rawline restarts.").arg(what)
+                        : QObject::tr("Writing statistics keeps failing (%1). Statistics are paused until Rawline restarts.").arg(what)});
     }
 }

@@ -130,7 +130,7 @@ namespace Configs
         QString server_path;
         int mtu = 0;
         std::shared_ptr<OpenConnectTLS> tls = std::make_shared<OpenConnectTLS>();
-        // Throne-only, never sent to the core.
+        // Rawline-only, never sent to the core.
         int otp_profile_id = -1;
         bool only_advertised_routes = true;
         QString tunnel_dns = kTunnelDnsPrefer;

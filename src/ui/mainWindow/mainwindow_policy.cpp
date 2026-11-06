@@ -163,7 +163,7 @@ void MainWindow::stopFailed(const QString &error) {
     MessageBoxWarning(tr("Stop return error"), error);
 }
 
-// qThrone shows no "restart the software" advice: native transports legitimately take long to connect.
+// Rawline shows no "restart the software" advice: native transports legitimately take long to connect.
 Engine::SlowOperation MainWindow::slowOperation(Engine::SlowOperationKind, int) {
     return {};
 }
@@ -199,7 +199,7 @@ bool MainWindow::requestCorePrivileges() {
     }
 #endif
 #ifdef Q_OS_WIN
-    auto n = QMessageBox::warning(GetMessageBoxParent(), software_name, tr("Please run qThrone as admin"), QMessageBox::Yes | QMessageBox::No);
+    auto n = QMessageBox::warning(GetMessageBoxParent(), software_name, tr("Please run Rawline as admin"), QMessageBox::Yes | QMessageBox::No);
     if (n == QMessageBox::Yes) {
         this->exit_reason = ExitReason::RestartWithTun;
         on_menu_exit_triggered();

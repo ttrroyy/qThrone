@@ -39,6 +39,7 @@
 			<string>moe.qThrone.macosx</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
+				<string>rawline</string>
 				<string>throne</string>
 			</array>
 		</dict>

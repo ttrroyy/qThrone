@@ -146,13 +146,13 @@
      </widget>
      <widget class="QWidget" name="tab_api">
       <attribute name="title">
-       <string>Throne API</string>
+       <string>Rawline API</string>
       </attribute>
       <layout class="QFormLayout" name="apiLayout">
        <item row="0" column="0" colspan="2">
         <widget class="QCheckBox" name="api_enable">
          <property name="text">
-          <string>Enable the Throne API</string>
+          <string>Enable the Rawline API</string>
          </property>
         </widget>
        </item>
@@ -223,7 +223,7 @@
        <item row="4" column="0" colspan="2">
         <widget class="QCheckBox" name="api_admin_lan">
          <property name="toolTip">
-          <string>Lets devices on the local network import, delete, change settings, back up and restore through the Throne API. This device can always do so.</string>
+          <string>Lets devices on the local network import, delete, change settings, back up and restore through the Rawline API. This device can always do so.</string>
          </property>
          <property name="text">
           <string>Allow management from the local network</string>
@@ -338,7 +338,7 @@
        <item row="9" column="0" colspan="2">
         <widget class="QLabel" name="api_lan_warning">
          <property name="text">
-          <string>Devices on your network can control Throne with this key. Your firewall may ask to allow Throne.</string>
+          <string>Devices on your network can control Rawline with this key. Your firewall may ask to allow Rawline.</string>
          </property>
          <property name="textFormat">
           <enum>Qt::TextFormat::PlainText</enum>

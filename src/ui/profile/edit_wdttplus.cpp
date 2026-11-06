@@ -158,7 +158,7 @@ void EditWdttPlus::updateSource() {
 }
 
 // WDTT Plus's own check, as its app runs it: its client with -check-hashes, its captcha
-// chain answered by qThrone's browser window, 90 s per hash.
+// chain answered by Rawline's browser window, 90 s per hash.
 void EditWdttPlus::startHashCheck() {
     checking.clear();
     QJsonArray values;

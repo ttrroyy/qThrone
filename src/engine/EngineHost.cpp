@@ -212,7 +212,7 @@ namespace Engine {
             return engineHostInstance;
         }
         Sys::KillSwitch::instance();
-        Throne::PeriodicRunner::instance();
+        Rawline::PeriodicRunner::instance();
         Subscription::updater();
         EngineEvents::instance();
         AssetUpdates::SetUnattendedFetch(options.geoAutoDownload);
@@ -268,9 +268,9 @@ namespace Engine {
         const QPointer<RemoteApi::Router> apiRouter = m_router;
         const QPointer<EngineHost> self = this;
         RemoteApi::Server::instance()->setDispatcher([apiRouter, self](const RemoteApi::Request &request, const RemoteApi::Responder &respond) {
-            if (!apiRouter || !self) respond(RemoteApi::Response::Error(503, "exiting", "qThrone is shutting down"));
+            if (!apiRouter || !self) respond(RemoteApi::Response::Error(503, "exiting", "Rawline is shutting down"));
             // A start dispatched before the core supervisor started would strand the core.
-            else if (!self->m_apiReady) respond(RemoteApi::Response::Error(503, "starting", "qThrone is starting"));
+            else if (!self->m_apiReady) respond(RemoteApi::Response::Error(503, "starting", "Rawline is starting"));
             else apiRouter->dispatch(request, respond);
         });
     }
@@ -358,7 +358,7 @@ namespace Engine {
             AutoRun_FixTaskIfNeeded();
         }
         auto suggestRestartProxy = settings->Save();
-        Throne::PeriodicRunner::instance()->CheckNow();
+        Rawline::PeriodicRunner::instance()->CheckNow();
         if (changed(MwArg::KillSwitch) || changed(MwArg::Vpn)) Sys::KillSwitch::instance()->apply();
         if (changed(MwArg::RemoteApi)) RemoteApi::Server::instance()->apply(RemoteApi::EffectiveConfig().config);
         if (changed(MwArg::Route)) {
@@ -523,7 +523,7 @@ namespace Engine {
     }
 
     void EngineHost::registerPeriodicJobs() {
-        auto* runner = Throne::PeriodicRunner::instance();
+        auto* runner = Rawline::PeriodicRunner::instance();
         // Interval is sign-encoded in settings (negative = disabled); < 30 min counts as off.
         const auto minutesOf = [](int v) { return v >= 30 ? v : 0; };
         // Every poll while enabled: each group keeps its own schedule, persisted as its sub_last_update.

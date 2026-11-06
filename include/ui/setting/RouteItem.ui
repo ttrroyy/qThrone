@@ -82,7 +82,7 @@
         <item>
          <widget class="QLineEdit" name="remoteUrlEdit">
           <property name="placeholderText">
-           <string>https://... (throne://route link, base64, or JSON)</string>
+           <string>https://... (rawline://route link, base64, or JSON)</string>
           </property>
          </widget>
         </item>

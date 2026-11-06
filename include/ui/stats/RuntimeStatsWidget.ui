@@ -20,14 +20,14 @@
       <item>
        <layout class="QGridLayout" name="tableGrid">
         <item row="0" column="0">
-         <widget class="QLabel" name="labelThroneName">
+         <widget class="QLabel" name="labelRawlineName">
           <property name="text">
-           <string notr="true">Throne</string>
+           <string notr="true">Rawline</string>
           </property>
          </widget>
         </item>
         <item row="0" column="1">
-         <widget class="QLabel" name="vThroneCpu">
+         <widget class="QLabel" name="vRawlineCpu">
           <property name="text">
            <string notr="true">—</string>
           </property>
@@ -37,7 +37,7 @@
          </widget>
         </item>
         <item row="0" column="2">
-         <widget class="QLabel" name="vThroneRam">
+         <widget class="QLabel" name="vRawlineRam">
           <property name="text">
            <string notr="true">—</string>
           </property>

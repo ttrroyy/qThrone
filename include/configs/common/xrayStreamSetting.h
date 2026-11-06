@@ -81,7 +81,7 @@ namespace Configs {
     // dns-direct answers every outbound server domain, so its "disable IPv6" caps this.
     QString getDirectDomainStrategy();
 
-    // Passed to the core as LoadConfigReq.xray_outbound_dns_strategy (ThroneWiring), not baked into the config.
+    // Passed to the core as LoadConfigReq.xray_outbound_dns_strategy (RawlineWiring), not baked into the config.
     QString getXrayOutboundDomainStrategy();
 
     class xrayTLS : public baseConfig {

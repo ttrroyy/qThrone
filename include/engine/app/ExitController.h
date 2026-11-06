@@ -31,7 +31,7 @@ namespace Engine {
         }
     };
 
-    // The shutdown both front ends share, and the queued unattended exit the Throne API asks for. Main thread only.
+    // The shutdown both front ends share, and the queued unattended exit the Rawline API asks for. Main thread only.
     class ExitController final : public QObject {
         Q_OBJECT
 

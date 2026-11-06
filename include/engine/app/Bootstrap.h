@@ -89,7 +89,7 @@ namespace Engine::Bootstrap {
 
     // Owned also covers a lock that could not be taken at all: that run continues unlocked, as before.
     // handOff false (headless): Busy is HeldByOther right after the relaunch wait and no payload is handed off; the legacy probe
-    // answering (HandedOff) then means an older lock-less Throne owns the dir. handOff true (GUI): a busy lock whose owner mode is
+    // answering (HandedOff) then means an older lock-less Rawline owns the dir. handOff true (GUI): a busy lock whose owner mode is
     // "headless" is HeldByHeadless at once; at the hand-off deadline a HELLO answered by a headless owner is HeldByHeadless too.
     Claim ClaimDataDir(DataDirLock &lock, const DataDir &dataDir, const QString &serverName, const QString &lockMode,
                        const QStringList &payload, const RelaunchParent &relaunchParent, bool handOff = true);

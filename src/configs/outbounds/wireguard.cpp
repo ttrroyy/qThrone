@@ -380,7 +380,7 @@ namespace Configs {
                 ParseDiag::Warn("[Peer]", QCoreApplication::translate("Validation", "Only the last of the %1 [Peer] sections is used.").arg(peers));
             }
             if (!allowedIps.isEmpty() && !allowedIps.contains(QStringLiteral("0.0.0.0/0"))) {
-                ParseDiag::Warn("AllowedIPs", QCoreApplication::translate("Validation", "Ignored; qThrone sends all traffic of this profile through the tunnel."),
+                ParseDiag::Warn("AllowedIPs", QCoreApplication::translate("Validation", "Ignored; Rawline sends all traffic of this profile through the tunnel."),
                                 allowedIps.join(", "));
             }
             // The peer's Endpoint points at the local obfuscator; the server is its target.

@@ -49,12 +49,12 @@ int TestCoreStartup() {
     QElapsedTimer deadline;
     deadline.start();
     while (socket && core.state() == QProcess::Running && deadline.elapsed() < 5000 &&
-           !output.contains("Core Has Successfully Connected to qThrone!")) {
+           !output.contains("Core Has Successfully Connected to Rawline!")) {
         core.waitForReadyRead(250);
         output += core.readAll();
     }
     const bool ok = socket && core.state() == QProcess::Running &&
-                    output.contains("Core Has Successfully Connected to qThrone!");
+                    output.contains("Core Has Successfully Connected to Rawline!");
     if (!ok) qCritical() << "Packaged core startup failed:" << core.errorString() << output;
     core.terminate();
     if (!core.waitForFinished(5000)) {

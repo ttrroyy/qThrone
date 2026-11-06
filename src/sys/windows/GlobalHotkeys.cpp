@@ -13,7 +13,7 @@
 #endif
 
 namespace {
-    constexpr wchar_t kHotkeyWindowClass[] = L"ThroneGlobalHotkeys";
+    constexpr wchar_t kHotkeyWindowClass[] = L"RawlineGlobalHotkeys";
 
     UINT hotkeyModifiers(Qt::KeyboardModifiers modifiers) {
         UINT result = MOD_NOREPEAT;

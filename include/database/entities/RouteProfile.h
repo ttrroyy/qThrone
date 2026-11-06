@@ -63,7 +63,7 @@ namespace Configs {
         QList<std::shared_ptr<RouteRule>> Rules;
         int defaultOutboundID = proxyID;
 
-        // rawRoute is a whole sing-box `route` JSON object; preventModifications uses it verbatim, otherwise Throne still injects its plumbing.
+        // rawRoute is a whole sing-box `route` JSON object; preventModifications uses it verbatim, otherwise Rawline still injects its plumbing.
         bool isRaw = false;
         QString rawRoute = "";
         bool preventModifications = false;
@@ -98,7 +98,7 @@ namespace Configs {
 
         // Endpoints travel as whole configs with credentials cleared; one that cannot is skipped into *warnings.
         QJsonObject ToShareObject(QString* warnings = nullptr);
-        // ToShareObject() compacted, base64url-encoded, wrapped as throne://route/<...>
+        // ToShareObject() compacted, base64url-encoded, wrapped as rawline://route/<...>
         QString ToShareLink(QString* warnings = nullptr);
         // *wasOldArray = legacy bare rule array (no name / default outbound); materializeEndpoints=false matches shared endpoints without creating local ones.
         static std::shared_ptr<RouteProfile> FromShareInput(const QString& input, QString* fatalError, QString* warnings, bool* wasOldArray, bool materializeEndpoints = true);

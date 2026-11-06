@@ -36,10 +36,10 @@ namespace RemoteApi::RouterManageImpl {
     }
 
     Response exiting() {
-        return Response::Error(503, QStringLiteral("exiting"), QStringLiteral("qThrone is shutting down"));
+        return Response::Error(503, QStringLiteral("exiting"), QStringLiteral("Rawline is shutting down"));
     }
 
-    // Only http and https: a file:// URL would make Throne read local files for a remote client.
+    // Only http and https: a file:// URL would make Rawline read local files for a remote client.
     bool isHttpUrl(const QString &text) {
         const QUrl url(text, QUrl::StrictMode);
         if (!url.isValid() || url.host().isEmpty()) return false;
@@ -57,7 +57,7 @@ namespace RemoteApi::RouterManageImpl {
             case Failure::NoGroup: return QStringLiteral("The group no longer exists or is archived");
             case Failure::Fetch: return QStringLiteral("The download failed");
             case Failure::Empty: return QStringLiteral("No usable profile was found");
-            case Failure::Database: return QStringLiteral("qThrone could not save the result");
+            case Failure::Database: return QStringLiteral("Rawline could not save the result");
             case Failure::Internal:
             case Failure::None: break;
         }
@@ -448,7 +448,7 @@ namespace RemoteApi {
         const bool queued = Engine::AssetUpdates::UpdateRuleSets([this, waiter, notRunning](const Engine::AssetUpdates::RuleSetResult &result) {
             if (!result.coreReachable) {
                 answer(waiter, Response::Error(503, QStringLiteral("core_unavailable"),
-                                               result.error.isEmpty() ? QStringLiteral("qThrone's core process is not reachable") : result.error));
+                                               result.error.isEmpty() ? QStringLiteral("Rawline's core process is not reachable") : result.error));
                 return;
             }
             if (result.notRunning) {

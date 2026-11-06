@@ -5,7 +5,7 @@
 #include <QString>
 #include <QStringList>
 
-// Backups on a WebDAV server, shared with ThroneForAndroid: one folder of .thrbackup files plus a throne_backups.json
+// Backups on a WebDAV server, shared with RawlineForAndroid: one folder of .rwlbackup files plus a throne_backups.json
 // index. Every function but FromSettings runs synchronously on a worker thread and returns an error text, empty on
 // success.
 namespace Engine::WebDavBackup {
@@ -13,7 +13,7 @@ namespace Engine::WebDavBackup {
         QString server;
         QString user;
         QString pass;
-        // '/'-separated folder under the server URL; empty means "qThrone".
+        // '/'-separated folder under the server URL; empty means "Rawline".
         QString path;
         bool useProxy = false;
         QString deviceId;

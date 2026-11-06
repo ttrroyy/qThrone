@@ -304,7 +304,7 @@ namespace RemoteApi {
                     return created;
                 }
             }
-            result.error = QStringLiteral("it does not hold a Throne API key");
+            result.error = QStringLiteral("it does not hold a Rawline API key");
             return result;
         }
 #ifdef Q_OS_UNIX

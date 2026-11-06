@@ -50,7 +50,7 @@
          <string>Logs contain visited domains and server addresses.</string>
         </property>
         <property name="text">
-         <string>Include Throne logs</string>
+         <string>Include Rawline logs</string>
         </property>
        </widget>
       </item>

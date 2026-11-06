@@ -573,7 +573,7 @@ namespace Configs {
 
     QString hysteria::ExportToLink()
     {
-        // No hysteria2:// form carries realm, so callers fall back to the throne:// JSON link.
+        // No hysteria2:// form carries realm, so callers fall back to the rawline:// JSON link.
         if (RealmActive()) return {};
 
         QUrl url;

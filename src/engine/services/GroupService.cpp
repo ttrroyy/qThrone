@@ -119,7 +119,7 @@ namespace Engine::GroupService {
         const auto group = Configs::dataManager->groupsRepo->GetGroup(groupId);
         if (group == nullptr) return groupServiceUnknown(groupId);
         if (const auto tabGroups = groupServiceTabGroups(); tabGroups.size() == 1 && tabGroups.first() == groupId) {
-            return ServiceError{409, QStringLiteral("last_group"), QStringLiteral("qThrone needs at least one group")};
+            return ServiceError{409, QStringLiteral("last_group"), QStringLiteral("Rawline needs at least one group")};
         }
         if (Subscription::updater()->IsBusy(groupId)) {
             return ServiceError{409, QStringLiteral("busy"), QStringLiteral("The group's subscription is updating")};
@@ -134,7 +134,7 @@ namespace Engine::GroupService {
         }
         if (editing) {
             return ServiceError{409, QStringLiteral("editing"),
-                                QStringLiteral("The group or one of its profiles is open in an editor in qThrone's window")};
+                                QStringLiteral("The group or one of its profiles is open in an editor in Rawline's window")};
         }
         return std::nullopt;
     }

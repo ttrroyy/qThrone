@@ -124,7 +124,7 @@ namespace Engine::HeadlessCli {
             return QString("group gid %1").arg(gid);
         }
 
-        // The dir holds the settings that name the programs Throne starts: root refuses one other users can write. Another owner is
+        // The dir holds the settings that name the programs Rawline starts: root refuses one other users can write. Another owner is
         // only warned about, since a bind mount or a sudo run on one's own dir is owned by the invoking user.
         bool headlessCliVetDir(const QString &path, QString *error) {
             const QByteArray encoded = QFile::encodeName(path);
@@ -149,17 +149,17 @@ namespace Engine::HeadlessCli {
                 writable << headlessCliGroupName(st.st_gid) + QStringLiteral(" can write to it");
             }
             if (euid == 0 && !writable.isEmpty()) {
-                *error = QString("refusing to run as root with %1: %2. It holds the settings that name the programs qThrone starts, "
+                *error = QString("refusing to run as root with %1: %2. It holds the settings that name the programs Rawline starts, "
                                  "so only its owner may write to it (chmod go-w it, or pass another --data-dir)")
                              .arg(path, writable.join("; "));
                 return false;
             }
             if (!writable.isEmpty()) {
-                LOG_WARN(QString("%1: %2, so other users can change qThrone's settings, which name the programs it starts")
+                LOG_WARN(QString("%1: %2, so other users can change Rawline's settings, which name the programs it starts")
                              .arg(path, writable.join("; ")));
             }
             if (st.st_uid != euid) {
-                LOG_WARN(QString("%1 is owned by uid %2, who controls qThrone's settings, which name the programs it starts%3")
+                LOG_WARN(QString("%1 is owned by uid %2, who controls Rawline's settings, which name the programs it starts%3")
                              .arg(path, QString::number(st.st_uid), euid == 0 ? QStringLiteral(" as root") : QString()));
             }
             return true;
@@ -218,7 +218,7 @@ namespace Engine::HeadlessCli {
         // Before any option: the default compacted mode would split -appdata or -headless into single letters.
         parser.setSingleDashWordOptionMode(QCommandLineParser::ParseAsLongOptions);
         parser.setApplicationDescription(
-            "qThrone without a window, driven through the Throne API (thronectl). One or two dashes both work for every option.");
+            "Rawline without a window, driven through the Rawline API (thronectl). One or two dashes both work for every option.");
         parser.addHelpOption();
         parser.addVersionOption();
 
@@ -228,8 +228,8 @@ namespace Engine::HeadlessCli {
 
 #ifdef Q_OS_WIN
         parser.addOption({{kDataDir, "appdata"},
-                          "Data directory (THRONE_DATA_DIR). Default: %ProgramData%\\Throne with --service or as LocalSystem, "
-                          "else the per-user configuration directory (%LOCALAPPDATA%\\Throne). A portable desktop install keeps "
+                          "Data directory (THRONE_DATA_DIR). Default: %ProgramData%\\Rawline with --service or as LocalSystem, "
+                          "else the per-user configuration directory (%LOCALAPPDATA%\\Rawline). A portable desktop install keeps "
                           "its data next to the program: pass --data-dir <program directory> to share it.",
                           "DIR"});
 #else
@@ -241,8 +241,8 @@ namespace Engine::HeadlessCli {
                           "DIR"});
 #endif
         parser.addOption({kRestartMode,
-                          "What a restart request (exit code 75) does: exit leaves it to the service manager, exec re-runs qThrone "
-                          "in place (on Windows: starts a new qThrone process), auto picks exit under systemd, launchd, a container "
+                          "What a restart request (exit code 75) does: exit leaves it to the service manager, exec re-runs Rawline "
+                          "in place (on Windows: starts a new Rawline process), auto picks exit under systemd, launchd, a container "
                           "init or as a Windows service and exec otherwise (THRONE_RESTART_MODE). Default: auto.",
                           "MODE"});
         parser.addOption({kNoResume, "Do not reconnect the last profile at start (THRONE_RESUME=0)."});
@@ -254,11 +254,11 @@ namespace Engine::HeadlessCli {
                           "Default: auto.",
                           "FORMAT"});
         parser.addOption({kApiListen,
-                          "Throne API listener: PORT, IPv4:PORT, [IPv6]:PORT, *:PORT, or off (THRONE_API_LISTEN). Default: "
+                          "Rawline API listener: PORT, IPv4:PORT, [IPv6]:PORT, *:PORT, or off (THRONE_API_LISTEN). Default: "
                           "127.0.0.1:9095, unless the settings enable the API.",
                           "LISTEN"});
         parser.addOption({kApiKeyFile,
-                          "Throne API key file; it must exist (create it with: thronectl keygen -o FILE) "
+                          "Rawline API key file; it must exist (create it with: thronectl keygen -o FILE) "
                           "(THRONE_API_KEY_FILE). Default: <data dir>/config/api.key, created on the first start.",
                           "FILE"});
         parser.addOption({kApiAdminLan,
@@ -274,13 +274,13 @@ namespace Engine::HeadlessCli {
                           "or starting, 2 no answer."});
         parser.addOption({kPrintConnection,
                           "Print \"export THRONE_ADDR=...\" and \"export THRONE_KEY_FILE=...\" lines for thronectl: "
-                          "eval \"$(qThrone --print-connection)\"."});
-        parser.addOption({kCheck, "Check whether this host can run qThrone headless (data dir, TLS, core, Tun, kill switch, ports) "
+                          "eval \"$(Rawline --print-connection)\"."});
+        parser.addOption({kCheck, "Check whether this host can run Rawline headless (data dir, TLS, core, Tun, kill switch, ports) "
                                   "and print one line per item."});
         // Registered everywhere so that Parse can name the platform instead of reporting an unknown option.
         QCommandLineOption service(kService,
                                    "Run as a Windows service, started by the Service Control Manager (install-service.bat); started "
-                                   "any other way it exits 64. The data directory defaults to %ProgramData%\\Throne, and a restart "
+                                   "any other way it exits 64. The data directory defaults to %ProgramData%\\Rawline, and a restart "
                                    "request exits 75 for the service's recovery actions.");
 #ifndef Q_OS_WIN
         service.setFlags(QCommandLineOption::HiddenFromHelp);
@@ -336,8 +336,8 @@ namespace Engine::HeadlessCli {
         }
 #else
         if (parser.isSet(kService)) {
-            *message = "--service is for Windows only (it runs qThrone under the Windows Service Control Manager); here a systemd "
-                       "unit, a launchd plist or a container runs qThrone headless";
+            *message = "--service is for Windows only (it runs Rawline under the Windows Service Control Manager); here a systemd "
+                       "unit, a launchd plist or a container runs Rawline headless";
             return ParseOutcome::Usage;
         }
 #endif
@@ -418,18 +418,18 @@ namespace Engine::HeadlessCli {
             "      never appeared); --health: not healthy or still starting; --check: an item failed\n"
             "  2   --health: no instance answered; --print-connection: the API is off or not listening, or its key is not\n"
             "      in a file\n"
-            "  3   the data directory is in use by another qThrone\n"
+            "  3   the data directory is in use by another Rawline\n"
             "  64  bad option, option value or environment value; --service not started by the Windows service manager\n"
-            "  70  the core kept failing and qThrone gave up, or it was not usable for 60 s (see Recovery)\n"
+            "  70  the core kept failing and Rawline gave up, or it was not usable for 60 s (see Recovery)\n"
             "  71  the progress watchdog found the engine stuck (a profile connecting for 180 s or stopping for 90 s)\n"
             "  75  restart requested (thronectl restart, SIGHUP, backup restore) with --restart-mode exit, or as a\n"
             "      Windows service\n"
             "  78  configuration error (data directory, API key file, API listener, unusable database file)\n"
             "\n"
             "Recovery:\n"
-            "  If saved settings keep qThrone unreachable (kill switch, Tun), start it once with --no-resume\n"
+            "  If saved settings keep Rawline unreachable (kill switch, Tun), start it once with --no-resume\n"
             "  --no-kill-switch: no profile starts and the kill switch stays off for that run, so thronectl on this host\n"
-            "  can change the settings. After three boots in a row without a working core, qThrone stays up (degraded\n"
+            "  can change the settings. After three boots in a row without a working core, Rawline stays up (degraded\n"
             "  core_gave_up) instead of exiting 70 or 71, so the API stays reachable.\n");
 #ifdef Q_OS_WIN
         text += QStringLiteral(
@@ -494,7 +494,7 @@ namespace Engine::HeadlessCli {
             if (!headlessCliPrepareDir(path, error) || !headlessCliPrepareDir(configDir, error)) return ExitCode::Config;
 #ifdef Q_OS_WIN
             if (const QString who = Sys::ServiceManager::UsersCanWriteDataDir(path); !systemDefault && !who.isEmpty()) {
-                LOG_WARN(QString("%1: %2 can write to it, so other users can change qThrone's settings, which name the programs it starts")
+                LOG_WARN(QString("%1: %2 can write to it, so other users can change Rawline's settings, which name the programs it starts")
                              .arg(QDir::toNativeSeparators(path), who));
             }
 #endif
@@ -531,7 +531,7 @@ namespace Engine::HeadlessCli {
             *why = "Windows service";
             return RestartMode::Exit;
         }
-        *why = "not a Windows service; a new qThrone process starts";
+        *why = "not a Windows service; a new Rawline process starts";
         return RestartMode::Exec;
 #else
         // Set by the image that exec'd us: the launching shell may be gone and our new parent says nothing about a supervisor.
@@ -539,7 +539,7 @@ namespace Engine::HeadlessCli {
             *why = "inherited from the previous image";
             return RestartMode::Exec;
         }
-        // getppid() is 0 when Throne itself is PID 1 in a container without an init.
+        // getppid() is 0 when Rawline itself is PID 1 in a container without an init.
         if (bootParentPid <= 1) {
             *why = "parent is PID 1 (system manager, container init) or we are PID 1";
             return RestartMode::Exit;

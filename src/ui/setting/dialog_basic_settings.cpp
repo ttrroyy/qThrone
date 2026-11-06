@@ -132,7 +132,7 @@ namespace {
         QT_TRANSLATE_NOOP("DialogBasicSettings", "Failed to read database snapshot."),
         QT_TRANSLATE_NOOP("DialogBasicSettings", "Cannot write to: %1"),
         QT_TRANSLATE_NOOP("DialogBasicSettings", "Cannot open backup file: %1"),
-        QT_TRANSLATE_NOOP("DialogBasicSettings", "Not a valid qThrone backup file."),
+        QT_TRANSLATE_NOOP("DialogBasicSettings", "Not a valid Rawline backup file."),
         QT_TRANSLATE_NOOP("DialogBasicSettings", "Unsupported backup format version: %1.\nThis backup may have been created with a newer version of the application."),
         QT_TRANSLATE_NOOP("DialogBasicSettings", "The backup file is damaged or incomplete."),
         QT_TRANSLATE_NOOP("DialogBasicSettings", "This backup file does not contain any restorable data."),
@@ -287,7 +287,7 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
         });
     };
     connectAssociation(Association::Links, ui->url_scheme_auto_register, ui->url_scheme_install, ui->url_scheme_uninstall,
-                       tr("Could not register the handler for throne:// links."));
+                       tr("Could not register the handler for rawline:// links."));
     connectAssociation(Association::ConfigFiles, ui->file_assoc_auto_register, ui->file_assoc_install, ui->file_assoc_uninstall,
                        tr("Could not register the config file associations."));
     for (auto *widget : UnavailableWidgets(ui)) widget->hide();
@@ -528,7 +528,7 @@ DialogBasicSettings::DialogBasicSettings(QWidget *parent)
 bool DialogBasicSettings::RestoreDefaultsWithConfirmation(QWidget *parent) {
     const auto title = tr("Восстановить настройки по умолчанию");
     const auto answer = QMessageBox::question(parent, title,
-        tr("Сбросить настройки приложения и перезапустить qThrone?\n\n"
+        tr("Сбросить настройки приложения и перезапустить Rawline?\n\n"
            "Профили, подписки, маршруты, OTP и привязка устройства сохранятся."),
         QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
     if (answer != QMessageBox::Yes) return false;
@@ -904,8 +904,8 @@ void DialogBasicSettings::on_backup_create_clicked() {
     QString filePath = NativeFileDialog::getSaveFileName(
         this,
         tr("Create Backup"),
-        QDir::homePath() + "/qThrone-backup.thrbackup",
-        tr("qThrone Backup (*.thrbackup)")
+        QDir::homePath() + "/Rawline-backup.rwlbackup",
+        tr("Rawline Backup (*.rwlbackup)")
     );
     if (filePath.isEmpty()) return;
 
@@ -933,7 +933,7 @@ void DialogBasicSettings::on_backup_restore_clicked() {
         this,
         tr("Restore Backup"),
         QDir::homePath(),
-        tr("qThrone Backup (*.thrbackup)")
+        tr("Rawline Backup (*.rwlbackup)") + QStringLiteral(";;qThrone (*.thrbackup)")
     );
     if (filePath.isEmpty()) return;
     restoreBackupFile(filePath, {});
@@ -993,7 +993,7 @@ void DialogBasicSettings::restoreBackupFile(const QString &filePath, const QStri
 
     auto* warn = new QLabel(
         tr("Each selected part replaces the current data. This cannot be undone.\n"
-           "qThrone will restart to complete the restore."), &dlg);
+           "Rawline will restart to complete the restore."), &dlg);
     warn->setWordWrap(true);
     layout->addWidget(warn);
 
@@ -1027,9 +1027,9 @@ void DialogBasicSettings::restoreBackupFile(const QString &filePath, const QStri
     }
     const int skippedRules = result.skippedRules;
 
-    QString done = tr("Backup restored successfully. qThrone will now restart for the changes to take effect.");
+    QString done = tr("Backup restored successfully. Rawline will now restart for the changes to take effect.");
     if (skippedRules > 0)
-        done += "\n\n" + tr("Skipped %n routing rule(s) that use conditions this version of qThrone does not support.", nullptr, skippedRules);
+        done += "\n\n" + tr("Skipped %n routing rule(s) that use conditions this version of Rawline does not support.", nullptr, skippedRules);
     QMessageBox::information(this, tr("Restore Complete"), done);
     MW_dialog_message(MwMessage::RestartProgram, {});
     QDialog::reject();
@@ -1062,7 +1062,7 @@ void DialogBasicSettings::showWebDavSettings() {
     auto *pass = new QLineEdit(settings.webdav_pass, dlg);
     pass->setEchoMode(QLineEdit::Password);
     auto *folder = new QLineEdit(settings.webdav_path, dlg);
-    folder->setPlaceholderText(QStringLiteral("qThrone"));
+    folder->setPlaceholderText(QStringLiteral("Rawline"));
     auto *device = new QLineEdit(settings.device_name, dlg);
     device->setPlaceholderText(QSysInfo::machineHostName());
     form->addRow(tr("Server URL"), server);

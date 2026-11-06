@@ -13,7 +13,7 @@ namespace Engine::BackupArchive {
         QString createdAt;
         QString platform;
         Configs::BackupParts available;
-        // Empty for archives made before Throne recorded them.
+        // Empty for archives made before Rawline recorded them.
         QString deviceName;
         QString appVersion;
     };
@@ -32,7 +32,7 @@ namespace Engine::BackupArchive {
     // Main thread, before Build: makes sure the device has an id and flushes the settings when they are part of the backup.
     void Prepare(const Configs::BackupParts &parts);
 
-    // Any thread. Writes a .thrbackup archive of the parts to path; *written gets the parts it really holds (icons only
+    // Any thread. Writes a .rwlbackup archive of the parts to path; *written gets the parts it really holds (icons only
     // when there was an icon file). Returns an error text, empty on success.
     QString Build(const Configs::BackupParts &parts, const QString &path, Configs::BackupParts *written = nullptr);
 
@@ -42,7 +42,7 @@ namespace Engine::BackupArchive {
     struct ApplyResult {
         Configs::BackupParts restored;
         int skippedRules = 0;
-        // The archive was refused as a whole (see untrusted), not a failure of Throne.
+        // The archive was refused as a whole (see untrusted), not a failure of Rawline.
         bool refused = false;
     };
 
@@ -64,6 +64,6 @@ namespace Engine::BackupArchive {
     // False with *unknown set to the first unknown name.
     bool PartsFromNames(const QStringList &names, Configs::BackupParts *parts, QString *unknown);
 
-    // A unique path under <configDir>/temp, which Throne wipes at start.
+    // A unique path under <configDir>/temp, which Rawline wipes at start.
     QString TempPath(const QString &prefix);
 } // namespace Engine::BackupArchive

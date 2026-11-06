@@ -16,7 +16,7 @@ namespace Engine {
 // The instance socket of a headless process and its two client modes.
 namespace Engine::HeadlessInstance {
     // Unix: <config>/.instance, or FallbackSocketName(wd, create) when that path encodes to >= 100 bytes. Windows: the pipe
-    // "throne-headless-<md5hex(wd)>". Never the GUI's throne-<md5>. "" when the fallback fails its checks (logged).
+    // "throne-headless-<md5hex(wd)>". Never the GUI's rawline-<md5>. "" when the fallback fails its checks (logged).
     QString SocketName(const QDir &wd, bool create = false);
 
     // Unix: <private dir>/headless-<md5hex(wd)>; the private dir is /run/throne (root, Linux), /var/run/throne (root, macOS) or

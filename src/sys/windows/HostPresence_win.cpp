@@ -18,7 +18,7 @@
 namespace Sys::HostPresence {
     namespace {
         // Global\ needs SeCreateGlobalPrivilege (elevated or a service); Local\ is seen only inside this Windows session.
-        constexpr const wchar_t *kHostPresenceWinNames[] = {L"Global\\ThroneHeadless", L"Local\\ThroneHeadless"};
+        constexpr const wchar_t *kHostPresenceWinNames[] = {L"Global\\RawlineHeadless", L"Local\\RawlineHeadless"};
         constexpr int kHostPresenceWinGlobal = 0;
         constexpr int kHostPresenceWinLocal = 1;
         constexpr DWORD kHostPresenceWinMinSize = 4096;
@@ -145,7 +145,7 @@ namespace Sys::HostPresence {
         auto outcome = hostPresenceWinCreate(index, &attributes, size, &holder, &error);
         if (outcome == HostPresenceWinOutcome::Denied) {
             if (const auto global = hostPresenceWinPeek(kHostPresenceWinGlobal)) {
-                LOG_INFO(QStringLiteral("host presence: another headless qThrone (%1) publishes %2; this one publishes in %3")
+                LOG_INFO(QStringLiteral("host presence: another headless Rawline (%1) publishes %2; this one publishes in %3")
                              .arg(hostPresenceWinDescribe(*global), hostPresenceWinName(kHostPresenceWinGlobal),
                                   hostPresenceWinName(kHostPresenceWinLocal)));
             } else {
@@ -167,7 +167,7 @@ namespace Sys::HostPresence {
             return true;
         }
         if (outcome == HostPresenceWinOutcome::Taken) {
-            LOG_WARN(QStringLiteral("host presence: another headless qThrone (%1) already publishes %2; a GUI on this computer sees "
+            LOG_WARN(QStringLiteral("host presence: another headless Rawline (%1) already publishes %2; a GUI on this computer sees "
                                     "that one, not this one")
                          .arg(hostPresenceWinDescribe(holder), name));
             return false;

@@ -408,7 +408,7 @@ void DialogOtpManager::exportOtpAsMigration(const QList<std::shared_ptr<Configs:
 }
 
 void DialogOtpManager::exportOtpAsJson(const QList<std::shared_ptr<Configs::OtpProfile>> &profiles) {
-    const auto path = NativeFileDialog::getSaveFileName(this, tr("Export OTP"), QDir::homePath() + "/qThrone-otp.json",
+    const auto path = NativeFileDialog::getSaveFileName(this, tr("Export OTP"), QDir::homePath() + "/Rawline-otp.json",
                                                         tr("JSON (*.json)"));
     if (path.isEmpty()) return;
 

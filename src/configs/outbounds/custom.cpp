@@ -456,7 +456,7 @@ namespace Configs
             return true;
         }
 
-        // Removes what would open a port on this computer or write a file; Throne runs a full config as it is.
+        // Removes what would open a port on this computer or write a file; Rawline runs a full config as it is.
         bool stripSingBoxExposure(QJsonObject& root, Validation::Issues& issues)
         {
             bool removed = false;
@@ -493,7 +493,7 @@ namespace Configs
                     for (const auto& listenKey : keysNamed(api, "listen")) listens = listens || !isBlank(api.value(listenKey));
                     if (!listens) continue;
                     issues << Validation::Issue{Validation::Severity::Warning, at + key,
-                                                QCoreApplication::translate("Validation", "Removed the V2Ray API from the imported configuration: qThrone's core is built without it and would not start, and it would open a statistics port on this computer."),
+                                                QCoreApplication::translate("Validation", "Removed the V2Ray API from the imported configuration: Rawline's core is built without it and would not start, and it would open a statistics port on this computer."),
                                                 {}};
                     experimental.remove(key);
                     changed = true;
@@ -564,18 +564,18 @@ namespace Configs
         bool stripXrayExposure(QJsonObject& root, Validation::Issues& issues)
         {
             bool removed = stripNamed(root, "inbounds", {},
-                                      QCoreApplication::translate("Validation", "Removed the inbounds from the imported configuration: qThrone adds its own local inbound, and these could let other devices connect through this computer."),
+                                      QCoreApplication::translate("Validation", "Removed the inbounds from the imported configuration: Rawline adds its own local inbound, and these could let other devices connect through this computer."),
                                       false, issues);
             removed |= stripNamed(root, "api", {}, opensPortMessage(), false, issues);
             removed |= stripNamed(root, "metrics", {}, opensPortMessage(), false, issues);
             removed |= stripNamed(root, "reverse", {}, xrayReverseMessage(), false, issues);
             // Xray runs inside the core process and applies "env" with os.Setenv.
             removed |= stripNamed(root, "env", {},
-                                  QCoreApplication::translate("Validation", "Removed the environment variables from the imported configuration: they would apply to qThrone's core and to the programs it starts."),
+                                  QCoreApplication::translate("Validation", "Removed the environment variables from the imported configuration: they would apply to Rawline's core and to the programs it starts."),
                                   false, issues);
-            // The geodata updater swaps files in the asset folder, which is Throne's own folder.
+            // The geodata updater swaps files in the asset folder, which is Rawline's own folder.
             removed |= stripNamed(root, "geodata", {},
-                                  QCoreApplication::translate("Validation", "Removed the geodata updater from the imported configuration: it would download files from addresses the sender chose and replace files in qThrone's folder."),
+                                  QCoreApplication::translate("Validation", "Removed the geodata updater from the imported configuration: it would download files from addresses the sender chose and replace files in Rawline's folder."),
                                   false, issues);
             removed |= editObjectNamed(root, "routing", {}, [&](QJsonObject& routing, const QString& at) {
                 return editListNamed(routing, "rules", at, [&](QJsonObject& rule, const QString& ruleAt) {

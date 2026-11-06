@@ -205,7 +205,7 @@ namespace RemoteApi {
         }
         if (backups_.size() >= RouterBackupImpl::kKeptBackups) {
             respond(RouterBackupImpl::busy(
-                QStringLiteral("qThrone keeps %1 backups at most; delete one first").arg(RouterBackupImpl::kKeptBackups)));
+                QStringLiteral("Rawline keeps %1 backups at most; delete one first").arg(RouterBackupImpl::kKeptBackups)));
             return;
         }
 
@@ -464,7 +464,7 @@ namespace RemoteApi {
         runOnNewThread([self, id, path = transfer->path] {
             Engine::BackupArchive::Info info;
             QString failure = Engine::BackupArchive::Inspect(path, &info);
-            if (failure.isEmpty() && !info.available.any()) failure = QStringLiteral("The archive holds nothing qThrone can restore");
+            if (failure.isEmpty() && !info.available.any()) failure = QStringLiteral("The archive holds nothing Rawline can restore");
             runOnUiThread([self, id, path, failure, info] {
                 const auto entry = self != nullptr ? Transfer::find(self->restores_, id) : nullptr;
                 if (entry == nullptr) {
@@ -560,7 +560,7 @@ namespace RemoteApi {
             if (engine_->testsRunning()) return RouterBackupImpl::busy(QStringLiteral("A test is running"));
             if (!Subscription::updater()->IsIdle()) return RouterBackupImpl::busy(QStringLiteral("A subscription update is running"));
             if (Engine::AnyEditorOpen()) {
-                return Response::Error(409, QStringLiteral("editing"), QStringLiteral("A settings or editor window is open in qThrone"));
+                return Response::Error(409, QStringLiteral("editing"), QStringLiteral("A settings or editor window is open in Rawline"));
             }
             return std::nullopt;
         };
@@ -587,7 +587,7 @@ namespace RemoteApi {
                 return;
             }
             if (Configs::dataManager->settingsRepo->prepare_exit) {
-                fail(waiter, Response::Error(503, QStringLiteral("exiting"), QStringLiteral("qThrone is shutting down")));
+                fail(waiter, Response::Error(503, QStringLiteral("exiting"), QStringLiteral("Rawline is shutting down")));
                 return;
             }
             if (const auto busyNow = quiet()) {

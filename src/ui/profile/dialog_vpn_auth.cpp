@@ -100,7 +100,7 @@ DialogVpnAuth::DialogVpnAuth(QWidget *parent, Engine::VpnAuthController *_auth, 
     } else if (challenge.kind == "browser") {
         vpnAuthSetLabel(ui->label_url, challenge.url);
         vpnAuthSetLabel(ui->label_message,
-                        tr("This server requires single sign-on in a browser, which qThrone does not "
+                        tr("This server requires single sign-on in a browser, which Rawline does not "
                            "support yet. Cancel here and use a profile with direct credentials, or "
                            "supply an authentication cookie in the profile's advanced settings."));
         addStandard(QDialogButtonBox::Cancel);

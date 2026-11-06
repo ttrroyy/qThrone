@@ -50,7 +50,7 @@ namespace Sys {
         // "overridden" instead of arming, so profiles stay refused while the API can turn the setting off. Never saved.
         void setOverride(bool overridden);
 
-        // Any thread: the Throne API's TCP listen port, 0 when it does not listen. The guard lets the replies of inbound connections
+        // Any thread: the Rawline API's TCP listen port, 0 when it does not listen. The guard lets the replies of inbound connections
         // to it out, so a kill switch never cuts the API off. A change re-applies an armed or arming guard on the UI thread.
         static void SetApiPort(quint16 port);
 

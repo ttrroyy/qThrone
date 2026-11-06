@@ -3242,7 +3242,7 @@ namespace Configs {
                     MW_show_log("Custom Xray full config is not valid JSON");
                     return false;
                 }
-                // Throne never runs these; it prepends its own bridge inbound instead.
+                // Rawline never runs these; it prepends its own bridge inbound instead.
                 xrayConf.remove("inbounds");
                 if (offline) return true;
                 bool ok;

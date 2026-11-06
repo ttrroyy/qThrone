@@ -1,4 +1,4 @@
-# qThrone 1.6
+# Rawline 1.6
 
 CSQTT builds only the original 2.5.0 Legacy client at
 `ttrroyy/csqtt-rebirth@2066156119a5afe7d63e104aefdc8e0849999d03`,
@@ -62,7 +62,7 @@ verified SHA to stable with a fast-forward push, refusing if dev moved meanwhile
 
 ## Mobile audit (read-only)
 
-Inspected qThroneMobile 2.4.4's NativeHashPolicy.preserve and its refresh caller.
+Inspected RawlineMobile 2.4.4's NativeHashPolicy.preserve and its refresh caller.
 The mobile source currently lets provider hashes replace leading manual slots;
 qWDTT can raise a former maximum when the hash limit grows. It preserves qWDTT
 mode and CSQTT TURN transport, but does not preserve every extra WDTT Plus/SRTP

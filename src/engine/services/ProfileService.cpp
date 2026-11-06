@@ -17,7 +17,7 @@ namespace Engine::ProfileService {
         if (!IsBeingEdited(EditTarget::Profile)) return std::nullopt;
         for (const int id : profileIds) {
             if (!IsBeingEdited(EditTarget::Profile, id)) continue;
-            return ServiceError{409, QStringLiteral("editing"), QStringLiteral("Profile %1 is open in an editor in qThrone's window").arg(id)};
+            return ServiceError{409, QStringLiteral("editing"), QStringLiteral("Profile %1 is open in an editor in Rawline's window").arg(id)};
         }
         return std::nullopt;
     }

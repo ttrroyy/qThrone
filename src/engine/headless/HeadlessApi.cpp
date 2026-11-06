@@ -123,8 +123,8 @@ namespace Engine::HeadlessApi {
             return bindAddress;
         }
 
-        // A Throne API speaks first: exactly kServerHelloSize random bytes right after the accept, then it waits for the client.
-        bool headlessApiThroneAnswers(const QHostAddress &bindAddress, quint16 port) {
+        // A Rawline API speaks first: exactly kServerHelloSize random bytes right after the accept, then it waits for the client.
+        bool headlessApiRawlineAnswers(const QHostAddress &bindAddress, quint16 port) {
             QTcpSocket socket;
             socket.setProxy(QNetworkProxy::NoProxy);
             socket.connectToHost(headlessApiProbeTarget(bindAddress), port);
@@ -138,9 +138,9 @@ namespace Engine::HeadlessApi {
                 const int left = int(kHeadlessApiProbeMs - clock.elapsed());
                 if (left <= 0 || !socket.waitForReadyRead(left)) break;
             }
-            const bool throne = socket.bytesAvailable() == RemoteApi::kServerHelloSize;
+            const bool rawline = socket.bytesAvailable() == RemoteApi::kServerHelloSize;
             socket.abort();
-            return throne;
+            return rawline;
         }
 
         // A throwaway listener, closed at once: only a free port reaches the worker, which logs every failed bind.
@@ -244,9 +244,9 @@ namespace Engine::HeadlessApi {
                 overlay.key = file.key;
                 if (file.replaced) {
                     LOG_WARN(QStringLiteral("[API] The key file %1 held no key (an interrupted first start?); created a new one. Clients "
-                                            "need it again: qThrone --headless --print-connection").arg(overlay.defaultKeyFile));
+                                            "need it again: Rawline --headless --print-connection").arg(overlay.defaultKeyFile));
                 } else if (file.created) {
-                    LOG_INFO(QStringLiteral("[API] Created the key file %1 (owner only); qThrone --headless --print-connection tells "
+                    LOG_INFO(QStringLiteral("[API] Created the key file %1 (owner only); Rawline --headless --print-connection tells "
                                             "thronectl where to find it.").arg(overlay.defaultKeyFile));
                 }
             } else {
@@ -286,8 +286,8 @@ namespace Engine::HeadlessApi {
         }
         if (!effective.explicitListen) {
             // At boot the holder is the instance that won the port; a retry could take it in that one's restart gap, for good.
-            if (result.error == QAbstractSocket::AddressInUseError && headlessApiThroneAnswers(bindAddress, config.port)) {
-                LOG_WARN(QStringLiteral("[API] Not listening on %1 (%2): another qThrone instance's API holds it; give this one "
+            if (result.error == QAbstractSocket::AddressInUseError && headlessApiRawlineAnswers(bindAddress, config.port)) {
+                LOG_WARN(QStringLiteral("[API] Not listening on %1 (%2): another Rawline instance's API holds it; give this one "
                                         "--api-listen PORT (or THRONE_API_LISTEN)")
                              .arg(listen, headlessApiDescribe(effective)));
                 return {};
@@ -377,8 +377,8 @@ namespace Engine::HeadlessApi {
             const auto address = headlessApiBindAddress(effective.config);
             const auto port = effective.config.port;
             const auto listen = headlessApiListenText(address, port);
-            if (headlessApiThroneAnswers(address, port)) {
-                LOG_WARN(QStringLiteral("[API] Another qThrone instance's API holds %1; give this one --api-listen PORT (or "
+            if (headlessApiRawlineAnswers(address, port)) {
+                LOG_WARN(QStringLiteral("[API] Another Rawline instance's API holds %1; give this one --api-listen PORT (or "
                                         "THRONE_API_LISTEN)").arg(listen));
                 stop();
                 return;

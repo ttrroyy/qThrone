@@ -118,7 +118,7 @@ namespace RemoteApi {
         static Response notFound(const QString &message);
         static Response noProfiles();
         static Response forbidden();
-        // what: "qThrone's settings window", "this group", ...
+        // what: "Rawline's settings window", "this group", ...
         static Response editing(const QString &what);
         static Response serviceError(const Engine::ServiceError &error);
         static QJsonObject updateResultJson(const Subscription::UpdateOutcome &outcome);

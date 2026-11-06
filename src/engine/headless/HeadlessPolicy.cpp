@@ -44,7 +44,7 @@ namespace Engine {
         if (killSwitch->failedForIdentity()) return;
         QString hint;
 #if defined(Q_OS_WIN)
-        if (killSwitch->failedForPrivileges()) hint = QStringLiteral("run qThrone as a service or elevated");
+        if (killSwitch->failedForPrivileges()) hint = QStringLiteral("run Rawline as a service or elevated");
 #else
         if (killSwitch->failedForPrivileges()) hint = QStringLiteral("it needs root (euid 0)");
 #endif
@@ -103,9 +103,9 @@ namespace Engine {
 
     bool HeadlessPolicy::requestCorePrivileges() {
 #if defined(Q_OS_WIN)
-        MW_show_log(QStringLiteral("The core lacks the privileges Tun needs: run qThrone as a service or from an elevated prompt."));
+        MW_show_log(QStringLiteral("The core lacks the privileges Tun needs: run Rawline as a service or from an elevated prompt."));
 #elif defined(Q_OS_MACOS)
-        MW_show_log(QStringLiteral("The core lacks the privileges Tun needs: run qThrone as a LaunchDaemon (root) or install a setuid core."));
+        MW_show_log(QStringLiteral("The core lacks the privileges Tun needs: run Rawline as a LaunchDaemon (root) or install a setuid core."));
 #else
         MW_show_log(QStringLiteral("The core lacks the privileges Tun needs: run the unit as root, grant it CAP_NET_ADMIN, "
                                    "or install a setuid core."));

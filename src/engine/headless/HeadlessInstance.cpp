@@ -35,7 +35,7 @@ namespace Engine::HeadlessInstance {
         constexpr int kHeadlessInstanceIdleMs = 5000;
         constexpr int kHeadlessInstanceClientMs = 3000;
         constexpr qsizetype kHeadlessInstanceMaxReply = 1 << 20;
-        constexpr char kHeadlessInstanceAnswered[] = "throneHeadlessAnswered";
+        constexpr char kHeadlessInstanceAnswered[] = "rawlineHeadlessAnswered";
         constexpr char kHeadlessInstanceForbidden[] = "ERR forbidden";
 
         QString headlessInstanceHash(const QDir &wd) {
@@ -112,11 +112,11 @@ namespace Engine::HeadlessInstance {
             return out;
         }
 
-        // Scheme and the throne:// action only: the query can carry subscription tokens.
+        // Scheme and the rawline:// action only: the query can carry subscription tokens.
         QString headlessInstanceLinkLabel(const QString &line) {
             const QUrl url(line);
             const auto scheme = url.scheme().toLower();
-            if (scheme == QLatin1String("throne") && !url.host().isEmpty()) return QStringLiteral("throne://") + headlessInstancePrintable(url.host());
+            if ((scheme == QLatin1String("rawline") || scheme == QLatin1String("throne")) && !url.host().isEmpty()) return QStringLiteral("rawline://") + headlessInstancePrintable(url.host());
             return scheme + QStringLiteral("://");
         }
 
@@ -126,8 +126,8 @@ namespace Engine::HeadlessInstance {
                 LOG_DEBUG(QStringLiteral("[Instance] HELLO from %1").arg(headlessInstancePrintable(line.mid(6).trimmed())));
                 return QStringLiteral("HEADLESS pid=%1 version=%2").arg(QCoreApplication::applicationPid()).arg(QStringLiteral(NKR_VERSION)).toUtf8();
             }
-            if (line.startsWith(QLatin1String("throne://"), Qt::CaseInsensitive) || line.startsWith(QLatin1String("file://"), Qt::CaseInsensitive)) {
-                LOG_WARN(QStringLiteral("[Instance] Refused a %1 link from another launch: headless qThrone takes links and files through thronectl.")
+            if (line.startsWith(QLatin1String("rawline://"), Qt::CaseInsensitive) || line.startsWith(QLatin1String("throne://"), Qt::CaseInsensitive) || line.startsWith(QLatin1String("file://"), Qt::CaseInsensitive)) {
+                LOG_WARN(QStringLiteral("[Instance] Refused a %1 link from another launch: headless Rawline takes links and files through thronectl.")
                              .arg(headlessInstanceLinkLabel(line)));
                 return QByteArrayLiteral("REJECT headless");
             }
@@ -195,10 +195,10 @@ namespace Engine::HeadlessInstance {
                 // A service's pipe admits SYSTEM and Administrators; any other headless admits only the account it runs as.
                 if (socket.error() == QLocalSocket::SocketAccessError) {
                     if (Sys::ServiceManager::RunningAsLocalSystem() || Sys::ServiceManager::SelfElevated()) {
-                        LOG_WARN(QStringLiteral("[Instance] Not talking to %1: access denied. That headless qThrone admits only the "
+                        LOG_WARN(QStringLiteral("[Instance] Not talking to %1: access denied. That headless Rawline admits only the "
                                                 "account it runs as.").arg(socketName));
                     } else {
-                        LOG_WARN(QStringLiteral("[Instance] Not talking to %1: access denied. A headless qThrone running as a service or "
+                        LOG_WARN(QStringLiteral("[Instance] Not talking to %1: access denied. A headless Rawline running as a service or "
                                                 "as LocalSystem admits only Administrators and SYSTEM (run this from an elevated prompt); "
                                                 "any other admits only the account it runs as.").arg(socketName));
                         if (denied != nullptr) *denied = true;
@@ -281,13 +281,13 @@ namespace Engine::HeadlessInstance {
         }
 
         QString headlessInstanceNoAnswerHint(const QString &where) {
-            return QStringLiteral("No headless qThrone answered on %1. Pass the service's --data-dir and run as the user it runs as.")
+            return QStringLiteral("No headless Rawline answered on %1. Pass the service's --data-dir and run as the user it runs as.")
                 .arg(where);
         }
 
         bool headlessInstanceRefused(const Reply &reply, const QString &where) {
             if (!reply.answered || reply.line.trimmed() != kHeadlessInstanceForbidden) return false;
-            headlessInstanceNote(QStringLiteral("The headless qThrone on %1 answers only Administrators and SYSTEM: run this from an "
+            headlessInstanceNote(QStringLiteral("The headless Rawline on %1 answers only Administrators and SYSTEM: run this from an "
                                                 "elevated prompt.")
                                      .arg(where));
             return true;
@@ -403,19 +403,19 @@ namespace Engine::HeadlessInstance {
         if (!api.isEmpty()) {
             const auto state = api.value(QStringLiteral("state")).toString();
             if (state == QLatin1String("off")) {
-                headlessInstanceNote(QStringLiteral("The Throne API of the running headless qThrone is off."));
+                headlessInstanceNote(QStringLiteral("The Rawline API of the running headless Rawline is off."));
                 return ExitCode::NoInstance;
             }
             const auto error = api.value(QStringLiteral("error")).toString(state);
             // The port may belong to another process (retried quietly), or the key file holds no usable key.
             if (state == QLatin1String("failed") || state == QLatin1String("key_invalid")) {
-                headlessInstanceNote(QStringLiteral("The Throne API of the running headless qThrone is not listening (%1).").arg(error));
+                headlessInstanceNote(QStringLiteral("The Rawline API of the running headless Rawline is not listening (%1).").arg(error));
                 return ExitCode::NoInstance;
             }
             RemoteApi::Overlay listen;
             QString why;
             if (!RemoteApi::ParseListen(api.value(QStringLiteral("listen")).toString(), &listen, &why) || !listen.port.has_value()) {
-                headlessInstanceNote(QStringLiteral("The running headless qThrone reported no API address."));
+                headlessInstanceNote(QStringLiteral("The running headless Rawline reported no API address."));
                 return ExitCode::NoInstance;
             }
             address = headlessInstanceConnectAddress(listen.address, *listen.port);
@@ -427,11 +427,11 @@ namespace Engine::HeadlessInstance {
             }
         } else {
             const auto defaultKeyFile = QDir(wd.absoluteFilePath(QStringLiteral("config"))).absoluteFilePath(QStringLiteral("api.key"));
-            headlessInstanceNote(reply.answered ? QStringLiteral("The headless qThrone is still starting; using the flags, the environment and %1.").arg(defaultKeyFile)
-                                                : QStringLiteral("No headless qThrone answered on %1; using the flags, the environment and %2.")
+            headlessInstanceNote(reply.answered ? QStringLiteral("The headless Rawline is still starting; using the flags, the environment and %1.").arg(defaultKeyFile)
+                                                : QStringLiteral("No headless Rawline answered on %1; using the flags, the environment and %2.")
                                                       .arg(headlessInstanceWhere(wd), defaultKeyFile));
             if (overlay.enabled.has_value() && !*overlay.enabled) {
-                headlessInstanceNote(QStringLiteral("The Throne API is turned off (--api-listen or THRONE_API_LISTEN)."));
+                headlessInstanceNote(QStringLiteral("The Rawline API is turned off (--api-listen or THRONE_API_LISTEN)."));
                 return ExitCode::NoInstance;
             }
             address = overlay.port.has_value() ? headlessInstanceConnectAddress(overlay.address.isNull() ? QHostAddress(QHostAddress::LocalHost) : overlay.address, *overlay.port)

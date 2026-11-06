@@ -32,7 +32,7 @@ namespace Sys::ServiceManager {
         constexpr DWORD kServiceManagerWinConsoleWaitMs = 4500;
         constexpr qint64 kServiceManagerWinMaxHintMs = 10 * 60 * 1000;
         constexpr size_t kServiceManagerWinMaxHeld = 4;
-        constexpr wchar_t kServiceManagerWinWindowClass[] = L"ThroneHeadlessWindow";
+        constexpr wchar_t kServiceManagerWinWindowClass[] = L"RawlineHeadlessWindow";
         constexpr wchar_t kServiceManagerWinOwnedSddl[] = L"O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)";
         constexpr wchar_t kServiceManagerWinDaclSddl[] = L"D:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)";
         // FOLDERID_ProgramData, spelled out so no uuid import library is needed.
@@ -506,7 +506,7 @@ namespace Sys::ServiceManager {
             if (!trusted) return QStringLiteral("owned by %1, not SYSTEM or Administrators; remove it").arg(ownerText);
 
             // A handle opened while others could write here keeps that access after the DACL changes and can still turn the empty
-            // dir into a junction, so such a dir is refused before anything is changed (Throne's own dirs never grant it).
+            // dir into a junction, so such a dir is refused before anything is changed (Rawline's own dirs never grant it).
             PACL current = nullptr;
             PSECURITY_DESCRIPTOR currentSecurity = nullptr;
             if (const DWORD read = GetSecurityInfo(directory, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION, nullptr, nullptr, &current,
@@ -628,9 +628,9 @@ namespace Sys::ServiceManager {
             return;
         }
         // Top level and never shown: an HWND_MESSAGE window gets no WM_QUERYENDSESSION, WM_ENDSESSION or taskkill WM_CLOSE (T20).
-        if (CreateWindowExW(0, kServiceManagerWinWindowClass, L"qThrone headless", WS_OVERLAPPED, 0, 0, 0, 0, nullptr, nullptr, instance,
+        if (CreateWindowExW(0, kServiceManagerWinWindowClass, L"Rawline headless", WS_OVERLAPPED, 0, 0, 0, 0, nullptr, nullptr, instance,
                             nullptr) == nullptr) {
-            state.notes << QStringLiteral("Could not create the shutdown window (taskkill and session end will not stop qThrone cleanly): %1")
+            state.notes << QStringLiteral("Could not create the shutdown window (taskkill and session end will not stop Rawline cleanly): %1")
                                .arg(serviceManagerWinError(GetLastError()));
         }
     }
@@ -727,7 +727,7 @@ namespace Sys::ServiceManager {
         }
         CoTaskMemFree(raw);
         if (base.isEmpty()) return {};
-        return QDir::fromNativeSeparators(base) + QStringLiteral("/Throne");
+        return QDir::fromNativeSeparators(base) + QStringLiteral("/Rawline");
     }
 
     bool SecureDataDir(const QString &path, bool created, QString *error) {
@@ -859,11 +859,11 @@ namespace Sys::ServiceManager {
         if (!GetNamedPipeServerProcessId(pipe, &pid) || pid == 0) {
             return refuse(QStringLiteral("the pipe's server process is unknown: %1").arg(serviceManagerWinError(GetLastError())));
         }
-        // An elevated or SYSTEM caller can open a real Throne service; anyone else needs a pipe no other account can serve.
+        // An elevated or SYSTEM caller can open a real Rawline service; anyone else needs a pipe no other account can serve.
         const auto denied = [&refuse, closedToOthers, pid] {
             if (RunningAsLocalSystem() || serviceManagerWinSelfElevated()) {
                 return refuse(
-                    QStringLiteral("PID %1 serving the pipe cannot be inspected even by an elevated caller, unlike a qThrone service")
+                    QStringLiteral("PID %1 serving the pipe cannot be inspected even by an elevated caller, unlike a Rawline service")
                         .arg(QString::number(pid)));
             }
             if (!closedToOthers) {

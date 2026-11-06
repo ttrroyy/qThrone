@@ -55,7 +55,7 @@ namespace {
         const auto &settings = Configs::dataManager->settingsRepo;
         if (!settings->vpn_auto_redirect && !std::exchange(warnedRedirect, true)) {
             LOG_WARN(QStringLiteral("[Tun] replies to API clients outside the bypassed address ranges go into the tunnel; remote API "
-                                    "clients may lose the connection. From this host: thronectl tun off (after eval \"$(qThrone "
+                                    "clients may lose the connection. From this host: thronectl tun off (after eval \"$(Rawline "
                                     "--headless --print-connection)\"), or restart with --no-resume"));
         }
         const auto protocol = api.address.protocol();
@@ -299,12 +299,12 @@ namespace Engine {
         };
 
         if (!mu_starting.tryLock()) {
-            failStart(resolved, StartOutcome::Busy, QStringLiteral("qThrone"), MainWindowTr::tr("Another profile is starting..."));
+            failStart(resolved, StartOutcome::Busy, QStringLiteral("Rawline"), MainWindowTr::tr("Another profile is starting..."));
             return;
         }
         if (!mu_stopping.tryLock()) {
             mu_starting.unlock();
-            failStart(resolved, StartOutcome::Busy, QStringLiteral("qThrone"), MainWindowTr::tr("Another profile is stopping..."));
+            failStart(resolved, StartOutcome::Busy, QStringLiteral("Rawline"), MainWindowTr::tr("Another profile is stopping..."));
             return;
         }
         mu_stopping.unlock();
@@ -320,7 +320,7 @@ namespace Engine {
         if (!Configs::dataManager->settingsRepo->core_running) {
             if (!m_coreSupervisor->canStartCore()) {
                 mu_starting.unlock();
-                failStart(resolved, StartOutcome::CoreUnavailable, QStringLiteral("qThrone"), m_coreSupervisor->lastFailure());
+                failStart(resolved, StartOutcome::CoreUnavailable, QStringLiteral("Rawline"), m_coreSupervisor->lastFailure());
                 return;
             }
             deferStartToCore(resolved);

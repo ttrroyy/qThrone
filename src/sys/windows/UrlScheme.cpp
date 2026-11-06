@@ -26,7 +26,7 @@ static QString exeName() {
 
 // None of these is keyed by install path, so two portable copies write the same keys and the last launched one wins.
 static QStringList commandKeys(Association a) {
-    if (a == Association::Links) return {kClasses + "\\throne"};
+    if (a == Association::Links) return {kClasses + "\\rawline"};
     return {kClasses + "\\" + kProgId, kClasses + "\\Applications\\" + exeName()};
 }
 
@@ -54,15 +54,17 @@ bool UrlScheme_IsCurrent(Association a) {
 }
 
 static void applyLinks(const QString &command) {
-    QSettings scheme(kClasses + "\\throne", QSettings::NativeFormat);
-    scheme.setValue("Default", "URL:qThrone Protocol");
-    scheme.setValue("URL Protocol", "");
-    scheme.setValue("shell/open/command/Default", command);
+    for (const QString &name : {QStringLiteral("rawline"), QStringLiteral("throne")}) {
+        QSettings scheme(kClasses + "\\" + name, QSettings::NativeFormat);
+        scheme.setValue("Default", "URL:Rawline Protocol");
+        scheme.setValue("URL Protocol", "");
+        scheme.setValue("shell/open/command/Default", command);
+    }
 }
 
 static void applyConfigFiles(const QString &command) {
     QSettings progId(kClasses + "\\" + kProgId, QSettings::NativeFormat);
-    progId.setValue("Default", "qThrone profile");
+    progId.setValue("Default", "Rawline profile");
     progId.setValue("DefaultIcon/Default", QDir::toNativeSeparators(QApplication::applicationFilePath()) + ",0");
     progId.setValue("shell/open/command/Default", command);
 
@@ -76,7 +78,7 @@ static void applyConfigFiles(const QString &command) {
 
     // Applications\<exe> is what "Open with > Choose another app" reads, the only route for an extensionless file.
     QSettings app(kClasses + "\\Applications\\" + exeName(), QSettings::NativeFormat);
-    app.setValue("FriendlyAppName", "qThrone");
+    app.setValue("FriendlyAppName", "Rawline");
     app.setValue("shell/open/command/Default", command);
     app.remove("SupportedTypes");
     for (const QString &ext : kConfigExtensions) {
@@ -96,6 +98,7 @@ void UrlScheme_Remove(Association a) {
     // Removing from the parent key drops the whole subtree; QSettings::remove("") would only empty it and leave the node behind.
     QSettings classes(kClasses, QSettings::NativeFormat);
     if (a == Association::Links) {
+        classes.remove("rawline");
         classes.remove("throne");
     } else {
         classes.remove(kProgId);

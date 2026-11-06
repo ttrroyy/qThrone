@@ -153,7 +153,7 @@ namespace Engine::WebDavBackup {
                 QNetworkRequest request(r.url);
                 request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
                 request.setTransferTimeout(r.timeoutMs);
-                request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("qThrone/") + QStringLiteral(NKR_VERSION));
+                request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Rawline/") + QStringLiteral(NKR_VERSION));
                 if (r.withAuth && !auth_.isEmpty()) request.setRawHeader("Authorization", auth_);
                 if (insecure_) {
                     auto ssl = request.sslConfiguration();
@@ -274,7 +274,7 @@ namespace Engine::WebDavBackup {
 
         bool WebDavSafeFileName(const QString &name) {
             return !name.isEmpty() && !name.contains(u'/') && !name.contains(u'\\') && name != QLatin1String(".") &&
-                   name != QLatin1String("..") && name.endsWith(QLatin1String(".thrbackup"), Qt::CaseInsensitive);
+                   name != QLatin1String("..") && (name.endsWith(QLatin1String(".rwlbackup"), Qt::CaseInsensitive) || name.endsWith(QLatin1String(".thrbackup"), Qt::CaseInsensitive));
         }
 
         // Newest first; unknown dates sort last.
@@ -301,7 +301,7 @@ namespace Engine::WebDavBackup {
             return parsed.isValid() ? parsed.toUTC() : QDateTime();
         }
 
-        // The UTC yyyyMMdd_HHmmss stamp Throne puts in its file names.
+        // The UTC yyyyMMdd_HHmmss stamp Rawline puts in its file names.
         QDateTime WebDavNameStamp(const QString &name) {
             static const QRegularExpression stamp(QStringLiteral(R"((\d{8})_(\d{6}))"));
             const auto match = stamp.match(name);
@@ -321,7 +321,7 @@ namespace Engine::WebDavBackup {
                 if (!kept) c = u'-';
             }
             const QString random = QStringLiteral("%1").arg(QRandomGenerator::global()->bounded(0x10000), 4, 16, QLatin1Char('0'));
-            return QStringLiteral("throne_backup_%1_%2_%3.thrbackup").arg(version, utc.toString(QStringLiteral("yyyyMMdd_HHmmss")), random);
+            return QStringLiteral("rawline_backup_%1_%2_%3.rwlbackup").arg(version, utc.toString(QStringLiteral("yyyyMMdd_HHmmss")), random);
         }
 
         QString WebDavTrimSlashes(QString path) {
@@ -329,7 +329,7 @@ namespace Engine::WebDavBackup {
             return path;
         }
 
-        // The folder's .thrbackup children; false when the body is not a readable multistatus.
+        // The folder's .rwlbackup children; false when the body is not a readable multistatus.
         bool WebDavParseListing(const QByteArray &xml, const QUrl &folder, QList<WebDavListedFile> *files) {
             const QString dav = QStringLiteral("DAV:");
             const QString folderPath = WebDavTrimSlashes(folder.path(QUrl::FullyDecoded));
@@ -479,7 +479,7 @@ namespace Engine::WebDavBackup {
                 WebDavIndex index;
                 if (auto error = WebDavFetchIndex(session, &index); !error.isEmpty()) return error;
                 if (const int format = index.root.value("format").toInt(kWebDavIndexFormat); format > kWebDavIndexFormat) {
-                    MW_show_log(QStringLiteral("[Backup] The WebDAV backup list uses format %1, newer than this qThrone writes; left it unchanged.")
+                    MW_show_log(QStringLiteral("[Backup] The WebDAV backup list uses format %1, newer than this Rawline writes; left it unchanged.")
                                     .arg(format));
                     return {};
                 }

@@ -175,7 +175,7 @@ namespace Sys {
         QString text;
         if (failureCode_ == kPrivilege) {
 #ifdef Q_OS_WIN
-            text = tr("The kill switch needs qThrone to run as administrator.");
+            text = tr("The kill switch needs Rawline to run as administrator.");
 #else
             text = tr("The kill switch needs the core to have root privileges.");
 #endif
@@ -443,7 +443,7 @@ namespace Sys {
         pending_ = nullptr;
         closeGuard(previous);
         LOG_INFO("kill switch: armed with " + QString::fromUtf8(guard->config));
-        MW_show_log(previous == nullptr ? tr("[Kill switch] On: only traffic through qThrone can leave this device.")
+        MW_show_log(previous == nullptr ? tr("[Kill switch] On: only traffic through Rawline can leave this device.")
                                         : tr("[Kill switch] New settings applied."));
         if (identityUnsupported_) {
             failIdentity();

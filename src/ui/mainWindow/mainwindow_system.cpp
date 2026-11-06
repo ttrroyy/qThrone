@@ -173,7 +173,7 @@ void MainWindow::on_menu_exit_triggered() {
         if (!launched) {
             exitController()->setExitInProgress(false);
             exit_reason = ExitReason::None;
-            MW_show_log(tr("Restart as administrator was cancelled, qThrone keeps running"));
+            MW_show_log(tr("Restart as administrator was cancelled, Rawline keeps running"));
             return;
         }
         relaunched = true;
@@ -237,7 +237,7 @@ void MainWindow::show_startstop_menu() {
 
 void MainWindow::confirm_disable_kill_switch() {
     auto *box = new QMessageBox(QMessageBox::Warning, tr("Disable kill switch"),
-                                tr("Turn off the kill switch? Traffic that does not go through qThrone will no longer be blocked."),
+                                tr("Turn off the kill switch? Traffic that does not go through Rawline will no longer be blocked."),
                                 QMessageBox::NoButton, this);
     box->setAttribute(Qt::WA_DeleteOnClose);
     auto *disable = box->addButton(tr("Disable Kill Switch"), QMessageBox::DestructiveRole);
@@ -366,7 +366,7 @@ void MainWindow::CheckUpdate() {
     options.strictTls = true;
     const QString forkRepository = QStringLiteral(QTHRONE_REPOSITORY);
     if (forkRepository.isEmpty()) {
-        runOnUiThread([=,this] { MessageBoxInfo(tr("Update"), tr("This qThrone build has no update repository configured.")); });
+        runOnUiThread([=,this] { MessageBoxInfo(tr("Update"), tr("This Rawline build has no update repository configured.")); });
         return;
     }
     auto resp = NetworkRequestHelper::HttpGet("https://api.github.com/repos/" + forkRepository + "/releases", options);
@@ -413,7 +413,7 @@ void MainWindow::CheckUpdate() {
         QMessageBox box(QMessageBox::Question, QObject::tr("Update") + note_pre_release,
                         QObject::tr("Update found: %1\nRelease note:\n%2").arg(assets_name, release_note));
         if (headlessSameInstall) {
-            box.setInformativeText(tr("Update is unavailable while a background qThrone (PID %1) runs from this installation; stop it first.")
+            box.setInformativeText(tr("Update is unavailable while a background Rawline (PID %1) runs from this installation; stop it first.")
                                        .arg(headless->pid));
         }
         QAbstractButton *btn1 = nullptr;

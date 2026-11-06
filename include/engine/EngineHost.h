@@ -25,7 +25,7 @@ namespace Engine {
     class TestRunner;
     class VpnAuthController;
 
-    // Owns and wires every engine object, and is the EngineControl the Throne API drives. Main thread unless noted.
+    // Owns and wires every engine object, and is the EngineControl the Rawline API drives. Main thread unless noted.
     class EngineHost final : public EngineControl {
         Q_OBJECT
 
@@ -49,7 +49,7 @@ namespace Engine {
         // 503 "starting" until this returns.
         void init(EnginePolicy *policy, TestObserver *observer, std::optional<BootStart> bootStart = std::nullopt);
 
-        // The Throne API's status object; main thread. For the headless HEALTH reply.
+        // The Rawline API's status object; main thread. For the headless HEALTH reply.
         QJsonObject statusJson() const;
 
         // The boot resume was skipped by the crash-loop guard (headless): degraded resume_suppressed until cleared.

@@ -203,7 +203,7 @@ namespace Sys::HostPresence {
                 const auto holder = hostPresenceParse(hostPresenceRead(fd));
                 const QString who = holder.pid > 0 ? QStringLiteral("PID %1, data dir %2").arg(holder.pid).arg(holder.dataDir)
                                                    : QStringLiteral("its PID is unknown");
-                LOG_WARN(QStringLiteral("host presence: another headless qThrone (%1) already publishes %2; a GUI on this computer sees "
+                LOG_WARN(QStringLiteral("host presence: another headless Rawline (%1) already publishes %2; a GUI on this computer sees "
                                         "that one, not this one")
                              .arg(who, path));
             } else {

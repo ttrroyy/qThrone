@@ -267,7 +267,7 @@ def main(scr, y):
             with open(tmpdir / "qThrone.desktop", "w") as file:
                 file.write(f"""[Desktop Entry]
 Version={version}
-Name=qThrone
+Name=Rawline
 GenericName=Proxy Manager
 Comment=Qt based cross-platform GUI proxy configuration manager (backend: sing-box)
 Exec={APPDIR}/qThrone -appdata

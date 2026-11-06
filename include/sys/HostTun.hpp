@@ -2,7 +2,7 @@
 
 #include <QString>
 
-// One Tun-owning Throne per host: the Tun name, the dns-in port and the sing-tun tables are host-global.
+// One Tun-owning Rawline per host: the Tun name, the dns-in port and the sing-tun tables are host-global.
 namespace Sys::HostTun {
     inline constexpr char kTunName[] = "qthrone-tun";
 

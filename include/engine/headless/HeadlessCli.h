@@ -9,7 +9,7 @@
 #include "include/engine/app/Bootstrap.h"
 #include "include/global/Logger.hpp"
 
-// Command line and environment of "qThrone --headless" and its client modes.
+// Command line and environment of "Rawline --headless" and its client modes.
 namespace Engine::HeadlessCli {
     enum class RestartMode { Auto, Exit, Exec };
 
@@ -44,7 +44,7 @@ namespace Engine::HeadlessCli {
         bool resume = true;
         // --no-kill-switch, or THRONE_KILL_SWITCH 0/false/no/off: RuntimeOptions::killSwitchOverride.
         bool noKillSwitch = false;
-        // --service (Windows): started by the SCM; the data dir defaults to %ProgramData%\Throne and restarts always exit.
+        // --service (Windows): started by the SCM; the data dir defaults to %ProgramData%\Rawline and restarts always exit.
         bool service = false;
         // --log-format / THRONE_LOG_FORMAT.
         Logging::StdFormat logFormat = Logging::StdFormat::Auto;
@@ -71,7 +71,7 @@ namespace Engine::HeadlessCli {
 
     // Chain: option > THRONE_DATA_DIR > the first ':' entry of STATE_DIRECTORY > as root: /var/lib/throne (Linux),
     // /Library/Application Support/Throne (macOS) > AppConfigLocation (HOME empty or "/": an error). Never the app dir.
-    // Windows: option > THRONE_DATA_DIR > --service or LocalSystem: %ProgramData%\Throne (SecureDataDir; refused -> 78) >
+    // Windows: option > THRONE_DATA_DIR > --service or LocalSystem: %ProgramData%\Rawline (SecureDataDir; refused -> 78) >
     // AppConfigLocation; no STATE_DIRECTORY. An explicit dir that Users can write is logged as a warning.
     // create: mkpath wd and wd/config, 0700 on the dirs it created, a write probe; false (client modes) touches nothing.
     // Fills DataDir{wd, useAppdata = true, appdataDir = wd, configDir} and options->dataDirSource. 0 or ExitCode::Config.

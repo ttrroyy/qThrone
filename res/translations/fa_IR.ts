@@ -216,8 +216,8 @@ Release note:
         <translation>دانلود متوقف شد: به مدت %1 ثانیه داده‌ای دریافت نشد.</translation>
     </message>
     <message>
-        <source>Throne needs at least one group.</source>
-        <translation>Throne دست‌کم به یک گروه نیاز دارد.</translation>
+        <source>Rawline needs at least one group.</source>
+        <translation>Rawline دست‌کم به یک گروه نیاز دارد.</translation>
     </message>
     <message>
         <source>This group&apos;s subscription is being updated. Try again when it finishes.</source>
@@ -1177,8 +1177,8 @@ Release note:
         <translation>اجازهٔ مدیریت از شبکهٔ محلی</translation>
     </message>
     <message>
-        <source>Lets devices on the local network import, delete, change settings, back up and restore through the Throne API. This device can always do so.</source>
-        <translation>به دستگاه‌های شبکهٔ محلی اجازه می‌دهد از طریق Throne API وارد کنند، حذف کنند، تنظیمات را تغییر دهند، پشتیبان بگیرند و بازیابی کنند. این دستگاه همیشه می‌تواند این کارها را انجام دهد.</translation>
+        <source>Lets devices on the local network import, delete, change settings, back up and restore through the Rawline API. This device can always do so.</source>
+        <translation>به دستگاه‌های شبکهٔ محلی اجازه می‌دهد از طریق Rawline API وارد کنند، حذف کنند، تنظیمات را تغییر دهند، پشتیبان بگیرند و بازیابی کنند. این دستگاه همیشه می‌تواند این کارها را انجام دهد.</translation>
     </message>
 </context>
 <context>
@@ -2895,7 +2895,7 @@ Error: %1</source>
 </translation>
     </message>
     <message>
-        <source>Please run Throne as admin</source>
+        <source>Please run Rawline as admin</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2957,8 +2957,8 @@ Error: %1</source>
         <translation>فایل‌های داده‌های جغرافیایی در حال دانلود هستند.</translation>
     </message>
     <message>
-        <source>Update is unavailable while a background Throne (PID %1) runs from this installation; stop it first.</source>
-        <translation>تا زمانی که یک Throne پس‌زمینه (PID %1) از همین نصب اجرا می‌شود، به‌روزرسانی در دسترس نیست؛ ابتدا آن را متوقف کنید.</translation>
+        <source>Update is unavailable while a background Rawline (PID %1) runs from this installation; stop it first.</source>
+        <translation>تا زمانی که یک Rawline پس‌زمینه (PID %1) از همین نصب اجرا می‌شود، به‌روزرسانی در دسترس نیست؛ ابتدا آن را متوقف کنید.</translation>
     </message>
     <message>
         <source>Kill switch is blocking traffic</source>
@@ -3250,8 +3250,8 @@ Error: %1</source>
 <context>
     <name>Engine::CoreSupervisor</name>
     <message>
-        <source>Throne could not open the local channel the core connects to (%1), so no profile can start.</source>
-        <translation>Throne نتوانست کانال محلی‌ای را که هسته به آن وصل می‌شود باز کند (%1)، بنابراین هیچ نمایه‌ای نمی‌تواند شروع شود.</translation>
+        <source>Rawline could not open the local channel the core connects to (%1), so no profile can start.</source>
+        <translation>Rawline نتوانست کانال محلی‌ای را که هسته به آن وصل می‌شود باز کند (%1)، بنابراین هیچ نمایه‌ای نمی‌تواند شروع شود.</translation>
     </message>
     <message>
         <source>Core unavailable</source>
@@ -3276,19 +3276,19 @@ Error: %1</source>
 <context>
     <name>GuiStartup</name>
     <message>
-        <source>Throne is running in the background</source>
-        <translation>Throne در پس‌زمینه در حال اجراست</translation>
+        <source>Rawline is running in the background</source>
+        <translation>Rawline در پس‌زمینه در حال اجراست</translation>
     </message>
     <message>
-        <source>A background Throne (PID %1) is running on this computer (data directory: %2). Tun mode is unavailable here while it runs; stop it or use thronectl.</source>
-        <translation>یک Throne پس‌زمینه (PID %1) روی این رایانه در حال اجراست (پوشه داده: %2). تا زمانی که اجرا می‌شود، حالت Tun در اینجا در دسترس نیست؛ آن را متوقف کنید یا از thronectl استفاده کنید.</translation>
+        <source>A background Rawline (PID %1) is running on this computer (data directory: %2). Tun mode is unavailable here while it runs; stop it or use thronectl.</source>
+        <translation>یک Rawline پس‌زمینه (PID %1) روی این رایانه در حال اجراست (پوشه داده: %2). تا زمانی که اجرا می‌شود، حالت Tun در اینجا در دسترس نیست؛ آن را متوقف کنید یا از thronectl استفاده کنید.</translation>
     </message>
 </context>
 <context>
     <name>Engine::ConnectionManager</name>
     <message>
-        <source>A background Throne (PID %1) owns Tun on this computer; stop it or use thronectl.</source>
-        <translation>حالت Tun روی این رایانه در اختیار یک Throne پس‌زمینه (PID %1) است؛ آن را متوقف کنید یا از thronectl استفاده کنید.</translation>
+        <source>A background Rawline (PID %1) owns Tun on this computer; stop it or use thronectl.</source>
+        <translation>حالت Tun روی این رایانه در اختیار یک Rawline پس‌زمینه (PID %1) است؛ آن را متوقف کنید یا از thronectl استفاده کنید.</translation>
     </message>
 </context>
 <context>

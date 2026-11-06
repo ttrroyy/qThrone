@@ -20,7 +20,7 @@ namespace Configs {
             return QStringLiteral("auto");
         }
 
-        // Throne's own links write none for the empty encoding.
+        // Rawline's own links write none for the empty encoding.
         QString vmessImportPacketEncoding(const QString &raw)
         {
             const QString value = raw.trimmed();

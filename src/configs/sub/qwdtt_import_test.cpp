@@ -81,8 +81,8 @@ int TestQwdttImport() {
         const auto savedAgent = settings->user_agent;
         const auto restoreAgent = qScopeGuard([&] { settings->user_agent = savedAgent; });
         settings->user_agent.clear();
-        if (settings->GetUserAgent() != QStringLiteral("qThrone/") + QStringLiteral(NKR_VERSION) ||
-            Subscription::ResolveIdentity(nullptr).userAgent != QStringLiteral("Happ/3.0 qThrone/") + QStringLiteral(NKR_VERSION)) {
+        if (settings->GetUserAgent() != QStringLiteral("Rawline/") + QStringLiteral(NKR_VERSION) ||
+            Subscription::ResolveIdentity(nullptr).userAgent != QStringLiteral("Happ/3.0 Rawline/") + QStringLiteral(NKR_VERSION)) {
             qWarning("Client/subscription User-Agent does not match the build version"); ++failures;
         }
         settings->user_agent = "Custom/agent";
@@ -650,7 +650,7 @@ int TestQwdttImport() {
             const QJsonObject node{{"protocol", protocol}, {"tag", "Node"}, {"settings", QJsonObject{{"address", "json.example"}, {"port", 443}, {"id", "00000000-0000-4000-8000-000000000001"}}}};
             const auto bytes = QJsonDocument(node).toJson(QJsonDocument::Compact);
             const auto plain = parse(bytes);
-            for (const auto &prefix : {QByteArray("json://#"), QByteArray("throne://add/")}) {
+            for (const auto &prefix : {QByteArray("json://#"), QByteArray("rawline://add/")}) {
                 const auto encoded = parse(prefix + bytes.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals));
                 check(plain.size() == 1 && encoded.size() == 1 && plain.first()->outbound->ExportToJson() == encoded.first()->outbound->ExportToJson(), "every Xray protocol uses identical plain and encoded JSON import");
             }
@@ -666,7 +666,7 @@ int TestQwdttImport() {
             const auto bytes = QJsonDocument(original->outbound->ExportToJson()).toJson(QJsonDocument::Compact);
             const auto plain = parse(bytes);
             const auto encoded = parse(original->outbound->ExportJsonLink().toUtf8());
-            // Import validation (from Throne) refuses defaults without a server or key; both forms still have to agree.
+            // Import validation (from Rawline) refuses defaults without a server or key; both forms still have to agree.
             check(plain.size() == encoded.size(), "registered native exports import from JSON links");
             if (!plain.isEmpty() && !encoded.isEmpty()) check(plain.first()->outbound->ExportToJson() == encoded.first()->outbound->ExportToJson(), "native export settings retained identically");
         }
@@ -677,7 +677,7 @@ int TestQwdttImport() {
         const QJsonArray nodes{relay, hy, cs, full};
         for (const auto &document : {QJsonDocument(nodes), QJsonDocument(QJsonObject{{"profiles", nodes}}), QJsonDocument(QJsonObject{{"servers", nodes}})}) {
             const auto bytes = document.toJson(QJsonDocument::Compact);
-            for (const auto &body : {bytes, QByteArray("throne://add/") + bytes.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)}) {
+            for (const auto &body : {bytes, QByteArray("rawline://add/") + bytes.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)}) {
                 const auto imported = parse(body);
                 check(imported.size() == 4, "mixed qWDTT CSQTT HY2 and full Xray documents preserve every entry");
                 if (imported.size() == 4) check(imported[0]->type == "qwdtt" && imported[1]->outbound->DisplayType() == "Hysteria 2" && imported[2]->type == "csqtt" && imported[3]->Custom() && imported[3]->Custom()->IsXrayFullConfig(), "mixed array order and full routing retained");

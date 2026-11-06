@@ -28,7 +28,7 @@
 
 namespace {
 #ifdef Q_OS_MACOS
-    // macOS reuses the running app and delivers throne:// URLs and opened files as a QFileOpenEvent, never via argv.
+    // macOS reuses the running app and delivers rawline:// URLs and opened files as a QFileOpenEvent, never via argv.
     class MacOpenEventFilter : public QObject {
     public:
         using QObject::QObject;
@@ -38,7 +38,7 @@ namespace {
             if (event->type() == QEvent::FileOpen) {
                 const auto openEvent = static_cast<QFileOpenEvent *>(event);
                 const QString url = openEvent->url().toString();
-                if (url.startsWith("throne://")) {
+                if (CurrentLinkScheme(url).startsWith("rawline://")) {
                     Deeplink_Submit(url);
                     return true;
                 }
@@ -124,7 +124,7 @@ namespace GuiStartup {
     }
 
     void HandleLaunchLine([[maybe_unused]] QLocalSocket *socket, const QString &line) {
-        if (line.startsWith("throne://")) {
+        if (CurrentLinkScheme(line).startsWith("rawline://")) {
             Deeplink_Submit(line);
         } else if (line.startsWith("file://")) {
             LaunchFiles_Submit({QUrl(line).toLocalFile()});
@@ -206,12 +206,12 @@ namespace GuiStartup {
     void WarnAboutHeadless() {
         const auto holder = Sys::HostPresence::OtherHeadless();
         if (!holder) return;
-        const QString text = QCoreApplication::translate("GuiStartup", "A background qThrone (PID %1) is running on this computer (data directory: %2). "
+        const QString text = QCoreApplication::translate("GuiStartup", "A background Rawline (PID %1) is running on this computer (data directory: %2). "
                                                                        "Tun mode is unavailable here while it runs; stop it or use thronectl.")
                                  .arg(QString::number(holder->pid), QDir::toNativeSeparators(holder->dataDir));
         MW_show_log("[Warn] " + text);
         // An autostart must not leave a parentless box behind; setTun's own notice covers an actual Tun attempt.
         if (!Configs::dataManager->settingsRepo->flag_tray)
-            PostNotice({NoticeLevel::Warning, QCoreApplication::translate("GuiStartup", "qThrone is running in the background"), text});
+            PostNotice({NoticeLevel::Warning, QCoreApplication::translate("GuiStartup", "Rawline is running in the background"), text});
     }
 } // namespace GuiStartup

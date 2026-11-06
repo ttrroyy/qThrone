@@ -9,7 +9,7 @@ namespace Configs
 
     // Shared by EditHysteria (widget text) and hysteria::Validate (bean fields).
     namespace Checks {
-        // One server_ports item as Throne stores it: n, a-b or a:b, open ends allowed.
+        // One server_ports item as Rawline stores it: n, a-b or a:b, open ends allowed.
         QString HysteriaPortItem(const QString &item);
         QString HysteriaPortItemOrder(const QString &item);
         QString HysteriaHopMinimum(bool hopping, const QString &interval);

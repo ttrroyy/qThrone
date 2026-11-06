@@ -4,6 +4,7 @@
 #include <QJsonDocument>
 #include <QUrlQuery>
 #include "include/database/entities/RouteProfile.h"
+#include "include/global/Utils.hpp"
 #include "include/configs/sub/ProviderRouting.h"
 #include <array>
 #include <iostream>
@@ -701,7 +702,7 @@ namespace Configs {
     QString RouteProfile::ToShareLink(QString* warnings) {
         const auto json = QJsonDocument(ToShareObject(warnings)).toJson(QJsonDocument::Compact);
         const auto b64 = json.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
-        return QStringLiteral("throne://route/") + QString::fromLatin1(b64);
+        return QStringLiteral("rawline://route/") + QString::fromLatin1(b64);
     }
 
     std::shared_ptr<RouteProfile> RouteProfile::FromShareInput(const QString& input, QString* fatalError, QString* warnings, bool* wasOldArray, bool materializeEndpoints) {
@@ -726,7 +727,7 @@ namespace Configs {
             return Subscription::ProviderRouting::ImportedProfile(command);
         }
 
-        if (text.startsWith("throne://route/", Qt::CaseInsensitive)) {
+        if (CurrentLinkScheme(text).startsWith("rawline://route/", Qt::CaseInsensitive)) {
             const QUrl u(text);
             if (!u.isValid()) {
                 fatalError->append("Deep link is invalid");
@@ -746,7 +747,7 @@ namespace Configs {
                 doc = QJsonDocument::fromJson(QByteArray::fromBase64(text.toUtf8()));
         }
         if (doc.isNull()) {
-            fatalError->append("Input is not valid JSON, base64, or a qThrone route link");
+            fatalError->append("Input is not valid JSON, base64, or a Rawline route link");
             return nullptr;
         }
 
@@ -826,8 +827,8 @@ namespace Configs {
 
     QList<std::shared_ptr<RouteProfile>> RouteProfile::FromRemoteRoutesLink(const QString& input, bool* wasRemoteRouteLink, QString* error) {
         if (wasRemoteRouteLink) *wasRemoteRouteLink = false;
-        const QString text = input.trimmed();
-        if (!text.startsWith("throne://remoteroute/", Qt::CaseInsensitive)) return {};
+        const QString text = CurrentLinkScheme(input.trimmed());
+        if (!text.startsWith("rawline://remoteroute/", Qt::CaseInsensitive)) return {};
         if (wasRemoteRouteLink) *wasRemoteRouteLink = true;
 
         const QUrl u(text);

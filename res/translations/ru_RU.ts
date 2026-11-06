@@ -173,8 +173,8 @@ Outbound: %4</translation>
         <translation>Логи содержат данные о посещённых доменах и адресах серверов.</translation>
     </message>
     <message>
-        <source>Include Throne logs</source>
-        <translation>Добавить логи Throne</translation>
+        <source>Include Rawline logs</source>
+        <translation>Добавить логи Rawline</translation>
     </message>
     <message>
         <source>Start</source>
@@ -484,15 +484,15 @@ It stays a preference, not a lock: if that profile stops working the selector st
     </message>
     <message>
         <source>Links and Files</source>
-        <translation>Ссылки «throne://» и файлы</translation>
+        <translation>Ссылки «rawline://» и файлы</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Registers Throne as the handler for throne:// links, re-applying the registration whenever the install is moved.&lt;/p&gt;&lt;p&gt;Turning this off does not undo an existing registration: use Uninstall for that.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Регистрирует Throne в качестве обработчика ссылок «throne://», повторно применяя регистрацию при каждом перемещении исполняемых файлов.&lt;/p&gt;&lt;p&gt;Отключение этой функции не отменяет существующую регистрацию: для этого нажмите кнопку «Удалить».&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Registers Rawline as the handler for rawline:// links, re-applying the registration whenever the install is moved.&lt;/p&gt;&lt;p&gt;Turning this off does not undo an existing registration: use Uninstall for that.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Регистрирует Rawline в качестве обработчика ссылок «rawline://», повторно применяя регистрацию при каждом перемещении исполняемых файлов.&lt;/p&gt;&lt;p&gt;Отключение этой функции не отменяет существующую регистрацию: для этого нажмите кнопку «Удалить».&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Removes the throne:// handler Throne wrote. Entries owned by other applications are left alone.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Удаляет обработчик «throne://», записанный Throne. Записи, принадлежащие другим приложениям, остаются без изменений.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Removes the rawline:// handler Rawline wrote. Entries owned by other applications are left alone.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Удаляет обработчик «rawline://», записанный Rawline. Записи, принадлежащие другим приложениям, остаются без изменений.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;When to choose Xray when importing vless profiles&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
@@ -579,9 +579,9 @@ It stays a preference, not a lock: if that profile stops working the selector st
         <translation>Безопасность</translation>
     </message>
     <message>
-        <source>While Throne is running, block all traffic that does not go through Throne, including when no profile is running.
+        <source>While Rawline is running, block all traffic that does not go through Rawline, including when no profile is running.
 The local network stays reachable unless Private Range Bypass is turned off in Tun Settings.</source>
-        <translation>Пока Throne запущен, блокировать весь трафик, идущий не через Throne, даже если ни один профиль не запущен.
+        <translation>Пока Rawline запущен, блокировать весь трафик, идущий не через Rawline, даже если ни один профиль не запущен.
 Локальная сеть остается доступной, если не отключен «Обход частных диапазонов» в «Настройках режима TUN».</translation>
     </message>
     <message>
@@ -594,7 +594,7 @@ The local network stays reachable unless Private Range Bypass is turned off in T
     </message>
     <message>
         <source>Always Start as Standard User</source>
-        <translation>Всегда запускать Throne от имени обычного пользователя</translation>
+        <translation>Всегда запускать Rawline от имени обычного пользователя</translation>
     </message>
     <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Do not attempt to start as Admin unless explicitly requested&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
@@ -645,8 +645,8 @@ The local network stays reachable unless Private Range Bypass is turned off in T
         <translation>необязательно — используется состояние сети, определяемое ОС</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;After connecting, Throne asks an IP lookup service — through the proxy — which IP and country the connection exits from.&lt;/p&gt;&lt;p&gt;Turn this off to never contact such a service automatically.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;После подключения Throne запрашивает у сервиса определения IP — через прокси, — с какого IP-адреса и из какой страны выходит соединение.&lt;/p&gt;&lt;p&gt;Отключите, чтобы Throne никогда не обращался к такому сервису автоматически.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;After connecting, Rawline asks an IP lookup service — through the proxy — which IP and country the connection exits from.&lt;/p&gt;&lt;p&gt;Turn this off to never contact such a service automatically.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;После подключения Rawline запрашивает у сервиса определения IP — через прокси, — с какого IP-адреса и из какой страны выходит соединение.&lt;/p&gt;&lt;p&gt;Отключите, чтобы Rawline никогда не обращался к такому сервису автоматически.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Look up exit country</source>
@@ -661,8 +661,8 @@ The local network stays reachable unless Private Range Bypass is turned off in T
         <translation>Кол-во потоков</translation>
     </message>
     <message>
-        <source>Register throne:// links at startup</source>
-        <translation>Регистрировать обработчик ссылок throne:// при запуске</translation>
+        <source>Register rawline:// links at startup</source>
+        <translation>Регистрировать обработчик ссылок rawline:// при запуске</translation>
     </message>
     <message>
         <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Registers the handler now, without waiting for the next start.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
@@ -677,8 +677,8 @@ The local network stays reachable unless Private Range Bypass is turned off in T
         <translation>Удалить</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Adds Throne to the &quot;Open with&quot; list for config files such as JSON and YAML, re-applying the registration whenever the install is moved.&lt;/p&gt;&lt;p&gt;Turning this off does not undo an existing registration: use Uninstall for that.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Добавляет Throne в список «Открыть с помощью» для файлов конфигурации, таких как JSON и YAML, и повторно применяет регистрацию при каждом перемещении исполняемых файлов.&lt;/p&gt;&lt;p&gt;Отключение этой функции не отменяет существующую регистрацию: для этого нажмите кнопку «Удалить».&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Adds Rawline to the &quot;Open with&quot; list for config files such as JSON and YAML, re-applying the registration whenever the install is moved.&lt;/p&gt;&lt;p&gt;Turning this off does not undo an existing registration: use Uninstall for that.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Добавляет Rawline в список «Открыть с помощью» для файлов конфигурации, таких как JSON и YAML, и повторно применяет регистрацию при каждом перемещении исполняемых файлов.&lt;/p&gt;&lt;p&gt;Отключение этой функции не отменяет существующую регистрацию: для этого нажмите кнопку «Удалить».&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Register config files at startup</source>
@@ -689,8 +689,8 @@ The local network stays reachable unless Private Range Bypass is turned off in T
         <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Регистрирует ассоциации прямо сейчас, не дожидаясь следующего запуска.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Removes every config file association Throne wrote, including those added by older versions. Associations owned by other applications are left alone.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Удаляет все ассоциации конфигурационных файлов, созданные Throne, включая те, что были добавлены более старыми версиями. Ассоциации, принадлежащие другим приложениям, остаются без изменений.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Removes every config file association Rawline wrote, including those added by older versions. Associations owned by other applications are left alone.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Удаляет все ассоциации конфигурационных файлов, созданные Rawline, включая те, что были добавлены более старыми версиями. Ассоциации, принадлежащие другим приложениям, остаются без изменений.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Logging</source>
@@ -761,8 +761,8 @@ The local network stays reachable unless Private Range Bypass is turned off in T
         <translation>Отображать безопасность конфигураций</translation>
     </message>
     <message>
-        <source>Follow the connection status icon in the dock/taskbar. When off, it always shows the Throne icon</source>
-        <translation>Показывать иконку статуса подключения в доке/на панели задач. Если выключено, там всегда отображается иконка Throne</translation>
+        <source>Follow the connection status icon in the dock/taskbar. When off, it always shows the Rawline icon</source>
+        <translation>Показывать иконку статуса подключения в доке/на панели задач. Если выключено, там всегда отображается иконка Rawline</translation>
     </message>
     <message>
         <source>Follow Status Icon in Taskbar</source>
@@ -1009,11 +1009,11 @@ The local network stays reachable unless Private Range Bypass is turned off in T
         <translation>Не удалось восстановить базу данных: %1</translation>
     </message>
     <message numerus="yes">
-        <source>Skipped %n routing rule(s) that use conditions this version of Throne does not support.</source>
+        <source>Skipped %n routing rule(s) that use conditions this version of Rawline does not support.</source>
         <translation>
-            <numerusform>Пропущено %n правило маршрутизации, которое использует условия, не поддерживаемые данной версией Throne.</numerusform>
-            <numerusform>Пропущено %n правила маршрутизации, которые используют условия, не поддерживаемые данной версией Throne.</numerusform>
-            <numerusform>Пропущено %n правил маршрутизации, которые используют условия, не поддерживаемые данной версией Throne.</numerusform>
+            <numerusform>Пропущено %n правило маршрутизации, которое использует условия, не поддерживаемые данной версией Rawline.</numerusform>
+            <numerusform>Пропущено %n правила маршрутизации, которые используют условия, не поддерживаемые данной версией Rawline.</numerusform>
+            <numerusform>Пропущено %n правил маршрутизации, которые используют условия, не поддерживаемые данной версией Rawline.</numerusform>
         </translation>
     </message>
     <message>
@@ -1037,16 +1037,16 @@ The local network stays reachable unless Private Range Bypass is turned off in T
         <translation>Пользовательские иконки</translation>
     </message>
     <message>
-        <source>Throne Backup (*.thrbackup)</source>
-        <translation>Резервная копия Throne (*.thrbackup)</translation>
+        <source>Rawline Backup (*.rwlbackup)</source>
+        <translation>Резервная копия Rawline (*.rwlbackup)</translation>
     </message>
     <message>
         <source>Select at least one part to include in the backup.</source>
         <translation>Выберите хотя бы один раздел для резервной копии.</translation>
     </message>
     <message>
-        <source>Backup restored successfully. Throne will now restart for the changes to take effect.</source>
-        <translation>Резервная копия успешно восстановлена. Throne будет перезапущен для применения изменений.</translation>
+        <source>Backup restored successfully. Rawline will now restart for the changes to take effect.</source>
+        <translation>Резервная копия успешно восстановлена. Rawline будет перезапущен для применения изменений.</translation>
     </message>
     <message>
         <source>Backup created on %1.
@@ -1083,8 +1083,8 @@ Select which parts to restore:</source>
         <translation>Автоматически</translation>
     </message>
     <message>
-        <source>Could not register the handler for throne:// links.</source>
-        <translation>Не удалось зарегистрировать обработчик ссылок throne://.</translation>
+        <source>Could not register the handler for rawline:// links.</source>
+        <translation>Не удалось зарегистрировать обработчик ссылок rawline://.</translation>
     </message>
     <message>
         <source>Could not register the config file associations.</source>
@@ -1185,8 +1185,8 @@ Included: %2</source>
         <translation>Не удается открыть файл резервной копии: %1</translation>
     </message>
     <message>
-        <source>Not a valid Throne backup file.</source>
-        <translation>Файл не является резервной копией Throne.</translation>
+        <source>Not a valid Rawline backup file.</source>
+        <translation>Файл не является резервной копией Rawline.</translation>
     </message>
     <message>
         <source>Unsupported backup format version: %1.
@@ -1200,9 +1200,9 @@ This backup may have been created with a newer version of the application.</sour
     </message>
     <message>
         <source>Each selected part replaces the current data. This cannot be undone.
-Throne will restart to complete the restore.</source>
+Rawline will restart to complete the restore.</source>
         <translation>Каждый выбранный раздел заменит текущие данные. Это действие нельзя отменить.
-Для завершения восстановления Throne перезапустится.</translation>
+Для завершения восстановления Rawline перезапустится.</translation>
     </message>
     <message>
         <source>Select at least one part to restore.</source>
@@ -2786,8 +2786,8 @@ Throne will restart to complete the restore.</source>
         <translation>&quot;%1&quot; также назначено для &quot;%2&quot;.</translation>
     </message>
     <message>
-        <source>Scripts connect with thronectl or the Throne API library.</source>
-        <translation>Скрипты подключаются через thronectl или библиотеку Throne API.</translation>
+        <source>Scripts connect with thronectl or the Rawline API library.</source>
+        <translation>Скрипты подключаются через thronectl или библиотеку Rawline API.</translation>
     </message>
     <message>
         <source>Hide</source>
@@ -2850,12 +2850,12 @@ Throne will restart to complete the restore.</source>
         <translation>Вкл./выкл. режим TUN</translation>
     </message>
     <message>
-        <source>Throne API</source>
-        <translation>Throne API</translation>
+        <source>Rawline API</source>
+        <translation>Rawline API</translation>
     </message>
     <message>
-        <source>Enable the Throne API</source>
-        <translation>Включить Throne API</translation>
+        <source>Enable the Rawline API</source>
+        <translation>Включить Rawline API</translation>
     </message>
     <message>
         <source>Listen on</source>
@@ -2882,8 +2882,8 @@ Throne will restart to complete the restore.</source>
         <translation>Любой адрес или, например, 192.168.1.0/24, 10.0.0.5</translation>
     </message>
     <message>
-        <source>Lets devices on the local network import, delete, change settings, back up and restore through the Throne API. This device can always do so.</source>
-        <translation>Позволяет устройствам в локальной сети импортировать, удалять, менять настройки, создавать резервные копии и восстанавливать их через Throne API. Это устройство может делать это всегда.</translation>
+        <source>Lets devices on the local network import, delete, change settings, back up and restore through the Rawline API. This device can always do so.</source>
+        <translation>Позволяет устройствам в локальной сети импортировать, удалять, менять настройки, создавать резервные копии и восстанавливать их через Rawline API. Это устройство может делать это всегда.</translation>
     </message>
     <message>
         <source>Allow management from the local network</source>
@@ -2914,8 +2914,8 @@ Throne will restart to complete the restore.</source>
         <translation>Статус</translation>
     </message>
     <message>
-        <source>Devices on your network can control Throne with this key. Your firewall may ask to allow Throne.</source>
-        <translation>Устройства в вашей сети смогут управлять Throne с помощью этого ключа. Брандмауэр может запросить разрешение для Throne.</translation>
+        <source>Devices on your network can control Rawline with this key. Your firewall may ask to allow Rawline.</source>
+        <translation>Устройства в вашей сети смогут управлять Rawline с помощью этого ключа. Брандмауэр может запросить разрешение для Rawline.</translation>
     </message>
     <message>
         <source>Shortcuts</source>
@@ -3599,8 +3599,8 @@ A domain listed with only one address family is answered NXDOMAIN for the other,
         <translation>Обновить выбранные</translation>
     </message>
     <message>
-        <source>Paste a Throne route link, a remoteRoute link, a base64 blob, or a JSON rule array</source>
-        <translation>Вставьте ссылку маршрута Throne, ссылку remoteRoute, base64 или массив правил JSON</translation>
+        <source>Paste a Rawline route link, a remoteRoute link, a base64 blob, or a JSON rule array</source>
+        <translation>Вставьте ссылку маршрута Rawline, ссылку remoteRoute, base64 или массив правил JSON</translation>
     </message>
     <message>
         <source>Add remote routing profiles</source>
@@ -4957,8 +4957,8 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
         <translation>Открыть в браузере</translation>
     </message>
     <message>
-        <source>This server requires single sign-on in a browser, which Throne does not support yet. Cancel here and use a profile with direct credentials, or supply an authentication cookie in the profile&apos;s advanced settings.</source>
-        <translation>Этот сервер требует единого входа (SSO) через браузер, а Throne его пока не поддерживает. Отмените запрос и используйте профиль с обычными учетными данными или укажите cookie аутентификации в доп. настройках профиля.</translation>
+        <source>This server requires single sign-on in a browser, which Rawline does not support yet. Cancel here and use a profile with direct credentials, or supply an authentication cookie in the profile&apos;s advanced settings.</source>
+        <translation>Этот сервер требует единого входа (SSO) через браузер, а Rawline его пока не поддерживает. Отмените запрос и используйте профиль с обычными учетными данными или укажите cookie аутентификации в доп. настройках профиля.</translation>
     </message>
     <message>
         <source>Unsupported authentication request: %1</source>
@@ -5708,8 +5708,8 @@ https://matsuridayo.github.io/n-configuration/#vpn-tun</translation>
         <translation>Xray Outbound JSON — пожалуйста, прочтите документацию Xray.</translation>
     </message>
     <message>
-        <source>Xray full config (Throne adds a socks inbound and uses sing-box for tun/routing).</source>
-        <translation>Полная конфигурация Xray (Throne добавляет socks inbound и использует sing-box для tun / маршрутизации).</translation>
+        <source>Xray full config (Rawline adds a socks inbound and uses sing-box for tun/routing).</source>
+        <translation>Полная конфигурация Xray (Rawline добавляет socks inbound и использует sing-box для tun / маршрутизации).</translation>
     </message>
     <message>
         <source>Please fill the complete config.</source>
@@ -6313,8 +6313,8 @@ Improves hole-punching reliability. Requires IPv4.</source>
         <translation>Локальное имя хоста</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This is the token the core generates itself. To use a Throne OTP profile, bind it on the main editor instead.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Это токен, который генерирует само ядро. Чтобы использовать OTP-профиль Throne, привяжите его в основном редакторе.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This is the token the core generates itself. To use a Rawline OTP profile, bind it on the main editor instead.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Это токен, который генерирует само ядро. Чтобы использовать OTP-профиль Rawline, привяжите его в основном редакторе.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Software Token</source>
@@ -6796,8 +6796,8 @@ Improves hole-punching reliability. Requires IPv4.</source>
         <translation>Пароль</translation>
     </message>
     <message>
-        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Static challenge text shown by the server when it asks for a second authentication response. When a challenge is set and an OTP profile is bound, Throne sends the answer itself and no interactive prompt appears.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
-        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Текст статического запроса, который сервер показывает, когда запрашивает второй ответ для аутентификации. Если запрос задан и привязан OTP-профиль, Throne отправляет ответ сам и окно запроса не появляется.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
+        <source>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Static challenge text shown by the server when it asks for a second authentication response. When a challenge is set and an OTP profile is bound, Rawline sends the answer itself and no interactive prompt appears.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</source>
+        <translation>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Текст статического запроса, который сервер показывает, когда запрашивает второй ответ для аутентификации. Если запрос задан и привязан OTP-профиль, Rawline отправляет ответ сам и окно запроса не появляется.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</translation>
     </message>
     <message>
         <source>Static Challenge</source>
@@ -8146,15 +8146,15 @@ Improves hole-punching reliability. Requires IPv4.</source>
 <context>
     <name>Engine::ConnectionManager</name>
     <message>
-        <source>A background Throne (PID %1) owns Tun on this computer; stop it or use thronectl.</source>
-        <translation>Tun на этом компьютере занят фоновым Throne (PID %1); остановите его или используйте thronectl.</translation>
+        <source>A background Rawline (PID %1) owns Tun on this computer; stop it or use thronectl.</source>
+        <translation>Tun на этом компьютере занят фоновым Rawline (PID %1); остановите его или используйте thronectl.</translation>
     </message>
 </context>
 <context>
     <name>Engine::CoreSupervisor</name>
     <message>
-        <source>Throne could not open the local channel the core connects to (%1), so no profile can start.</source>
-        <translation>Throne не удалось открыть локальный канал, через который подключается ядро (%1), поэтому ни один профиль не может быть запущен.</translation>
+        <source>Rawline could not open the local channel the core connects to (%1), so no profile can start.</source>
+        <translation>Rawline не удалось открыть локальный канал, через который подключается ядро (%1), поэтому ни один профиль не может быть запущен.</translation>
     </message>
     <message>
         <source>Core unavailable</source>
@@ -8250,12 +8250,12 @@ Improves hole-punching reliability. Requires IPv4.</source>
 <context>
     <name>GuiStartup</name>
     <message>
-        <source>Throne is running in the background</source>
-        <translation>Throne работает в фоновом режиме</translation>
+        <source>Rawline is running in the background</source>
+        <translation>Rawline работает в фоновом режиме</translation>
     </message>
     <message>
-        <source>A background Throne (PID %1) is running on this computer (data directory: %2). Tun mode is unavailable here while it runs; stop it or use thronectl.</source>
-        <translation>На этом компьютере работает фоновый Throne (PID %1, каталог данных: %2). Пока он работает, режим Tun здесь недоступен; остановите его или используйте thronectl.</translation>
+        <source>A background Rawline (PID %1) is running on this computer (data directory: %2). Tun mode is unavailable here while it runs; stop it or use thronectl.</source>
+        <translation>На этом компьютере работает фоновый Rawline (PID %1, каталог данных: %2). Пока он работает, режим Tun здесь недоступен; остановите его или используйте thronectl.</translation>
     </message>
 </context>
 <context>
@@ -9296,8 +9296,8 @@ Error: %1</source>
         <translation>Логи</translation>
     </message>
     <message>
-        <source>Restart as administrator was cancelled, Throne keeps running</source>
-        <translation>Перезапуск от имени администратора отменен, Throne продолжает работу</translation>
+        <source>Restart as administrator was cancelled, Rawline keeps running</source>
+        <translation>Перезапуск от имени администратора отменен, Rawline продолжает работу</translation>
     </message>
     <message>
         <source>This installation cannot grant the core privileges by itself.</source>
@@ -9344,8 +9344,8 @@ Error: %1</source>
         <translation>Отключение kill switch</translation>
     </message>
     <message>
-        <source>Turn off the kill switch? Traffic that does not go through Throne will no longer be blocked.</source>
-        <translation>Отключить kill switch? Трафик, идущий не через Throne, больше не будет блокироваться.</translation>
+        <source>Turn off the kill switch? Traffic that does not go through Rawline will no longer be blocked.</source>
+        <translation>Отключить kill switch? Трафик, идущий не через Rawline, больше не будет блокироваться.</translation>
     </message>
     <message>
         <source>[Kill switch] Restarting the core so that its own traffic passes the kill switch...</source>
@@ -9512,8 +9512,8 @@ Please try again.</source>
         <translation>Невозможно захватить экран</translation>
     </message>
     <message>
-        <source>Please run Throne as admin</source>
-        <translation>Пожалуйста, запустите Throne от имени администратора</translation>
+        <source>Please run Rawline as admin</source>
+        <translation>Пожалуйста, запустите Rawline от имени администратора</translation>
     </message>
     <message>
         <source>Add profile from File(s)</source>
@@ -9848,8 +9848,8 @@ Name: %1</source>
         <translation>Файлы геоданных уже загружаются.</translation>
     </message>
     <message>
-        <source>Update is unavailable while a background Throne (PID %1) runs from this installation; stop it first.</source>
-        <translation>Обновление недоступно, пока из этой установки работает фоновый Throne (PID %1); сначала остановите его.</translation>
+        <source>Update is unavailable while a background Rawline (PID %1) runs from this installation; stop it first.</source>
+        <translation>Обновление недоступно, пока из этой установки работает фоновый Rawline (PID %1); сначала остановите его.</translation>
     </message>
     <message>
         <source>Kill switch is blocking traffic</source>
@@ -10158,12 +10158,12 @@ Deleted %5 Profiles:
     <message>
         <source>IPv4 forwarding is on for the network adapter &quot;%1&quot;, usually because Mobile Hotspot or Internet Connection Sharing is sharing it.
 
-Windows then ignores the adapter binding that keeps Throne&apos;s own connections out of the Tun, so they loop back into it and fail.
+Windows then ignores the adapter binding that keeps Rawline&apos;s own connections out of the Tun, so they loop back into it and fail.
 
 To fix this, share the hotspot from the throne-tun adapter instead of &quot;%1&quot; (Settings &gt; Mobile hotspot &gt; Share my internet connection from), or turn the hotspot off while using Tun mode.</source>
         <translation>Для сетевого адаптера &quot;%1&quot; включена пересылка IPv4 — обычно потому, что через него раздаёт интернет мобильный хот-спот или общий доступ к подключению к Интернету (ICS).
 
-В этом случае Windows игнорирует привязку к адаптеру, которая не пускает собственные подключения Throne в TUN, поэтому они зацикливаются обратно в него и не работают.
+В этом случае Windows игнорирует привязку к адаптеру, которая не пускает собственные подключения Rawline в TUN, поэтому они зацикливаются обратно в него и не работают.
 
 Чтобы это исправить, раздавайте хот-спот с адаптера throne-tun вместо &quot;%1&quot; (Параметры &gt; Мобильный хот-спот &gt; Совместное использование подключения к Интернету) или отключайте хот-спот на время работы в режиме TUN.</translation>
     </message>
@@ -10478,20 +10478,20 @@ Release note:
         <translation>Слабый шифр</translation>
     </message>
     <message>
-        <source>Throne is running in the background (PID %1). Stop the service or use thronectl.</source>
-        <translation>Throne работает в фоновом режиме (PID %1). Остановите службу или используйте thronectl.</translation>
+        <source>Rawline is running in the background (PID %1). Stop the service or use thronectl.</source>
+        <translation>Rawline работает в фоновом режиме (PID %1). Остановите службу или используйте thronectl.</translation>
     </message>
     <message>
-        <source>Throne is running in the background. Stop the service or use thronectl.</source>
-        <translation>Throne работает в фоновом режиме. Остановите службу или используйте thronectl.</translation>
+        <source>Rawline is running in the background. Stop the service or use thronectl.</source>
+        <translation>Rawline работает в фоновом режиме. Остановите службу или используйте thronectl.</translation>
     </message>
     <message>
-        <source>Another Throne instance (PID %1)</source>
-        <translation>Другой экземпляр Throne (PID %1)</translation>
+        <source>Another Rawline instance (PID %1)</source>
+        <translation>Другой экземпляр Rawline (PID %1)</translation>
     </message>
     <message>
-        <source>Another Throne instance</source>
-        <translation>Другой экземпляр Throne</translation>
+        <source>Another Rawline instance</source>
+        <translation>Другой экземпляр Rawline</translation>
     </message>
     <message>
         <source>%1 is using this data directory:
@@ -10500,8 +10500,8 @@ Release note:
 %2</translation>
     </message>
     <message>
-        <source>[Warn] Throne did not shut down cleanly last time. Diagnostics were saved to: %1</source>
-        <translation>[Предупреждение] В прошлый раз Throne не завершил работу корректно. Результаты диагностики сохранены в: %1</translation>
+        <source>[Warn] Rawline did not shut down cleanly last time. Diagnostics were saved to: %1</source>
+        <translation>[Предупреждение] В прошлый раз Rawline не завершил работу корректно. Результаты диагностики сохранены в: %1</translation>
     </message>
     <message>
         <source>An auto selector cannot be a hop in a chain: it moves to a different server on its own whenever one degrades.</source>
@@ -11036,8 +11036,8 @@ Release note:
         <translation>Ожидается --form-entry=FORM:OPTION=VALUE, проигнорировано: %1</translation>
     </message>
     <message>
-        <source>Configure a proxy through Throne&apos;s chain instead, ignored: %1</source>
-        <translation>Вместо этого настройте прокси через цепочку Throne; проигнорировано: %1</translation>
+        <source>Configure a proxy through Rawline&apos;s chain instead, ignored: %1</source>
+        <translation>Вместо этого настройте прокси через цепочку Rawline; проигнорировано: %1</translation>
     </message>
     <message>
         <source>Unknown OpenConnect option, ignored: %1</source>
@@ -11136,12 +11136,12 @@ Release note:
         <translation>Статистика трафика приостановлена</translation>
     </message>
     <message>
-        <source>The statistics database is unusable (%1). Statistics are paused for this session and the file will be rebuilt when Throne restarts.</source>
-        <translation>База данных статистики непригодна для использования (%1). Сбор статистики приостановлен на этот сеанс, а файл будет пересоздан при перезапуске Throne.</translation>
+        <source>The statistics database is unusable (%1). Statistics are paused for this session and the file will be rebuilt when Rawline restarts.</source>
+        <translation>База данных статистики непригодна для использования (%1). Сбор статистики приостановлен на этот сеанс, а файл будет пересоздан при перезапуске Rawline.</translation>
     </message>
     <message>
-        <source>Writing statistics keeps failing (%1). Statistics are paused until Throne restarts.</source>
-        <translation>Запись статистики постоянно завершается ошибкой (%1). Сбор статистики приостановлен до перезапуска Throne.</translation>
+        <source>Writing statistics keeps failing (%1). Statistics are paused until Rawline restarts.</source>
+        <translation>Запись статистики постоянно завершается ошибкой (%1). Сбор статистики приостановлен до перезапуска Rawline.</translation>
     </message>
     <message>
         <source>Empty</source>
@@ -11308,8 +11308,8 @@ Release note:
         <translation>Загрузка остановилась: данные не поступали %1 с.</translation>
     </message>
     <message>
-        <source>Throne needs at least one group.</source>
-        <translation>Throne нужна хотя бы одна группа.</translation>
+        <source>Rawline needs at least one group.</source>
+        <translation>Rawline нужна хотя бы одна группа.</translation>
     </message>
     <message>
         <source>This group&apos;s subscription is being updated. Try again when it finishes.</source>
@@ -11374,11 +11374,11 @@ Release note:
     </message>
     <message>
         <source>Use the route object exactly as written (outbound ids are still resolved to tags).
-Throne will NOT add its DNS-hijack or xray bridge plumbing, so DNS, chained/xray
-outbounds and other Throne features may break. For advanced users only.</source>
+Rawline will NOT add its DNS-hijack or xray bridge plumbing, so DNS, chained/xray
+outbounds and other Rawline features may break. For advanced users only.</source>
         <translation>Использовать объект route точно в том виде, как он написан (ID outbound по-прежнему преобразуются в теги).
-Throne НЕ будет добавлять свой перехват DNS (DNS-hijack) и мост xray, поэтому DNS, цепочки/xray
-outbound и другие функции Throne могут не работать. Только для опытных пользователей.</translation>
+Rawline НЕ будет добавлять свой перехват DNS (DNS-hijack) и мост xray, поэтому DNS, цепочки/xray
+outbound и другие функции Rawline могут не работать. Только для опытных пользователей.</translation>
     </message>
     <message>
         <source>Format JSON</source>
@@ -11534,8 +11534,8 @@ outbound и другие функции Throne могут не работать.
         <translation>Закрыто подключение от %1: %2</translation>
     </message>
     <message>
-        <source>Throne is shutting down</source>
-        <translation>Throne завершает работу</translation>
+        <source>Rawline is shutting down</source>
+        <translation>Rawline завершает работу</translation>
     </message>
 </context>
 <context>
@@ -11557,8 +11557,8 @@ outbound и другие функции Throne могут не работать.
         <translation>URL</translation>
     </message>
     <message>
-        <source>https://... (throne://route link, base64, or JSON)</source>
-        <translation>https://... (throne://route link, base64, или JSON)</translation>
+        <source>https://... (rawline://route link, base64, or JSON)</source>
+        <translation>https://... (rawline://route link, base64, или JSON)</translation>
     </message>
     <message>
         <source>Re-fetch this profile from the URL when subscriptions auto-update.
@@ -12398,8 +12398,8 @@ Remove that endpoint from this routing profile as well?</source>
         <translation>Kill switch: TUN не запущен, поэтому большая часть трафика блокируется</translation>
     </message>
     <message>
-        <source>Kill switch: on — traffic only flows through Throne&apos;s Tun</source>
-        <translation>Kill switch: включен — трафик идет только через TUN Throne</translation>
+        <source>Kill switch: on — traffic only flows through Rawline&apos;s Tun</source>
+        <translation>Kill switch: включен — трафик идет только через TUN Rawline</translation>
     </message>
     <message>
         <source>Kill switch is not active</source>
@@ -12531,8 +12531,8 @@ Remove that endpoint from this routing profile as well?</source>
 <context>
     <name>Sys::KillSwitch</name>
     <message>
-        <source>The kill switch needs Throne to run as administrator.</source>
-        <translation>Для kill switch нужно запустить Throne от имени администратора.</translation>
+        <source>The kill switch needs Rawline to run as administrator.</source>
+        <translation>Для kill switch нужно запустить Rawline от имени администратора.</translation>
     </message>
     <message>
         <source>The kill switch needs the core to have root privileges.</source>
@@ -12571,8 +12571,8 @@ Remove that endpoint from this routing profile as well?</source>
         <translation>[Kill switch] Предупреждение: %1</translation>
     </message>
     <message>
-        <source>[Kill switch] On: only traffic through Throne can leave this device.</source>
-        <translation>[Kill switch] Включен: покинуть это устройство может только трафик через Throne.</translation>
+        <source>[Kill switch] On: only traffic through Rawline can leave this device.</source>
+        <translation>[Kill switch] Включен: покинуть это устройство может только трафик через Rawline.</translation>
     </message>
     <message>
         <source>[Kill switch] New settings applied.</source>
@@ -12854,8 +12854,8 @@ Remove that endpoint from this routing profile as well?</source>
         <translation>Чтобы подключаться к этому серверу через другой, создайте профиль цепочки вместо detour.</translation>
     </message>
     <message>
-        <source>Throne picks the resolver for server names itself.</source>
-        <translation>Резолвер для имен серверов Throne выбирает сам.</translation>
+        <source>Rawline picks the resolver for server names itself.</source>
+        <translation>Резолвер для имен серверов Rawline выбирает сам.</translation>
     </message>
     <message>
         <source>A missing, 0 or negative speed is sent as 1 Mbps. Enter your speed in Mbps, for example 100.</source>
@@ -13074,8 +13074,8 @@ Remove that endpoint from this routing profile as well?</source>
         <translation>Значение finalmask проигнорировано: оно должно быть объектом JSON.</translation>
     </message>
     <message>
-        <source>Throne does not support the Xray transport &quot;%1&quot;. Use raw, xhttp, ws, httpupgrade, grpc or xdrive.</source>
-        <translation>Throne не поддерживает транспорт Xray &quot;%1&quot;. Используйте raw, xhttp, ws, httpupgrade, grpc или xdrive.</translation>
+        <source>Rawline does not support the Xray transport &quot;%1&quot;. Use raw, xhttp, ws, httpupgrade, grpc or xdrive.</source>
+        <translation>Rawline не поддерживает транспорт Xray &quot;%1&quot;. Используйте raw, xhttp, ws, httpupgrade, grpc или xdrive.</translation>
     </message>
     <message>
         <source>Xray does not support the security &quot;%1&quot;. Use none, tls or reality.</source>
@@ -13286,20 +13286,20 @@ Remove that endpoint from this routing profile as well?</source>
         <translation>Clash API удален из импортированной конфигурации: веб-страницы и программы на этом компьютере могли бы управлять через него ядром, а его параметр external_ui загружает файлы.</translation>
     </message>
     <message>
-        <source>Removed the V2Ray API from the imported configuration: Throne&apos;s core is built without it and would not start, and it would open a statistics port on this computer.</source>
-        <translation>V2Ray API удален из импортированной конфигурации: ядро Throne собрано без него и не запустилось бы, а также он открыл бы на этом компьютере порт статистики.</translation>
+        <source>Removed the V2Ray API from the imported configuration: Rawline&apos;s core is built without it and would not start, and it would open a statistics port on this computer.</source>
+        <translation>V2Ray API удален из импортированной конфигурации: ядро Rawline собрано без него и не запустилось бы, а также он открыл бы на этом компьютере порт статистики.</translation>
     </message>
     <message>
-        <source>Removed the inbounds from the imported configuration: Throne adds its own local inbound, and these could let other devices connect through this computer.</source>
-        <translation>Inbound удалены из импортированной конфигурации: Throne добавляет собственный локальный inbound, а эти могли бы позволить другим устройствам подключаться через этот компьютер.</translation>
+        <source>Removed the inbounds from the imported configuration: Rawline adds its own local inbound, and these could let other devices connect through this computer.</source>
+        <translation>Inbound удалены из импортированной конфигурации: Rawline добавляет собственный локальный inbound, а эти могли бы позволить другим устройствам подключаться через этот компьютер.</translation>
     </message>
     <message>
-        <source>Removed the environment variables from the imported configuration: they would apply to Throne&apos;s core and to the programs it starts.</source>
-        <translation>Переменные окружения удалены из импортированной конфигурации: они применялись бы к ядру Throne и запускаемым им программам.</translation>
+        <source>Removed the environment variables from the imported configuration: they would apply to Rawline&apos;s core and to the programs it starts.</source>
+        <translation>Переменные окружения удалены из импортированной конфигурации: они применялись бы к ядру Rawline и запускаемым им программам.</translation>
     </message>
     <message>
-        <source>Removed the geodata updater from the imported configuration: it would download files from addresses the sender chose and replace files in Throne&apos;s folder.</source>
-        <translation>Обновление геоданных удалено из импортированной конфигурации: оно загружало бы файлы с адресов, выбранных отправителем, и заменяло файлы в папке Throne.</translation>
+        <source>Removed the geodata updater from the imported configuration: it would download files from addresses the sender chose and replace files in Rawline&apos;s folder.</source>
+        <translation>Обновление геоданных удалено из импортированной конфигурации: оно загружало бы файлы с адресов, выбранных отправителем, и заменяло файлы в папке Rawline.</translation>
     </message>
     <message>
         <source>Removed the webhook from this routing rule: it would send the details of every matching connection to an address the sender chose.</source>
@@ -13914,8 +13914,8 @@ Remove that endpoint from this routing profile as well?</source>
         <translation>Неизвестный тег &lt;%1&gt;. Используйте &lt;b 0x...&gt;, &lt;r N&gt;, &lt;rc N&gt;, &lt;rd N&gt;, &lt;dz N&gt;, &lt;t&gt;, &lt;d&gt; или &lt;ds&gt;.</translation>
     </message>
     <message>
-        <source>Ignored; Throne resolves names with its own DNS settings.</source>
-        <translation>Игнорируется; Throne разрешает имена через собственные настройки DNS.</translation>
+        <source>Ignored; Rawline resolves names with its own DNS settings.</source>
+        <translation>Игнорируется; Rawline разрешает имена через собственные настройки DNS.</translation>
     </message>
     <message>
         <source>Unknown setting, ignored.</source>
@@ -13926,8 +13926,8 @@ Remove that endpoint from this routing profile as well?</source>
         <translation>Используется только последняя из %1 секций [Peer].</translation>
     </message>
     <message>
-        <source>Ignored; Throne sends all traffic of this profile through the tunnel.</source>
-        <translation>Игнорируется; Throne направляет весь трафик этого профиля через туннель.</translation>
+        <source>Ignored; Rawline sends all traffic of this profile through the tunnel.</source>
+        <translation>Игнорируется; Rawline направляет весь трафик этого профиля через туннель.</translation>
     </message>
     <message>
         <source>The [Peer] section has no Endpoint such as vpn.example.com:51820.</source>
@@ -14130,12 +14130,12 @@ Remove that endpoint from this routing profile as well?</source>
         <translation>Профиль VLESS не может хранить этот параметр, поэтому он проигнорирован. Такой outbound сохраняется как есть, только если в нем больше нечего исправлять.</translation>
     </message>
     <message>
-        <source>Rename this key to &quot;%1&quot;: Throne reads only that spelling, and dropping its value would weaken the connection&apos;s security.</source>
-        <translation>Переименуйте этот ключ в &quot;%1&quot;: Throne понимает только такое написание, а отбрасывание его значения ослабило бы безопасность соединения.</translation>
+        <source>Rename this key to &quot;%1&quot;: Rawline reads only that spelling, and dropping its value would weaken the connection&apos;s security.</source>
+        <translation>Переименуйте этот ключ в &quot;%1&quot;: Rawline понимает только такое написание, а отбрасывание его значения ослабило бы безопасность соединения.</translation>
     </message>
     <message>
-        <source>Rename this key to &quot;%1&quot;: Throne reads only that spelling, so its value was ignored.</source>
-        <translation>Переименуйте этот ключ в &quot;%1&quot;: Throne понимает только такое написание, поэтому его значение проигнорировано.</translation>
+        <source>Rename this key to &quot;%1&quot;: Rawline reads only that spelling, so its value was ignored.</source>
+        <translation>Переименуйте этот ключ в &quot;%1&quot;: Rawline понимает только такое написание, поэтому его значение проигнорировано.</translation>
     </message>
     <message>
         <source>Could not be parsed.</source>

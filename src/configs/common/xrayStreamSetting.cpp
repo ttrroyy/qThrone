@@ -114,7 +114,7 @@ namespace Configs {
             return changed;
         }
 
-        // dialerProxy names an outbound of the source config, and domainStrategy would outrank ThroneWiring's resolver; Xray folds case.
+        // dialerProxy names an outbound of the source config, and domainStrategy would outrank RawlineWiring's resolver; Xray folds case.
         bool xrayStreamStripDialerKeys(QJsonObject& sockopt)
         {
             bool removed = xrayStreamRemoveNamed(sockopt, QStringLiteral("dialerProxy"));
@@ -1462,7 +1462,7 @@ namespace Configs {
     }
 
     BuildResult xrayStreamSetting::Build() {
-        // Default-NIC binding and domain resolution are wired on at instance creation (ThroneWiring), not here.
+        // Default-NIC binding and domain resolution are wired on at instance creation (RawlineWiring), not here.
         auto object = ExportToJson();
         if (security == "tls") object["tlsSettings"] = TLS->Build().object;
         else if (security == "reality") object["realitySettings"] = reality->Build().object;
@@ -1474,7 +1474,7 @@ namespace Configs {
         {
             const auto t = network.trimmed();
             if (t.isEmpty() || XrayNetworks.contains(NormalizeXrayNetwork(t))) return {};
-            return QCoreApplication::translate("Validation", "qThrone does not support the Xray transport \"%1\". Use raw, xhttp, ws, httpupgrade, grpc or xdrive.").arg(t);
+            return QCoreApplication::translate("Validation", "Rawline does not support the Xray transport \"%1\". Use raw, xhttp, ws, httpupgrade, grpc or xdrive.").arg(t);
         }
 
         QString XraySecurity(const QString& security)

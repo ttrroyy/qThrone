@@ -503,7 +503,7 @@ namespace Subscription {
     RequestIdentity ResolveIdentity(const Configs::Group *group) {
         const auto &settings = Configs::dataManager->settingsRepo;
         RequestIdentity identity;
-        identity.userAgent = settings->user_agent.isEmpty() ? QStringLiteral("Happ/3.0 qThrone/") + QStringLiteral(NKR_VERSION) : settings->GetUserAgent();
+        identity.userAgent = settings->user_agent.isEmpty() ? QStringLiteral("Happ/3.0 Rawline/") + QStringLiteral(NKR_VERSION) : settings->GetUserAgent();
         identity.sendHwid = settings->sub_send_hwid;
         identity.device = GetDeviceDetails();
         applyCustomHwidParams(identity.device, settings->sub_custom_hwid_params);

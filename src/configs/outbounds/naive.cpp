@@ -252,7 +252,7 @@ namespace Configs {
         }
         // Not tls->Build(): it injects the global skip_cert / fragment defaults, which the core rejects for naive.
         auto tlsObj = tls->ExportToJson();
-        // ExportToJson keeps Throne-only fields (ech.resolver); the core rejects unknown keys, so use ECH's own Build().
+        // ExportToJson keeps Rawline-only fields (ech.resolver); the core rejects unknown keys, so use ECH's own Build().
         if (tls->ech->enabled) {
             const auto echResult = tls->ech->Build();
             if (!echResult.error.isEmpty()) return {{}, echResult.error};

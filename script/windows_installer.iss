@@ -16,19 +16,19 @@
 
 [Setup]
 AppId={{791A78A7-02DF-4E18-990D-1A73186F6778}
-AppName=qThrone
+AppName=Rawline
 AppVersion={#AppVersion}
-AppVerName=qThrone {#AppVersion}
-AppPublisher=qThrone
+AppVerName=Rawline {#AppVersion}
+AppPublisher=Rawline
 VersionInfoVersion={#AppVersionMajor}.{#AppVersionMinor}.{#AppVersionPatch}.{#AppVersionBuild}
-VersionInfoProductName=qThrone
-VersionInfoDescription=qThrone Setup
-VersionInfoCopyright=Throne
+VersionInfoProductName=Rawline
+VersionInfoDescription=Rawline Setup
+VersionInfoCopyright=Rawline
 SourceDir=..
 OutputDir=deployment
 OutputBaseFilename=qThroneSetup
 SetupIconFile=res\Throne.ico
-UninstallDisplayName=qThrone
+UninstallDisplayName=Rawline
 UninstallDisplayIcon={app}\qThrone.exe
 WizardStyle=modern
 PrivilegesRequired=lowest
@@ -70,11 +70,15 @@ Source: "deployment\windows-arm64\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags
 Source: "deployment\windowslegacy-386\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion; Check: IsX86OS
 
 [Icons]
-Name: "{autoprograms}\qThrone"; Filename: "{app}\qThrone.exe"
-Name: "{autodesktop}\qThrone"; Filename: "{app}\qThrone.exe"
+Name: "{autoprograms}\Rawline"; Filename: "{app}\qThrone.exe"
+Name: "{autodesktop}\Rawline"; Filename: "{app}\qThrone.exe"
 
 [Registry]
 Root: HKA; Subkey: "Software\qThrone"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
+
+[InstallDelete]
+Type: files; Name: "{autoprograms}\qThrone.lnk"
+Type: files; Name: "{autodesktop}\qThrone.lnk"
 
 [UninstallDelete]
 Type: files; Name: "{app}\qThroneUpdater.old"
@@ -83,7 +87,7 @@ Type: filesandordirs; Name: "{localappdata}\qThrone"; Check: OwnUserDataDirector
 Type: filesandordirs; Name: "{userappdata}\qThrone"
 
 [Run]
-Filename: "{app}\qThrone.exe"; Description: "{cm:LaunchProgram,qThrone}"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\qThrone.exe"; Description: "{cm:LaunchProgram,Rawline}"; Flags: postinstall nowait skipifsilent
 
 [Code]
 const

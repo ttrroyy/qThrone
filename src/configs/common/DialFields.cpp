@@ -15,7 +15,7 @@ namespace Configs {
             return Checks::BindAddress6(value);
         }
 
-        // sing-box DialerOptions keys (option/outbound.go) that Throne has no field for.
+        // sing-box DialerOptions keys (option/outbound.go) that Rawline has no field for.
         void dialFieldsReportUnmodelled(const QJsonObject& object)
         {
             static const QStringList unmodelled = {"detour", "bind_address_no_port", "protect_path", "routing_mark", "netns",
@@ -33,7 +33,7 @@ namespace Configs {
                 message += ' ' + QCoreApplication::translate("Validation", "To reach this server through another one, build a chain profile instead of a detour.");
             }
             if (dropped.contains("domain_resolver")) {
-                message += ' ' + QCoreApplication::translate("Validation", "qThrone picks the resolver for server names itself.");
+                message += ' ' + QCoreApplication::translate("Validation", "Rawline picks the resolver for server names itself.");
             }
             ParseDiag::Warn(QString(), message);
         }

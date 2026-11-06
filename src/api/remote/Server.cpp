@@ -586,7 +586,7 @@ namespace RemoteApi {
 
     void Server::dispatch(const Request &request, const Responder &respond) {
         if (stopped_ || !dispatcher_) {
-            respond(Response::Error(503, QStringLiteral("exiting"), tr("qThrone is shutting down")));
+            respond(Response::Error(503, QStringLiteral("exiting"), tr("Rawline is shutting down")));
             return;
         }
         dispatcher_(request, respond);

@@ -11,7 +11,7 @@
 
 class QObject;
 
-// The Throne API of a headless process: the overlay from flags/env, its keys, the bind and its status.
+// The Rawline API of a headless process: the overlay from flags/env, its keys, the bind and its status.
 namespace Engine::HeadlessApi {
     // --api-listen/--api-key-file/--api-admin-lan/--api-allow over THRONE_API_LISTEN/_KEY_FILE/_ADMIN_LAN/_ALLOW; flags win.
     // Bools 1|true|yes|on / 0|false|no|off; paths absolute against launchCwd. 0, or ExitCode::Usage with *error.
@@ -40,7 +40,7 @@ namespace Engine::HeadlessApi {
     void StartBindRetry(QObject *context, std::function<void()> bound, std::function<void(int exitCode)> giveUp);
 
     // After exec() runs, when a default or settings listener failed to bind: every 30 s, without exiting and without logging
-    // each attempt, until it listens (bound(), one log line) or prepare_exit. A port another Throne API answers on is logged
+    // each attempt, until it listens (bound(), one log line) or prepare_exit. A port another Rawline API answers on is logged
     // once with the remedy and not retried. No-op unless Bind() left such a failure.
     void StartQuietRetry(QObject *context, std::function<void()> bound);
 

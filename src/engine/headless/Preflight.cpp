@@ -241,7 +241,7 @@ namespace Engine::Preflight {
         // ---- 1. build
 
         void preflightBuild(PreflightReport &report) {
-            QStringList fields{QStringLiteral("qThrone " NKR_VERSION), QStringLiteral("Qt ") + QString::fromLatin1(qVersion()),
+            QStringList fields{QStringLiteral("Rawline " NKR_VERSION), QStringLiteral("Qt ") + QString::fromLatin1(qVersion()),
                                QSysInfo::prettyProductName() + QLatin1Char(' ') + QSysInfo::currentCpuArchitecture()};
 #ifdef Q_OS_UNIX
             fields << QStringLiteral("kernel ") + QSysInfo::kernelVersion();
@@ -294,7 +294,7 @@ namespace Engine::Preflight {
                     if (!preflightWritable(path)) {
                         fails << shownPath + QStringLiteral(" is not writable by this user");
 #ifdef Q_OS_UNIX
-                        fixes << QStringLiteral("run qThrone (and this check) as the owner of the data dir, or: sudo chown -R %1 %2")
+                        fixes << QStringLiteral("run Rawline (and this check) as the owner of the data dir, or: sudo chown -R %1 %2")
                                      .arg(user, preflightQuote(wd));
 #else
                         fixes << QStringLiteral("give this user write access to it, or pass another --data-dir");
@@ -305,15 +305,15 @@ namespace Engine::Preflight {
                     if (const QStringList open = preflightOpenToOthers(path, &owner); !open.isEmpty()) {
                         if (::geteuid() == 0) {
                             fails << shownPath + QStringLiteral(": ") + open.join(QStringLiteral("; ")) +
-                                         QStringLiteral(" (qThrone refuses to run as root with it)");
+                                         QStringLiteral(" (Rawline refuses to run as root with it)");
                         } else {
                             warns << shownPath + QStringLiteral(": ") + open.join(QStringLiteral("; ")) +
-                                         QStringLiteral(", so other users can change the settings that name the programs qThrone starts");
+                                         QStringLiteral(", so other users can change the settings that name the programs Rawline starts");
                         }
                         fixes << QStringLiteral("chmod go-w %1").arg(preflightQuote(path));
                     }
                     if (owner != ::geteuid()) {
-                        warns << QStringLiteral("%1 is owned by uid %2, who controls qThrone's settings").arg(shownPath).arg(owner);
+                        warns << QStringLiteral("%1 is owned by uid %2, who controls Rawline's settings").arg(shownPath).arg(owner);
                     }
 #endif
                 };
@@ -392,7 +392,7 @@ namespace Engine::Preflight {
             const qint64 hello = HeadlessInstance::Hello(dataDir.wd, QStringLiteral("--check"), preflightHelloMs);
             if (hello > 0) {
                 instance.pid = hello;
-                instance.who = QStringLiteral("the headless qThrone of this data dir");
+                instance.who = QStringLiteral("the headless Rawline of this data dir");
                 preflightAskHealth(dataDir, &instance);
                 QString status;
                 if (instance.health) {
@@ -404,7 +404,7 @@ namespace Engine::Preflight {
                             status);
                 return instance;
             }
-            const QString answered = hello == 0 ? QStringLiteral("; something that is not a headless qThrone answered on its instance socket")
+            const QString answered = hello == 0 ? QStringLiteral("; something that is not a headless Rawline answered on its instance socket")
                                                 : QString();
             if (ownerPid <= 0) {
                 report.ok(QStringLiteral("instance: none") + answered);
@@ -416,11 +416,11 @@ namespace Engine::Preflight {
             }
             instance.pid = ownerPid;
             const bool gui = ownerMode == QLatin1String("gui");
-            instance.who = gui ? QStringLiteral("the qThrone window that uses this data dir") : QStringLiteral("the owner of this data dir");
+            instance.who = gui ? QStringLiteral("the Rawline window that uses this data dir") : QStringLiteral("the owner of this data dir");
             if (gui) {
-                report.warn(QStringLiteral("instance: the qThrone window holds this data dir: %1; qThrone --headless exits 3 while it runs")
+                report.warn(QStringLiteral("instance: the Rawline window holds this data dir: %1; Rawline --headless exits 3 while it runs")
                                 .arg(described),
-                            {QStringLiteral("quit the qThrone window, or pass another --data-dir")});
+                            {QStringLiteral("quit the Rawline window, or pass another --data-dir")});
             } else if (ownerMode == QLatin1String("headless")) {
                 report.info(QStringLiteral("instance: %1 holds the data dir but did not answer (still starting, or busy)").arg(described) +
                             answered);
@@ -552,12 +552,12 @@ namespace Engine::Preflight {
             PreflightSettings settings;
             const QString dbFile = QDir(dataDir.configDir).absoluteFilePath(QStringLiteral("throne.db"));
             const QString shown = preflightNative(dbFile);
-            const QString advice = QStringLiteral("make %1 and its -wal and -shm files readable and writable by the user qThrone runs as").arg(shown);
+            const QString advice = QStringLiteral("make %1 and its -wal and -shm files readable and writable by the user Rawline runs as").arg(shown);
             const QFileInfo info(dbFile);
             if (!info.exists()) {
                 report.info(QStringLiteral("settings: no database yet (%1); the checks below use the defaults").arg(shown));
             } else if (!info.isFile()) {
-                report.fail(QStringLiteral("settings: %1 is not a regular file; qThrone --headless cannot open it").arg(shown),
+                report.fail(QStringLiteral("settings: %1 is not a regular file; Rawline --headless cannot open it").arg(shown),
                             {QStringLiteral("move it aside")});
             } else {
                 const auto read = preflightReadSettings(dbFile, &settings);
@@ -568,7 +568,7 @@ namespace Engine::Preflight {
                     const QString what = read.read ? QStringLiteral("read from %1").arg(shown)
                                                    : QStringLiteral("none saved yet in %1; the checks below use the defaults").arg(shown);
                     if (denied) {
-                        report.fail(QStringLiteral("settings: %1, but this user cannot write it (or its -wal and -shm files); qThrone "
+                        report.fail(QStringLiteral("settings: %1, but this user cannot write it (or its -wal and -shm files); Rawline "
                                                    "--headless exits 78")
                                         .arg(what),
                                     {advice});
@@ -576,12 +576,12 @@ namespace Engine::Preflight {
                         report.info(QStringLiteral("settings: ") + what);
                     }
                 } else if (denied) {
-                    report.fail(QStringLiteral("settings: this user cannot read and write %1 (or its -wal and -shm files); qThrone --headless "
+                    report.fail(QStringLiteral("settings: this user cannot read and write %1 (or its -wal and -shm files); Rawline --headless "
                                                "exits 78; the checks below use the defaults")
                                     .arg(shown),
                                 {advice});
                 } else if ((read.code == SQLITE_CORRUPT || read.code == SQLITE_NOTADB) && instance.pid <= 0) {
-                    report.fail(QStringLiteral("settings: %1 is unusable (%2); qThrone --headless exits 78; the checks below use the defaults")
+                    report.fail(QStringLiteral("settings: %1 is unusable (%2); Rawline --headless exits 78; the checks below use the defaults")
                                     .arg(shown, read.error),
                                 {QStringLiteral("move %1 and its -wal and -shm files aside to start with an empty database, or restore them "
                                                 "from a backup")
@@ -593,7 +593,7 @@ namespace Engine::Preflight {
             const QString statsFile = QDir(dataDir.configDir).absoluteFilePath(QStringLiteral("throne_stats.db"));
             if (Configs::DbFilesDenied(statsFile)) {
                 report.warn(QStringLiteral("settings: this user cannot read and write %1 (traffic statistics)").arg(preflightNative(statsFile)),
-                            {QStringLiteral("make %1 and its -wal and -shm files readable and writable by the user qThrone runs as")
+                            {QStringLiteral("make %1 and its -wal and -shm files readable and writable by the user Rawline runs as")
                                  .arg(preflightNative(statsFile))});
             }
             return settings;
@@ -611,11 +611,11 @@ namespace Engine::Preflight {
             QStringList fixes;
 #ifdef Q_OS_LINUX
             fixes << QStringLiteral("install OpenSSL 3 (Debian and Ubuntu: libssl3; Fedora: openssl-libs; Alpine: libssl3), and keep the "
-                                    "release's usr/plugins/tls directory next to qThrone");
+                                    "release's usr/plugins/tls directory next to Rawline");
 #else
-            fixes << QStringLiteral("reinstall qThrone: its TLS plugin is missing");
+            fixes << QStringLiteral("reinstall Rawline: its TLS plugin is missing");
 #endif
-            report.fail(QStringLiteral("TLS: no usable TLS backend (%1); subscription updates and the other downloads qThrone makes fail")
+            report.fail(QStringLiteral("TLS: no usable TLS backend (%1); subscription updates and the other downloads Rawline makes fail")
                             .arg(backends.isEmpty() ? QStringLiteral("none found")
                                                     : QStringLiteral("found: ") + backends.join(QStringLiteral(", "))),
                         fixes);
@@ -663,7 +663,7 @@ namespace Engine::Preflight {
             const QFileInfo info(core.path);
             if (!info.exists()) {
                 report.fail(QStringLiteral("core: %1 is missing").arg(shown),
-                            {QStringLiteral("reinstall qThrone: qThroneCore must sit next to the qThrone binary")});
+                            {QStringLiteral("reinstall Rawline: qThroneCore must sit next to the Rawline binary")});
                 return core;
             }
             if (!info.isFile() || !info.isExecutable()) {
@@ -672,7 +672,7 @@ namespace Engine::Preflight {
                             {QStringLiteral("chmod +x %1").arg(preflightQuote(core.path))});
 #else
                 report.fail(QStringLiteral("core: %1 is not an executable file").arg(shown),
-                            {QStringLiteral("reinstall qThrone")});
+                            {QStringLiteral("reinstall Rawline")});
 #endif
                 return core;
             }
@@ -718,11 +718,11 @@ namespace Engine::Preflight {
             if (!core.reported) {
                 const int code = process.exitCode();
                 if (error.contains(QLatin1String("parent check"))) {
-                    report.fail(QStringLiteral("core: %1 refuses to run under this qThrone").arg(shown) + errorSuffix,
-                                {QStringLiteral("qThrone and qThroneCore must come from the same release and sit in the same directory")});
+                    report.fail(QStringLiteral("core: %1 refuses to run under this Rawline").arg(shown) + errorSuffix,
+                                {QStringLiteral("Rawline and qThroneCore must come from the same release and sit in the same directory")});
                 } else if (code == 0 || error.contains(QLatin1String("THRONE_CORE_SOCKET"))) {
                     report.warn(QStringLiteral("core: %1 does not support --check (an older qThroneCore?)").arg(shown) + skipped,
-                                {QStringLiteral("install qThrone and qThroneCore from the same release")});
+                                {QStringLiteral("install Rawline and qThroneCore from the same release")});
                 } else {
                     report.fail(QStringLiteral("core: %1 exited with code %2").arg(shown).arg(code) + errorSuffix, buildFix);
                 }
@@ -797,11 +797,11 @@ namespace Engine::Preflight {
             Q_UNUSED(core)
             Q_UNUSED(corePath)
             if (Configs::KnownAdmin().value_or(false)) {
-                report.ok(QStringLiteral("Tun: available (qThrone runs elevated)"));
+                report.ok(QStringLiteral("Tun: available (Rawline runs elevated)"));
             } else {
-                report.warn(QStringLiteral("Tun: unavailable: qThrone does not run elevated") + remembered,
-                            {QStringLiteral("run qThrone from an elevated prompt, as a task with the highest privileges, or as a Windows "
-                                            "service (qThrone --headless --service)")});
+                report.warn(QStringLiteral("Tun: unavailable: Rawline does not run elevated") + remembered,
+                            {QStringLiteral("run Rawline from an elevated prompt, as a task with the highest privileges, or as a Windows "
+                                            "service (Rawline --headless --service)")});
             }
 #else
             Q_UNUSED(core)
@@ -841,7 +841,7 @@ namespace Engine::Preflight {
                 if (euid != 0) {
                     problems << QStringLiteral("the core does not run as root");
                     fixes << preflightElevationFixes(
-                        {QStringLiteral("run qThrone as root (a root systemd unit), or make the core setuid root: sudo chown root:root %1 && "
+                        {QStringLiteral("run Rawline as root (a root systemd unit), or make the core setuid root: sudo chown root:root %1 && "
                                         "sudo chmod u+s %1")
                              .arg(corePath)});
                     if (netAdmin == true) fixes << QStringLiteral("a unit that grants capabilities instead of root cannot use it");
@@ -887,10 +887,10 @@ namespace Engine::Preflight {
             Q_UNUSED(core)
             Q_UNUSED(corePath)
             if (Configs::KnownAdmin().value_or(false)) {
-                report.ok(QStringLiteral("kill switch: available (qThrone runs elevated); ") + setting);
+                report.ok(QStringLiteral("kill switch: available (Rawline runs elevated); ") + setting);
             } else {
-                report.warn(QStringLiteral("kill switch: unavailable: qThrone does not run elevated; ") + setting,
-                            {QStringLiteral("run qThrone elevated, or as a Windows service (qThrone --headless --service)")});
+                report.warn(QStringLiteral("kill switch: unavailable: Rawline does not run elevated; ") + setting,
+                            {QStringLiteral("run Rawline elevated, or as a Windows service (Rawline --headless --service)")});
             }
 #else
             Q_UNUSED(core)
@@ -963,7 +963,7 @@ namespace Engine::Preflight {
             switch (api.key) {
                 case PreflightApi::Key::Settings:
                     if (RemoteApi::KeyFromText(settings.remoteApiKey).isEmpty()) {
-                        report.warn(QStringLiteral("API key: remote_api_key in the settings is missing or invalid, so the Throne API will not "
+                        report.warn(QStringLiteral("API key: remote_api_key in the settings is missing or invalid, so the Rawline API will not "
                                                    "listen (key_invalid)"),
                                     {QStringLiteral("pass --api-key-file FILE (create one with: thronectl keygen -o FILE)")});
                     } else {
@@ -977,7 +977,7 @@ namespace Engine::Preflight {
                     if (file.error.isEmpty()) {
                         report.ok(QStringLiteral("API key: %1 (%2)").arg(shown, source));
                     } else {
-                        report.fail(QStringLiteral("API key: %1 (%2) is not usable: %3; qThrone --headless exits 78").arg(shown, source, file.error),
+                        report.fail(QStringLiteral("API key: %1 (%2) is not usable: %3; Rawline --headless exits 78").arg(shown, source, file.error),
                                     {QStringLiteral("create one with: thronectl keygen -o %1").arg(preflightQuote(api.keyFile))});
                     }
                     return;
@@ -996,7 +996,7 @@ namespace Engine::Preflight {
                     if (file.error.isEmpty()) {
                         report.ok(QStringLiteral("API key: %1").arg(shown));
                     } else {
-                        report.warn(QStringLiteral("API key: %1 is not usable (%2), so the Throne API may not listen").arg(shown, file.error),
+                        report.warn(QStringLiteral("API key: %1 is not usable (%2), so the Rawline API may not listen").arg(shown, file.error),
                                     {QStringLiteral("delete it to have a new key created at the next start, or write one with: thronectl "
                                                     "keygen -o %1")
                                          .arg(preflightQuote(api.keyFile))});
@@ -1014,9 +1014,9 @@ namespace Engine::Preflight {
             // The core binds it, with its own privileges (root, or CAP_NET_BIND_SERVICE through setcap).
             bool byCore = false;
             QStringList fixes;
-            // Its address is gone at times (an explicit API address); Throne waits for it.
+            // Its address is gone at times (an explicit API address); Rawline waits for it.
             bool mayWaitForAddress = false;
-            // The Throne API itself, which a running instance holds only while its HEALTH says it listens there.
+            // The Rawline API itself, which a running instance holds only while its HEALTH says it listens there.
             bool api = false;
             // How to move it elsewhere, as a fix clause ("pick another: ...").
             QString change;
@@ -1103,7 +1103,7 @@ namespace Engine::Preflight {
 
         // Why a running headless owner is not the holder, for the FAIL line.
         QString preflightNotHeldNote(const PreflightInstance &instance, const PreflightListener &listener) {
-            const QString owner = QStringLiteral("; the headless qThrone of this data dir (PID %1)").arg(instance.pid);
+            const QString owner = QStringLiteral("; the headless Rawline of this data dir (PID %1)").arg(instance.pid);
             if (!listener.api) return owner + QStringLiteral(" runs no profile now");
             QString note;
             if (instance.apiState == QLatin1String("listening") || instance.apiState == QLatin1String("address_missing")) {
@@ -1141,7 +1141,7 @@ namespace Engine::Preflight {
             QList<PreflightListener> listeners;
             if (api.enabled) {
                 PreflightListener listener;
-                listener.label = QStringLiteral("the Throne API, ") + api.source;
+                listener.label = QStringLiteral("the Rawline API, ") + api.source;
                 listener.address = api.bind;
                 listener.port = api.port;
                 listener.change = QStringLiteral("pick another: --api-listen 127.0.0.1:PORT");
@@ -1150,7 +1150,7 @@ namespace Engine::Preflight {
                 listener.api = true;
                 listeners << listener;
             } else {
-                report.info(QStringLiteral("port: the Throne API is off (%1)").arg(api.source));
+                report.info(QStringLiteral("port: the Rawline API is off (%1)").arg(api.source));
             }
 
             if (settings.disableMixedInbound) {
@@ -1254,7 +1254,7 @@ namespace Engine::Preflight {
                         break;
                     case PreflightBind::NoAddress:
                         if (listener.mayWaitForAddress) {
-                            report.warn(QStringLiteral("port %1 (%2): the address is not on this computer now; qThrone --headless waits up "
+                            report.warn(QStringLiteral("port %1 (%2): the address is not on this computer now; Rawline --headless waits up "
                                                        "to 30 s for it at start")
                                             .arg(where, listener.label));
                         } else {
@@ -1287,12 +1287,12 @@ namespace Engine::Preflight {
                     }
                 }
                 if (!carries) continue;
-                // A Throne Tun adapter is ours whatever type the OS gives it (wintun may not report a tun-like one).
-                const bool throneTun = netif.name().startsWith(QLatin1String(Sys::HostTun::kTunName), Qt::CaseInsensitive) ||
+                // A Rawline Tun adapter is ours whatever type the OS gives it (wintun may not report a tun-like one).
+                const bool rawlineTun = netif.name().startsWith(QLatin1String(Sys::HostTun::kTunName), Qt::CaseInsensitive) ||
                                        netif.humanReadableName().startsWith(QLatin1String(Sys::HostTun::kTunName), Qt::CaseInsensitive);
                 // Wifi is Ieee80211.
                 const bool lanLike = netif.type() == QNetworkInterface::Ethernet || netif.type() == QNetworkInterface::Wifi;
-                return !throneTun && lanLike ? netif.humanReadableName() : QString();
+                return !rawlineTun && lanLike ? netif.humanReadableName() : QString();
             }
             return {};
         }
@@ -1306,14 +1306,14 @@ namespace Engine::Preflight {
 #endif
             if (const auto other = Sys::HostPresence::OtherHeadless(); other.has_value()) {
                 if (QDir::cleanPath(other->dataDir).compare(QDir::cleanPath(dataDir.wd.absolutePath()), pathCase) == 0) {
-                    report.info(QStringLiteral("host: the headless qThrone of this data dir runs (PID %1)").arg(other->pid));
+                    report.info(QStringLiteral("host: the headless Rawline of this data dir runs (PID %1)").arg(other->pid));
                 } else {
-                    report.info(QStringLiteral("host: another headless qThrone runs on this computer (PID %1, data dir %2, version %3); only "
-                                               "one qThrone can run Tun at a time")
+                    report.info(QStringLiteral("host: another headless Rawline runs on this computer (PID %1, data dir %2, version %3); only "
+                                               "one Rawline can run Tun at a time")
                                     .arg(QString::number(other->pid), preflightNative(other->dataDir), other->version));
                 }
             } else {
-                report.info(QStringLiteral("host: no other headless qThrone on this computer"));
+                report.info(QStringLiteral("host: no other headless Rawline on this computer"));
             }
             const QString conflict = Sys::HostTun::Conflict(settings.tunCidr, 0);
             if (conflict.isEmpty()) {
@@ -1332,7 +1332,7 @@ namespace Engine::Preflight {
                                  .arg(lanOwner)});
             } else {
                 report.warn(QStringLiteral("Tun owner: %1").arg(conflict),
-                            {QStringLiteral("stop the other qThrone or VPN before turning Tun on; when it only holds the Tun address, "
+                            {QStringLiteral("stop the other Rawline or VPN before turning Tun on; when it only holds the Tun address, "
                                             "thronectl settings set tun_ipv4_cidr=CIDR also works")});
             }
         }
@@ -1369,19 +1369,19 @@ namespace Engine::Preflight {
             if (options.service) {
                 parts << QStringLiteral("the Windows SCM (--service: start progress, RUNNING and the exit code are reported)");
                 mode = HeadlessCli::RestartMode::Exit;
-                why = QStringLiteral("--service: the service's recovery actions start qThrone again (sc failure, sc failureflag 1)");
+                why = QStringLiteral("--service: the service's recovery actions start Rawline again (sc failure, sc failureflag 1)");
             } else if (parts.isEmpty()) {
-                parts << QStringLiteral("none (qThrone --headless --service runs under the Windows SCM, where a restart request exits with 75 "
+                parts << QStringLiteral("none (Rawline --headless --service runs under the Windows SCM, where a restart request exits with 75 "
                                         "for the service's recovery actions)");
             }
-            const QString execText = QStringLiteral("starts qThrone again as a new process, which waits for this one to exit");
+            const QString execText = QStringLiteral("starts Rawline again as a new process, which waits for this one to exit");
 #else
             if (parts.isEmpty()) parts << QStringLiteral("no service manager detected");
-            const QString execText = QStringLiteral("re-executes qThrone in place");
+            const QString execText = QStringLiteral("re-executes Rawline in place");
 #endif
             const QString restart = mode == HeadlessCli::RestartMode::Exec
                                         ? execText
-                                        : QStringLiteral("exits with 75 for the service manager to start qThrone again");
+                                        : QStringLiteral("exits with 75 for the service manager to start Rawline again");
             report.info(QStringLiteral("supervisor: %1; a restart request %2 (restart mode %3: %4)")
                             .arg(parts.join(QStringLiteral(", ")), restart, HeadlessCli::RestartModeName(mode), why));
         }

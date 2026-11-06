@@ -196,7 +196,7 @@ namespace Configs
             const auto b64 = QJsonObject2QString(json, true)
                                 .toUtf8()
                                 .toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
-            return QStringLiteral("throne://add/") + QString::fromLatin1(b64);
+            return QStringLiteral("rawline://add/") + QString::fromLatin1(b64);
         }
 
         bool ParseFromLink(const QString& link) override;

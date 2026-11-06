@@ -65,7 +65,7 @@ namespace Configs {
     }
 
     namespace Checks {
-        // sing-box-throne protocol/trusttunnel/client_random.go parseClientRandom.
+        // sing-box-rawline protocol/trusttunnel/client_random.go parseClientRandom.
         QString TrustTunnelClientRandom(const QString& text)
         {
             const auto value = text.trimmed();

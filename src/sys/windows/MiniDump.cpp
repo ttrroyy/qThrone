@@ -141,7 +141,7 @@ static void WriteSidecar(const wchar_t *path, EXCEPTION_POINTERS *pException, bo
     SYSTEMTIME st;
     GetLocalTime(&st);
 
-    AppendA(file, "qThrone crash report\r\n===================\r\n");
+    AppendA(file, "Rawline crash report\r\n===================\r\n");
     wsprintfA(line, "time      : %04d-%02d-%02d %02d:%02d:%02d\r\n",
               st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
     AppendA(file, line);
@@ -217,10 +217,10 @@ static void WriteCrashArtifacts(EXCEPTION_POINTERS *pException) {
 
     wchar_t dumpPath[MAX_PATH];
     wchar_t sidecarPath[MAX_PATH];
-    wsprintfW(dumpPath, L"%s\\Throne_%s_%s_%04d%02d%02d-%02d%02d%02d.dmp",
+    wsprintfW(dumpPath, L"%s\\Rawline_%s_%s_%04d%02d%02d-%02d%02d%02d.dmp",
               g_dumpPathTemplate, L"" NKR_VERSION, THRONE_ARCH,
               st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
-    wsprintfW(sidecarPath, L"%s\\Throne_%s_%s_%04d%02d%02d-%02d%02d%02d.txt",
+    wsprintfW(sidecarPath, L"%s\\Rawline_%s_%s_%04d%02d%02d-%02d%02d%02d.txt",
               g_dumpPathTemplate, L"" NKR_VERSION, THRONE_ARCH,
               st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond);
 
@@ -261,7 +261,7 @@ static void WriteCrashArtifacts(EXCEPTION_POINTERS *pException) {
         if (err != nullptr && err != INVALID_HANDLE_VALUE) {
             char narrow[MAX_PATH * 3] = "";
             WideCharToMultiByte(CP_UTF8, 0, g_dumpPathTemplate, -1, narrow, sizeof(narrow) - 1, nullptr, nullptr);
-            AppendA(err, "qThrone crashed; a crash report was saved to ");
+            AppendA(err, "Rawline crashed; a crash report was saved to ");
             AppendA(err, narrow);
             AppendA(err, "\r\n");
         }
@@ -274,13 +274,13 @@ static void WriteCrashArtifacts(EXCEPTION_POINTERS *pException) {
     wchar_t addrHex[17];
     HexPtrW(addrHex, record != nullptr ? record->ExceptionAddress : nullptr);
     wsprintfW(msg,
-              L"qThrone %s (%s) crashed.\n\nException: 0x%08X\nAddress: 0x%s\n\n"
+              L"Rawline %s (%s) crashed.\n\nException: 0x%08X\nAddress: 0x%s\n\n"
               L"A crash report was saved to:\n%s\n\nPlease attach the .txt file (and the .dmp if you can) to a bug report.",
               L"" NKR_VERSION, THRONE_ARCH,
               record != nullptr ? record->ExceptionCode : 0,
               addrHex,
               g_dumpPathTemplate);
-    MessageBoxW(nullptr, msg, L"qThrone crashed", MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
+    MessageBoxW(nullptr, msg, L"Rawline crashed", MB_OK | MB_ICONERROR | MB_SETFOREGROUND);
 }
 
 LONG __stdcall CreateCrashHandler(EXCEPTION_POINTERS *pException) {
@@ -416,7 +416,7 @@ static WerRegistration RegisterWerApp(const wchar_t *exeName, const wchar_t *fol
 
 void Windows_ConfigureWER(bool onlyIfAbsent) {
     if (!g_crashDirReady) return;
-    // A non-interactive run is headless whatever the caller passed: the GUI and the service share Throne.exe's key.
+    // A non-interactive run is headless whatever the caller passed: the GUI and the service share Rawline.exe's key.
     const bool keepExisting = onlyIfAbsent || !g_interactive;
 
     wchar_t exePath[MAX_PATH] = L"";

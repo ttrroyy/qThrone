@@ -287,7 +287,7 @@
             <item>
              <widget class="QCheckBox" name="exit_country_lookup">
               <property name="toolTip">
-               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;After connecting, Throne asks an IP lookup service — through the proxy — which IP and country the connection exits from.&lt;/p&gt;&lt;p&gt;Turn this off to never contact such a service automatically.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;After connecting, Rawline asks an IP lookup service — through the proxy — which IP and country the connection exits from.&lt;/p&gt;&lt;p&gt;Turn this off to never contact such a service automatically.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
               </property>
               <property name="text">
                <string>Look up exit country</string>
@@ -361,10 +361,10 @@
           <item row="0" column="0">
            <widget class="QCheckBox" name="url_scheme_auto_register">
             <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Registers Throne as the handler for throne:// links, re-applying the registration whenever the install is moved.&lt;/p&gt;&lt;p&gt;Turning this off does not undo an existing registration: use Uninstall for that.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Registers Rawline as the handler for rawline:// links, re-applying the registration whenever the install is moved.&lt;/p&gt;&lt;p&gt;Turning this off does not undo an existing registration: use Uninstall for that.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="text">
-             <string>Register throne:// links at startup</string>
+             <string>Register rawline:// links at startup</string>
             </property>
            </widget>
           </item>
@@ -401,7 +401,7 @@
           <item row="0" column="4">
            <widget class="QPushButton" name="url_scheme_uninstall">
             <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Removes the throne:// handler Throne wrote. Entries owned by other applications are left alone.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Removes the rawline:// handler Rawline wrote. Entries owned by other applications are left alone.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="text">
              <string>Uninstall</string>
@@ -411,7 +411,7 @@
           <item row="1" column="0">
            <widget class="QCheckBox" name="file_assoc_auto_register">
             <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Adds Throne to the &quot;Open with&quot; list for config files such as JSON and YAML, re-applying the registration whenever the install is moved.&lt;/p&gt;&lt;p&gt;Turning this off does not undo an existing registration: use Uninstall for that.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Adds Rawline to the &quot;Open with&quot; list for config files such as JSON and YAML, re-applying the registration whenever the install is moved.&lt;/p&gt;&lt;p&gt;Turning this off does not undo an existing registration: use Uninstall for that.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="text">
              <string>Register config files at startup</string>
@@ -438,7 +438,7 @@
           <item row="1" column="4">
            <widget class="QPushButton" name="file_assoc_uninstall">
             <property name="toolTip">
-             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Removes every config file association Throne wrote, including those added by older versions. Associations owned by other applications are left alone.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Removes every config file association Rawline wrote, including those added by older versions. Associations owned by other applications are left alone.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
             </property>
             <property name="text">
              <string>Uninstall</string>
@@ -841,7 +841,7 @@
             <item row="3" column="0">
              <widget class="QCheckBox" name="follow_status_in_taskbar">
               <property name="toolTip">
-               <string>Follow the connection status icon in the dock/taskbar. When off, it always shows the Throne icon</string>
+               <string>Follow the connection status icon in the dock/taskbar. When off, it always shows the Rawline icon</string>
               </property>
               <property name="text">
                <string>Follow Status Icon in Taskbar</string>
@@ -1851,7 +1851,7 @@
        <item>
         <widget class="QCheckBox" name="kill_switch">
          <property name="toolTip">
-          <string>While Throne is running, block all traffic that does not go through Throne, including when no profile is running.
+          <string>While Rawline is running, block all traffic that does not go through Rawline, including when no profile is running.
 The local network stays reachable unless Private Range Bypass is turned off in Tun Settings.</string>
          </property>
          <property name="text">

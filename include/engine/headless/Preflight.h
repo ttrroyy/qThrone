@@ -6,7 +6,7 @@
 #include "include/engine/app/Bootstrap.h"
 #include "include/engine/headless/HeadlessCli.h"
 
-// Throne --headless --check.
+// Rawline --headless --check.
 namespace Engine::Preflight {
     // A client mode, after the flag parse and ResolveDataDir(create = false): never takes the data-dir lock, never calls
     // Logging::Init, never opens the database for writing, never creates or changes a file. One "[ OK ]", "[WARN]", "[FAIL]" or

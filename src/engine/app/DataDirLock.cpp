@@ -159,7 +159,7 @@ namespace Engine {
         QStringList details;
         if (pid > 0) details << QString("PID %1").arg(pid);
         if (started > 0) details << "since " + QDateTime::fromSecsSinceEpoch(started).toString("yyyy-MM-dd HH:mm:ss");
-        QString text = mode.isEmpty() ? QStringLiteral("another qThrone") : mode;
+        QString text = mode.isEmpty() ? QStringLiteral("another Rawline") : mode;
         if (!details.isEmpty()) text += " (" + details.join(", ") + ")";
         return text;
     }

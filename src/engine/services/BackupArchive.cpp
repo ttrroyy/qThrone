@@ -64,10 +64,10 @@ namespace Engine::BackupArchive {
             stream.setVersion(QDataStream::Qt_6_0);
 
             char magic[4];
-            if (stream.readRawData(magic, 4) != 4 || strncmp(magic, "THRN", 4) != 0) return QStringLiteral("Not a valid qThrone backup file.");
+            if (stream.readRawData(magic, 4) != 4 || strncmp(magic, "THRN", 4) != 0) return QStringLiteral("Not a valid Rawline backup file.");
 
             stream >> *formatVersion;
-            if (stream.status() != QDataStream::Ok) return QStringLiteral("Not a valid qThrone backup file.");
+            if (stream.status() != QDataStream::Ok) return QStringLiteral("Not a valid Rawline backup file.");
             if (*formatVersion < 1 || *formatVersion > BACKUP_FORMAT_VERSION) {
                 return QStringLiteral("Unsupported backup format version: %1.\nThis backup may have been created with a newer version of the application.")
                     .arg(*formatVersion);
@@ -115,7 +115,7 @@ namespace Engine::BackupArchive {
                 if (iconName.isEmpty()) continue;
                 // Archive keys are untrusted: a name such as "../throne.db" would write outside the icons folder.
                 if (QFileInfo(iconName).fileName() != iconName || iconName.contains("..") || !allowed.contains(iconName)) {
-                    MW_show_log(QStringLiteral("[Backup] Skipped icon \"%1\": not one of qThrone's icon files.").arg(iconName.left(80).simplified()));
+                    MW_show_log(QStringLiteral("[Backup] Skipped icon \"%1\": not one of Rawline's icon files.").arg(iconName.left(80).simplified()));
                     continue;
                 }
                 QSaveFile iconFile(iconsDir.filePath(iconName));
@@ -148,7 +148,7 @@ namespace Engine::BackupArchive {
             return columns;
         }
 
-        // Rows of the parts about to be restored that Throne would not accept from a remote client; empty when none.
+        // Rows of the parts about to be restored that Rawline would not accept from a remote client; empty when none.
         QString BackupUntrustedRefusal(const QString &dbPath, const Configs::BackupParts &parts) {
             QStringList shown;
             qsizetype count = 0;
@@ -204,14 +204,14 @@ namespace Engine::BackupArchive {
                     }
                 }
             } catch (std::exception &e) {
-                return QStringLiteral("The archive's database could not be checked (%1); restore this archive from qThrone's window instead")
+                return QStringLiteral("The archive's database could not be checked (%1); restore this archive from Rawline's window instead")
                     .arg(QString::fromUtf8(e.what()));
             }
             if (count == 0) return {};
             QString list = shown.join(QStringLiteral(", "));
             if (count > shown.size()) list += QStringLiteral(" and %1 more").arg(count - shown.size());
-            return QStringLiteral("The archive holds what qThrone does not accept from a remote client: %1; "
-                                  "restore this archive from qThrone's window instead").arg(list);
+            return QStringLiteral("The archive holds what Rawline does not accept from a remote client: %1; "
+                                  "restore this archive from Rawline's window instead").arg(list);
         }
     } // namespace
 

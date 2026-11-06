@@ -151,7 +151,7 @@ namespace Engine {
             }
         }, Qt::DirectConnection);
 
-        // Before the config is built: a Throne crash or hang while building the boot profile strikes it at the next boot.
+        // Before the config is built: a Rawline crash or hang while building the boot profile strikes it at the next boot.
         connect(engine->connection(), &ConnectionManager::startDispatching, this, [this](quint64 serial, int profileId) {
             // Once any start is dispatched the stay-up retry no longer resumes: a profile that ran may be what kills the core.
             m_retryResumeId = -1;

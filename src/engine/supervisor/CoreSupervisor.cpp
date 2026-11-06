@@ -53,7 +53,7 @@ namespace {
         const auto adapter = QString::fromUtf8(log.mid(from, end < 0 ? -1 : end - from)).trimmed();
         PostNotice({NoticeLevel::Warning, QObject::tr("IPv4 forwarding breaks Tun mode"),
                     QObject::tr("IPv4 forwarding is on for the network adapter \"%1\", usually because Mobile Hotspot or Internet Connection Sharing is sharing it.\n\n"
-                                "Windows then ignores the adapter binding that keeps qThrone's own connections out of the Tun, so they loop back into it and fail.\n\n"
+                                "Windows then ignores the adapter binding that keeps Rawline's own connections out of the Tun, so they loop back into it and fail.\n\n"
                                 "To fix this, share the hotspot from the qthrone-tun adapter instead of \"%1\" (Settings > Mobile hotspot > Share my internet connection from), or turn the hotspot off while using Tun mode.")
                         .arg(adapter)});
     }
@@ -177,14 +177,14 @@ namespace Engine {
         m_debugMode = (Configs::dataManager->settingsRepo->log_level == "debug");
 
         Configs::dataManager->settingsRepo->core_socket_name =
-            "throneIPC-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
+            "rawlineIPC-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
         m_server = new QLocalServer(this);
         m_server->setSocketOptions(QLocalServer::UserAccessOption);
         const bool listening = m_server->listen(Configs::dataManager->settingsRepo->core_socket_name);
         if (!listening) {
             const QString error = m_server->errorString();
             qWarning() << "Failed to start IPC server:" << error;
-            m_lastFailure = tr("qThrone could not open the local channel the core connects to (%1), so no profile can start.").arg(error);
+            m_lastFailure = tr("Rawline could not open the local channel the core connects to (%1), so no profile can start.").arg(error);
             setState(CoreState::ListenFailed);
             emit listenFailed(error);
             PostNotice({NoticeLevel::Error, tr("Core unavailable"), m_lastFailure});

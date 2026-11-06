@@ -83,7 +83,7 @@ namespace Stats
         active = false;
         if (infos.isEmpty()) return;
 
-        // Throne builds exactly one selector per config, so any extras are ignored.
+        // Rawline builds exactly one selector per config, so any extras are ignored.
         const auto &info = infos.first();
         groupTag = info.groupTag;
         profileID = info.profile ? info.profile->id : -1;

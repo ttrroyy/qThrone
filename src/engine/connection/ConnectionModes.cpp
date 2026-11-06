@@ -91,7 +91,7 @@ namespace Engine {
         if (m_options.headless) {
             reason = Sys::HostTun::Conflict(settings->vpn_tun_ipv4_cidr, dnsProbePort);
         } else if (const auto holder = Sys::HostPresence::OtherHeadless()) {
-            reason = tr("A background qThrone (PID %1) owns Tun on this computer; stop it or use thronectl.").arg(holder->pid);
+            reason = tr("A background Rawline (PID %1) owns Tun on this computer; stop it or use thronectl.").arg(holder->pid);
         }
         m_tunBlockedCache = reason;
         m_tunBlockedKey = key;

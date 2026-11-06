@@ -712,7 +712,7 @@ namespace Configs {
         if (object.contains("system")) system = object["system"].toBool();
         if (object.contains("name")) interface_name = object["name"].toString();
         if (object.contains("mtu")) mtu = object["mtu"].toInt();
-        // The core also takes a bare number of seconds here; Throne stores and emits the duration string.
+        // The core also takes a bare number of seconds here; Rawline stores and emits the duration string.
         if (object.contains("udp_timeout")) {
             const auto value = object["udp_timeout"];
             if (value.isDouble() && value.toInteger() > 0) udp_timeout = QString::number(value.toInteger()) + "s";

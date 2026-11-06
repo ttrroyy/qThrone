@@ -10,5 +10,5 @@ bool Windows_WindowStationVisible();
 void Windows_SetCrashDumpPath();
 
 // WER LocalDumps catches what the exception filter cannot (__fastfail, heap corruption); needs admin, so it no-ops otherwise.
-// onlyIfAbsent (headless): never overwrite a key the GUI or an admin wrote; the GUI and the service share Throne.exe's key.
+// onlyIfAbsent (headless): never overwrite a key the GUI or an admin wrote; the GUI and the service share Rawline.exe's key.
 void Windows_ConfigureWER(bool onlyIfAbsent = false);

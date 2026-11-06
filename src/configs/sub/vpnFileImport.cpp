@@ -1039,7 +1039,7 @@ namespace Configs {
                 return;
             }
             if (name == "proxy" || name == "proxy-auth" || name == "http-auth") {
-                notes << QObject::tr("Configure a proxy through qThrone's chain instead, ignored: %1").arg(name);
+                notes << QObject::tr("Configure a proxy through Rawline's chain instead, ignored: %1").arg(name);
                 return;
             }
             if (vpnfiOcIgnored.contains(name)) return;

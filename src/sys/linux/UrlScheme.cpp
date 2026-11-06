@@ -12,7 +12,7 @@
 // Both associations live in this one entry, told apart by its MimeType list.
 static const QString kDesktopId = "qthrone-url-handler.desktop";
 
-static const QStringList kLinkTypes = {"x-scheme-handler/throne"};
+static const QStringList kLinkTypes = {"x-scheme-handler/rawline", "x-scheme-handler/throne"};
 static const QStringList kConfigTypes = {"application/json", "application/yaml", "text/yaml"};
 
 static const QStringList &typesOf(Association a) {
@@ -42,13 +42,13 @@ static QString desktopFilePath() {
     return appsDir() + "/" + kDesktopId;
 }
 
-// "throne" is in no icon theme for the /opt and AppImage layouts, so unpack a copy and use an absolute path.
+// "rawline" is in no icon theme for the /opt and AppImage layouts, so unpack a copy and use an absolute path.
 static QString iconTarget() {
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    const QString path = dir + "/qthrone.png";
+    const QString path = dir + "/rawline.png";
     QDir().mkpath(dir);
     QFile::remove(path);
-    return QFile::copy(":/Throne/Throne.png", path) ? path : QStringLiteral("qthrone");
+    return QFile::copy(":/Throne/Throne.png", path) ? path : QStringLiteral("rawline");
 }
 
 struct DesktopEntry {
@@ -78,7 +78,7 @@ static void writeEntry(const QStringList &types) {
     if (types.isEmpty()) {
         QFile::remove(path);
         const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-        QFile::remove(dataDir + "/throne.png");
+        QFile::remove(dataDir + "/rawline.png");
         QDir().rmdir(dataDir);
     } else {
         QDir().mkpath(QFileInfo(path).absolutePath());
@@ -87,7 +87,7 @@ static void writeEntry(const QStringList &types) {
             QTextStream ts(&f);
             ts << "[Desktop Entry]\n"
                << "Type=Application\n"
-               << "Name=qThrone\n"
+               << "Name=Rawline\n"
                << "Icon=" << iconTarget() << "\n"
                << execLine() << "\n"
                << "MimeType=" << types.join(';') << ";\n"
@@ -107,7 +107,7 @@ QString UrlScheme_DesiredState(Association a) {
     return (a == Association::Links ? "v4|" : "v1|") + execTarget();
 }
 
-// The deb, the rpm and install_linux.py each install a Throne.desktop that launches this binary; a zip copy has none pointing at itself.
+// The deb, the rpm and install_linux.py each install a Rawline.desktop that launches this binary; a zip copy has none pointing at itself.
 bool UrlScheme_AutoRegisterByDefault() {
 #ifdef NKR_DESKTOP_EXEC
     return true;

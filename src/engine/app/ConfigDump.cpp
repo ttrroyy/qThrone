@@ -310,7 +310,7 @@ namespace Engine {
             return index >= 0 && index + 1 < arguments.size() && !arguments.at(index + 1).startsWith('-');
         };
         if (!hasValue(flagIndex) || !hasValue(appdataIndex)) {
-            PrintError("usage: qThrone -dump-configs <outdir> -appdata <dir>   (<dir> should be a copy of a data directory)");
+            PrintError("usage: Rawline -dump-configs <outdir> -appdata <dir>   (<dir> should be a copy of a data directory)");
             return ExitCode::Usage;
         }
         const QDir outDir(QDir::cleanPath(launchCwd.absoluteFilePath(arguments.at(flagIndex + 1))));
@@ -338,9 +338,9 @@ namespace Engine {
                 if (!lock.errorString().isEmpty()) LOG_WARN(lock.errorString());
                 break;
         }
-        // A Throne older than the lock, or a failed lock, leaves the instance socket as the only sign of a live owner.
+        // A Rawline older than the lock, or a failed lock, leaves the instance socket as the only sign of a live owner.
         if (InstanceServer::HandOff(Bootstrap::InstanceServerName(dataDir.wd), {})) {
-            PrintError(QString("-dump-configs: a running qThrone owns %1").arg(dataDir.wd.absolutePath()));
+            PrintError(QString("-dump-configs: a running Rawline owns %1").arg(dataDir.wd.absolutePath()));
             return ExitCode::DataDirOwned;
         }
 

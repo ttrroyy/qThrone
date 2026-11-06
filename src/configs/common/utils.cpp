@@ -175,7 +175,7 @@ namespace Configs
                               || !query.queryItemValue("extra").isEmpty()
                               // sing-box REALITY cannot verify the ML-DSA-65 signature
                               || (security == "reality" && !query.queryItemValue("pqv").trimmed().isEmpty());
-        // Throne's Xray stream refuses any other network, which sing-box VLESS may still carry (http, quic), but it would drop the Xray-only values.
+        // Rawline's Xray stream refuses any other network, which sing-box VLESS may still carry (http, quic), but it would drop the Xray-only values.
         if (!transport.isEmpty() && !XrayNetworks.contains(transport)) return xrayOnly;
         // Xray refuses REALITY over ws and httpupgrade, which sing-box carries.
         if (!xrayOnly && !Checks::XrayRealityNetwork(security, transport).isEmpty()) return false;
