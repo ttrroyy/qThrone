@@ -130,7 +130,7 @@ if [ -f "$unit" ] || [ -f "$binary" ] || [ -d "$config" ] ||
 else
   printf 'WDTT_INSTALL_TRACE=0\n'
 fi
-# Not in the original: data deploy.sh uninstall keeps (qThrone 1.5 and 1.5.1 removed the service
+# Not in the original: data deploy.sh uninstall keeps (versions 1.5 and 1.5.1 removed the service
 # so): no unit, server or installer, both data files regular and non-empty, no marker, no links.
 # The original calls it an unknown install and refuses to deploy again.
 if [ ! -e "$ownership" ] && [ ! -L "$ownership" ] &&

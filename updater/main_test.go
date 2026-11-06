@@ -30,7 +30,7 @@ func archiveFor(t *testing.T, entry string) string {
 }
 
 func TestExtractRejectsTraversal(t *testing.T) {
-	for _, entry := range []string{"Rawline/../escape", "Rawline/../../escape", "../Rawline/file", "Rawline/Rawline.exe", "Rawline/..\\escape"} {
+	for _, entry := range []string{"Rawline/../escape", "Rawline/../../escape", "../Rawline/file", "Throne/Rawline.exe", "Rawline/..\\escape"} {
 		t.Run(entry, func(t *testing.T) {
 			if err := extract(archiveFor(t, entry), t.TempDir()); err == nil {
 				t.Fatal("accepted unsafe entry")

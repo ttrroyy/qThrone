@@ -106,7 +106,7 @@ func wdttPlusEncryptTransfer(document, password string) (string, error) {
 	}
 	container, err := json.Marshal(map[string]any{
 		"format": "wdtt-plus-transfer", "version": 1, "kind": "server-backup",
-		"createdAt": time.Now().UnixMilli(), "sourceVersion": "qThrone",
+		"createdAt": time.Now().UnixMilli(), "sourceVersion": "Rawline",
 		"kdf": "PBKDF2-HMAC-SHA256", "iterations": wdttPlusTransferIterations,
 		"salt": base64.StdEncoding.EncodeToString(salt), "iv": base64.StdEncoding.EncodeToString(iv),
 		"data": base64.StdEncoding.EncodeToString(gcm.Seal(nil, iv, compressed.Bytes(), nil)),

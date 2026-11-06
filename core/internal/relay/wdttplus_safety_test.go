@@ -122,8 +122,8 @@ func TestWdttPlusScenariosPassDeployScript(t *testing.T) {
 			wdttPlusWrite(t, root, "etc/wdtt/.android-deploy-preserved", "Preserved by WDTT Plus Android deploy\n", 0o600)
 		}, wdttPlusPreservedData},
 		{"kept after deploy.sh uninstall", wdttPlusKeptData, wdttPlusPreservedData},
-		// What qThrone 1.5 and 1.5.1 left: deploy.sh uninstall keeps the server's log and other files.
-		{"kept after qThrone 1.5.1 removal", func(t *testing.T, root string) {
+		// What versions 1.5 and 1.5.1 left: deploy.sh uninstall keeps the server's log and other files.
+		{"kept after 1.5.1 removal", func(t *testing.T, root string) {
 			wdttPlusKeptData(t, root)
 			wdttPlusWrite(t, root, "etc/wdtt/server.log", "log\n", 0o644)
 			wdttPlusWrite(t, root, "etc/wdtt/passwords.json.previous", wdttPlusTestDB, 0o644)
