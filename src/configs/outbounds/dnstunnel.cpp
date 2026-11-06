@@ -33,7 +33,20 @@ QStringList cottenDomains(const QString &text, const QStringList &skip = {}) {
 // compatibility preset for MasterDNS/StormDNS servers, which refuse the engine's own session IDs and EDNS cookies.
 QJsonObject cottenOptions(const QJsonObject &s, const QString &domain) {
     QJsonObject o;
-    if (s.isEmpty()) return o;
+    // The client settings WhiteDNS gives every profile: most links carry none, and the engine's own floor
+    // of a 1000-byte download MTU rejects most resolvers before the session starts.
+    o["STARTUP_MODE"] = "resolvers";
+    o["MIN_UPLOAD_MTU"] = 40;
+    o["MIN_DOWNLOAD_MTU"] = 300;
+    o["MAX_UPLOAD_MTU"] = 140;
+    o["MAX_DOWNLOAD_MTU"] = 3000;
+    o["MTU_TEST_TIMEOUT_RESOLVERS"] = 2.5;
+    o["MTU_TEST_TIMEOUT_LOGS"] = 2.5;
+    o["RESOLVER_UDP_CONNECTION_POOL_SIZE"] = 64;
+    o["STREAM_QUEUE_INITIAL_CAPACITY"] = 128;
+    o["ORPHAN_QUEUE_INITIAL_CAPACITY"] = 32;
+    o["DNS_RESPONSE_FRAGMENT_STORE_CAPACITY"] = 256;
+    o["SOCKS_UDP_ASSOCIATE_READ_TIMEOUT_SECONDS"] = 30.0;
     const auto choice = [&s](const QString &key, const QStringList &allowed, const QString &fallback = "preset") {
         const auto value = s[key].toString().trimmed().toLower();
         return allowed.contains(value) ? value : fallback;

@@ -38,7 +38,7 @@ printf '%s\n' 'https://github.com/masterking32/MasterDnsVPN' "Revision: $masterd
 tar -czf "$DEST/masterdns-source.tar.gz" --exclude=.git --exclude=.github .
 popd
 
-cottendns_revision=7db7b73658c791cce62300d29647e4d369d6e1e4
+cottendns_revision=ac8e86ed83a5006ab320468daaebe759d9574da6
 if [ ! -d cottendns-source/.git ]; then
     python3 script/fetch_pinned_source.py https://github.com/TaJirax/cottenDNS.git "$cottendns_revision" cottendns-source
 fi

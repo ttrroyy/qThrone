@@ -39,7 +39,7 @@ type profile struct {
 
 // fallbackResolvers are used when the profile names none and the network's
 // own resolvers are unknown.
-var fallbackResolvers = []string{"8.8.8.8", "1.1.1.1"}
+var fallbackResolvers = []string{"8.8.8.8", "1.1.1.1", "9.9.9.9", "77.88.8.8"}
 
 // writeConfig turns the profile into MasterDnsVPN's JSON configuration and
 // resolver file inside the private session directory.
@@ -93,10 +93,8 @@ func writeConfig(p profile, folder string) (string, string, error) {
 	}
 	// Desktops read the network's resolvers from the system; Android passes them in.
 	if len(clean(resolvers)) == 0 {
-		resolvers = systemResolvers()
-	}
-	if len(clean(resolvers)) == 0 {
-		resolvers = fallbackResolvers
+		// One network's DNS may refuse the tunnel: the scan keeps what answers.
+		resolvers = append(systemResolvers(), fallbackResolvers...)
 	}
 	resolversPath := filepath.Join(folder, "masterdns_resolvers.txt")
 	if err := os.WriteFile(resolversPath, []byte(strings.Join(clean(resolvers), "\n")+"\n"), 0o600); err != nil {
