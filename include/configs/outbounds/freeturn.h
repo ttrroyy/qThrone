@@ -5,6 +5,8 @@ namespace Configs {
 class freeturn : public extracore {
 public:
     freeturn() { server_port = 56000; socksPort = 0; }
+    // "auto": the linked VK account's call, made when connecting; "manual": the links.
+    QString hashSource = "manual";
     QString provider = "vk", links, relayTransport = "tcp", tunnelMode = "udp", obfProfile = "none", obfKey, clientId, dnsMode = "auto", dnsServers, turnHost, wgConfig;
     int threads = 12, streamsPerCred = 12, obfTiming = 0;
     bool bond = false, manualCaptcha = false;
@@ -17,6 +19,8 @@ public:
     QString DisplayType() override { return provider == "direct" ? QStringLiteral("FreeTurn (Direct)") : QStringLiteral("FreeTurn (VK)"); }
     /** What makes a profile storable; a call link or WireGuard configuration may still come later. */
     QString Validate() const;
+    /** Links from the hash screen and the bare hashes people paste are call links too. */
+    static QString CallLink(const QString &hash) { return hash.contains('/') ? hash : "https://vk.com/call/join/" + hash; }
     QString Prepare();
     BuildResult Build() override;
     bool SupportsCredentialStrip() const override { return true; }

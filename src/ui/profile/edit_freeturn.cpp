@@ -12,6 +12,7 @@ void pick(QComboBox *box, const QString &value) { if (const int index = box->fin
 EditFreeTurn::EditFreeTurn(QWidget *parent) : QWidget(parent) {
     auto *form = new QFormLayout(this);
     provider = combo(this, {{"vk", QStringLiteral("Через TURN звонка VK")}, {"direct", QStringLiteral("Напрямую к серверу")}});
+    hashSource = combo(this, {{"manual", QStringLiteral("Свои ссылки")}, {"auto", QStringLiteral("Создать из аккаунта VK")}});
     tunnelMode = combo(this, {{"udp", QStringLiteral("UDP: встроенный WireGuard")}, {"tcp", QStringLiteral("TCP: первое звено цепочки")}});
     tunnelMode->setToolTip(QStringLiteral("В режиме TCP сервер пересылает потоки своему Xray: поставьте этот профиль первым звеном цепочки перед профилем VLESS и т.п."));
     relayTransport = combo(this, {{"tcp", "TCP/TLS"}, {"udp", "UDP"}});
@@ -27,8 +28,9 @@ EditFreeTurn::EditFreeTurn(QWidget *parent) : QWidget(parent) {
     bond = new QCheckBox(QStringLiteral("Объединять сессии (bond)"), this);
     manualCaptcha = new QCheckBox(QStringLiteral("Ручная капча"), this);
     form->addRow(QStringLiteral("Источник потоков"), provider);
+    form->addRow(QStringLiteral("Звонок VK"), hashSource);
     form->addRow(QStringLiteral("Ссылки на звонки VK"), links);
-    form->addRow(QStringLiteral("Конфигурация WireGuard или AmneziaWG"), wgConfig);
+    form->addRow(QStringLiteral("Конфигурация WireGuard или AmneziaWG (пусто: свой VPN-профиль в цепочке)"), wgConfig);
     form->addRow(QStringLiteral("Режим"), tunnelMode);
     form->addRow(bond);
     form->addRow(QStringLiteral("Транспорт до TURN"), relayTransport);
@@ -45,14 +47,14 @@ EditFreeTurn::EditFreeTurn(QWidget *parent) : QWidget(parent) {
 }
 void EditFreeTurn::onStart(std::shared_ptr<Configs::Profile> profile) {
     ent = std::move(profile); const auto *o = dynamic_cast<Configs::freeturn *>(ent->outbound.get()); if (!o) return;
-    pick(provider, o->provider); pick(tunnelMode, o->tunnelMode); pick(relayTransport, o->relayTransport); pick(obfProfile, o->obfProfile); pick(dnsMode, o->dnsMode);
+    pick(hashSource, o->hashSource); pick(provider, o->provider); pick(tunnelMode, o->tunnelMode); pick(relayTransport, o->relayTransport); pick(obfProfile, o->obfProfile); pick(dnsMode, o->dnsMode);
     links->setPlainText(o->links); wgConfig->setPlainText(o->wgConfig); obfKey->setText(o->obfKey); clientId->setText(o->clientId);
     dnsServers->setText(o->dnsServers); turnHost->setText(o->turnHost); threads->setValue(o->threads); streamsPerCred->setValue(o->streamsPerCred);
     obfTiming->setValue(o->obfTiming); bond->setChecked(o->bond); manualCaptcha->setChecked(o->manualCaptcha);
 }
 bool EditFreeTurn::onEnd() {
     auto *o = dynamic_cast<Configs::freeturn *>(ent->outbound.get()); if (!o) return false;
-    o->provider = provider->currentData().toString(); o->tunnelMode = tunnelMode->currentData().toString();
+    o->hashSource = hashSource->currentData().toString(); o->provider = provider->currentData().toString(); o->tunnelMode = tunnelMode->currentData().toString();
     o->relayTransport = relayTransport->currentData().toString(); o->obfProfile = obfProfile->currentData().toString(); o->dnsMode = dnsMode->currentData().toString();
     o->links = links->toPlainText().trimmed(); o->wgConfig = wgConfig->toPlainText().trimmed(); o->obfKey = obfKey->text().trimmed(); o->clientId = clientId->text().trimmed();
     o->dnsServers = dnsServers->text().trimmed(); o->turnHost = turnHost->text().trimmed(); o->threads = threads->value(); o->streamsPerCred = streamsPerCred->value();

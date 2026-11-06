@@ -1,5 +1,6 @@
 #include "include/configs/outbounds/freeturn.h"
 #include "include/global/Utils.hpp"
+#include "include/ui/setting/dialog_vk_relay.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -21,7 +22,7 @@ QString hostPort(const QString &host, int port) { return (host.contains(':') ? "
 QStringList freeturn::linkList() const {
     QStringList result;
     for (const auto &line : QString(links).replace(',', '\n').split('\n', Qt::SkipEmptyParts))
-        if (!line.trimmed().isEmpty()) result << line.trimmed();
+        if (!line.trimmed().isEmpty()) result << CallLink(line.trimmed());
     return result;
 }
 
@@ -47,6 +48,8 @@ bool freeturn::ParseFromJson(const QJsonObject &o) {
     server_port = o["server_port"].toInt(56000);
     provider = o["provider"].toString("vk");
     links = o["links"].toString().trimmed();
+    // A link without a call takes one from the account: the call is each client's own, the server's link never holds it.
+    hashSource = o["hash_source"].toString(links.isEmpty() && provider != "direct" ? "auto" : "manual");
     threads = o["threads"].toInt(12);
     streamsPerCred = o["streams_per_cred"].toInt(12);
     relayTransport = o["relay_transport"].toString("tcp");
@@ -87,7 +90,7 @@ bool freeturn::ParseFromLink(const QString &link) {
 }
 
 QJsonObject freeturn::ExportToJson() {
-    QJsonObject o{{"type", "freeturn"}, {"name", name}, {"server", server}, {"server_port", server_port}, {"provider", provider}, {"links", links},
+    QJsonObject o{{"type", "freeturn"}, {"name", name}, {"server", server}, {"server_port", server_port}, {"provider", provider}, {"hash_source", hashSource}, {"links", links},
         {"threads", threads}, {"streams_per_cred", streamsPerCred}, {"relay_transport", relayTransport}, {"tunnel_mode", tunnelMode}, {"bond", bond},
         {"obf_profile", obfProfile}, {"obf_key", obfKey}, {"obf_timing", obfTiming}, {"client_id", clientId}, {"dns_mode", dnsMode}, {"dns_servers", dnsServers},
         {"manual_captcha", manualCaptcha}, {"turn_host", turnHost}, {"wg_config", wgConfig}};
@@ -116,9 +119,18 @@ QString freeturn::ExportToLink() {
 
 QString freeturn::Prepare() {
     if (const auto error = Validate(); !error.isEmpty()) return error;
-    if (provider != "direct" && linkList().isEmpty()) return QStringLiteral("FreeTurn: добавьте ссылку на звонок VK");
+    QStringList calls = linkList();
+    if (provider != "direct" && hashSource == "auto") {
+        QString error;
+        calls.clear();
+        for (const auto &hash : RelayAutoHashes("freeturn", server, server_port, 1, &error)) calls << CallLink(hash);
+        if (calls.isEmpty()) return error.isEmpty() ? QStringLiteral("FreeTurn: не удалось получить звонок из аккаунта VK") : error;
+    }
+    if (provider != "direct" && calls.isEmpty()) return QStringLiteral("FreeTurn: добавьте ссылку на звонок VK");
     const bool tcp = tunnelMode == "tcp";
-    if (!tcp && !wgConfig.contains("[Interface]", Qt::CaseInsensitive)) return QStringLiteral("FreeTurn: добавьте конфигурацию WireGuard или AmneziaWG");
+    // Without a built-in tunnel the relay is a plain forward for a VPN profile in the chain, as for the original's external client.
+    const bool tunnel = !tcp && !wgConfig.isEmpty();
+    if (tunnel && !wgConfig.contains("[Interface]", Qt::CaseInsensitive)) return QStringLiteral("FreeTurn: проверьте конфигурацию WireGuard или AmneziaWG");
     QString executable = "freeturn-client";
 #ifdef Q_OS_WIN
     executable += ".exe";
@@ -134,7 +146,7 @@ QString freeturn::Prepare() {
     if (forward.isEmpty()) return QStringLiteral("FreeTurn: не удалось выбрать локальный порт");
     bridgeAuth = QUuid::createUuid().toString(QUuid::WithoutBraces);
     QJsonArray linksArray, dnsArray;
-    for (const auto &item : linkList()) linksArray.append(item);
+    for (const auto &item : calls) linksArray.append(item);
     if (linksArray.isEmpty()) linksArray.append(QString());
     for (const auto &item : dnsServers.split(',', Qt::SkipEmptyParts)) dnsArray.append(item.trimmed());
     const bool obf = obfProfile != "none";
@@ -149,7 +161,7 @@ QString freeturn::Prepare() {
         {"obf", QJsonObject{{"profile", obfProfile}, {"key", obf ? obfKey : QString()}, {"timingMs", obf ? obfTiming : 0}}},
         {"dns", QJsonObject{{"mode", dnsMode}, {"servers", dnsArray}}},
         {"log", QJsonObject{{"debug", false}}},
-        {"tunnel", QJsonObject{{"mode", tcp ? "none" : "awg"}, {"config", tcp ? QString() : wgConfig}, {"mtu", wireGuardMtu}}}};
+        {"tunnel", QJsonObject{{"mode", tunnel ? "awg" : "none"}, {"config", tunnel ? wgConfig : QString()}, {"mtu", wireGuardMtu}}}};
     if (tcp && !kcp.isEmpty()) core["kcp"] = kcp;
     const auto state = QDir(QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)).absoluteFilePath("freeturn");
     QDir().mkpath(state);

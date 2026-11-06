@@ -3,6 +3,7 @@
 #include "include/configs/outbounds/csqtt.h"
 #include "include/configs/outbounds/wdttplus.h"
 #include "include/database/ProfilesRepo.h"
+#include "include/configs/outbounds/freeturn.h"
 #include "include/global/Configs.hpp"
 #include "include/global/Utils.hpp"
 #include "include/ui/profile/edit_qwdtt.h"
@@ -294,13 +295,14 @@ bool ResetQWDTTHashSources() {
     settings->vk_relay_linked = false;
     settings->qwdtt_hash_source = "manual";
     bool saved = settings->Save();
-    for (const auto *type : {"qwdtt", "csqtt", "wdttplus"}) for (int id : Configs::dataManager->profilesRepo->GetProfileIdsByType(type)) {
+    for (const auto *type : {"qwdtt", "csqtt", "wdttplus", "freeturn"}) for (int id : Configs::dataManager->profilesRepo->GetProfileIdsByType(type)) {
         const auto profile = Configs::dataManager->profilesRepo->GetProfile(id);
         if (!profile) continue;
         auto config = profile->outbound->ExportToJson();
         if (config["hash_source"] == "auto" || (config["hash_source"] == "auto_js" && config["vk_access_token"].toString().isEmpty())) {
             if (auto *relay = dynamic_cast<Configs::qwdtt *>(profile->outbound.get())) relay->hashSource = "manual";
             if (auto *relay = dynamic_cast<Configs::wdttplus *>(profile->outbound.get())) relay->hashSource = "manual";
+            if (auto *relay = dynamic_cast<Configs::freeturn *>(profile->outbound.get())) relay->hashSource = "manual";
             if (auto *relay = dynamic_cast<Configs::csqtt *>(profile->outbound.get())) {
                 relay->hashSource = "manual";
                 if (relay->vkAnonPath == "auto_js") relay->vkAnonPath = "vkcalls";
@@ -794,9 +796,9 @@ class LongPress : public QObject {
 // Puts [hashes] into the chosen qWDTT, CSQTT and WDTT Plus profiles as their own (manual) hashes.
 void ApplyHashesToProfiles(QWidget *parent, const QStringList &hashes, QLabel *status) {
     QList<std::shared_ptr<Configs::Profile>> profiles;
-    for (const auto *type : {"qwdtt", "csqtt", "wdttplus"}) for (int id : Configs::dataManager->profilesRepo->GetProfileIdsByType(type))
+    for (const auto *type : {"qwdtt", "csqtt", "wdttplus", "freeturn"}) for (int id : Configs::dataManager->profilesRepo->GetProfileIdsByType(type))
         if (auto profile = Configs::dataManager->profilesRepo->GetProfile(id)) profiles << profile;
-    if (profiles.isEmpty()) { status->setText("Нет профилей qWDTT, CSQTT или WDTT Plus"); return; }
+    if (profiles.isEmpty()) { status->setText("Нет профилей qWDTT, CSQTT, WDTT Plus или FreeTurn"); return; }
     QDialog dialog(parent);
     dialog.setWindowTitle("Применить к профилям");
     auto *layout = new QVBoxLayout(&dialog);
@@ -822,6 +824,7 @@ void ApplyHashesToProfiles(QWidget *parent, const QStringList &hashes, QLabel *s
         if (auto *relay = dynamic_cast<Configs::qwdtt *>(profile->outbound.get())) { relay->hashes = hashes.mid(0, 4); relay->hashSource = "manual"; }
         if (auto *relay = dynamic_cast<Configs::wdttplus *>(profile->outbound.get())) { relay->hashes = hashes.mid(0, 4); relay->hashSource = "manual"; }
         if (auto *relay = dynamic_cast<Configs::csqtt *>(profile->outbound.get())) { relay->hashes = hashes.mid(0, 6); relay->hashSource = "manual"; }
+        if (auto *relay = dynamic_cast<Configs::freeturn *>(profile->outbound.get())) { relay->links = hashes.join('\n'); relay->hashSource = "manual"; }
         if (Configs::dataManager->profilesRepo->Save(profile)) applied++;
     }
     if (applied) status->setText(QString("Хеши применены к профилям: %1").arg(applied));

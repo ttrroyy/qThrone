@@ -14,7 +14,7 @@ public:
     bool onEnd() override;
 private:
     std::shared_ptr<Configs::Profile> ent;
-    QComboBox *provider, *tunnelMode, *relayTransport, *obfProfile, *dnsMode;
+    QComboBox *hashSource, *provider, *tunnelMode, *relayTransport, *obfProfile, *dnsMode;
     QPlainTextEdit *links, *wgConfig;
     QLineEdit *obfKey, *clientId, *dnsServers, *turnHost;
     QSpinBox *threads, *streamsPerCred, *obfTiming;
