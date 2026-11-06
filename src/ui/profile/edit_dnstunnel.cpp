@@ -20,6 +20,9 @@ EditDnsTunnel::EditDnsTunnel(QWidget *parent) : QWidget(parent) {
     encryption = new QComboBox(this);
     const QStringList methods{QStringLiteral("Нет"), "XOR", "ChaCha20", "AES-128-GCM", "AES-192-GCM", "AES-256-GCM"};
     for (int i = 0; i < methods.size(); ++i) encryption->addItem(methods[i], i);
+    cottenPreset = new QComboBox(this);
+    cottenPreset->addItem("Default", "default"); cottenPreset->addItem("Speed", "speed"); cottenPreset->addItem("Survival", "survival");
+    cottenPreset->addItem("TCP Survival", "tcp-survival"); cottenPreset->addItem("Master/Storm", "master-storm");
     resolvers = multiline(3);
     masterOptions = multiline(5);
     masterOptions->setPlaceholderText("{\n  \"PACKET_DUPLICATION_COUNT\": 3,\n  \"MTU_TEST_TIMEOUT\": 2.0\n}");
@@ -51,6 +54,7 @@ EditDnsTunnel::EditDnsTunnel(QWidget *parent) : QWidget(parent) {
     form->addRow(QStringLiteral("Сертификат сервера (PEM)"), cert);
     form->addRow(QStringLiteral("Ключ шифрования"), mkey);
     form->addRow(QStringLiteral("Шифрование"), encryption);
+    form->addRow(QStringLiteral("Пресет CottenDNS"), cottenPreset);
     form->addRow(QStringLiteral("DNS-резолверы"), resolvers);
     form->addRow(QStringLiteral("Дополнительные параметры MasterDNS (JSON)"), masterOptions);
     form->addRow(QStringLiteral("Тип DNS-записи"), recordType);
@@ -90,6 +94,7 @@ void EditDnsTunnel::updateFields() {
     setRowVisible(cert, slip);
     setRowVisible(mkey, keyed);
     setRowVisible(encryption, keyed);
+    setRowVisible(cottenPreset, kind == "cottendns");
     for (QWidget *field : std::initializer_list<QWidget *>{recordType, dnsttCompat, clientIdSize, idleTimeout, keepalive}) setRowVisible(field, vaydns);
     for (QWidget *field : std::initializer_list<QWidget *>{authoritative, congestion, keepAliveInterval}) setRowVisible(field, slip);
     const auto service = backend->currentData().toString();
@@ -115,6 +120,7 @@ void EditDnsTunnel::onStart(std::shared_ptr<Configs::Profile> profile) {
     cert->setPlainText(d["cert"].toString());
     mkey->setText(d["mkey"].toString());
     encryption->setCurrentIndex(qBound(0, d["encryption"].toInt(1), 5));
+    cottenPreset->setCurrentIndex(qMax(0, cottenPreset->findData(d["cotten"].toObject()["configPreset"].toString().trimmed().toLower())));
     QStringList list;
     for (const auto &value : d["resolvers"].toArray()) list << value.toString();
     resolvers->setPlainText(list.join('\n'));
@@ -189,6 +195,12 @@ bool EditDnsTunnel::onEnd() {
     if (kind == "masterdns" || kind == "cottendns") {
         d["mkey"] = mkey->text().trimmed();
         d["encryption"] = encryption->currentData().toInt();
+        if (kind == "cottendns") {
+            // The other WhiteDNS settings of an imported profile stay as they came.
+            auto cotten = d["cotten"].toObject();
+            cotten["configPreset"] = cottenPreset->currentData().toString();
+            d["cotten"] = cotten;
+        }
     } else if (kind != "soar") {
         // Keep only what the chosen service uses, so a link shares no stale password or key.
         const auto service = backend->currentData().toString();
