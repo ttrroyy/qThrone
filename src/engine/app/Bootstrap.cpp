@@ -96,7 +96,7 @@ namespace Engine::Bootstrap {
                     LOG_WARN(QString("copied existing config from %1").arg(earlier.absolutePath()));
                 }
             }
-            const QDir config(wd.absoluteFilePath("config"));
+            QDir config(wd.absoluteFilePath("config"));
             for (const QString &suffix : QStringList{"", "-wal", "-shm"}) {
                 for (const QString &base : QStringList{".db", "_stats.db"}) {
                     const QString before = "throne" + base + suffix, now = "rawline" + base + suffix;
