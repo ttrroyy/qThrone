@@ -49,7 +49,7 @@ func (b *nftBackend) Arm(cfg *config, events chan<- Event) error {
 	}
 	if resolvers := lanResolvers("/etc/resolv.conf"); len(resolvers) > 0 {
 		select {
-		case events <- Event{Message: fmt.Sprintf("the system DNS server %v is on the local network and the kill switch blocks DNS to it; in Tun mode use systemd-resolved (Throne points it at the tunnel) or a DNS server outside the LAN", resolvers)}:
+		case events <- Event{Message: fmt.Sprintf("the system DNS server %v is on the local network and the kill switch blocks DNS to it; in Tun mode use systemd-resolved (Rawline points it at the tunnel) or a DNS server outside the LAN", resolvers)}:
 		default:
 		}
 	}

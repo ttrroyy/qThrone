@@ -140,7 +140,7 @@ func RunCore() {
 		log.Fatalf("failed to connect to GUI socket after 10 attempts: %v", err)
 	}
 
-	fmt.Println("Core Has Successfully Connected to qThrone!")
+	fmt.Println("Core Has Successfully Connected to Rawline!")
 	rpc.Serve(conn, debug)
 	sysdns.Release()
 	log.Fatal("IPC connection dropped, exiting")

@@ -338,7 +338,7 @@ func (s *extraSession) watch() {
 			reason = "transport exited"
 		case <-ticker.C:
 			if health != nil && health.wrongPassword() {
-				fmt.Println("[qThrone] " + wrongTransportPassword)
+				fmt.Println("[Rawline] " + wrongTransportPassword)
 				s.giveUp(child)
 				return
 			}
@@ -352,12 +352,12 @@ func (s *extraSession) watch() {
 			restarts = restarts[1:]
 		}
 		if len(restarts) >= maxTransportRestarts {
-			fmt.Println("[qThrone] Transport keeps failing; giving up after", len(restarts), "reconnects")
+			fmt.Println("[Rawline] Transport keeps failing; giving up after", len(restarts), "reconnects")
 			s.giveUp(child)
 			return
 		}
 		restarts = append(restarts, now)
-		fmt.Printf("[qThrone] %s; reconnecting %s\n", reason, s.tag)
+		fmt.Printf("[Rawline] %s; reconnecting %s\n", reason, s.tag)
 		child.Stop()
 		select {
 		case <-s.stopping:
@@ -377,7 +377,7 @@ func (s *extraSession) watch() {
 		}
 		s.mu.Unlock()
 		if err != nil {
-			fmt.Println("[qThrone] Transport restart failed:", err)
+			fmt.Println("[Rawline] Transport restart failed:", err)
 			s.giveUp(child)
 			return
 		}
@@ -392,12 +392,12 @@ func (s *extraSession) watch() {
 		err = awaitTransport(ctx, s.config, next, nextHealth)
 		cancel()
 		if errors.Is(err, errWrongTransportPassword) {
-			fmt.Println("[qThrone] " + wrongTransportPassword)
+			fmt.Println("[Rawline] " + wrongTransportPassword)
 			s.giveUp(next)
 			return
 		}
 		if err == nil {
-			fmt.Println("[qThrone] Transport reconnected:", s.tag)
+			fmt.Println("[Rawline] Transport reconnected:", s.tag)
 		} else {
 			// A helper that never became ready is replaced on the next round.
 			next.Stop()

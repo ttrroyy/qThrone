@@ -881,6 +881,7 @@ set_target_properties(qThrone PROPERTIES
         RESOURCE ${MACOSX_ICON}
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/res/MacOSXBundleInfo.plist
         MACOSX_BUNDLE_GUI_IDENTIFIER moe.qThrone.macosx
+        MACOSX_BUNDLE_BUNDLE_NAME Rawline
         MACOSX_BUNDLE TRUE
         WIN32_EXECUTABLE TRUE
 )
