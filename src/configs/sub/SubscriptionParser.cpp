@@ -48,8 +48,7 @@ namespace Subscription {
         QProcess process;
         process.start(Configs::FindCoreRealPath(), {"--relay"});
         if (!process.waitForStarted(5000)) return {};
-        process.write(QJsonDocument(QJsonObject{{"operation", "provider-decrypt"}, {"value", link}}).toJson(QJsonDocument::Compact) + '
-');
+        process.write(QJsonDocument(QJsonObject{{"operation", "provider-decrypt"}, {"value", link}}).toJson(QJsonDocument::Compact) + '\n');
         QByteArray pending;
         QElapsedTimer elapsed;
         elapsed.start();
@@ -59,8 +58,7 @@ namespace Subscription {
             pending += process.readAllStandardOutput();
             qsizetype end;
             bool failed = false;
-            while ((end = pending.indexOf('
-')) >= 0) {
+            while ((end = pending.indexOf('\n')) >= 0) {
                 const auto event = QJsonDocument::fromJson(pending.left(end)).object();
                 pending.remove(0, end + 1);
                 if (event["type"] == "result") content = event["value"].toObject()["content"].toString();
@@ -82,8 +80,7 @@ namespace Subscription {
         process.start(Configs::FindCoreRealPath(), {"--relay"});
         if (!process.waitForStarted(5000)) return false;
         process.write(QJsonDocument(QJsonObject{{"operation", "provider-response"}, {"value", file.fileName()}, {"id", tag},
-                                                {"server", QJsonObject{{"final", finalUrl}, {"original", originalUrl}}}}).toJson(QJsonDocument::Compact) + '
-');
+                                                {"server", QJsonObject{{"final", finalUrl}, {"original", originalUrl}}}}).toJson(QJsonDocument::Compact) + '\n');
         QByteArray pending;
         QElapsedTimer elapsed;
         elapsed.start();
@@ -92,8 +89,7 @@ namespace Subscription {
             process.waitForReadyRead(100);
             pending += process.readAllStandardOutput();
             qsizetype end;
-            while ((end = pending.indexOf('
-')) >= 0) {
+            while ((end = pending.indexOf('\n')) >= 0) {
                 const auto type = QJsonDocument::fromJson(pending.left(end)).object()["type"];
                 pending.remove(0, end + 1);
                 if (type == "result") opened = true;

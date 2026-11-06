@@ -58,7 +58,6 @@ namespace Configs {
             {"dns_optimistic_164_migrated", &dns_optimistic_164_migrated},
             {"test_defaults_182_migrated", &test_defaults_182_migrated},
             {"test_url_https_199_migrated", &test_url_https_199_migrated},
-            {"vk_hash_selection", &vk_hash_selection},
             {"vk_relay_linked", &vk_relay_linked},
             {"disable_tray",                  &disable_tray},
             {"random_inbound_port",           &random_inbound_port},
@@ -181,6 +180,7 @@ namespace Configs {
         };
 
         stringMap = {
+            {"vk_hash_selection", &vk_hash_selection},
             {"qwdtt_hash_source", &qwdtt_hash_source},
             {"relay_device_id", &relay_device_id},
             {"user_agent2",                &user_agent},
