@@ -10,6 +10,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/zalando/go-keyring"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -246,6 +247,14 @@ func oauthToken(raw, state string) (account, bool) {
 type devTools struct {
 	conn *websocket.Conn
 	id   int
+	// A browser that has just started on a slow machine can take this long to answer one command.
+	wait time.Duration
+}
+
+// A timed-out websocket read poisons the connection, so the caller has to open a new one.
+func devToolsTimeout(e error) bool {
+	var failure net.Error
+	return errors.As(e, &failure) && failure.Timeout()
 }
 type browserTab struct {
 	Type      string `json:"type"`
@@ -267,6 +276,7 @@ func browserTabs(client *http.Client, endpoint string) ([]browserTab, error) {
 func (c *devTools) call(method string, params any) (json.RawMessage, error) {
 	c.id++
 	id := c.id
+	_ = c.conn.SetReadDeadline(time.Now().Add(c.wait))
 	if e := c.conn.WriteJSON(map[string]any{"id": id, "method": method, "params": params}); e != nil {
 		return nil, e
 	}
@@ -370,7 +380,7 @@ func (p *protocol) login(r Request) error {
 	defer func() { _ = command.Process.Kill(); _ = command.Wait() }()
 	p.emit("progress", "Войдите в VK в открывшемся окне", nil)
 	var endpoint string
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 300; i++ {
 		if b, e := os.ReadFile(filepath.Join(dir, "DevToolsActivePort")); e == nil {
 			lines := strings.Split(string(b), "\n")
 			if len(lines) > 1 {
@@ -383,7 +393,7 @@ func (p *protocol) login(r Request) error {
 	if endpoint == "" {
 		return fmt.Errorf("Не удалось подключиться к окну VK")
 	}
-	httpClient := &http.Client{Timeout: 5 * time.Second}
+	httpClient := &http.Client{Timeout: 20 * time.Second}
 	tabs, e := browserTabs(httpClient, endpoint)
 	if e != nil {
 		return e
@@ -403,9 +413,8 @@ func (p *protocol) login(r Request) error {
 		return e
 	}
 	defer conn.Close()
-	c := devTools{conn: conn}
+	c := devTools{conn: conn, wait: 20 * time.Second}
 	defer func() { _ = c.conn.Close() }()
-	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 	_, _ = c.call("Network.enable", map[string]any{})
 	_, _ = c.call("Network.setExtraHTTPHeaders", map[string]any{"headers": map[string]string{"Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"}})
 	var restored []map[string]any
@@ -432,7 +441,7 @@ func (p *protocol) login(r Request) error {
 		return e
 	}
 	defer func() {
-		_ = c.conn.SetReadDeadline(time.Now().Add(time.Second))
+		c.wait = time.Second
 		_, _ = c.call("Browser.close", map[string]any{})
 	}()
 	var saved account
@@ -454,12 +463,13 @@ func (p *protocol) login(r Request) error {
 				break
 			}
 		}
-		_ = c.conn.SetReadDeadline(time.Now().Add(5 * time.Second))
 		location, e := c.evaluate("location.href")
 		if e != nil {
+			busy := devToolsTimeout(e)
 			pages, _ := browserTabs(httpClient, endpoint)
 			for _, page := range pages {
-				if page.Type != "page" || page.WebSocket == ws || !trustedVK(page.URL) {
+				// A page too busy to answer is still open: only a closed one means the user left.
+				if page.Type != "page" || (page.WebSocket == ws && !busy) || (page.WebSocket != ws && !trustedVK(page.URL)) {
 					continue
 				}
 				next, _, err := websocket.DefaultDialer.DialContext(ctx, page.WebSocket, nil)
