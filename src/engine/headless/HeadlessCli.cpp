@@ -228,7 +228,7 @@ namespace Engine::HeadlessCli {
 
 #ifdef Q_OS_WIN
         parser.addOption({{kDataDir, "appdata"},
-                          "Data directory (THRONE_DATA_DIR). Default: %ProgramData%\\Rawline with --service or as LocalSystem, "
+                          "Data directory (THRONE_DATA_DIR). Default: %ProgramData%\\Throne with --service or as LocalSystem, "
                           "else the per-user configuration directory (%LOCALAPPDATA%\\Rawline). A portable desktop install keeps "
                           "its data next to the program: pass --data-dir <program directory> to share it.",
                           "DIR"});
@@ -280,7 +280,7 @@ namespace Engine::HeadlessCli {
         // Registered everywhere so that Parse can name the platform instead of reporting an unknown option.
         QCommandLineOption service(kService,
                                    "Run as a Windows service, started by the Service Control Manager (install-service.bat); started "
-                                   "any other way it exits 64. The data directory defaults to %ProgramData%\\Rawline, and a restart "
+                                   "any other way it exits 64. The data directory defaults to %ProgramData%\\Throne, and a restart "
                                    "request exits 75 for the service's recovery actions.");
 #ifndef Q_OS_WIN
         service.setFlags(QCommandLineOption::HiddenFromHelp);

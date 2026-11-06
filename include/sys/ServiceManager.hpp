@@ -9,7 +9,7 @@
 // The Notify* calls map to sd_notify on Linux and to SetServiceStatus under the SCM (--service); no-ops otherwise.
 namespace Sys::ServiceManager {
     // A copy without NOTIFY_SOCKET, WATCHDOG_USEC, WATCHDOG_PID, LISTEN_PID, LISTEN_FDS, LISTEN_FDNAMES, CREDENTIALS_DIRECTORY
-    // and every RAWLINE_* variable except the ones the core reads (THRONE_CORE_SOCKET, THRONE_CORE_DEBUG, THRONE_GUARD).
+    // and every THRONE_* variable except the ones the core reads (THRONE_CORE_SOCKET, THRONE_CORE_DEBUG, THRONE_GUARD).
     // Never touches this process's own environment: an exec restart needs it.
     QProcessEnvironment ChildEnvironment(QProcessEnvironment env = QProcessEnvironment::systemEnvironment());
 
@@ -48,7 +48,7 @@ namespace Sys::ServiceManager {
     // Windows: the process runs as LocalSystem; false elsewhere.
     bool RunningAsLocalSystem();
 
-    // Windows with service or LocalSystem: %ProgramData%\Rawline; empty otherwise (the caller's default chain goes on).
+    // Windows with service or LocalSystem: %ProgramData%\Throne; empty otherwise (the caller's default chain goes on).
     QString SystemDataDir(bool service);
 
     // Windows, for the SystemDataDir default only: a new dir gets the protected DACL O:SYG:SYD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA);

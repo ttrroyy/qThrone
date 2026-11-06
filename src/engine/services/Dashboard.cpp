@@ -54,7 +54,7 @@ namespace Engine::Dashboard {
         if (!src.open(QIODevice::ReadOnly)) return;
         const auto data = src.readAll();
         src.close();
-        if (auto dest = QFile(dashDir.filePath("rawline.html")); dest.open(QIODevice::Truncate | QIODevice::WriteOnly)) {
+        if (auto dest = QFile(dashDir.filePath("throne.html")); dest.open(QIODevice::Truncate | QIODevice::WriteOnly)) {
             dest.write(data);
             dest.close();
         }

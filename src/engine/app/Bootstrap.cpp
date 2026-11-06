@@ -47,7 +47,7 @@
 #include <libproc.h>
 #endif
 
-#define LOCAL_SERVER_PREFIX "rawline-"
+#define LOCAL_SERVER_PREFIX "qthrone-"
 
 namespace Engine::Bootstrap {
     namespace {

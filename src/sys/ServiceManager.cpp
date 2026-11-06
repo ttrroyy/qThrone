@@ -25,7 +25,7 @@ namespace Sys::ServiceManager {
             "NOTIFY_SOCKET", "WATCHDOG_USEC", "WATCHDOG_PID", "LISTEN_PID", "LISTEN_FDS", "LISTEN_FDNAMES", "CREDENTIALS_DIRECTORY",
         };
 
-        // The only RAWLINE_* variables the core reads (core/main.go, core/internal/guard).
+        // The only THRONE_* variables the core reads (core/main.go, core/internal/guard).
         constexpr const char *kServiceManagerCoreVars[] = {"THRONE_CORE_SOCKET", "THRONE_CORE_DEBUG", "THRONE_GUARD"};
 
 #ifdef Q_OS_WIN
@@ -45,7 +45,7 @@ namespace Sys::ServiceManager {
     QProcessEnvironment ChildEnvironment(QProcessEnvironment env) {
         for (const char *name : kServiceManagerManagerVars) env.remove(QString::fromLatin1(name));
         for (const auto &name : env.keys()) {
-            if (name.startsWith(QLatin1String("RAWLINE_"), kServiceManagerEnvCase) && !serviceManagerCoreVar(name)) env.remove(name);
+            if (name.startsWith(QLatin1String("THRONE_"), kServiceManagerEnvCase) && !serviceManagerCoreVar(name)) env.remove(name);
         }
         return env;
     }
