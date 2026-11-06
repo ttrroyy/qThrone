@@ -73,6 +73,16 @@ func trustedVK(raw string) bool {
 var locationPattern = regexp.MustCompile(`location\.href\s*=\s*["']([^"']+)["']`)
 var grantPattern = regexp.MustCompile(`https://login\.vk\.(?:com|ru)/\?act=grant_access[^"'\s<]+`)
 
+func withCookie(header, name, value string) string {
+	var kept []string
+	for _, part := range strings.Split(header, "; ") {
+		if part != "" && !strings.HasPrefix(part, name+"=") {
+			kept = append(kept, part)
+		}
+	}
+	return strings.Join(append(kept, name+"="+value), "; ")
+}
+
 func refreshToken(ctx context.Context, a *account) error {
 	cookies := vkCookieHeader(a.Cookies)
 	if cookies == "" {
@@ -99,6 +109,10 @@ func refreshToken(ctx context.Context, a *account) error {
 		response, e := client.Do(request)
 		if e != nil {
 			return fmt.Errorf("Подтвердите вход VK повторно")
+		}
+		// VK sets cookies along its redirects; without them the chain ends at a login form.
+		for _, cookie := range response.Cookies() {
+			cookies = withCookie(cookies, cookie.Name, cookie.Value)
 		}
 		body, e := io.ReadAll(io.LimitReader(response.Body, 2*1024*1024))
 		response.Body.Close()
@@ -718,7 +732,7 @@ func (p *protocol) hashes(r Request) error {
 		if e = saveAccount(a); e != nil {
 			return e
 		}
-		p.emit("progress", fmt.Sprintf("Создано хешей: %d/%d", len(a.Hashes), r.Count), nil)
+		p.emit("progress", fmt.Sprintf("Создано хешей: %d/%d", len(a.Hashes), r.Count), map[string]any{"hashes": a.Hashes})
 	}
 	p.emit("result", "", a.Hashes[:r.Count])
 	return nil

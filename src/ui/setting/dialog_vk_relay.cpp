@@ -938,6 +938,11 @@ void ShowHashGenerator(QWidget *parent) {
         status->setText("Создание хешей…");
         task->start({{"operation", "vk-hashes"}, {"count", static_cast<int>(state->hashes.size()) + count}}, [=](const QJsonObject &event) {
             if (event["type"] == "progress" || event["type"] == "error") status->setText(event["text"].toString());
+            if (event["type"] == "progress" && event["value"].toObject().contains("hashes")) {
+                state->hashes.clear();
+                for (const auto &hash : event["value"].toObject()["hashes"].toArray()) state->hashes << hash.toString();
+                (*rebuild)();
+            }
             if (event["type"] == "result") status->setText("Хеши созданы");
             if (event["type"] == "finished") reload();
         });
