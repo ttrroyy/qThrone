@@ -58,6 +58,7 @@ source script/build_openflux.sh
 source script/build_olcrtc.sh
 source script/build_dnstunnels.sh
 source script/build_wdttplus.sh
+source script/build_freeturn.sh
 pushd core
 pushd gen
 protoc -I . --go_out=. --go-grpc_out=. libcore.proto

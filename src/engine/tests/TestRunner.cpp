@@ -51,7 +51,7 @@ namespace {
 
     bool testRunnerUsesVkCalls(const QString& nativeConfig) {
         const auto backend = QJsonDocument::fromJson(nativeConfig.toUtf8()).object().value("backend").toString();
-        return backend.isEmpty() || backend == "csqtt" || backend == "wdttplus";
+        return backend.isEmpty() || backend == "csqtt" || backend == "wdttplus" || backend == "freeturn";
     }
 
     // The core runs a native probe once its turn comes, with budgets of its own; Stop still ends it at once.

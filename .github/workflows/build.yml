@@ -203,7 +203,7 @@ jobs:
         uses: actions/cache@v6.1.0
         with:
           path: artifacts.tgz
-          key: CommonCache-${{ matrix.cross_os }}-${{ matrix.cross_arch }}-${{ hashFiles('script/build_go.sh', 'script/build_openflux.sh', 'script/openflux/**', 'script/build_olcrtc.sh', 'script/olcrtc/**', 'script/build_dnstunnels.sh', 'script/openfluxkey/**', 'script/build_wdttplus.sh', 'script/tune_wdttplus_netstack.py', 'script/dnstun/**', 'script/masterdns/**', 'script/cottendns/**', 'script/soar/**',  'script/s3bypass/**', 'script/fetch_pinned_source.py', 'transport-sources.lock.json', 'core/**', 'qwdtt/**', 'sstp/**') }}-${{ matrix.go_version }}
+          key: CommonCache-${{ matrix.cross_os }}-${{ matrix.cross_arch }}-${{ hashFiles('freeturn/*.go', 'script/build_freeturn.sh', 'script/build_go.sh', 'script/build_openflux.sh', 'script/openflux/**', 'script/build_olcrtc.sh', 'script/olcrtc/**', 'script/build_dnstunnels.sh', 'script/openfluxkey/**', 'script/build_wdttplus.sh', 'script/tune_wdttplus_netstack.py', 'script/dnstun/**', 'script/masterdns/**', 'script/cottendns/**', 'script/soar/**',  'script/s3bypass/**', 'script/fetch_pinned_source.py', 'transport-sources.lock.json', 'core/**', 'qwdtt/**', 'sstp/**') }}-${{ matrix.go_version }}
       - name: Install Golang
         if: steps.cache-common.outputs.cache-hit != 'true'
         uses: actions/setup-go@v7.0.0
@@ -633,7 +633,7 @@ jobs:
           pacman -U --noconfirm ./*.pkg.tar.zst
           namcap ./*.pkg.tar.zst > namcap.log
           desktop-file-validate /usr/share/applications/Rawline.desktop
-          for binary in Rawline RawlineCore RawlineUpdater qwdtt olcrtc openflux openfluxkey csqtt-transport csqtt-compat dnstun masterdns cottendns soar s3bypass  slipstream-client wdttplus-client sstp-client; do
+          for binary in Rawline RawlineCore RawlineUpdater qwdtt freeturn-client olcrtc openflux openfluxkey csqtt-transport csqtt-compat dnstun masterdns cottendns soar s3bypass  slipstream-client wdttplus-client sstp-client; do
             ldd "/usr/lib/rawline/$binary" >> dependencies.log 2>&1 || true
           done
           find /usr/lib/rawline/usr/plugins -name '*.so' -exec ldd '{}' \; >> dependencies.log 2>&1

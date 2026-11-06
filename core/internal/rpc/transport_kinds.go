@@ -24,6 +24,7 @@ var transportKinds = map[string]transportKind{
 	"csqtt": {executable: "qwdtt", flag: "-csqtt-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
 	// WDTT Plus runs its own client behind the qwdtt helper, which answers its captcha.
 	"wdttplus": {executable: "qwdtt", flag: "-wdttplus-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
+	"freeturn": {executable: "freeturn-client", flag: "--rawline-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute, quiet: true},
 	"openflux": {executable: "openflux", flag: "--rawline-config", probeStartup: 15 * time.Second, connectStartup: 2 * time.Minute, quiet: true},
 	"olcrtc":   {executable: "olcrtc", flag: "--rawline-config", probeStartup: 30 * time.Second, connectStartup: 2 * time.Minute, quiet: true},
 	// DNS tunnels measure MTU and handshake query by query; S3 Bypass waits for the bucket.
@@ -38,4 +39,4 @@ var transportKinds = map[string]transportKind{
 }
 
 // tunnelHelpers are the bundled executables that may run as routed transports.
-var tunnelHelpers = map[string]bool{"qwdtt": true, "openflux": true, "openfluxkey": true, "olcrtc": true, "dnstun": true, "masterdns": true, "cottendns": true, "soar": true, "s3bypass": true, "sstp-client": true}
+var tunnelHelpers = map[string]bool{"qwdtt": true, "openflux": true, "openfluxkey": true, "olcrtc": true, "dnstun": true, "masterdns": true, "cottendns": true, "soar": true, "s3bypass": true, "sstp-client": true, "freeturn-client": true}

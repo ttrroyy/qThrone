@@ -33,6 +33,7 @@ for name in dnstun VayDNS-LICENSE VayDNS-SOURCE vaydns-source.tar.gz masterdns M
     openfluxkey OpenFluxKey-LICENSE OpenFluxKey-SOURCE openfluxkey-source.tar.gz \
     s3bypass Xray-fedarisha-LICENSE Xray-fedarisha-SOURCE fedarisha-source.tar.gz slipstream-client Slipstream-LICENSE Slipstream-SOURCE slipstream-source.tar.gz \
     wdttplus-client WDTT-Plus-LICENSE WDTT-Plus-SOURCE wdttplus-source.tar.gz \
+    freeturn-client FreeTurn-LICENSE FreeTurn-SOURCE freeturn-source.tar.gz \
     sstp-client SSTP-LICENSE SSTP-SOURCE sstp-source.tar.gz; do
     cp deployment/${DEST_SUFFIX%-system-qt}/$name $DEST
 done

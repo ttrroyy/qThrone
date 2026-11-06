@@ -284,7 +284,7 @@ Keywords=proxy;vpn;network;privacy;
             install(tmpdir / "Version", APPDIR / "Version", 0o644)
 
             y = message(scr, y, f"Installing binaries to {APPDIR}")
-            for name in ("RawlineCore", "Rawline", "qwdtt", "csqtt-transport", "csqtt-compat", "openflux", "openfluxkey", "olcrtc", "dnstun", "masterdns", "cottendns", "soar", "s3bypass", "slipstream-client", "wdttplus-client", "RawlineUpdater"):
+            for name in ("RawlineCore", "Rawline", "qwdtt", "freeturn-client", "csqtt-transport", "csqtt-compat", "openflux", "openfluxkey", "olcrtc", "dnstun", "masterdns", "cottendns", "soar", "s3bypass", "slipstream-client", "wdttplus-client", "RawlineUpdater"):
                 install(tmpdir / "Rawline" / name, APPDIR / name, 0o755)
             usr_src = tmpdir / "Rawline/usr"
             for f in usr_src.rglob("*"):

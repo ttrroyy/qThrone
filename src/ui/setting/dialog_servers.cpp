@@ -810,6 +810,63 @@ public:
 bool installed(const QJsonObject &server) { return !server["config"].toString().isEmpty(); }
 }
 
+// The clients of a deployed FreeTurn server, as its app lists them: each has its own link and WireGuard peer.
+class FreeturnClients : public ServerScreen {
+    QListWidget *list;
+    QJsonObject serverValue;
+    QHash<QListWidgetItem *, bool> owners;
+
+    void call(const QString &action, const QString &name, const std::function<void(const QJsonObject &)> &done) {
+        task->start({{"operation", "freeturn-admin"}, {"server", serverValue},
+            {"value", QString::fromUtf8(QJsonDocument(QJsonObject{{"action", action}, {"name", name}}).toJson(QJsonDocument::Compact))}},
+            [this, done](const QJsonObject &event) {
+                if (event["type"] == "result") done(event["value"].toObject());
+                if (event["type"] == "error") QMessageBox::warning(this, windowTitle(), event["text"].toString());
+            });
+    }
+    void reload() {
+        call("list", {}, [this](const QJsonObject &value) {
+            list->clear(); owners.clear();
+            for (const auto &entry : value["clients"].toArray()) {
+                const auto client = entry.toObject();
+                auto *item = new QListWidgetItem(client["name"].toString() + (client["ip"].toString().isEmpty() ? QString() : " · " + client["ip"].toString()), list);
+                item->setData(Qt::UserRole, client["name"].toString());
+                owners[item] = client["self"].toBool();
+            }
+        });
+    }
+    void open(QListWidgetItem *item) {
+        const auto name = item->data(Qt::UserRole).toString();
+        const bool owner = owners.value(item);
+        call("show", name, [this, name, owner](const QJsonObject &value) {
+            QMessageBox box(this);
+            box.setWindowTitle(name);
+            box.setText(value["link"].toString());
+            box.setTextInteractionFlags(Qt::TextSelectableByMouse);
+            auto *copy = box.addButton(QStringLiteral("Копировать ссылку"), QMessageBox::ActionRole);
+            auto *remove = owner ? nullptr : box.addButton(QStringLiteral("Удалить"), QMessageBox::DestructiveRole);
+            box.addButton(QMessageBox::Close);
+            box.exec();
+            if (box.clickedButton() == copy) QApplication::clipboard()->setText(value["link"].toString());
+            if (remove && box.clickedButton() == remove) call("remove", name, [this](const QJsonObject &) { reload(); });
+        });
+    }
+public:
+    FreeturnClients(QWidget *parent, const QJsonObject &value) : ServerScreen(parent, value, QStringLiteral("Клиенты FreeTurn")), serverValue(value) {
+        auto *body = new QVBoxLayout(this);
+        list = new QListWidget(this);
+        auto *add = new QPushButton(QStringLiteral("Добавить клиента"), this);
+        body->addWidget(add);
+        body->addWidget(list);
+        connect(list, &QListWidget::itemActivated, this, [this](QListWidgetItem *item) { open(item); });
+        connect(add, &QPushButton::clicked, this, [this] {
+            const auto name = QInputDialog::getText(this, windowTitle(), QStringLiteral("Имя клиента")).trimmed();
+            if (!name.isEmpty()) call("add", name, [this](const QJsonObject &) { reload(); });
+        });
+        reload();
+    }
+};
+
 void OpenServerMenu(QWidget *parent, const std::function<QJsonObject()> &current, const std::function<void()> &editor) {
     const auto server = current();
     const auto kind = server["kind"].toString();
@@ -846,6 +903,11 @@ void OpenServerMenu(QWidget *parent, const std::function<QJsonObject()> &current
             url.setHost(s["host"].toString());
             url.setPort(s["webPort"].toString().toInt());
             QDesktopServices::openUrl(url);
+        });
+    } else if (kind == "freeturn") {
+        entry(QStringLiteral("Клиенты"), QStringLiteral("Ссылки и WireGuard для каждого устройства"), [=] {
+            const auto s = current();
+            needsInstall(installed(s) && !s["hostKey"].toString().isEmpty(), [=] { (new FreeturnClients(parent, s))->show(); });
         });
     } else if (kind == "wdttplus") {
         const auto available = [](const QJsonObject &s) { return installed(s) && !s["hostKey"].toString().isEmpty() && !s["password"].toString().isEmpty(); };

@@ -54,6 +54,9 @@ func port(s map[string]string, key string) (string, error) {
 	return strconv.Itoa(n), nil
 }
 func validateServer(s map[string]string, install bool) error {
+	if s["kind"] == "freeturn" {
+		return validateFreeturn(s, install)
+	}
 	if s["kind"] != "qwdtt" && s["kind"] != "csqtt" && s["kind"] != "wdttplus" {
 		return fmt.Errorf("Неизвестный протокол")
 	}
@@ -187,6 +190,9 @@ func (p *protocol) deploy(r Request) error {
 	machine = strings.TrimSpace(machine)
 	if s["kind"] == "wdttplus" {
 		return p.deployWdttPlus(client, s, install, machine, exec)
+	}
+	if s["kind"] == "freeturn" {
+		return p.deployFreeturn(client, s, install)
 	}
 	binary := "assets/server"
 	if s["kind"] == "qwdtt" && machine != "x86_64" && install {

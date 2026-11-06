@@ -51,7 +51,7 @@ namespace {
 // Like the original app, a deployment's qWDTT link names no tunnel mode: the client's
 // default (WG) applies. Links stored by earlier versions said RAW; they read the same now.
 QString kindTitle(const QString &kind) {
-    return kind == "qwdtt" ? QStringLiteral("qWDTT") : kind == "csqtt" ? QStringLiteral("CSQTT") : QStringLiteral("WDTT Plus");
+    return kind == "qwdtt" ? QStringLiteral("qWDTT") : kind == "csqtt" ? QStringLiteral("CSQTT") : kind == "freeturn" ? QStringLiteral("FreeTurn") : QStringLiteral("WDTT Plus");
 }
 QString normalizedRelayLink(QString link) {
     if (link.startsWith("csqtt://connect?", Qt::CaseInsensitive)) {
@@ -324,7 +324,11 @@ QJsonObject freshServer(const QString &kind) {
             {"auth", "password"},
             {"sshPort", "22"},
             {"peerPort", kind == "csqtt" ? "46000" : "56000"},
-            {"wgPort", "56001"},
+            {"wgPort", kind == "freeturn" ? "51820" : "56001"},
+            {"ftMethod", "docker"},
+            {"ftBackend", "new"},
+            {"ftMode", "udp"},
+            {"ftObf", "rtpopus3"},
             {"localPort", "9000"},
             {"dns", ""},
             {"directPort", "56002"},
@@ -345,6 +349,7 @@ class ServerEditor : public QDialog {
     QJsonObject savedState;
     QMap<QString, QLineEdit *> fields;
     QComboBox *auth;
+    QMap<QString, QComboBox *> choices;
     QCheckBox *manual;
     QCheckBox *docker = nullptr;
     QPlainTextEdit *console;
@@ -424,6 +429,7 @@ class ServerEditor : public QDialog {
         server["manualPorts"] = manual->isChecked() ? "true" : "false";
         if (docker)
             server["docker"] = docker->isChecked() ? "true" : "false";
+        for (auto it = choices.cbegin(); it != choices.cend(); ++it) server[it.key()] = it.value()->currentData().toString();
     }
     void secrets() {
         QDialog dialog(this);
@@ -555,6 +561,8 @@ class ServerEditor : public QDialog {
         auto *secretsButton =
             new QPushButton(server["kind"] == "qwdtt" ? "Секреты (бот, пароли)" : server["kind"] == "wdttplus" ? "Главный пароль" : "Авторизация", body);
         secretsButton->setObjectName("relaySecrets");
+        // FreeTurn's installer generates its own keys: there is nothing to enter.
+        secretsButton->setVisible(server["kind"] != "freeturn");
         layout->addWidget(secretsButton);
         controls.append(secretsButton);
         connect(secretsButton, &QPushButton::clicked, this, [this] { secrets(); });
@@ -629,15 +637,43 @@ class ServerEditor : public QDialog {
             add("dns1", "DNS 1");
             add("dns2", "DNS 2");
         }
+        if (server["kind"] == "freeturn") {
+            const auto choice = [&](const QString &key, const QString &label, const QList<QPair<QString, QString>> &items) {
+                auto *box = new QComboBox(group);
+                for (const auto &[value, title] : items) box->addItem(title, value);
+                box->setCurrentIndex(qMax(0, box->findData(server[key].toString())));
+                choices[key] = box;
+                form->addRow(label, box);
+                controls.append(box);
+                return box;
+            };
+            auto *backend = choice("ftBackend", "VPN на сервере", {{"new", "Новый WireGuard"}, {"external", "Уже установлен"}});
+            auto *connectAddress = add("ftConnect", "Адрес VPN на сервере (хост:порт)");
+            auto *mode = choice("ftMode", "Протокол VPN", {{"udp", "UDP: WireGuard"}, {"tcp", "TCP: Xray"}});
+            const auto externalVisibility = [=] {
+                const bool external = backend->currentData() == "external";
+                for (QWidget *widget : {static_cast<QWidget *>(connectAddress), static_cast<QWidget *>(mode)}) {
+                    widget->setVisible(external);
+                    form->labelForField(widget)->setVisible(external);
+                }
+            };
+            connect(backend, &QComboBox::currentIndexChanged, this, externalVisibility);
+            externalVisibility();
+            choice("ftMethod", "Запуск", {{"docker", "Docker"}, {"systemd", "systemd"}});
+            choice("ftObf", "Обфускация", {{"rtpopus3", "rtpopus3"}, {"rtpopus2", "rtpopus2"}, {"none", "Нет"}});
+        }
         manual = new QCheckBox("Ручное управление портами", group);
         manual->setObjectName("relayManualPorts");
         manual->setChecked(server["manualPorts"] == "true");
         form->addRow(manual);
         QStringList ports{"peerPort"};
-        QStringList labels{server["kind"] == "csqtt" ? "Порт туннеля" : "Порт DTLS"};
+        QStringList labels{server["kind"] == "csqtt" || server["kind"] == "freeturn" ? "Порт туннеля" : "Порт DTLS"};
         if (server["kind"] == "qwdtt") {
             ports += {"wgPort", "directPort", "rawPort"};
             labels += {"Порт WireGuard", "Прямой порт", "Порт RAW"};
+        } else if (server["kind"] == "freeturn") {
+            ports.append("wgPort");
+            labels.append("Порт WireGuard");
         } else if (server["kind"] == "wdttplus") {
             ports += {"wgPort", "localPort"};
             labels += {"Порт WG", "Локальный порт"};
@@ -1256,7 +1292,7 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
             return;
         }
     };
-    for (const auto &kind : {QString("qwdtt"), QString("csqtt"), QString("wdttplus")}) {
+    for (const auto &kind : {QString("qwdtt"), QString("csqtt"), QString("wdttplus"), QString("freeturn")}) {
         auto *page = new QWidget(tabs);
         page->setEnabled(false);
         pages->append(page);

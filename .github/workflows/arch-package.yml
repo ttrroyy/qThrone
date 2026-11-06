@@ -31,7 +31,7 @@ jobs:
       - name: Check runtime and graphical launch
         run: |
           cd aur/rawline-bin
-          for binary in Rawline RawlineCore RawlineUpdater qwdtt olcrtc openflux openfluxkey csqtt-transport csqtt-compat dnstun masterdns cottendns soar s3bypass  slipstream-client wdttplus-client; do
+          for binary in Rawline RawlineCore RawlineUpdater qwdtt freeturn-client olcrtc openflux openfluxkey csqtt-transport csqtt-compat dnstun masterdns cottendns soar s3bypass  slipstream-client wdttplus-client; do
             ldd "/usr/lib/rawline/$binary" >> dependencies.log 2>&1 || true
           done
           find /usr/lib/rawline/usr/plugins -name '*.so' -exec ldd '{}' \; >> dependencies.log 2>&1

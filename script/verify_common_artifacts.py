@@ -134,8 +134,8 @@ def main():
         raise RuntimeError("Invalid source commit")
     subprocess.run(["git", "fetch", "origin", sha, "--depth=1"], check=True)
     changed = git("diff", "--name-only", sha, "HEAD").splitlines()
-    protected = ("core/", "qwdtt/", "sstp/", "updater/", "3rdparty/", "script/openflux/", "script/openfluxkey/", "script/olcrtc/", "script/dnstun/", "script/masterdns/", "script/s3bypass/")
-    exact = {"script/build_go.sh", "script/build_openflux.sh", "script/build_olcrtc.sh", "script/build_dnstunnels.sh", "script/build_wdttplus.sh", "script/tune_wdttplus_netstack.py", "script/fetch_pinned_source.py", "transport-sources.lock.json", ".gitmodules", ".gitattributes", ".github/workflows/qwdtt-tests.yml"}
+    protected = ("core/", "qwdtt/", "sstp/", "freeturn/", "updater/", "3rdparty/", "script/openflux/", "script/openfluxkey/", "script/olcrtc/", "script/dnstun/", "script/masterdns/", "script/s3bypass/")
+    exact = {"script/build_go.sh", "script/build_freeturn.sh", "script/build_openflux.sh", "script/build_olcrtc.sh", "script/build_dnstunnels.sh", "script/build_wdttplus.sh", "script/tune_wdttplus_netstack.py", "script/fetch_pinned_source.py", "transport-sources.lock.json", ".gitmodules", ".gitattributes", ".github/workflows/qwdtt-tests.yml"}
     if any(path.startswith(protected) or path in exact for path in changed):
         raise RuntimeError("Go sources or build inputs changed; rebuild them first")
     if "version.json" in changed:

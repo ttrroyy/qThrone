@@ -174,6 +174,7 @@ namespace Subscription {
             {"soar", {}, {"soar"}, {}},
             {"s3bypass", {}, {"s3bypass"}, {}},
             {"sstp", {"sstp://"}, {"sstp"}, {}},
+            {"freeturn", {"freeturn://"}, {"freeturn"}, {}},
             {"socks", {"socks5://", "socks4://", "socks4a://", "socks://"}, {"socks"}, {"socks5"}},
             {"http", {"http://", "https://"}, {"http"}, {"http"}},
             {"shadowsocks", {"ss://"}, {"shadowsocks"}, {"ss"}},

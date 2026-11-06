@@ -116,7 +116,7 @@ func Run(input io.Reader, output io.Writer) (err error) {
 		}
 	case "deploy", "uninstall":
 		err = p.deploy(r)
-	case "qwdtt-admin", "wdttplus-admin", "wdttplus-backup-export", "wdttplus-exit":
+	case "qwdtt-admin", "wdttplus-admin", "wdttplus-backup-export", "wdttplus-exit", "freeturn-admin":
 		// Server management of a deployed server; SSH only with the host key remembered at deploy.
 		for _, k := range []string{"sshPassword", "key", "keyPassword", "sudoPassword", "password", "adminToken"} {
 			p.secrets = append(p.secrets, r.Server[k])
@@ -127,6 +127,8 @@ func Run(input io.Reader, output io.Writer) (err error) {
 			value, err = p.qwdttAdmin(r.Server, r.Value)
 		case "wdttplus-admin":
 			value, err = p.wdttPlusAdmin(r.Server, r.Value)
+		case "freeturn-admin":
+			value, err = p.freeturnAdmin(r.Server, r.Value)
 		case "wdttplus-exit":
 			value, err = p.wdttPlusExit(r.Server, r.Value)
 		default:
