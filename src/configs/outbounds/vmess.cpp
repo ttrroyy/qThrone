@@ -81,8 +81,8 @@ namespace Configs {
                     tls->cipher_suites = ImportTlsCipherSuites(splitCipherSuites(objN["cs"].toString()), "cs");
                 }
 
-                // throneExtra holds what the V2RayN schema cannot; the dummy authority only satisfies QUrl.
-                if (const auto extra = objN["throneExtra"].toString(); !extra.isEmpty()) {
+                // rawlineExtra (throneExtra in older links) holds what the V2RayN schema cannot; the dummy authority only satisfies QUrl.
+                if (const auto extra = objN.contains("rawlineExtra") ? objN["rawlineExtra"].toString() : objN["throneExtra"].toString(); !extra.isEmpty()) {
                     const QString extraLink = "vmess://x@127.0.0.1:1?" + extra;
                     transport->ParseFromLink(extraLink);
                     multiplex->ParseFromLink(extraLink);
@@ -195,7 +195,7 @@ namespace Configs {
         };
         if (!tls->cipher_suites.isEmpty()) object["cs"] = tls->cipher_suites.join(':');
         if (tls->insecure) object["allowInsecure"] = QStringLiteral("1");
-        if (!extra.isEmpty()) object["throneExtra"] = extra.toString(QUrl::FullyEncoded);
+        if (!extra.isEmpty()) object["rawlineExtra"] = extra.toString(QUrl::FullyEncoded);
         const auto payload = QJsonDocument(object).toJson(QJsonDocument::Compact).toBase64();
         return QStringLiteral("vmess://") + QString::fromLatin1(payload);
     }

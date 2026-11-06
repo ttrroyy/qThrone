@@ -204,7 +204,7 @@ namespace Configs {
         QString webdav_server = "";
         QString webdav_user = "";
         QString webdav_pass = "";
-        QString webdav_path = "Throne";
+        QString webdav_path = "Rawline";
         bool webdav_use_proxy = false;
         // Generated on first use; an empty name means the host name.
         QString device_id = "";

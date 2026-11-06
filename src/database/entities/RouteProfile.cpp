@@ -653,7 +653,7 @@ namespace Configs {
 
     QJsonObject RouteProfile::ToShareObject(QString* warnings) {
         QJsonObject root;
-        root["kind"] = "throne-route-profile";
+        root["kind"] = "rawline-route-profile";
         root["v"] = 1;
         root["name"] = name;
         if (const auto active = ActiveDns()) root["dns"] = active->ToJson();
@@ -753,7 +753,7 @@ namespace Configs {
 
         if (doc.isObject()) {
             const QJsonObject root = doc.object();
-            if (root.value("kind").toString() != QStringLiteral("throne-route-profile")) {
+            if (root.value("kind").toString() != QStringLiteral("rawline-route-profile") && root.value("kind").toString() != QStringLiteral("throne-route-profile")) {
                 fatalError->append("Unrecognized route object");
                 return nullptr;
             }

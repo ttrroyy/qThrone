@@ -20,13 +20,13 @@
 
 namespace Subscription::ProviderRouting {
 QString Source(const QJsonObject &document, const QString &fallback) {
-    return document.value("_qthrone_source").toString(fallback.isEmpty() ? "Happ" : fallback);
+    return document.value("_rawline_source").toString(document.value("_qthrone_source").toString(fallback.isEmpty() ? "Happ" : fallback));
 }
 QString Identity(const QJsonObject &document, const QString &fallback) {
     return Source(document, fallback) + QChar(0) + document.value("Name").toString();
 }
 bool SameSettings(QJsonObject a, QJsonObject b) {
-    for (const auto &key : {"Name", "LastUpdated", "_qthrone_source"}) { a.remove(key); b.remove(key); }
+    for (const auto &key : {"Name", "LastUpdated", "_rawline_source", "_qthrone_source"}) { a.remove(key); b.remove(key); }
     return a == b;
 }
 namespace {
@@ -261,9 +261,9 @@ void Apply(Configs::SubscriptionOptions &options, const QList<Command> &commands
     auto profiles = QJsonDocument::fromJson(options.provider_routing_profiles.toUtf8()).array();
     const QString fallback = options.routing_provider.isEmpty() ? "Happ" : options.routing_provider;
     auto selected = decode(options.provider_routing);
-    if (!selected.isEmpty()) selected["_qthrone_source"] = Source(selected, fallback);
+    if (!selected.isEmpty()) selected["_rawline_source"] = Source(selected, fallback);
     for (int i = 0; i < profiles.size(); ++i) {
-        auto doc = profiles[i].toObject(); doc["_qthrone_source"] = Source(doc, fallback); profiles[i] = doc;
+        auto doc = profiles[i].toObject(); doc["_rawline_source"] = Source(doc, fallback); profiles[i] = doc;
     }
     const bool firstImport = options.provider_routing.isEmpty();
     for (const auto &command : commands) {
@@ -272,7 +272,7 @@ void Apply(Configs::SubscriptionOptions &options, const QList<Command> &commands
             continue;
         }
         auto doc = command.document;
-        doc["_qthrone_source"] = command.provider;
+        doc["_rawline_source"] = command.provider;
         const auto name = doc.value("Name").toString();
         int index = -1;
         for (int i = 0; i < profiles.size(); ++i)

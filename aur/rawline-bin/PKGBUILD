@@ -15,7 +15,7 @@ options=('!strip' '!debug')
 source=('rawline' 'Rawline.desktop')
 source_x86_64=("Rawline-${pkgver}-linux-amd64.zip::${url}/releases/download/v${pkgver}/Rawline-${pkgver}-linux-amd64.zip")
 source_aarch64=("Rawline-${pkgver}-linux-arm64.zip::${url}/releases/download/v${pkgver}/Rawline-${pkgver}-linux-arm64.zip")
-sha256sums=('b79909d2f6e281f4a6ef4306a3ad94f9c8b42a97f3d2004592c85d521c614d79' 'ce20612f5cef7613f3c7b98eb6d17ccb9d2bc1b581e5f269ca9b6b2efecaa42c')
+sha256sums=('27bfcaecb0f35ebf2cca0cbeba34a5a063016b343dbf7dafef1b5fd7a032c5de' 'c5149c89463f24540f0af34cd150999309f98f6b2c97bc07d8cd47665a32d00d')
 sha256sums_x86_64=('53f5de8038f4a400e19a2bc537710bc771f7047532966e4dcdee9380edd08a15')
 sha256sums_aarch64=('2a68309b43216493102756aece282c994b3d93a5fd3daf7941c6427b43fe647f')
 

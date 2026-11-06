@@ -43,7 +43,7 @@ namespace Engine::WebDavBackup {
         constexpr int kWebDavIndexRounds = 4;
         constexpr int kWebDavMaxRedirects = 5;
         constexpr int kWebDavIndexFormat = 1;
-        constexpr char kWebDavIndexName[] = "throne_backups.json";
+        constexpr char kWebDavIndexName[] = "rawline_backups.json";
         constexpr char kWebDavDefaultFolder[] = "Rawline";
         constexpr char kWebDavPropfindBody[] =
             R"(<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/><d:getlastmodified/><d:getetag/></d:prop></d:propfind>)";
