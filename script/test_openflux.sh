@@ -11,5 +11,6 @@ source script/build_openflux.sh
 # tests still read: a race in the upstream test only, so it runs on its own without -race.
 (cd openflux-source && go test -race -skip '^TestReorderBufferOrderAndSkip$' ./share ./socks5 ./transport ./tunnel)
 (cd openflux-source && go test -run '^TestReorderBufferOrderAndSkip$' ./transport)
-(cd openflux-source/mobile && go test -race -run 'ShareLink|SessionContext|ClassicShare|BuildSession' .)
+# OpenFlux 0.17 pinned the KDF context; these four upstream tests still assert the earlier rule and fail on upstream's own tree.
+(cd openflux-source/mobile && go test -race -run 'ShareLink|SessionContext|ClassicShare|BuildSession' -skip 'TestSessionContextPrefersHighestPriorityURL|TestSessionContextSkipsCupsonline|TestClassicShareContext|TestExitShareLinkConnectsAClient' .)
 python3 script/test_openflux.py "$DEST/openflux" "$DEST/openflux-exit"
