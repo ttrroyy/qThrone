@@ -10038,6 +10038,10 @@ How to update?</source>
         <translation>Запрос подписки: %1</translation>
     </message>
     <message>
+        <source>Could not decrypt the subscription response.</source>
+        <translation>Не удалось расшифровать ответ подписки.</translation>
+    </message>
+    <message>
         <source>Requesting subscription %1 error: %2</source>
         <translation>Ошибка запроса подписки %1: %2</translation>
     </message>

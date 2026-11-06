@@ -141,6 +141,10 @@ func Run(input io.Reader, output io.Writer) (err error) {
 		if err == nil {
 			p.emit("result", "", decrypted)
 		}
+	case "provider-response":
+		if err = decryptProviderResponse(r.Value, r.ID, r.Server["final"], r.Server["original"]); err == nil {
+			p.emit("result", "", true)
+		}
 	case "vk-login":
 		err = p.login(r)
 	case "vk-hashes":

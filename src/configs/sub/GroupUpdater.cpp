@@ -900,6 +900,13 @@ namespace Subscription {
             return false;
         }
         body = std::move(resp.data);
+        if (const auto tag = NetworkRequestHelper::GetHeader(resp.header, "Encrypt-Tag"); !tag.isEmpty() &&
+            !DecryptProviderResponse(body, tag, resp.finalUrl, target)) {
+            const auto reason = QObject::tr("Could not decrypt the subscription response.");
+            MW_show_log("<<<<<<<< " + QObject::tr("Requesting subscription %1 error: %2").arg(name, reason));
+            if (error != nullptr) *error = reason;
+            return false;
+        }
         if (routing) *routing = NetworkRequestHelper::GetHeader(resp.header, "routing");
 
         const QString userInfoHeader = NetworkRequestHelper::GetHeader(resp.header, "Subscription-UserInfo");

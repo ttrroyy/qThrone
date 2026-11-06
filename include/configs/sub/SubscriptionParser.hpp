@@ -12,6 +12,8 @@
 
 namespace Subscription {
     QString UnwrapProviderLink(const QString &text);
+    // Happ's encrypted response: replaces [body] with its text, false when it does not open.
+    bool DecryptProviderResponse(QByteArray &body, const QString &tag, const QString &finalUrl, const QString &originalUrl);
     QStringList CsqttSubscriptionLinks(const QByteArray &body);
     // One per parsed item that was refused or carries issues. `source` must never be the raw link (it holds secrets).
     struct ParseReport {

@@ -3,6 +3,7 @@ package relay
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -42,6 +43,45 @@ func TestDecryptProviderLinkVectors(t *testing.T) {
 		if out["content"] != strings.TrimSpace(vector.Text) {
 			t.Errorf("%s: wrong text", vector.Name)
 		}
+	}
+}
+
+func TestDecryptProviderResponseVectors(t *testing.T) {
+	data, err := os.ReadFile("testdata/provider_vectors.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var vectors struct {
+		Responses []struct{ Key, Body, Tag, Text string } `json:"responses"`
+	}
+	if err = json.Unmarshal(data, &vectors); err != nil {
+		t.Fatal(err)
+	}
+	if len(vectors.Responses) != 90 {
+		t.Fatalf("%d vectors", len(vectors.Responses))
+	}
+	path := filepath.Join(t.TempDir(), "body")
+	for i, vector := range vectors.Responses {
+		if err = os.WriteFile(path, []byte(vector.Body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		// Every other one finds its key only in the address before the redirect.
+		final, original := "https://sub.example.test/?key="+vector.Key, "https://sub.example.test/"
+		if i%2 == 1 {
+			final, original = original, final
+		}
+		if err = decryptProviderResponse(path, vector.Tag, final, original); err != nil {
+			t.Fatalf("%s: %v", vector.Key, err)
+		}
+		if clear, _ := os.ReadFile(path); string(clear) != vector.Text {
+			t.Errorf("%s: wrong text", vector.Key)
+		}
+	}
+	if err = os.WriteFile(path, []byte(vectors.Responses[0].Body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if decryptProviderResponse(path, vectors.Responses[1].Tag, "https://sub.example.test/?key="+vectors.Responses[0].Key, "") == nil {
+		t.Error("a wrong tag was accepted")
 	}
 }
 

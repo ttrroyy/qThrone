@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -25,6 +26,65 @@ import (
 var providerKeysJSON []byte
 
 var providerLink = regexp.MustCompile(`(?is)^(happ|incy)://(crypt[0-9]*)/(.*)$`)
+
+// decryptProviderResponse opens the Happ response layer in place: base64 ciphertext in [path], a detached base64
+// Encrypt-Tag, ?key=key01..key90 in the final address or, when a redirect dropped it, the original one.
+func decryptProviderResponse(path, tag, finalURL, originalURL string) error {
+	failed := errors.New("Не удалось расшифровать ответ подписки")
+	var keys struct {
+		Response map[string]string `json:"happResponse"`
+	}
+	if json.Unmarshal(providerKeysJSON, &keys) != nil {
+		return failed
+	}
+	names := providerKeyNames(finalURL)
+	if len(names) == 0 {
+		names = providerKeyNames(originalURL)
+	}
+	if len(names) != 1 || len(tag) > 64 {
+		return failed
+	}
+	key, ok := keys.Response[names[0]]
+	if !ok {
+		return failed
+	}
+	body, err := os.ReadFile(path)
+	if err != nil || len(body) > 64*1024*1024 {
+		return failed
+	}
+	sealed, err := providerBase64(string(body))
+	if err != nil {
+		return failed
+	}
+	mac, err := providerBase64(tag)
+	if err != nil || len(mac) != 16 {
+		return failed
+	}
+	block, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return failed
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return failed
+	}
+	clear, err := gcm.Open(nil, []byte("kkkkkkkkkkkk"), append(sealed, mac...), nil)
+	if err != nil || !utf8.Valid(clear) {
+		return failed
+	}
+	if os.WriteFile(path, clear, 0o600) != nil {
+		return failed
+	}
+	return nil
+}
+
+func providerKeyNames(address string) []string {
+	parsed, err := url.Parse(address)
+	if err != nil {
+		return nil
+	}
+	return parsed.Query()["key"]
+}
 
 type providerKeys struct {
 	HappLegacy []string          `json:"happLegacy"`

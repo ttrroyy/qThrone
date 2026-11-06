@@ -18,6 +18,7 @@
 #include <QJsonObject>
 #include <QElapsedTimer>
 #include <QProcess>
+#include <QTemporaryFile>
 #include <QRegularExpression>
 #include <QSet>
 #include <QUrl>
@@ -70,6 +71,41 @@ namespace Subscription {
         process.closeWriteChannel();
         if (!process.waitForFinished(1000)) process.kill();
         return content;
+    }
+
+    bool DecryptProviderResponse(QByteArray &body, const QString &tag, const QString &finalUrl, const QString &originalUrl) {
+        // A file, as a response can exceed what the helper reads in one line.
+        QTemporaryFile file;
+        if (!file.open() || file.write(body) != body.size()) return false;
+        file.close();
+        QProcess process;
+        process.start(Configs::FindCoreRealPath(), {"--relay"});
+        if (!process.waitForStarted(5000)) return false;
+        process.write(QJsonDocument(QJsonObject{{"operation", "provider-response"}, {"value", file.fileName()}, {"id", tag},
+                                                {"server", QJsonObject{{"final", finalUrl}, {"original", originalUrl}}}}).toJson(QJsonDocument::Compact) + '
+');
+        QByteArray pending;
+        QElapsedTimer elapsed;
+        elapsed.start();
+        bool opened = false, failed = false;
+        while (!opened && !failed && elapsed.elapsed() < 30000) {
+            process.waitForReadyRead(100);
+            pending += process.readAllStandardOutput();
+            qsizetype end;
+            while ((end = pending.indexOf('
+')) >= 0) {
+                const auto type = QJsonDocument::fromJson(pending.left(end)).object()["type"];
+                pending.remove(0, end + 1);
+                if (type == "result") opened = true;
+                if (type == "error") failed = true;
+            }
+            if (process.state() == QProcess::NotRunning && pending.isEmpty() && !process.bytesAvailable()) break;
+        }
+        process.closeWriteChannel();
+        if (!process.waitForFinished(1000)) process.kill();
+        if (!opened || !file.open()) return false;
+        body = file.readAll();
+        return true;
     }
 
     QString UnwrapProviderLink(const QString &text) {
