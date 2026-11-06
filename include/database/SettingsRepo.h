@@ -352,6 +352,7 @@ namespace Configs {
         // Extra Core Paths
         QStringList extraCorePaths = {};
         QString qwdtt_hash_source = "manual";
+        QString vk_hash_selection;
         QString relay_device_id;
         int qwdtt_auto_hash_count = 1;
         bool vk_relay_linked = false;

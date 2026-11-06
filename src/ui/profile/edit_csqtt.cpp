@@ -43,6 +43,13 @@ EditCSQTT::EditCSQTT(QWidget *parent) : QWidget(parent) {
     autoHashCount = new QSpinBox(this);
     autoHashCount->setRange(1, 6);
     form->addRow(QStringLiteral("Количество хешей"), autoHashCount);
+    auto *pickHashes = new QPushButton(QStringLiteral("Выбрать хеши из созданных"), this);
+    pickHashes->setObjectName("relayPickHashes");
+    pickHashes->setToolTip(QStringLiteral("Какие из созданных хешей использовать для этого сервера. Если ничего не выбрано, работает количество выше."));
+    form->addRow(pickHashes);
+    connect(pickHashes, &QPushButton::clicked, this, [this] {
+        RelayPickHashes(this, "csqtt", ent && ent->outbound ? ent->outbound->server : QString(), ent && ent->outbound ? ent->outbound->server_port : 0, 6);
+    });
     token = new QLineEdit(this);
     token->setEchoMode(QLineEdit::Password);
     token->setPlaceholderText(QStringLiteral("Пусто — токен привязанного аккаунта VK"));
@@ -146,6 +153,7 @@ void EditCSQTT::updateSource() {
     checkHashes->setVisible(!automatic);
     const bool api = hashSource->currentData() == "auto";
     autoHashCount->setVisible(api);
+    if (auto *pick = findChild<QPushButton *>("relayPickHashes")) pick->setVisible(api);
     form->labelForField(autoHashCount)->setVisible(api);
     token->setVisible(hashSource->currentData() == "auto_js");
     form->labelForField(token)->setVisible(hashSource->currentData() == "auto_js");

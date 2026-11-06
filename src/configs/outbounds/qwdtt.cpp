@@ -198,7 +198,7 @@ QString qwdtt::ExportToLink() {
 
 QString qwdtt::Prepare() {
     QStringList effectiveHashes = hashes;
-    if (hashSource == "auto") { QString error; effectiveHashes = RelayAccountHashes(autoHashCount, &error); if (!error.isEmpty()) return error; }
+    if (hashSource == "auto") { QString error; effectiveHashes = RelayAutoHashes("qwdtt", server, server_port, autoHashCount, &error); if (!error.isEmpty()) return error; }
     effectiveHashes = NormalizeHashes(effectiveHashes).mid(0, 4);
     hashes = NormalizeHashes(hashes).mid(0, 4);
     workers = NormalizeWorkers(workers, effectiveHashes.size());

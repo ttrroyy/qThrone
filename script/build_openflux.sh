@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-revision=edcf77a1848a72370cfba9f346d3b897b61e7e7d
+revision=f492a1a33b7581ad8f88118f97e0b866adda3cdc
 if [ ! -d openflux-source/.git ]; then
     python3 script/fetch_pinned_source.py https://github.com/p1neappleXpress/OpenFlux.git "$revision" openflux-source
 fi

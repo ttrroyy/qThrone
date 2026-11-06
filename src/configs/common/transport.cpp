@@ -43,6 +43,7 @@ namespace Configs {
         }
         ReadQueryInt(query, "max_early_data", max_early_data);
         if (query.hasQueryItem("early_data_header_name")) early_data_header_name = query.queryItemValue("early_data_header_name");
+        if (query.hasQueryItem("authority")) authority = query.queryItemValue("authority", QUrl::FullyDecoded);
         if (query.hasQueryItem("serviceName")) service_name = query.queryItemValue("serviceName", QUrl::FullyDecoded);
         return true;
     }
@@ -86,6 +87,7 @@ namespace Configs {
         }
         if (object.contains("max_early_data")) max_early_data = object["max_early_data"].toInt();
         if (object.contains("early_data_header_name")) early_data_header_name = object["early_data_header_name"].toString();
+        if (object.contains("authority")) authority = object["authority"].toString();
         if (object.contains("service_name")) service_name = object["service_name"].toString();
         return true;
     }
@@ -167,6 +169,7 @@ namespace Configs {
         if (!ping_timeout.isEmpty()) query.addQueryItem("ping_timeout", ping_timeout);
         if (max_early_data > 0) query.addQueryItem("max_early_data", QString::number(max_early_data));
         if (!early_data_header_name.isEmpty()) query.addQueryItem("early_data_header_name", early_data_header_name);
+        if (!authority.isEmpty()) query.addQueryItem("authority", authority);
         if (!service_name.isEmpty()) query.addQueryItem("serviceName", service_name);
         return query.toString(QUrl::FullyEncoded);
     }
@@ -199,6 +202,7 @@ namespace Configs {
         }
         if (!idle_timeout.isEmpty()) object["idle_timeout"] = idle_timeout;
         if (!ping_timeout.isEmpty()) object["ping_timeout"] = ping_timeout;
+        if (!authority.isEmpty()) object["authority"] = authority;
         if (!service_name.isEmpty()) object["service_name"] = service_name;
         return object;
     }
@@ -212,6 +216,7 @@ namespace Configs {
     BuildResult Transport::Build()
     {
         auto object = ExportToJson();
+        object.remove("authority");
         // value(), never operator[]: the mutable operator[] inserts a null entry for a missing key
         if (const auto exported = object.value("host").toString(); type == "http" && exported.contains(',')) {
             auto hosts = exported.split(',', Qt::SkipEmptyParts);

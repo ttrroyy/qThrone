@@ -37,6 +37,8 @@ namespace Configs
         QString host;
         QString path;
         QString method;
+        // gRPC :authority a panel may require; only Xray can send it.
+        QString authority;
         QStringList headers;
         QString idle_timeout;
         QString ping_timeout;

@@ -113,7 +113,7 @@ void MainWindow::importFromFiles(const QStringList &paths)
 
     QStringList batch;
     for (const QString &payload : payloads) {
-        if (payload.startsWith("http://") || payload.startsWith("https://")) {
+        if (payload.startsWith("http://") || payload.startsWith("https://") || payload.startsWith("happ://", Qt::CaseInsensitive) || payload.startsWith("incy://", Qt::CaseInsensitive)) {
             import_text(payload);
         } else {
             batch << payload;

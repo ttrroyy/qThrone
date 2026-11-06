@@ -132,6 +132,21 @@ namespace Configs {
         return object;
     }
 
+    BuildResult vless::BuildXray()
+    {
+        QJsonObject object;
+        object["protocol"] = "vless";
+        QJsonObject settings;
+        settings["address"] = server;
+        settings["port"] = server_port;
+        settings["id"] = uuid;
+        settings["encryption"] = "none";
+        if (!flow.isEmpty() && flow != "none") settings["flow"] = flow;
+        object["settings"] = settings;
+        if (const auto stream = GetXrayStream()->Build().object; !stream.isEmpty()) object["streamSettings"] = stream;
+        return {object, ""};
+    }
+
     BuildResult vless::Build()
     {
         QJsonObject object;

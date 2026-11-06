@@ -27,6 +27,9 @@ class RelayTask : public QObject {
 };
 
 QStringList RelayAccountHashes(int count, QString *error);
+// The hashes chosen for this server, or the first [count] created ones when none are chosen.
+QStringList RelayAutoHashes(const QString &type, const QString &server, int port, int count, QString *error);
+void RelayPickHashes(QWidget *parent, const QString &type, const QString &server, int port, int limit);
 QString RelayAccountToken(QString *error);
 bool ResetQWDTTHashSources();
 bool SaveVKRelayPreviews(const QString &directory);

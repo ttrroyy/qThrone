@@ -196,7 +196,7 @@ QString wdttplus::Prepare() {
     QStringList effectiveHashes = hashes;
     if (hashSource == "auto") {
         // The calls come from the qWDTT binding; WDTT Plus joins them without a VK login.
-        QString error; effectiveHashes = qwdtt::NormalizeHashes(RelayAccountHashes(autoHashCount, &error)).mid(0, 4);
+        QString error; effectiveHashes = qwdtt::NormalizeHashes(RelayAutoHashes("wdttplus", server, server_port, autoHashCount, &error)).mid(0, 4);
         if (!error.isEmpty()) return error;
     }
     workers = NormalizeWorkers(workers, maxWorkers);

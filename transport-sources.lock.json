@@ -5,9 +5,9 @@
     "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.1.2/olcrtc-f3ad8fb7c0d0.bundle"
   },
   "https://github.com/p1neappleXpress/OpenFlux.git": {
-    "revision": "edcf77a1848a72370cfba9f346d3b897b61e7e7d",
-    "sha256": "3ea49db7d2309cf230e2b432d7d762a51a57d0f5a9bd4bf900093e37c4614294",
-    "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.3.6/openflux-edcf77a1848a.bundle"
+    "revision": "f492a1a33b7581ad8f88118f97e0b866adda3cdc",
+    "sha256": "5596d5749c4ceb6e0acc1d673a5ea364085d5afab3ccf5bf0d8aa279ec371b8a",
+    "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.5/openflux-f492a1a33b75.bundle"
   },
   "https://github.com/net2share/vaydns.git": {
     "revision": "a0ff70110d5e96686ab8f4c8e1c44cd09be07a75",
@@ -15,9 +15,9 @@
     "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.4.0/vaydns-a0ff70110d5e.bundle"
   },
   "https://github.com/masterking32/MasterDnsVPN.git": {
-    "revision": "acbf1c61f90786f41b975d2e2f616afbce292b29",
-    "sha256": "d466bb7fe6ec56b0c478b6433bab0f43217498b96ea7d840592ee733d906c348",
-    "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.4.0/masterdns-acbf1c61f907.bundle"
+    "revision": "4052a6b95e758adf2dc26fa1fe527457e58d627c",
+    "sha256": "ad3b8fc12da81e987c7d3301e3ec7e89b6b189cabaaee722ff5645e65e71a361",
+    "url": "https://github.com/ttrroyy/qThrone/releases/download/v1.5/masterdns-4052a6b95e75.bundle"
   },
   "https://github.com/Fedarisha/Xray-core-fedarisha.git": {
     "revision": "a04f4c09972b2aa7d6255197732c1c20e3fdc8a1",

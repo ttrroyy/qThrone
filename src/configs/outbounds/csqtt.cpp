@@ -183,7 +183,7 @@ QString csqtt::Prepare() {
     }
     if (hashSource == "auto") {
         // The calls come from the qWDTT binding; the helper joins them without a VK login.
-        QString error; effectiveHashes = NormalizeHashes(RelayAccountHashes(autoHashCount, &error));
+        QString error; effectiveHashes = NormalizeHashes(RelayAutoHashes("csqtt", server, server_port, autoHashCount, &error));
         if (!error.isEmpty()) return error;
     }
     workers = NormalizeWorkers(workers,effectiveHashes.size());

@@ -24,7 +24,7 @@ printf '%s\n' 'https://github.com/net2share/vaydns' "Revision: $vaydns_revision"
 tar -czf "$DEST/vaydns-source.tar.gz" --exclude=.git --exclude=.github .
 popd
 
-masterdns_revision=acbf1c61f90786f41b975d2e2f616afbce292b29
+masterdns_revision=4052a6b95e758adf2dc26fa1fe527457e58d627c
 if [ ! -d masterdns-source/.git ]; then
     python3 script/fetch_pinned_source.py https://github.com/masterking32/MasterDnsVPN.git "$masterdns_revision" masterdns-source
 fi

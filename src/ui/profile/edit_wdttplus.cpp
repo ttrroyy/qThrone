@@ -50,6 +50,13 @@ EditWdttPlus::EditWdttPlus(QWidget *parent) : QWidget(parent) {
     autoHashCount = new QSpinBox(this);
     autoHashCount->setRange(1, 4);
     form->addRow(QStringLiteral("Количество хешей"), autoHashCount);
+    auto *pickHashes = new QPushButton(QStringLiteral("Выбрать хеши из созданных"), this);
+    pickHashes->setObjectName("relayPickHashes");
+    pickHashes->setToolTip(QStringLiteral("Какие из созданных хешей использовать для этого сервера. Если ничего не выбрано, работает количество выше."));
+    form->addRow(pickHashes);
+    connect(pickHashes, &QPushButton::clicked, this, [this] {
+        RelayPickHashes(this, "wdttplus", ent && ent->outbound ? ent->outbound->server : QString(), ent && ent->outbound ? ent->outbound->server_port : 0, 4);
+    });
     for (int i = 0; i < 4; ++i) {
         hashes[i] = new QLineEdit(this);
         hashes[i]->setObjectName(QString("wdttPlusHash%1").arg(i + 1));
@@ -146,6 +153,7 @@ void EditWdttPlus::updateSource() {
     }
     checkHashes->setVisible(!automatic);
     autoHashCount->setVisible(automatic);
+    if (auto *pick = findChild<QPushButton *>("relayPickHashes")) pick->setVisible(automatic);
     form->labelForField(autoHashCount)->setVisible(automatic);
 }
 

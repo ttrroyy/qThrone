@@ -723,7 +723,10 @@ namespace Subscription {
     }
 
     void GroupUpdater::ImportText(const QString &text, int gid, const Finish &finish) {
-        QByteArray body = text.toUtf8();
+        // A wrapped subscription link (happ://, incy://) is a subscription, whichever way it reached the import.
+        const auto content = UnwrapProviderLink(text);
+        if (content != text.trimmed() && (content.startsWith("http://") || content.startsWith("https://"))) { SubscribeUrl(content, finish); return; }
+        QByteArray body = (content.isEmpty() ? text : content).toUtf8();
         enqueue({-1, false, [=, this]() mutable {
             importDocuments(gid, {std::move(body)});
             emit asyncUpdateCallback(gid);
@@ -741,7 +744,9 @@ namespace Subscription {
     }
 
     void GroupUpdater::ImportTextTo(int gid, const QString &text, const OutcomeFinish &done) {
-        QByteArray body = text.toUtf8();
+        const auto content = UnwrapProviderLink(text);
+        if (content != text.trimmed() && (content.startsWith("http://") || content.startsWith("https://"))) { ImportUrlTo(gid, content, done); return; }
+        QByteArray body = (content.isEmpty() ? text : content).toUtf8();
         const auto outcome = groupUpdaterUnfinished(gid, QStringLiteral("The import failed unexpectedly."));
         enqueue({-1, false, [=, this]() mutable {
             *outcome = Configs::dataManager->groupsRepo->GetGroup(gid) == nullptr

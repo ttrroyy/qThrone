@@ -38,6 +38,20 @@ namespace Configs
             return transport;
         }
 
+        // WS and gRPC run on Xray, like the clients that work with the same servers: sing-box sends no :authority,
+        // no custom gRPC path and its own ALPN. Xray has no switch for an unverified certificate, so such a profile stays.
+        bool IsXray() override {
+            return (transport->type == "ws" || transport->type == "grpc") && !tls->insecure;
+        }
+
+        std::shared_ptr<xrayStreamSetting> GetXrayStream() override {
+            auto stream = std::make_shared<xrayStreamSetting>();
+            stream->ParseFromLink(ExportToLink());
+            return stream;
+        }
+
+        BuildResult BuildXray() override;
+
         bool ParseFromLink(const QString& link) override;
         bool ParseFromJson(const QJsonObject& object) override;
         bool ParseFromClash(const clash::Proxies& object) override;

@@ -72,6 +72,19 @@ namespace Configs {
         if (auto muxObj = multiplex->ExportToJson(); !muxObj.isEmpty()) object["multiplex"] = muxObj;
         return object;
     }
+    BuildResult Trojan::BuildXray()
+    {
+        QJsonObject object;
+        object["protocol"] = "trojan";
+        QJsonObject settings;
+        settings["address"] = server;
+        settings["port"] = server_port;
+        settings["password"] = password;
+        object["settings"] = settings;
+        if (const auto stream = GetXrayStream()->Build().object; !stream.isEmpty()) object["streamSettings"] = stream;
+        return {object, ""};
+    }
+
     BuildResult Trojan::Build()
     {
         QJsonObject object;

@@ -216,6 +216,76 @@ QStringList RelayAccountHashes(int count, QString *error) {
         *error = QStringLiteral("VK не вернул необходимые хеши звонков");
     return result;
 }
+// Which created hashes a server's profiles use, kept outside the profiles so they stay out of exports and share links.
+static QString relayHashKey(const QString &type, const QString &server, int port) { return QString("%1|%2:%3").arg(type, server.trimmed()).arg(port); }
+static QStringList relayCreatedHashes(QString *error) {
+    QStringList created;
+    for (const auto &hash : relayAccountValue("vk-info", 0, error).toObject()["hashes"].toArray()) created << hash.toString();
+    return created;
+}
+static QStringList relaySelected(const QString &key, const QStringList &created) {
+    QStringList selected;
+    const auto all = QJsonDocument::fromJson(Configs::dataManager->settingsRepo->vk_hash_selection.toUtf8()).object();
+    for (const auto &hash : all[key].toArray()) if (created.contains(hash.toString())) selected << hash.toString();
+    return selected;
+}
+QStringList RelayAutoHashes(const QString &type, const QString &server, int port, int count, QString *error) {
+    QString ignored;
+    const auto selected = relaySelected(relayHashKey(type, server, port), relayCreatedHashes(&ignored));
+    return selected.isEmpty() ? RelayAccountHashes(count, error) : selected;
+}
+void RelayPickHashes(QWidget *parent, const QString &type, const QString &server, int port, int limit) {
+    if (server.trimmed().isEmpty()) {
+        QMessageBox::information(parent, QStringLiteral("Хеши профиля"), QStringLiteral("Сначала сохраните профиль с адресом сервера: выбор хешей привязан к серверу."));
+        return;
+    }
+    QString error;
+    const auto created = relayCreatedHashes(&error);
+    if (!error.isEmpty()) { QMessageBox::warning(parent, QStringLiteral("Хеши профиля"), error); return; }
+    if (created.isEmpty()) {
+        QMessageBox::information(parent, QStringLiteral("Хеши профиля"), QStringLiteral("Созданных хешей пока нет. Создайте их в настройках VK-релея, вкладка генерации хешей."));
+        return;
+    }
+    const auto key = relayHashKey(type, server, port);
+    const auto current = relaySelected(key, created);
+    QDialog dialog(parent);
+    dialog.setWindowTitle(QStringLiteral("Хеши профиля"));
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *hint = new QLabel(QStringLiteral("Отметьте до %1 хешей для этого сервера. Если ничего не отмечено, берутся первые созданные, а недостающие создаются при подключении.").arg(limit));
+    hint->setWordWrap(true);
+    layout->addWidget(hint);
+    auto *list = new QListWidget(&dialog);
+    list->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+    for (const auto &hash : created) {
+        auto *item = new QListWidgetItem(hash, list);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setCheckState(current.contains(hash) ? Qt::Checked : Qt::Unchecked);
+    }
+    layout->addWidget(list);
+    auto *count = new QLabel(&dialog);
+    layout->addWidget(count);
+    const auto checkedHashes = [list] {
+        QStringList hashes;
+        for (int i = 0; i < list->count(); ++i) if (list->item(i)->checkState() == Qt::Checked) hashes << list->item(i)->text();
+        return hashes;
+    };
+    const auto refreshCount = [=] { count->setText(QStringLiteral("Выбрано: %1 из %2").arg(checkedHashes().size()).arg(limit)); };
+    refreshCount();
+    QObject::connect(list, &QListWidget::itemChanged, &dialog, [=](QListWidgetItem *item) {
+        if (item->checkState() == Qt::Checked && checkedHashes().size() > limit) item->setCheckState(Qt::Unchecked);
+        refreshCount();
+    });
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    dialog.resize(560, 420);
+    if (dialog.exec() != QDialog::Accepted) return;
+    auto all = QJsonDocument::fromJson(Configs::dataManager->settingsRepo->vk_hash_selection.toUtf8()).object();
+    all[key] = QJsonArray::fromStringList(checkedHashes());
+    Configs::dataManager->settingsRepo->vk_hash_selection = QString::fromUtf8(QJsonDocument(all).toJson(QJsonDocument::Compact));
+    Configs::dataManager->settingsRepo->Save();
+}
 QString RelayAccountToken(QString *error) {
     return relayAccountValue("vk-calls-token", 0, error).toString();
 }
