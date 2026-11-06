@@ -6,7 +6,7 @@
 namespace Configs
 {
     namespace Checks {
-        // google/shlex Split, as qThroneCore reads the arguments: quotes must close and a backslash needs a character after it.
+        // google/shlex Split, as RawlineCore reads the arguments: quotes must close and a backslash needs a character after it.
         inline QString ExtraCoreArgs(const QString &text)
         {
             enum { Start, Word, Escape, Single, Double, DoubleEscape, Comment } state = Start;
@@ -47,7 +47,7 @@ namespace Configs
             return {};
         }
 
-        // qThroneCore writes the config to a file and puts its path into the first argument containing %s.
+        // RawlineCore writes the config to a file and puts its path into the first argument containing %s.
         inline QString ExtraCoreConfigArg(const QString &args, const QString &config)
         {
             if (config.trimmed().isEmpty() || args.contains("%s")) return {};

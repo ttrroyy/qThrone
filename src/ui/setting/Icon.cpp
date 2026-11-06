@@ -32,7 +32,7 @@ namespace {
                 if (const auto custom = QPixmap(QStringLiteral("icons/") + candidate + QStringLiteral(".png")); !custom.isNull()) return QIcon(custom);
             }
         }
-        return QIcon(QStringLiteral(":/Throne/") + name + QStringLiteral(".png"));
+        return QIcon(QStringLiteral(":/Rawline/") + name + QStringLiteral(".png"));
     }
 } // namespace
 
@@ -103,7 +103,7 @@ QIcon Icon::GetTaskbarIcon(TrayIconStatus status) {
     const auto &settings = Configs::dataManager->settingsRepo;
     // The bundled icon only: a custom PNG has no room for the padding macOS adds in the dock.
     if (settings->use_custom_icons && !settings->follow_status_in_taskbar) {
-        return QIcon(QStringLiteral(":/Throne/Throne.png"));
+        return QIcon(QStringLiteral(":/Rawline/Rawline.png"));
     }
     return GetTrayIcon(status);
 }

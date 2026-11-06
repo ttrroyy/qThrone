@@ -16,7 +16,7 @@ namespace Configs_sys {
     // process itself still needs QProcess::kill(). A no-op otherwise.
     void KillChildGroup(QProcess *process);
 
-    // The qThroneCore process; Engine::CoreSupervisor connects its handlers and owns the restart policy.
+    // The RawlineCore process; Engine::CoreSupervisor connects its handlers and owns the restart policy.
     class CoreProcess : public QProcess
     {
     public:

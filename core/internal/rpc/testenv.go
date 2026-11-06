@@ -6,10 +6,10 @@ import (
 	"log"
 	"time"
 
-	"qThroneCore/internal/boxbox"
-	"qThroneCore/internal/boxmain"
-	"qThroneCore/internal/probe"
-	"qThroneCore/internal/xray"
+	"RawlineCore/internal/boxbox"
+	"RawlineCore/internal/boxmain"
+	"RawlineCore/internal/probe"
+	"RawlineCore/internal/xray"
 
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"

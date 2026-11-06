@@ -1,0 +1,33 @@
+# Maintainer: Rawline maintainers
+pkgname=rawline-bin
+pkgver=1.1.3
+pkgrel=1
+pkgdesc='Cross-platform graphical proxy manager powered by sing-box'
+arch=('x86_64' 'aarch64')
+url='https://github.com/ttrroyy/RawlineDesktop'
+license=('GPL-3.0-or-later')
+provides=('rawline')
+conflicts=('rawline' 'rawline-git')
+depends=('glibc' 'gcc-libs' 'zlib' 'openssl' 'dbus' 'fontconfig' 'freetype2' 'libglvnd' 'libxkbcommon-x11' 'libice' 'libsm' 'libxrender' 'xcb-util-image' 'xcb-util-keysyms' 'xcb-util-renderutil' 'xcb-util-wm' 'wayland' 'gtk3' 'hicolor-icon-theme' 'polkit' 'libcap')
+makedepends=('unzip')
+optdepends=('noto-fonts-emoji: country flags and emoji')
+options=('!strip' '!debug')
+source=('rawline' 'Rawline.desktop')
+source_x86_64=("Rawline-${pkgver}-linux-amd64.zip::${url}/releases/download/v${pkgver}/Rawline-${pkgver}-linux-amd64.zip")
+source_aarch64=("Rawline-${pkgver}-linux-arm64.zip::${url}/releases/download/v${pkgver}/Rawline-${pkgver}-linux-arm64.zip")
+sha256sums=('b79909d2f6e281f4a6ef4306a3ad94f9c8b42a97f3d2004592c85d521c614d79' 'ce20612f5cef7613f3c7b98eb6d17ccb9d2bc1b581e5f269ca9b6b2efecaa42c')
+sha256sums_x86_64=('53f5de8038f4a400e19a2bc537710bc771f7047532966e4dcdee9380edd08a15')
+sha256sums_aarch64=('2a68309b43216493102756aece282c994b3d93a5fd3daf7941c6427b43fe647f')
+
+package() {
+  install -d "$pkgdir/usr/lib/rawline"
+  cp -a "$srcdir/Rawline/." "$pkgdir/usr/lib/rawline/"
+  # The release omits the library for obsolete wl_shell; modern Wayland uses xdg-shell.
+  rm -f "$pkgdir/usr/lib/rawline/usr/plugins/wayland-shell-integration/libwl-shell-plugin.so"
+  for binary in Rawline RawlineCore RawlineUpdater qwdtt olcrtc openflux openfluxkey csqtt-transport dnstun masterdns cottendns soar s3bypass  slipstream-client wdttplus-client; do
+    chmod 755 "$pkgdir/usr/lib/rawline/$binary"
+  done
+  install -Dm755 "$srcdir/rawline" "$pkgdir/usr/bin/rawline"
+  install -Dm644 "$srcdir/Rawline.desktop" "$pkgdir/usr/share/applications/Rawline.desktop"
+  install -Dm644 "$srcdir/Rawline/Rawline.png" "$pkgdir/usr/share/icons/hicolor/256x256/apps/rawline.png"
+}

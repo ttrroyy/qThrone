@@ -6,7 +6,7 @@ import (
 )
 
 func TestRelayHelperCannotLaunchPrivilegedCoreMode(t *testing.T) {
-	gui, helper := "qThrone", "qwdtt"
+	gui, helper := "Rawline", "qwdtt"
 	if runtime.GOOS == "windows" {
 		gui += ".exe"
 		helper += ".exe"

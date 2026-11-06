@@ -351,7 +351,7 @@ func (p *protocol) login(r Request) error {
 		return fmt.Errorf("Браузер для входа в VK не найден: нужен Chrome, Edge, Chromium, Brave или Яндекс Браузер")
 	}
 	// A private, temporary profile avoids reading the user's existing browser sessions.
-	dir, e := os.MkdirTemp("", "qthrone-vk-")
+	dir, e := os.MkdirTemp("", "rawline-vk-")
 	if e != nil {
 		return e
 	}

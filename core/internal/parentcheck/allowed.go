@@ -7,7 +7,7 @@ import (
 
 func allowedParent(parentDir, selfDir, name string, relay bool) bool {
 	if runtime.GOOS == "windows" {
-		return strings.EqualFold(parentDir, selfDir) && (strings.EqualFold(name, "qThrone.exe") || relay && strings.EqualFold(name, "qwdtt.exe"))
+		return strings.EqualFold(parentDir, selfDir) && (strings.EqualFold(name, "Rawline.exe") || relay && strings.EqualFold(name, "qwdtt.exe"))
 	}
-	return parentDir == selfDir && (name == "qThrone" || relay && name == "qwdtt")
+	return parentDir == selfDir && (name == "Rawline" || relay && name == "qwdtt")
 }

@@ -293,7 +293,7 @@ namespace RemoteApi {
         if (CurrentOverlay().headless) {
             return Response::Error(403, QStringLiteral("forbidden"),
                                    QStringLiteral("Management requests are accepted only from this device. Start Rawline with "
-                                                  "--api-admin-lan (or THRONE_API_ADMIN_LAN=1) to accept them from the local network."));
+                                                  "--api-admin-lan (or RAWLINE_API_ADMIN_LAN=1) to accept them from the local network."));
         }
         return Response::Error(403, QStringLiteral("forbidden"),
                                QStringLiteral("Management requests are accepted only from this device. Allow management from the local "

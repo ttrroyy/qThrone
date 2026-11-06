@@ -11,12 +11,12 @@ get_filename_component(ROOT "${ROOT}" ABSOLUTE)
 # E5 ratchet: files outside the UI that still include include/ui/. Entries only ever leave this list.
 set(UI_INCLUDE_ALLOWLIST
         src/sys/macos/TrayIcon.mm                       # permanent
-        # qThrone: native transports read the VK binding settings; ProviderRouting reports through the main window.
+        # Rawline: native transports read the VK binding settings; ProviderRouting reports through the main window.
         src/configs/outbounds/csqtt.cpp
         src/configs/outbounds/qwdtt.cpp
         src/configs/outbounds/wdttplus.cpp
         src/configs/sub/ProviderRouting.cpp
-        # qThrone: the self-test drives import, editors and widgets together.
+        # Rawline: the self-test drives import, editors and widgets together.
         src/configs/sub/qwdtt_import_test.cpp
 )
 

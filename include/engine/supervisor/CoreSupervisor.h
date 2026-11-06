@@ -19,7 +19,7 @@ namespace Configs_sys {
 namespace Engine {
     enum class CoreState { NotStarted, Starting, Connected, Backoff, GaveUp, ListenFailed, ShuttingDown };
 
-    // Runs qThroneCore and accepts its IPC connection. Lives on the main thread; the CoreProcess and its handlers live on DS_cores.
+    // Runs RawlineCore and accepts its IPC connection. Lives on the main thread; the CoreProcess and its handlers live on DS_cores.
     class CoreSupervisor : public QObject {
         Q_OBJECT
 

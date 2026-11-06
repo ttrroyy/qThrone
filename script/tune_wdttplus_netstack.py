@@ -1,4 +1,4 @@
-"""Give WDTT Plus's SOCKS5 netstack the TCP tuning of qThrone's own qWDTT helper (qwdtt/netstack_tuning.go)."""
+"""Give WDTT Plus's SOCKS5 netstack the TCP tuning of Rawline's own qWDTT helper (qwdtt/netstack_tuning.go)."""
 from pathlib import Path
 import shutil
 import sys

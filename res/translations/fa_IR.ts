@@ -3280,15 +3280,15 @@ Error: %1</source>
         <translation>Rawline در پس‌زمینه در حال اجراست</translation>
     </message>
     <message>
-        <source>A background Rawline (PID %1) is running on this computer (data directory: %2). Tun mode is unavailable here while it runs; stop it or use thronectl.</source>
-        <translation>یک Rawline پس‌زمینه (PID %1) روی این رایانه در حال اجراست (پوشه داده: %2). تا زمانی که اجرا می‌شود، حالت Tun در اینجا در دسترس نیست؛ آن را متوقف کنید یا از thronectl استفاده کنید.</translation>
+        <source>A background Rawline (PID %1) is running on this computer (data directory: %2). Tun mode is unavailable here while it runs; stop it or use rawlinectl.</source>
+        <translation>یک Rawline پس‌زمینه (PID %1) روی این رایانه در حال اجراست (پوشه داده: %2). تا زمانی که اجرا می‌شود، حالت Tun در اینجا در دسترس نیست؛ آن را متوقف کنید یا از rawlinectl استفاده کنید.</translation>
     </message>
 </context>
 <context>
     <name>Engine::ConnectionManager</name>
     <message>
-        <source>A background Rawline (PID %1) owns Tun on this computer; stop it or use thronectl.</source>
-        <translation>حالت Tun روی این رایانه در اختیار یک Rawline پس‌زمینه (PID %1) است؛ آن را متوقف کنید یا از thronectl استفاده کنید.</translation>
+        <source>A background Rawline (PID %1) owns Tun on this computer; stop it or use rawlinectl.</source>
+        <translation>حالت Tun روی این رایانه در اختیار یک Rawline پس‌زمینه (PID %1) است؛ آن را متوقف کنید یا از rawlinectl استفاده کنید.</translation>
     </message>
 </context>
 <context>

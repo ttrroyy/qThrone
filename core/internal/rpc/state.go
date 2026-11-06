@@ -5,8 +5,8 @@ import (
 	"errors"
 	"sync"
 
-	"qThroneCore/internal/boxbox"
-	"qThroneCore/internal/xray"
+	"RawlineCore/internal/boxbox"
+	"RawlineCore/internal/xray"
 
 	"github.com/sagernet/sing-box/option"
 	"github.com/xtls/xray-core/core"

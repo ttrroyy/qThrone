@@ -10,9 +10,9 @@
 #include <QTextStream>
 
 // Both associations live in this one entry, told apart by its MimeType list.
-static const QString kDesktopId = "qthrone-url-handler.desktop";
+static const QString kDesktopId = "rawline-url-handler.desktop";
 
-static const QStringList kLinkTypes = {"x-scheme-handler/rawline", "x-scheme-handler/throne"};
+static const QStringList kLinkTypes = {"x-scheme-handler/rawline", "x-scheme-handler/rawline"};
 static const QStringList kConfigTypes = {"application/json", "application/yaml", "text/yaml"};
 
 static const QStringList &typesOf(Association a) {
@@ -45,10 +45,10 @@ static QString desktopFilePath() {
 // "rawline" is in no icon theme for the /opt and AppImage layouts, so unpack a copy and use an absolute path.
 static QString iconTarget() {
     const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    const QString path = dir + "/qthrone.png";
+    const QString path = dir + "/rawline.png";
     QDir().mkpath(dir);
     QFile::remove(path);
-    return QFile::copy(":/Throne/Throne.png", path) ? path : QStringLiteral("qthrone");
+    return QFile::copy(":/Rawline/Rawline.png", path) ? path : QStringLiteral("rawline");
 }
 
 struct DesktopEntry {
@@ -78,7 +78,7 @@ static void writeEntry(const QStringList &types) {
     if (types.isEmpty()) {
         QFile::remove(path);
         const QString dataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-        QFile::remove(dataDir + "/qthrone.png");
+        QFile::remove(dataDir + "/rawline.png");
         QDir().rmdir(dataDir);
     } else {
         QDir().mkpath(QFileInfo(path).absolutePath());
@@ -113,7 +113,7 @@ bool UrlScheme_AutoRegisterByDefault() {
     return true;
 #else
     const QString target = execTarget();
-    for (const QString &path : QStandardPaths::locateAll(QStandardPaths::ApplicationsLocation, "qThrone.desktop")) {
+    for (const QString &path : QStandardPaths::locateAll(QStandardPaths::ApplicationsLocation, "Rawline.desktop")) {
         QFile f(path);
         if (!f.open(QIODevice::ReadOnly | QIODevice::Text)) continue;
         while (!f.atEnd()) {

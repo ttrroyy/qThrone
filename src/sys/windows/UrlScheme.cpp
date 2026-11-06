@@ -10,7 +10,7 @@
 // In QSettings NativeFormat the value name "Default" is a key's unnamed (Default) value, and '/' separates subkeys.
 
 static const QString kClasses = "HKEY_CURRENT_USER\\Software\\Classes";
-static const QString kProgId = "qThrone.Config";
+static const QString kProgId = "Rawline.Config";
 
 static const QStringList kConfigExtensions = {".json", ".conf", ".yaml", ".yml"};
 // Claimed before 1.3; never registered again, only taken back.
@@ -34,7 +34,7 @@ static QStringList commandKeys(Association a) {
 bool UrlScheme_AutoRegisterByDefault() {
     const QString appDir = QDir(QApplication::applicationDirPath()).canonicalPath();
     for (const QString &root : {QStringLiteral("HKEY_CURRENT_USER"), QStringLiteral("HKEY_LOCAL_MACHINE")}) {
-        const QString installPath = QSettings(root + "\\Software\\qThrone", QSettings::NativeFormat).value("InstallPath").toString();
+        const QString installPath = QSettings(root + "\\Software\\Rawline", QSettings::NativeFormat).value("InstallPath").toString();
         if (!installPath.isEmpty() && QDir(installPath).canonicalPath().compare(appDir, Qt::CaseInsensitive) == 0) return true;
     }
     return false;
@@ -54,7 +54,7 @@ bool UrlScheme_IsCurrent(Association a) {
 }
 
 static void applyLinks(const QString &command) {
-    for (const QString &name : {QStringLiteral("rawline"), QStringLiteral("throne")}) {
+    for (const QString &name : {QStringLiteral("rawline"), QStringLiteral("rawline")}) {
         QSettings scheme(kClasses + "\\" + name, QSettings::NativeFormat);
         scheme.setValue("Default", "URL:Rawline Protocol");
         scheme.setValue("URL Protocol", "");
@@ -99,7 +99,7 @@ void UrlScheme_Remove(Association a) {
     QSettings classes(kClasses, QSettings::NativeFormat);
     if (a == Association::Links) {
         classes.remove("rawline");
-        classes.remove("throne");
+        classes.remove("rawline");
     } else {
         classes.remove(kProgId);
         classes.remove("Applications/" + exeName());

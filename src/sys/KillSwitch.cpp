@@ -51,13 +51,13 @@ namespace Sys {
 #ifdef Q_OS_MACOS
             return {};
 #else
-            return QStringLiteral("qthrone-tun");
+            return QStringLiteral("rawline-tun");
 #endif
         }
 
         QString bridgeName() {
 #ifdef Q_OS_LINUX
-            if (Configs::dataManager->settingsRepo->vpn_l3_bridge) return QStringLiteral("qthrone-br");
+            if (Configs::dataManager->settingsRepo->vpn_l3_bridge) return QStringLiteral("rawline-br");
 #endif
             return {};
         }
@@ -234,7 +234,7 @@ namespace Sys {
         if (overridden_) {
             closeGuard(std::exchange(pending_, nullptr));
             closeGuard(std::exchange(active_, nullptr));
-            const auto message = QStringLiteral("turned off for this run by --no-kill-switch (THRONE_KILL_SWITCH); profiles stay refused "
+            const auto message = QStringLiteral("turned off for this run by --no-kill-switch (RAWLINE_KILL_SWITCH); profiles stay refused "
                                                 "until kill_switch is turned off");
             if (state() == State::Failed && failureCode_ == kOverridden && failureMessage_ == message) {
                 settle();

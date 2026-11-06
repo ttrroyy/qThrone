@@ -6,7 +6,7 @@ import (
 	"strings"
 	"sync"
 
-	"qThroneCore/internal/xray"
+	"RawlineCore/internal/xray"
 
 	"github.com/sagernet/sing-box/log"
 	"github.com/sagernet/sing-box/option"

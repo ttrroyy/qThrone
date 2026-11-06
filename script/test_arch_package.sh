@@ -8,12 +8,12 @@ trap 'rm -rf "$XDG_RUNTIME_DIR"' EXIT
 # Verify a real visible X11 window, not just a surviving background process.
 xvfb-run -a dbus-run-session -- bash -c '
   set -euo pipefail
-  qthrone > "$1/x11-launch.log" 2>&1 &
+  rawline > "$1/x11-launch.log" 2>&1 &
   app_pid=$!
   trap "kill $app_pid 2>/dev/null || true" EXIT
   for attempt in {1..30}; do
     kill -0 "$app_pid"
-    if xdotool search --onlyvisible --class qThrone > "$1/x11-windows.log"; then
+    if xdotool search --onlyvisible --class Rawline > "$1/x11-windows.log"; then
       sleep 3
       kill -0 "$app_pid"
       exit 0
@@ -41,7 +41,7 @@ for attempt in {1..30}; do
   sleep 1
 done
 test -S "$XDG_RUNTIME_DIR/wayland-test"
-WAYLAND_DISPLAY=wayland-test QT_QPA_PLATFORM=wayland dbus-run-session -- qthrone \
+WAYLAND_DISPLAY=wayland-test QT_QPA_PLATFORM=wayland dbus-run-session -- rawline \
   > "$logdir/wayland-launch.log" 2>&1 &
 app_pid=$!
 sleep 10

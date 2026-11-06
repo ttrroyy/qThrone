@@ -2,21 +2,21 @@
 # L2 of the headless end-to-end suite: Linux scenarios, each in a fresh container with a fresh data dir, so Tun and the
 # kill switch act on the container's own network namespace and never on the runner. A user network 198.18.0.0/24
 # (outside the kill switch's LAN set) holds the fixture container (198.18.0.10; per scenario an HTTP 204 server and a
-# SOCKS5 proxy that logs every CONNECT, on ports of their own) and one Throne container per scenario (198.18.0.20+N),
-# built from ubuntu:24.04 with the bundled deb's runtime libraries, the deployment dir mounted read-only at /opt/Throne.
-# Throne runs in the foreground of a shell inside the container (parent PID > 1, as from a terminal); thronectl runs
-# inside the container after eval "$(Throne --print-connection --data-dir ...)". Every scenario runs and is reported;
+# SOCKS5 proxy that logs every CONNECT, on ports of their own) and one Rawline container per scenario (198.18.0.20+N),
+# built from ubuntu:24.04 with the bundled deb's runtime libraries, the deployment dir mounted read-only at /opt/Rawline.
+# Rawline runs in the foreground of a shell inside the container (parent PID > 1, as from a terminal); rawlinectl runs
+# inside the container after eval "$(Rawline --print-connection --data-dir ...)". Every scenario runs and is reported;
 # the script exits 1 when one failed.
 #
 # Scenarios: 1 cli, 2 signals, 3 proxy, 4 tun, 5 kill_switch, 6 identity, 7 stay_up, 8 resume, 9 tun_conflict,
 # 10 no_kill_switch, 11 image.
 #
 # Env:
-#   THRONE_DIR     unpacked linux-amd64 deployment dir (Throne, qThroneCore, usr/lib), mounted read-only at /opt/Throne
-#   THRONECTL      thronectl for linux/amd64 (CGO_ENABLED=0), mounted at /usr/local/bin/thronectl in every container
+#   RAWLINE_DIR     unpacked linux-amd64 deployment dir (Rawline, RawlineCore, usr/lib), mounted read-only at /opt/Rawline
+#   RAWLINECTL      rawlinectl for linux/amd64 (CGO_ENABLED=0), mounted at /usr/local/bin/rawlinectl in every container
 #   FIXTURES       script/ci/smoke_fixtures.py (default: the one next to this directory)
-#   E2E_TMP        scratch dir (default $RUNNER_TEMP/throne-e2e). This script works in $E2E_TMP/linux-scenarios:
-#                  logs/<scenario>/ holds each scenario's Throne output, data-dir logs and command output, fixture/ the
+#   E2E_TMP        scratch dir (default $RUNNER_TEMP/rawline-e2e). This script works in $E2E_TMP/linux-scenarios:
+#                  logs/<scenario>/ holds each scenario's Rawline output, data-dir logs and command output, fixture/ the
 #                  fixture logs; upload that dir when the job fails
 #   E2E_IMAGE      tag of the image the job built from docker/Dockerfile, loaded into this runner's docker, for scenario
 #                  11; unset skips scenario 11 with a notice
@@ -29,16 +29,16 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=lib.sh
 source "$SCRIPT_DIR/lib.sh"
 
-THRONE_DIR=${THRONE_DIR:?set THRONE_DIR to the unpacked linux-amd64 deployment dir}
-THRONECTL=${THRONECTL:?set THRONECTL to a linux/amd64 thronectl}
-: "${E2E_TMP:=${RUNNER_TEMP:-/tmp}/throne-e2e}"
+RAWLINE_DIR=${RAWLINE_DIR:?set RAWLINE_DIR to the unpacked linux-amd64 deployment dir}
+RAWLINECTL=${RAWLINECTL:?set RAWLINECTL to a linux/amd64 rawlinectl}
+: "${E2E_TMP:=${RUNNER_TEMP:-/tmp}/rawline-e2e}"
 # Made absolute by _setup: bind mounts need absolute paths.
 WORK=
 
-TEST_IMAGE=throne-e2e-runtime:ubuntu-24.04
+TEST_IMAGE=rawline-e2e-runtime:ubuntu-24.04
 RUN_ID=${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}-$$
-PREFIX=throne-e2e-$RUN_ID
-LABEL=throne-e2e=$RUN_ID
+PREFIX=rawline-e2e-$RUN_ID
+LABEL=rawline-e2e=$RUN_ID
 NET=$PREFIX
 FIX=$PREFIX-fixture
 FIX_IP=198.18.0.10
@@ -46,8 +46,8 @@ FIX_IP_RE='198\.18\.0\.10'
 # Off every subnet of the container (TEST-NET-3): only the tunnel and the profile reach it, through the fixture's alias.
 TUN_TARGET_IP=203.0.113.10
 TUN_TARGET_RE='203\.0\.113\.10'
-# Inside each Throne container; a fresh container is a fresh data dir.
-D=/var/lib/throne-e2e
+# Inside each Rawline container; a fresh container is a fresh data dir.
+D=/var/lib/rawline-e2e
 TUN_FLAGS=(--cap-add NET_ADMIN --device /dev/net/tun)
 ALL_SCENARIOS=(cli signals proxy tun kill_switch identity stay_up resume tun_conflict no_kill_switch image)
 SKIPPED=200
@@ -100,36 +100,36 @@ _log_count() {
     echo "${n:-0}"
 }
 
-# The boot line "Throne <version> headless, PID <n>, started by ..." opens every boot, an exec'd image's too.
+# The boot line "Rawline <version> headless, PID <n>, started by ..." opens every boot, an exec'd image's too.
 _boot_lines() { _log_count "$1.log" " headless, PID "; }
 
 _boot_lines_at_least() { (($(_boot_lines "$1") >= $2)); }
 
-_throne_container() {
+_rawline_container() {
     C=$PREFIX-$SC
     C_IP=198.18.0.$((20 + SC_INDEX))
     docker run -d --init --name "$C" --hostname "e2e-${SC//_/-}" --label "$LABEL" \
         --network "$NET" --ip "$C_IP" -e LANG=C.UTF-8 \
-        --mount "type=bind,src=$THRONE_DIR,dst=/opt/Throne,readonly" \
-        --mount "type=bind,src=$THRONECTL,dst=/usr/local/bin/thronectl,readonly" \
+        --mount "type=bind,src=$RAWLINE_DIR,dst=/opt/Rawline,readonly" \
+        --mount "type=bind,src=$RAWLINECTL,dst=/usr/local/bin/rawlinectl,readonly" \
         --mount "type=bind,src=$WORK/bin,dst=/e2e-bin,readonly" \
         --mount "type=bind,src=$LOGDIR,dst=/e2e" \
         "$@" "$TEST_IMAGE" sleep infinity >/dev/null || fail "docker run of $C failed"
     echo "container $C at $C_IP, flags: ${*:-none}"
 }
 
-# thronectl inside the Throne container, connected the documented way.
-_CTL_SH='d=$1; shift; c=$(/opt/Throne/Throne --print-connection --data-dir "$d") || { echo "Throne --print-connection failed" >&2; exit 97; }; eval "$c"; exec thronectl "$@"'
+# rawlinectl inside the Rawline container, connected the documented way.
+_CTL_SH='d=$1; shift; c=$(/opt/Rawline/Rawline --print-connection --data-dir "$d") || { echo "Rawline --print-connection failed" >&2; exit 97; }; eval "$c"; exec rawlinectl "$@"'
 
 _ctl() { docker exec "$C" sh -c "$_CTL_SH" sh "$D" "$@"; }
 
 _ctl_stdin() { docker exec -i "$C" sh -c "$_CTL_SH" sh "$D" "$@"; }
 
-# thronectl in the fixture container, over the network, with the key copied out of the Throne container.
-_fix_ctl() { docker exec "$FIX" thronectl --addr "$C_IP:9095" --key-file "/fx/$SC.api.key" "$@"; }
+# rawlinectl in the fixture container, over the network, with the key copied out of the Rawline container.
+_fix_ctl() { docker exec "$FIX" rawlinectl --addr "$C_IP:9095" --key-file "/fx/$SC.api.key" "$@"; }
 
 _status() {
-    STATUS=$(_ctl --json status) || fail "thronectl status failed"
+    STATUS=$(_ctl --json status) || fail "rawlinectl status failed"
     echo "status: $STATUS"
 }
 
@@ -143,13 +143,13 @@ _status_is() {
 
 _health_now() {
     HEALTH_RC=0
-    HEALTH=$(docker exec "$C" /opt/Throne/Throne --health --data-dir "$D" 2>>"$LOGDIR/client.stderr") || HEALTH_RC=$?
+    HEALTH=$(docker exec "$C" /opt/Rawline/Rawline --health --data-dir "$D" 2>>"$LOGDIR/client.stderr") || HEALTH_RC=$?
     echo "--health exit $HEALTH_RC: $HEALTH"
 }
 
 _health_degraded() {
     local out
-    out=$(docker exec "$C" /opt/Throne/Throne --health --data-dir "$D" 2>/dev/null) || true
+    out=$(docker exec "$C" /opt/Rawline/Rawline --health --data-dir "$D" 2>/dev/null) || true
     [ -n "$out" ] || return 1
     [ "$(_jget ready <<<"$out" 2>/dev/null)" = true ] && [ "$(_jget degraded <<<"$out" 2>/dev/null)" = "$1" ]
 }
@@ -196,12 +196,12 @@ _connects() {
 
 _connects_above() { (($(_connects "${2:-}") > $1)); }
 
-# ---------------------------------------------------------------------------------------------------- Throne processes
+# ---------------------------------------------------------------------------------------------------- Rawline processes
 
 _write_wrapper() {
-    cat >"$WORK/bin/run-throne.sh" <<'EOF'
+    cat >"$WORK/bin/run-rawline.sh" <<'EOF'
 #!/bin/bash
-# run-throne.sh TAG MAX_BOOTS RESTART_ON THRONE [ARGS...], written by linux_scenarios.sh. Runs Throne in the foreground
+# run-rawline.sh TAG MAX_BOOTS RESTART_ON RAWLINE [ARGS...], written by linux_scenarios.sh. Runs Rawline in the foreground
 # of this shell, as from a terminal (its parent is this shell, PID > 1), again while it exits with RESTART_ON, at most
 # MAX_BOOTS times. Output goes to /e2e/TAG.log, a "boot N exit STATUS" line per run to /e2e/TAG.boots, the last status
 # to /e2e/TAG.rc.
@@ -221,27 +221,27 @@ done
 echo "$rc" >"/e2e/$tag.rc.tmp"
 mv -f "/e2e/$tag.rc.tmp" "/e2e/$tag.rc"
 EOF
-    chmod 0755 "$WORK/bin/run-throne.sh"
+    chmod 0755 "$WORK/bin/run-rawline.sh"
 }
 
 # _launch TAG MAX_BOOTS RESTART_ON BIN [FLAGS...]: BIN --headless --data-dir $D --log-format plain FLAGS under the
-# wrapper shell, in the background; sets THRONE_PID.
+# wrapper shell, in the background; sets RAWLINE_PID.
 _launch() {
     local tag=$1 max=$2 again=$3 bin=$4
     shift 4
     rm -f "$LOGDIR/$tag.shpid" "$LOGDIR/$tag.rc" "$LOGDIR/$tag.boots"
-    docker exec -d "$C" /e2e-bin/run-throne.sh "$tag" "$max" "$again" \
+    docker exec -d "$C" /e2e-bin/run-rawline.sh "$tag" "$max" "$again" \
         "$bin" --headless --data-dir "$D" --log-format plain "$@"
     echo "started in $C under a shell: $bin --headless --data-dir $D --log-format plain $* (output: logs/$SC/$tag.log)"
-    THRONE_PID=
-    wait_until 15 "Throne ($tag) starting under its shell" _find_pid "$tag"
-    echo "Throne ($tag) PID $THRONE_PID"
+    RAWLINE_PID=
+    wait_until 15 "Rawline ($tag) starting under its shell" _find_pid "$tag"
+    echo "Rawline ($tag) PID $RAWLINE_PID"
 }
 
 _start() {
     local tag=$1
     shift
-    _launch "$tag" 1 - /opt/Throne/Throne "$@"
+    _launch "$tag" 1 - /opt/Rawline/Rawline "$@"
 }
 
 _exited() { [ -s "$LOGDIR/$1.rc" ]; }
@@ -250,72 +250,72 @@ _find_pid() {
     local shpid pid
     if _exited "$1"; then
         _show_tail "$LOGDIR/$1.log"
-        fail "Throne ($1) exited with status $(cat "$LOGDIR/$1.rc") (log above)"
+        fail "Rawline ($1) exited with status $(cat "$LOGDIR/$1.rc") (log above)"
     fi
     [ -s "$LOGDIR/$1.shpid" ] || return 1
     shpid=$(cat "$LOGDIR/$1.shpid")
-    pid=$(docker exec "$C" pgrep -n -P "$shpid" -x Throne 2>/dev/null) || return 1
+    pid=$(docker exec "$C" pgrep -n -P "$shpid" -x Rawline 2>/dev/null) || return 1
     [ -n "$pid" ] || return 1
-    THRONE_PID=$pid
+    RAWLINE_PID=$pid
 }
 
 _healthy() {
     if _exited "$1"; then
         _show_tail "$LOGDIR/$1.log"
-        fail "Throne ($1) exited with status $(cat "$LOGDIR/$1.rc") before it was healthy (log above)"
+        fail "Rawline ($1) exited with status $(cat "$LOGDIR/$1.rc") before it was healthy (log above)"
     fi
-    docker exec "$C" /opt/Throne/Throne --health --data-dir "$D" >/dev/null 2>&1
+    docker exec "$C" /opt/Rawline/Rawline --health --data-dir "$D" >/dev/null 2>&1
 }
 
 _wait_healthy() {
-    wait_until "${2:-90}" "Throne ($1) reporting healthy (--health exits 0)" _healthy "$1"
+    wait_until "${2:-90}" "Rawline ($1) reporting healthy (--health exits 0)" _healthy "$1"
     _health_now
 }
 
 _signal() {
-    local pid=${2:-$THRONE_PID}
+    local pid=${2:-$RAWLINE_PID}
     echo "kill -$1 $pid"
     docker exec "$C" kill "-$1" "$pid" || fail "kill -$1 $pid failed in $C"
 }
 
 _wait_exit() {
-    wait_until "${2:-45}" "Throne ($1) exiting" _exited "$1"
+    wait_until "${2:-45}" "Rawline ($1) exiting" _exited "$1"
     EXIT_RC=$(cat "$LOGDIR/$1.rc")
-    echo "Throne ($1) exited with status $EXIT_RC"
+    echo "Rawline ($1) exited with status $EXIT_RC"
 }
 
 _no_core() {
     local procs
     procs=$(docker exec "$C" ps -eo stat=,comm=) || return 1
-    ! awk '$2 == "qThroneCore" && $1 !~ /^Z/ { found = 1 } END { exit !found }' <<<"$procs"
+    ! awk '$2 == "RawlineCore" && $1 !~ /^Z/ { found = 1 } END { exit !found }' <<<"$procs"
 }
 
-# _assert_clean_end TAG EXIT_LINE: Throne logged EXIT_LINE ("EXIT 0: SIGTERM"), ended its session cleanly, left no core.
+# _assert_clean_end TAG EXIT_LINE: Rawline logged EXIT_LINE ("EXIT 0: SIGTERM"), ended its session cleanly, left no core.
 _assert_clean_end() {
     _log_has "$1.log" "$2"
-    docker exec "$C" grep -qF '===== Rawline session end (clean) =====' "$D/config/logs/throne.log" ||
-        fail "$D/config/logs/throne.log has no clean session end after Throne ($1) exited"
+    docker exec "$C" grep -qF '===== Rawline session end (clean) =====' "$D/config/logs/rawline.log" ||
+        fail "$D/config/logs/rawline.log has no clean session end after Rawline ($1) exited"
     if docker exec "$C" test -e "$D/config/logs/running.marker"; then
-        fail "running.marker was left behind after Throne ($1) exited"
+        fail "running.marker was left behind after Rawline ($1) exited"
     fi
-    wait_until 15 "no qThroneCore left in $C" _no_core
+    wait_until 15 "no RawlineCore left in $C" _no_core
 }
 
 _stop() {
     _signal TERM
     _wait_exit "$1" 45
-    _expect_eq "exit status of Throne ($1) after SIGTERM" "$EXIT_RC" 0
+    _expect_eq "exit status of Rawline ($1) after SIGTERM" "$EXIT_RC" 0
     _assert_clean_end "$1" "EXIT 0: SIGTERM"
 }
 
 _kill9() {
     _signal KILL
     _wait_exit "$1" 15
-    _expect_eq "exit status of Throne ($1) after kill -9" "$EXIT_RC" 137
-    wait_until 30 "the killed Throne's qThroneCore exiting (on the end of its IPC connection)" _no_core
+    _expect_eq "exit status of Rawline ($1) after kill -9" "$EXIT_RC" 137
+    wait_until 30 "the killed Rawline's RawlineCore exiting (on the end of its IPC connection)" _no_core
 }
 
-# _expect_exit WANT LABEL CMD...: CMD in the Throne container, its output kept as logs/<scenario>/cli-LABEL.log.
+# _expect_exit WANT LABEL CMD...: CMD in the Rawline container, its output kept as logs/<scenario>/cli-LABEL.log.
 _expect_exit() {
     local want=$1 label=$2 rc=0
     shift 2
@@ -325,14 +325,14 @@ _expect_exit() {
     _expect_eq "exit status of '$*'" "$rc" "$want"
 }
 
-# _expect_ctl_error CODE THRONECTL_ARGS...: thronectl exits 1 with "error: CODE: ..."; the output lands in CTL_ERROR.
+# _expect_ctl_error CODE RAWLINECTL_ARGS...: rawlinectl exits 1 with "error: CODE: ..."; the output lands in CTL_ERROR.
 _expect_ctl_error() {
     local code=$1 rc=0
     shift
     CTL_ERROR=$(_ctl "$@" 2>&1) || rc=$?
-    echo "thronectl $*: exit $rc: $CTL_ERROR"
-    _expect_eq "exit status of thronectl $*" "$rc" 1
-    [[ $CTL_ERROR == *"error: $code:"* ]] || fail "thronectl $* did not fail with $code: $CTL_ERROR"
+    echo "rawlinectl $*: exit $rc: $CTL_ERROR"
+    _expect_eq "exit status of rawlinectl $*" "$rc" 1
+    [[ $CTL_ERROR == *"error: $code:"* ]] || fail "rawlinectl $* did not fail with $code: $CTL_ERROR"
 }
 
 # ---------------------------------------------------------------------------------------------------- traffic
@@ -340,7 +340,7 @@ _expect_ctl_error() {
 _import_profile() {
     local out
     out=$(printf 'socks5://%s:%s#e2e-%s\n' "$FIX_IP" "$SOCKS_PORT" "$SC" | _ctl_stdin --json import -) ||
-        fail "thronectl import of the fixture's SOCKS5 profile failed"
+        fail "rawlinectl import of the fixture's SOCKS5 profile failed"
     echo "import: $out"
     _expect_eq "imported profiles" "$(_jget imported <<<"$out")" 1
     PROFILE_ID=$(_jget profile_ids.0 <<<"$out")
@@ -348,13 +348,13 @@ _import_profile() {
 }
 
 _connect() {
-    _ctl --timeout 90s connect "$PROFILE_ID" || fail "thronectl connect $PROFILE_ID failed"
+    _ctl --timeout 90s connect "$PROFILE_ID" || fail "rawlinectl connect $PROFILE_ID failed"
     wait_until 30 "profile $PROFILE_ID running" _status_is state running
 }
 
 _disconnect() {
-    _ctl --timeout 60s disconnect || fail "thronectl disconnect failed"
-    wait_until 30 "Throne idle" _status_is state idle
+    _ctl --timeout 60s disconnect || fail "rawlinectl disconnect failed"
+    wait_until 30 "Rawline idle" _status_is state idle
 }
 
 _assert_proxied() {
@@ -367,8 +367,8 @@ _assert_proxied() {
     esac
     before=$(_connects)
     code=$(docker exec "$C" curl -sS --max-time 20 -x "socks5h://$address:$port" -o /dev/null -w '%{http_code}' \
-        "http://$FIX_IP:$HTTP_PORT/") || fail "curl through Throne's mixed inbound $address:$port failed"
-    _expect_eq "HTTP status through Throne's mixed inbound" "$code" 204
+        "http://$FIX_IP:$HTTP_PORT/") || fail "curl through Rawline's mixed inbound $address:$port failed"
+    _expect_eq "HTTP status through Rawline's mixed inbound" "$code" 204
     wait_until 5 "the SOCKS5 fixture logging the CONNECT of the proxied request" _connects_above "$before"
 }
 
@@ -377,7 +377,7 @@ _curl_tunnelled() {
         "http://$TUN_TARGET_IP:$HTTP_PORT/"
 }
 
-# A request from the Throne container to the fixture without any proxy setting; prints the HTTP status.
+# A request from the Rawline container to the fixture without any proxy setting; prints the HTTP status.
 _curl_direct() {
     local wait=${1:-5}
     docker exec "$C" curl -sS --noproxy '*' --connect-timeout "$wait" --max-time $((wait + 5)) -o /dev/null \
@@ -410,35 +410,35 @@ _assert_direct_blocked() {
 
 scenario_cli() {
     _step "container"
-    _throne_container "${TUN_FLAGS[@]}"
+    _rawline_container "${TUN_FLAGS[@]}"
 
     _step "an unknown option exits 64"
-    _expect_exit 64 unknown-option /opt/Throne/Throne --headless --data-dir "$D" --no-such-option
+    _expect_exit 64 unknown-option /opt/Rawline/Rawline --headless --data-dir "$D" --no-such-option
 
     _step "--data-dir naming a file exits 78"
     docker exec "$C" touch /tmp/a-file
-    _expect_exit 78 data-dir-file /opt/Throne/Throne --headless --data-dir /tmp/a-file
+    _expect_exit 78 data-dir-file /opt/Rawline/Rawline --headless --data-dir /tmp/a-file
     _log_has cli-data-dir-file.log "exists and is not a directory"
 
     _step "a missing --api-key-file exits 78"
-    _expect_exit 78 missing-key-file /opt/Throne/Throne --headless --data-dir /var/lib/throne-e2e-key \
+    _expect_exit 78 missing-key-file /opt/Rawline/Rawline --headless --data-dir /var/lib/rawline-e2e-key \
         --api-key-file /nonexistent/api.key
     _log_has cli-missing-key-file.log "is not usable"
 
     _step "--health with nothing running exits 2"
-    _expect_exit 2 health-idle /opt/Throne/Throne --health --data-dir "$D"
-    _log_has cli-health-idle.log "No headless Throne answered"
+    _expect_exit 2 health-idle /opt/Rawline/Rawline --health --data-dir "$D"
+    _log_has cli-health-idle.log "No headless Rawline answered"
 
     _step "--check exits 0"
-    _expect_exit 0 check /opt/Throne/Throne --check --data-dir "$D"
+    _expect_exit 0 check /opt/Rawline/Rawline --check --data-dir "$D"
     _log_has cli-check.log "result: 0 failed"
 
     _step "a second instance on a busy data dir exits 3"
     _start first
     _wait_healthy first
-    _expect_exit 3 second-instance /opt/Throne/Throne --headless --data-dir "$D" --log-format plain
+    _expect_exit 3 second-instance /opt/Rawline/Rawline --headless --data-dir "$D" --log-format plain
     _log_has cli-second-instance.log "is in use by"
-    _healthy first || fail "the first Throne is no longer healthy after the second one was refused"
+    _healthy first || fail "the first Rawline is no longer healthy after the second one was refused"
 
     _step "SIGTERM"
     _stop first
@@ -446,13 +446,13 @@ scenario_cli() {
 
 scenario_signals() {
     local pid
-    _throne_container "${TUN_FLAGS[@]}"
+    _rawline_container "${TUN_FLAGS[@]}"
     _fixture_start
 
     _step "SIGTERM exits 0 with a clean session end"
     _start term
     _wait_healthy term
-    _expect_eq "parent PID of Throne" "$(docker exec "$C" ps -o ppid= -p "$THRONE_PID" | tr -d ' ')" \
+    _expect_eq "parent PID of Rawline" "$(docker exec "$C" ps -o ppid= -p "$RAWLINE_PID" | tr -d ' ')" \
         "$(cat "$LOGDIR/term.shpid")"
     # The parent's comm is the wrapper script's name, so only the mode and its kind of reason are fixed.
     _log_has term.log "restart mode exec (launched by "
@@ -461,22 +461,22 @@ scenario_signals() {
     _step "SIGHUP restarts in place: same PID, new session"
     _start hup
     _wait_healthy hup
-    pid=$THRONE_PID
+    pid=$RAWLINE_PID
     _expect_eq "boot lines before SIGHUP" "$(_boot_lines hup)" 1
     _signal HUP
     wait_until 60 "the exec'd image's boot line" _boot_lines_at_least hup 2
     _wait_healthy hup
-    _find_pid hup || fail "no Throne under the hup shell after SIGHUP"
-    _expect_eq "PID after the SIGHUP restart" "$THRONE_PID" "$pid"
+    _find_pid hup || fail "no Rawline under the hup shell after SIGHUP"
+    _expect_eq "PID after the SIGHUP restart" "$RAWLINE_PID" "$pid"
     _expect_eq "previous_crash after an exec restart" "$(_jget previous_crash <<<"$HEALTH")" false
     _log_has hup.log "EXIT 75: SIGHUP"
-    _log_has hup.log "restarting in place: /opt/Throne/Throne"
+    _log_has hup.log "restarting in place: /opt/Rawline/Rawline"
     _log_has hup.log "restart mode exec (inherited from the previous image)"
-    # Logging::Init truncates throne.log, so it holds only the new image's session.
-    docker exec "$C" grep -qF "pid       : $pid" "$D/config/logs/throne.log" ||
-        fail "throne.log has no session header for PID $pid after the restart"
-    docker exec "$C" grep -qF "restart mode exec (inherited from the previous image)" "$D/config/logs/throne.log" ||
-        fail "throne.log is not the session of the exec'd image"
+    # Logging::Init truncates rawline.log, so it holds only the new image's session.
+    docker exec "$C" grep -qF "pid       : $pid" "$D/config/logs/rawline.log" ||
+        fail "rawline.log has no session header for PID $pid after the restart"
+    docker exec "$C" grep -qF "restart mode exec (inherited from the previous image)" "$D/config/logs/rawline.log" ||
+        fail "rawline.log is not the session of the exec'd image"
     _stop hup
 
     _step "--restart-mode exit: SIGHUP exits 75"
@@ -494,10 +494,10 @@ scenario_signals() {
     _wait_healthy int
     _import_profile
     _connect
-    CORE_PID=$(docker exec "$C" pgrep -n -P "$THRONE_PID" -x qThroneCore) || fail "no qThroneCore child of Throne $THRONE_PID"
+    CORE_PID=$(docker exec "$C" pgrep -n -P "$RAWLINE_PID" -x RawlineCore) || fail "no RawlineCore child of Rawline $RAWLINE_PID"
     _signal STOP "$CORE_PID"
     _signal INT
-    wait_until 15 "Throne logging 'EXIT 0: SIGINT' (its teardown has begun)" _log_q int.log "EXIT 0: SIGINT"
+    wait_until 15 "Rawline logging 'EXIT 0: SIGINT' (its teardown has begun)" _log_q int.log "EXIT 0: SIGINT"
     _signal INT
     # Without the fast path the frozen core lives until the Stop timeout and the teardown's SIGKILL, about 10 s later.
     wait_until 4 "the core killed by the second SIGINT (well before the 10 s Stop timeout)" _no_core
@@ -509,15 +509,15 @@ scenario_signals() {
 
 scenario_proxy() {
     local mode
-    _throne_container "${TUN_FLAGS[@]}"
+    _rawline_container "${TUN_FLAGS[@]}"
     _fixture_start
 
     _step "start"
     _start main
     _wait_healthy main
-    # docker exec's umask is 022, so only Throne's own create mode keeps the key from others.
+    # docker exec's umask is 022, so only Rawline's own create mode keeps the key from others.
     mode=$(docker exec "$C" stat -c '%a' "$D/config/api.key") || fail "no $D/config/api.key in $C"
-    (((8#$mode & 8#077) == 0)) || fail "$D/config/api.key has mode $mode: Throne created the API key readable by others"
+    (((8#$mode & 8#077) == 0)) || fail "$D/config/api.key has mode $mode: Rawline created the API key readable by others"
     _status
     _expect_eq "capabilities.headless" "$(_sfield capabilities.headless)" true
     _expect_eq state "$(_sfield state)" idle
@@ -535,7 +535,7 @@ scenario_proxy() {
 }
 
 scenario_tun() {
-    _throne_container "${TUN_FLAGS[@]}"
+    _rawline_container "${TUN_FLAGS[@]}"
     _fixture_start
 
     _step "start"
@@ -544,15 +544,15 @@ scenario_tun() {
     wait_until 30 "capabilities.tun true (the core's privilege check)" _status_is capabilities.tun true
     _import_profile
 
-    _step "without Tun a direct request bypasses Throne"
+    _step "without Tun a direct request bypasses Rawline"
     _assert_direct_ok_unproxied
 
     _step "tun on, connect"
-    _ctl --timeout 60s tun on || fail "thronectl tun on failed"
+    _ctl --timeout 60s tun on || fail "rawlinectl tun on failed"
     _connect
     _status
     _expect_eq tun "$(_sfield tun)" true
-    wait_until 30 "the throne-tun interface in $C" _tun_up
+    wait_until 30 "the rawline-tun interface in $C" _tun_up
 
     _step "a direct request goes through the tunnel and the profile"
     local before code
@@ -563,10 +563,10 @@ scenario_tun() {
     wait_until 5 "the SOCKS5 fixture logging the CONNECT of the tunnelled request" \
         _connects_above "$before" "$TUN_TARGET_RE"
 
-    _step "tun off: direct requests bypass Throne again"
-    _ctl --timeout 90s tun off || fail "thronectl tun off failed"
+    _step "tun off: direct requests bypass Rawline again"
+    _ctl --timeout 90s tun off || fail "rawlinectl tun off failed"
     wait_until 30 "tun false in the status" _status_is tun false
-    wait_until 30 "throne-tun gone from $C" _no_tun_if
+    wait_until 30 "rawline-tun gone from $C" _no_tun_if
     _assert_direct_ok_unproxied
 
     _step "disconnect, SIGTERM"
@@ -574,13 +574,13 @@ scenario_tun() {
     _stop main
 }
 
-_tun_up() { docker exec "$C" ip link show throne-tun >/dev/null 2>&1; }
+_tun_up() { docker exec "$C" ip link show rawline-tun >/dev/null 2>&1; }
 
 _no_tun_if() { ! _tun_up; }
 
 scenario_kill_switch() {
     local out
-    _throne_container "${TUN_FLAGS[@]}"
+    _rawline_container "${TUN_FLAGS[@]}"
     _fixture_start
 
     _step "start with --api-listen 0.0.0.0:9095 --api-admin-lan"
@@ -590,21 +590,21 @@ scenario_kill_switch() {
     _import_profile
     _assert_direct_ok_unproxied
     docker cp "$C:$D/config/api.key" "$WORK/fixture/$SC.api.key" >/dev/null || fail "docker cp of api.key out of $C failed"
-    out=$(_fix_ctl --json status) || fail "thronectl in the fixture container cannot reach $C_IP:9095 even without the kill switch"
+    out=$(_fix_ctl --json status) || fail "rawlinectl in the fixture container cannot reach $C_IP:9095 even without the kill switch"
 
     _step "kill_switch=true arms the kill switch"
-    _ctl settings set kill_switch=true || fail "thronectl settings set kill_switch=true failed"
+    _ctl settings set kill_switch=true || fail "rawlinectl settings set kill_switch=true failed"
     wait_until 60 "kill_switch armed in the status" _status_is kill_switch armed
-    # The running core lacks the kill switch's group until Throne restarts it (ConnectionManager::restartCoreForGuard).
-    wait_until 30 "Throne restarting its core into the kill switch's group" \
+    # The running core lacks the kill switch's group until Rawline restarts it (ConnectionManager::restartCoreForGuard).
+    wait_until 30 "Rawline restarting its core into the kill switch's group" \
         _log_q main.log "[Kill switch] Restarting the core so that its own traffic passes the kill switch"
     _wait_healthy main 60
 
-    _step "idle: a direct request from the Throne container is blocked"
+    _step "idle: a direct request from the Rawline container is blocked"
     _assert_direct_blocked
 
     _step "the API's port still answers the fixture container"
-    out=$(_fix_ctl --json status) || fail "thronectl in the fixture container lost $C_IP:9095 to the kill switch"
+    out=$(_fix_ctl --json status) || fail "rawlinectl in the fixture container lost $C_IP:9095 to the kill switch"
     _expect_eq "kill_switch seen from the fixture container" "$(_jget kill_switch <<<"$out")" armed
 
     _step "a connected profile carries traffic; direct requests stay blocked"
@@ -613,7 +613,7 @@ scenario_kill_switch() {
     _assert_direct_blocked
 
     _step "kill_switch=false from the fixture container (an admin request from the LAN)"
-    _fix_ctl settings set kill_switch=false || fail "thronectl settings set kill_switch=false from the fixture container failed"
+    _fix_ctl settings set kill_switch=false || fail "rawlinectl settings set kill_switch=false from the fixture container failed"
     wait_until 30 "kill_switch off in the status" _status_is kill_switch off
     # The status turns off at once; the guard removes its rules when its input closes, just after.
     wait_until 15 "direct requests from $C passing again" _direct_ok
@@ -646,7 +646,7 @@ _assert_identity_state() {
 
 scenario_identity() {
     local pid lines
-    _throne_container "${TUN_FLAGS[@]}" --cap-drop SETGID
+    _rawline_container "${TUN_FLAGS[@]}" --cap-drop SETGID
     _fixture_start
 
     _step "start without CAP_SETGID"
@@ -654,29 +654,29 @@ scenario_identity() {
     _wait_healthy main
     _import_profile
 
-    _step "kill_switch=true: the core cannot adopt the kill switch's group (exit 86); Throne stays up"
-    _ctl settings set kill_switch=true || fail "thronectl settings set kill_switch=true failed"
+    _step "kill_switch=true: the core cannot adopt the kill switch's group (exit 86); Rawline stays up"
+    _ctl settings set kill_switch=true || fail "rawlinectl settings set kill_switch=true failed"
     wait_until 60 "kill_switch failed with capabilities.kill_switch false" _identity_failed
     _log_has main.log "[Core] The core cannot adopt the kill-switch group"
     _log_has main.log "[Kill switch] Profiles refused (unsupported):"
     _wait_healthy main 60
     _assert_identity_state
 
-    _step "thronectl restart: the same outcome after a fresh core start"
-    pid=$THRONE_PID
+    _step "rawlinectl restart: the same outcome after a fresh core start"
+    pid=$RAWLINE_PID
     lines=$(_boot_lines main)
-    _ctl restart || fail "thronectl restart failed"
+    _ctl restart || fail "rawlinectl restart failed"
     wait_until 60 "the restarted image's boot line" _boot_lines_at_least main $((lines + 1))
     _wait_healthy main 90
-    _find_pid main || fail "no Throne under the main shell after the restart"
-    _expect_eq "PID after thronectl restart (exec in place)" "$THRONE_PID" "$pid"
+    _find_pid main || fail "no Rawline under the main shell after the restart"
+    _expect_eq "PID after rawlinectl restart (exec in place)" "$RAWLINE_PID" "$pid"
     wait_until 60 "kill_switch failed with capabilities.kill_switch false after the restart" _identity_failed
     (($(_log_count main.log "[Core] The core cannot adopt the kill-switch group") >= 2)) ||
-        fail "the restarted Throne did not log the core's identity exit again"
+        fail "the restarted Rawline did not log the core's identity exit again"
     _assert_identity_state
 
     _step "kill_switch=false: a profile connects again"
-    _ctl settings set kill_switch=false || fail "thronectl settings set kill_switch=false failed"
+    _ctl settings set kill_switch=false || fail "rawlinectl settings set kill_switch=false failed"
     wait_until 30 "kill_switch off in the status" _status_is kill_switch off
     _connect
     _assert_proxied
@@ -688,23 +688,23 @@ scenario_identity() {
 
 scenario_stay_up() {
     local pid
-    _throne_container "${TUN_FLAGS[@]}"
+    _rawline_container "${TUN_FLAGS[@]}"
 
-    _step "a writable copy of the deployment whose qThroneCore exits 1"
-    docker exec "$C" sh -c 'mkdir /opt/throne-rw && tar -C /opt/Throne --exclude=Throne.debug -cf - . | tar -C /opt/throne-rw -xf - &&
-        mv /opt/throne-rw/qThroneCore /opt/throne-rw/qThroneCore.real &&
-        printf "#!/bin/sh\nexit 1\n" >/opt/throne-rw/qThroneCore && chmod 0755 /opt/throne-rw/qThroneCore' ||
-        fail "preparing /opt/throne-rw failed"
+    _step "a writable copy of the deployment whose RawlineCore exits 1"
+    docker exec "$C" sh -c 'mkdir /opt/rawline-rw && tar -C /opt/Rawline --exclude=Rawline.debug -cf - . | tar -C /opt/rawline-rw -xf - &&
+        mv /opt/rawline-rw/RawlineCore /opt/rawline-rw/RawlineCore.real &&
+        printf "#!/bin/sh\nexit 1\n" >/opt/rawline-rw/RawlineCore && chmod 0755 /opt/rawline-rw/RawlineCore' ||
+        fail "preparing /opt/rawline-rw failed"
 
     _step "boots 1-3 give up on the core and exit 70"
-    _launch boots 5 70 /opt/throne-rw/Throne
+    _launch boots 5 70 /opt/rawline-rw/Rawline
     wait_until 180 "three boots ending" _boots_at_least 3
     _expect_eq "the first three boots" "$(head -n 3 "$LOGDIR/boots.boots")" $'boot 1 exit 70\nboot 2 exit 70\nboot 3 exit 70'
 
     _step "boot 4 stays up: degraded core_gave_up, the API answering"
     wait_until 120 "boot 4 ready with degraded core_gave_up" _health_degraded core_gave_up
     _expect_eq "boots ended so far" "$(_lines "$LOGDIR/boots.boots")" 3
-    _find_pid boots || fail "no Throne under the boots shell"
+    _find_pid boots || fail "no Rawline under the boots shell"
     _health_now
     _expect_eq "--health exit status while the core is given up" "$HEALTH_RC" 1
     _status
@@ -713,13 +713,13 @@ scenario_stay_up() {
     _log_has boots.log "stays up (degraded core_gave_up)"
     _log_has boots.log "staying up so the API stays reachable"
 
-    _step "the real qThroneCore back, thronectl restart: healthy"
-    docker exec "$C" mv -f /opt/throne-rw/qThroneCore.real /opt/throne-rw/qThroneCore || fail "restoring qThroneCore failed"
-    pid=$THRONE_PID
-    _ctl restart || fail "thronectl restart failed"
+    _step "the real RawlineCore back, rawlinectl restart: healthy"
+    docker exec "$C" mv -f /opt/rawline-rw/RawlineCore.real /opt/rawline-rw/RawlineCore || fail "restoring RawlineCore failed"
+    pid=$RAWLINE_PID
+    _ctl restart || fail "rawlinectl restart failed"
     _wait_healthy boots 90
-    _find_pid boots || fail "no Throne under the boots shell after the restart"
-    _expect_eq "PID after thronectl restart (exec in place)" "$THRONE_PID" "$pid"
+    _find_pid boots || fail "no Rawline under the boots shell after the restart"
+    _expect_eq "PID after rawlinectl restart (exec in place)" "$RAWLINE_PID" "$pid"
     _expect_eq "boots ended so far" "$(_lines "$LOGDIR/boots.boots")" 3
     _status
     _expect_eq "status degraded" "$(_sfield degraded)" null
@@ -755,7 +755,7 @@ _state_armed() {
 
 scenario_resume() {
     local n connected
-    _throne_container "${TUN_FLAGS[@]}"
+    _rawline_container "${TUN_FLAGS[@]}"
     _fixture_start
 
     # A start through the API never arms the guard; only the resumed boot start does.
@@ -793,7 +793,7 @@ scenario_resume() {
     _step "--no-resume boots idle"
     _start boot6 --no-resume
     _wait_healthy boot6
-    _log_has boot6.log "[Resume] Off (--no-resume or THRONE_RESUME)"
+    _log_has boot6.log "[Resume] Off (--no-resume or RAWLINE_RESUME)"
     _status
     _expect_eq state "$(_sfield state)" idle
     _expect_eq degraded "$(_sfield degraded)" null
@@ -802,16 +802,16 @@ scenario_resume() {
 
 _tun_has() {
     local out
-    out=$(docker exec "$C" ip -4 -o addr show dev throne-tun 2>/dev/null) || return 1
+    out=$(docker exec "$C" ip -4 -o addr show dev rawline-tun 2>/dev/null) || return 1
     grep -qF " $1/" <<<"$out"
 }
 
 scenario_tun_conflict() {
-    _throne_container "${TUN_FLAGS[@]}"
+    _rawline_container "${TUN_FLAGS[@]}"
     _fixture_start
 
-    # Before Throne starts: its Tun check caches an answer for 5 s.
-    _step "dummy0 holds 172.19.0.1/24, Throne's default Tun address"
+    # Before Rawline starts: its Tun check caches an answer for 5 s.
+    _step "dummy0 holds 172.19.0.1/24, Rawline's default Tun address"
     docker exec "$C" sh -c 'ip link add dummy0 type dummy && ip addr add 172.19.0.1/24 dev dummy0 && ip link set dummy0 up' ||
         fail "creating dummy0 in $C failed (is the dummy module loaded on the runner?)"
 
@@ -828,34 +828,34 @@ scenario_tun_conflict() {
     [[ $(_sfield tun_conflict) == *tun_ipv4_cidr* ]] || fail "status tun_conflict does not name tun_ipv4_cidr: $STATUS"
 
     _step "tun_ipv4_cidr=172.29.0.1/24, then tun on succeeds"
-    _ctl settings set tun_ipv4_cidr=172.29.0.1/24 || fail "thronectl settings set tun_ipv4_cidr failed"
+    _ctl settings set tun_ipv4_cidr=172.29.0.1/24 || fail "rawlinectl settings set tun_ipv4_cidr failed"
     # Read while Tun is off: once it is on, tun_conflict is null whatever the check says.
     _status
     _expect_eq "tun_conflict after moving tun_ipv4_cidr" "$(_sfield tun_conflict)" null
-    _ctl --timeout 60s tun on || fail "thronectl tun on failed after moving tun_ipv4_cidr"
+    _ctl --timeout 60s tun on || fail "rawlinectl tun on failed after moving tun_ipv4_cidr"
     _status
     _expect_eq tun "$(_sfield tun)" true
 
     _step "a profile with Tun uses the new range"
     _import_profile
     _connect
-    wait_until 30 "throne-tun carrying 172.29.0.1" _tun_has 172.29.0.1
+    wait_until 30 "rawline-tun carrying 172.29.0.1" _tun_has 172.29.0.1
 
     _step "tun off, disconnect, SIGTERM"
-    _ctl --timeout 90s tun off || fail "thronectl tun off failed"
+    _ctl --timeout 90s tun off || fail "rawlinectl tun off failed"
     _disconnect
     _stop main
 }
 
 scenario_no_kill_switch() {
-    _throne_container "${TUN_FLAGS[@]}"
+    _rawline_container "${TUN_FLAGS[@]}"
     _fixture_start
 
     _step "kill_switch=true saved"
     _start first
     _wait_healthy first
     _import_profile
-    _ctl settings set kill_switch=true || fail "thronectl settings set kill_switch=true failed"
+    _ctl settings set kill_switch=true || fail "rawlinectl settings set kill_switch=true failed"
     wait_until 60 "kill_switch armed in the status" _status_is kill_switch armed
     _stop first
 
@@ -872,7 +872,7 @@ scenario_no_kill_switch() {
     _assert_direct_ok_unproxied
 
     _step "kill_switch=false: profiles start"
-    _ctl settings set kill_switch=false || fail "thronectl settings set kill_switch=false failed"
+    _ctl settings set kill_switch=false || fail "rawlinectl settings set kill_switch=false failed"
     wait_until 30 "kill_switch off in the status" _status_is kill_switch off
     _status
     _expect_eq "status degraded" "$(_sfield degraded)" null
@@ -904,21 +904,21 @@ scenario_image() {
     docker image inspect "$E2E_IMAGE" >/dev/null 2>&1 ||
         fail "E2E_IMAGE $E2E_IMAGE is not an image in this docker (did the job's image build fail?)"
     C=$PREFIX-image
-    C_DATA=/var/lib/throne
+    C_DATA=/var/lib/rawline
     C_DOCKER_LOG=image.log
 
     _step "docker run $E2E_IMAGE with docker/compose.yaml's flags"
     docker volume create --label "$LABEL" "$PREFIX-image-data" >/dev/null
     docker run -d --name "$C" --label "$LABEL" --network "$NET" --ip "198.18.0.$((20 + SC_INDEX))" \
         --restart unless-stopped --stop-timeout 45 --cap-add NET_ADMIN --device /dev/net/tun \
-        -p 127.0.0.1::2080 --mount "type=volume,src=$PREFIX-image-data,dst=/var/lib/throne" \
+        -p 127.0.0.1::2080 --mount "type=volume,src=$PREFIX-image-data,dst=/var/lib/rawline" \
         "$E2E_IMAGE" >/dev/null || fail "docker run of $E2E_IMAGE failed"
 
     _step "the image's HEALTHCHECK turns healthy"
     wait_until 180 "Docker's health status of $C turning healthy (first probe after 30 s)" _image_healthy
-    docker exec "$C" /opt/Throne/Throne --health || fail "Throne --health in $C failed"
-    docker exec "$C" thronectl --key-file /var/lib/throne/config/api.key status ||
-        fail "thronectl --key-file /var/lib/throne/config/api.key status failed in $C"
+    docker exec "$C" /opt/Rawline/Rawline --health || fail "Rawline --health in $C failed"
+    docker exec "$C" rawlinectl --key-file /var/lib/rawline/config/api.key status ||
+        fail "rawlinectl --key-file /var/lib/rawline/config/api.key status failed in $C"
 
     _step "docker stop: exit 0 within 45 s"
     started=$SECONDS
@@ -946,7 +946,7 @@ _collect() {
 
 _dump() {
     local file
-    echo "::group::L2 $SC failed: Throne output, throne.log, fixture log, container state"
+    echo "::group::L2 $SC failed: Rawline output, rawline.log, fixture log, container state"
     for file in "$LOGDIR"/*.log; do
         if [ -f "$file" ]; then
             echo "----- $file (last 300 lines)"
@@ -959,9 +959,9 @@ _dump() {
             cat "$file"
         fi
     done
-    if [ -f "$LOGDIR/data-logs/throne.log" ]; then
-        echo "----- config/logs/throne.log (last 200 lines)"
-        tail -n 200 "$LOGDIR/data-logs/throne.log"
+    if [ -f "$LOGDIR/data-logs/rawline.log" ]; then
+        echo "----- config/logs/rawline.log (last 200 lines)"
+        tail -n 200 "$LOGDIR/data-logs/rawline.log"
     fi
     for file in "$WORK/fixture/$SC.log" "$WORK/fixture/$SC.stderr"; do
         if [ -f "$file" ]; then
@@ -1068,19 +1068,19 @@ _report() {
 _setup() {
     local out
     step "L2 setup: inputs"
-    [ -x "$THRONE_DIR/Throne" ] || fail "THRONE_DIR $THRONE_DIR has no executable Throne"
-    [ -x "$THRONE_DIR/qThroneCore" ] || fail "THRONE_DIR $THRONE_DIR has no executable qThroneCore"
-    [ -x "$THRONECTL" ] || fail "THRONECTL $THRONECTL is not executable"
+    [ -x "$RAWLINE_DIR/Rawline" ] || fail "RAWLINE_DIR $RAWLINE_DIR has no executable Rawline"
+    [ -x "$RAWLINE_DIR/RawlineCore" ] || fail "RAWLINE_DIR $RAWLINE_DIR has no executable RawlineCore"
+    [ -x "$RAWLINECTL" ] || fail "RAWLINECTL $RAWLINECTL is not executable"
     [ -f "$FIXTURES" ] || fail "FIXTURES $FIXTURES is not a file"
     for out in docker python3 curl; do
         command -v "$out" >/dev/null || fail "$out is not installed on this runner"
     done
     mkdir -p "$E2E_TMP"
-    THRONE_DIR=$(cd "$THRONE_DIR" && pwd)
-    THRONECTL=$(cd "$(dirname "$THRONECTL")" && pwd)/$(basename "$THRONECTL")
+    RAWLINE_DIR=$(cd "$RAWLINE_DIR" && pwd)
+    RAWLINECTL=$(cd "$(dirname "$RAWLINECTL")" && pwd)/$(basename "$RAWLINECTL")
     FIXTURES=$(cd "$(dirname "$FIXTURES")" && pwd)/$(basename "$FIXTURES")
     WORK=$(cd "$E2E_TMP" && pwd)/linux-scenarios
-    echo "THRONE_DIR=$THRONE_DIR THRONECTL=$THRONECTL FIXTURES=$FIXTURES work dir $WORK"
+    echo "RAWLINE_DIR=$RAWLINE_DIR RAWLINECTL=$RAWLINECTL FIXTURES=$FIXTURES work dir $WORK"
     docker version --format 'docker {{.Server.Version}}' || fail "docker does not answer"
     rm -rf "$WORK"
     mkdir -p "$WORK/bin" "$WORK/fixture" "$WORK/logs"
@@ -1098,11 +1098,11 @@ RUN apt-get -o Acquire::Retries=3 update \
         iproute2 curl procps python3 nftables \
  && rm -rf /var/lib/apt/lists/* /etc/machine-id /var/lib/dbus/machine-id
 EOF
-    out=$(docker run --rm --mount "type=bind,src=$THRONE_DIR,dst=/opt/Throne,readonly" "$TEST_IMAGE" \
-        sh -c 'ldd /opt/Throne/Throne; ldd /opt/Throne/qThroneCore; /opt/Throne/Throne --headless --version' 2>&1) || true
+    out=$(docker run --rm --mount "type=bind,src=$RAWLINE_DIR,dst=/opt/Rawline,readonly" "$TEST_IMAGE" \
+        sh -c 'ldd /opt/Rawline/Rawline; ldd /opt/Rawline/RawlineCore; /opt/Rawline/Rawline --headless --version' 2>&1) || true
     echo "$out"
     if grep -F 'not found' <<<"$out"; then
-        fail "Throne or qThroneCore misses libraries in $TEST_IMAGE (lines above): the package list here or the deb's Depends lags"
+        fail "Rawline or RawlineCore misses libraries in $TEST_IMAGE (lines above): the package list here or the deb's Depends lags"
     fi
 
     step "L2 setup: network $NET (198.18.0.0/24) and the fixture container at $FIX_IP"
@@ -1113,7 +1113,7 @@ EOF
         -e LANG=C.UTF-8 \
         --mount "type=bind,src=$FIXTURES,dst=/fx-src/smoke_fixtures.py,readonly" \
         --mount "type=bind,src=$WORK/fixture,dst=/fx" \
-        --mount "type=bind,src=$THRONECTL,dst=/usr/local/bin/thronectl,readonly" \
+        --mount "type=bind,src=$RAWLINECTL,dst=/usr/local/bin/rawlinectl,readonly" \
         "$TEST_IMAGE" sleep infinity >/dev/null || fail "docker run of $FIX failed"
     docker exec "$FIX" python3 --version || fail "the fixture container does not run"
 }

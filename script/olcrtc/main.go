@@ -1,5 +1,5 @@
-// Command qthrone-olcrtc owns one olcRTC session and its local SOCKS listener.
-// The listener requires the per-launch credentials qThrone generates and opens
+// Command rawline-olcrtc owns one olcRTC session and its local SOCKS listener.
+// The listener requires the per-launch credentials Rawline generates and opens
 // only after the link to the server is up.
 package main
 
@@ -127,7 +127,7 @@ func makeClient(c config) (client.Config, error) {
 	return cfg, err
 }
 func run() int {
-	if len(os.Args) != 3 || os.Args[1] != "--qthrone-config" {
+	if len(os.Args) != 3 || os.Args[1] != "--rawline-config" {
 		fmt.Fprintln(os.Stderr, "olcRTC: expected private configuration file")
 		return 1
 	}

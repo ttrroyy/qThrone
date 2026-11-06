@@ -12,8 +12,8 @@ import (
 	"time"
 
 	"github.com/google/shlex"
-	"qThroneCore/gen"
-	"qThroneCore/internal/process"
+	"RawlineCore/gen"
+	"RawlineCore/internal/process"
 )
 
 // All entries are owned by the running configuration, under lifecycleMu.

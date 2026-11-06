@@ -1,6 +1,6 @@
 package all
 
 import (
-	_ "qThroneCore/internal/netmon"
+	_ "RawlineCore/internal/netmon"
 	_ "github.com/xtls/xray-core/main/distro/all"
 )

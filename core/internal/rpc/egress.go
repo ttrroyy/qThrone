@@ -11,9 +11,9 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"qThroneCore/gen"
-	"qThroneCore/internal/netmon"
-	"qThroneCore/internal/scan"
+	"RawlineCore/gen"
+	"RawlineCore/internal/netmon"
+	"RawlineCore/internal/scan"
 
 	"github.com/sagernet/sing-box/option"
 	tun "github.com/sagernet/sing-tun"

@@ -47,7 +47,7 @@
 #include <libproc.h>
 #endif
 
-#define LOCAL_SERVER_PREFIX "qthrone-"
+#define LOCAL_SERVER_PREFIX "rawline-"
 
 namespace Engine::Bootstrap {
     namespace {
@@ -56,7 +56,7 @@ namespace Engine::Bootstrap {
         // QFileInfo::isWritable reports the read-only attribute, not what a UAC-filtered token can actually do.
         bool DirIsWritable(const QDir &dir) {
             if (!dir.exists() && !QDir().mkpath(dir.absolutePath())) return false;
-            QFile probe(dir.absoluteFilePath(".throne-write-test"));
+            QFile probe(dir.absoluteFilePath(".rawline-write-test"));
             if (!probe.open(QIODevice::WriteOnly)) return false;
             probe.close();
             probe.remove();
@@ -65,7 +65,7 @@ namespace Engine::Bootstrap {
 
         bool ConfigDirIsUsable(const QDir &configDir) {
             if (!DirIsWritable(configDir)) return false;
-            const QString db = configDir.absoluteFilePath("throne.db");
+            const QString db = configDir.absoluteFilePath("rawline.db");
             if (!QFile::exists(db)) return true;
             QFile file(db);
             return file.open(QIODevice::ReadWrite);
@@ -82,8 +82,34 @@ namespace Engine::Bootstrap {
             }
         }
 
+        // Data kept under the program's earlier name: a copy when it sits beside this data dir (never replacing what is
+        // here), then the files take their new names in place.
+        void AdoptEarlierData(const QDir &wd) {
+            if (!QFile::exists(wd.absoluteFilePath("config/rawline.db"))) {
+                const QDir earlier(QFileInfo(wd.absolutePath()).dir().filePath(QStringLiteral("qThrone")));
+                if (earlier.absolutePath() != wd.absolutePath() && QFile::exists(earlier.absoluteFilePath("config/throne.db"))) {
+                    CopyDirContents(earlier.absoluteFilePath("config"), wd.absoluteFilePath("config"));
+                    for (const QString &name : QStringList{"geoip.dat", "geosite.dat"}) {
+                        if (QFile::exists(earlier.absoluteFilePath(name)) && !QFile::exists(wd.absoluteFilePath(name)))
+                            QFile::copy(earlier.absoluteFilePath(name), wd.absoluteFilePath(name));
+                    }
+                    LOG_WARN(QString("copied existing config from %1").arg(earlier.absolutePath()));
+                }
+            }
+            const QDir config(wd.absoluteFilePath("config"));
+            for (const QString &suffix : QStringList{"", "-wal", "-shm"}) {
+                for (const QString &base : QStringList{".db", "_stats.db"}) {
+                    const QString before = "throne" + base + suffix, now = "rawline" + base + suffix;
+                    if (config.exists(before) && !config.exists(now)) config.rename(before, now);
+                }
+            }
+            if (config.exists("logs/throne.log") && !config.exists("logs/rawline.log")) config.rename("logs/throne.log", "logs/rawline.log");
+        }
+
         // An elevated relaunch finds the install dir writable again, so the fallback must stay pinned by the marker.
         bool AdoptUserConfigDir(const QDir &installWd, const QDir &userWd) {
+            AdoptEarlierData(installWd);
+            AdoptEarlierData(userWd);
             QFile marker(userWd.absoluteFilePath(FALLBACK_MARKER));
             if (marker.open(QIODevice::ReadOnly)) {
                 const bool pinnedHere = QString::fromUtf8(marker.readAll()).trimmed() == installWd.absolutePath();
@@ -96,7 +122,7 @@ namespace Engine::Bootstrap {
 
             const QString userConfig = userWd.absoluteFilePath("config");
             QDir().mkpath(userConfig);
-            if (!QFile::exists(userConfig + "/throne.db") && QFile::exists(installConfig + "/throne.db")) {
+            if (!QFile::exists(userConfig + "/rawline.db") && QFile::exists(installConfig + "/rawline.db")) {
                 CopyDirContents(installConfig, userConfig);
                 LOG_WARN(QString("copied existing config from %1").arg(installConfig));
             }
@@ -179,7 +205,7 @@ namespace Engine::Bootstrap {
         }
         if (dumpConfigs) launch.mode = Mode::DumpConfigs;
         else if (client) launch.mode = Mode::HeadlessClient;
-        else if (headless || bootstrapEnvTruthy("THRONE_HEADLESS")) launch.mode = Mode::Headless;
+        else if (headless || bootstrapEnvTruthy("RAWLINE_HEADLESS")) launch.mode = Mode::Headless;
         return launch;
     }
 
@@ -201,7 +227,7 @@ namespace Engine::Bootstrap {
 #ifdef NKR_CPP_USE_APPDATA
         res.useAppdata = true;
 #endif
-        QCoreApplication::setApplicationName("qThrone");
+        QCoreApplication::setApplicationName("Rawline");
         if (res.useAppdata) {
             if (!res.appdataDir.isEmpty()) {
                 res.wd.setPath(relativeBase.absoluteFilePath(res.appdataDir));
@@ -217,6 +243,7 @@ namespace Engine::Bootstrap {
         }
         if (!res.wd.exists()) res.wd.mkpath(res.wd.absolutePath());
         if (!res.wd.exists("config")) res.wd.mkdir("config");
+        AdoptEarlierData(res.wd);
         res.configDir = res.wd.absoluteFilePath("config");
         return res;
     }
@@ -362,7 +389,7 @@ namespace Engine::Bootstrap {
 
         appStartEpoch = QDateTime::currentSecsSinceEpoch();
 
-        Configs::initDB(QString(QDir::currentPath() + QDir::separator() + "throne.db").toStdString());
+        Configs::initDB(QString(QDir::currentPath() + QDir::separator() + "rawline.db").toStdString());
 
         Logging::SetLevel(Logging::LevelFromString(Configs::dataManager->settingsRepo->log_file_level));
 

@@ -13,8 +13,8 @@ import (
 	"sync"
 	"time"
 
-	"qThroneCore/internal/probe"
-	"qThroneCore/internal/process"
+	"RawlineCore/internal/probe"
+	"RawlineCore/internal/process"
 )
 
 const (
@@ -78,7 +78,7 @@ func runQWDTTPing(parent context.Context, config string, budget ...time.Duration
 	}
 	_ = json.Unmarshal([]byte(config), &c)
 	if c.Interactive {
-		browserRelease, err := acquireQWDTTProbe(queueCtx, sha256.Sum256([]byte("qThrone interactive captcha browser")))
+		browserRelease, err := acquireQWDTTProbe(queueCtx, sha256.Sum256([]byte("Rawline interactive captcha browser")))
 		if err != nil {
 			return 0, err
 		}

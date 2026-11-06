@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"qThroneCore/gen"
+	"RawlineCore/gen"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/protocol/group"

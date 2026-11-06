@@ -37,16 +37,16 @@ namespace Sys::HostPresence {
 
         QString hostPresenceRootDir() {
 #ifdef Q_OS_LINUX
-            return QStringLiteral("/run/throne");
+            return QStringLiteral("/run/rawline");
 #else
-            return QStringLiteral("/var/run/throne");
+            return QStringLiteral("/var/run/rawline");
 #endif
         }
 
         QString hostPresenceUserDir() {
             const QString runtime = qEnvironmentVariable("XDG_RUNTIME_DIR");
             if (runtime.isEmpty() || !QDir::isAbsolutePath(runtime)) return {};
-            return QDir(runtime).absoluteFilePath(QStringLiteral("throne"));
+            return QDir(runtime).absoluteFilePath(QStringLiteral("rawline"));
         }
 
         QString hostPresenceFile(const QString &dir) {

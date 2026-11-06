@@ -1,35 +1,35 @@
 #!/usr/bin/env bash
-# M1 of the headless e2e suite, on a macOS runner. "daemon": dist/macos/moe.Throne.headless.plist with its paths pointed at
-# the unpacked app and a temp data dir, bootstrapped into the system domain (root): --check, --health, thronectl proxy
+# M1 of the headless e2e suite, on a macOS runner. "daemon": dist/macos/moe.Rawline.headless.plist with its paths pointed at
+# the unpacked app and a temp data dir, bootstrapped into the system domain (root): --check, --health, rawlinectl proxy
 # through the mixed inbound, SIGHUP (exit 75, launchd starts it again, the profile resumes), bootout. "foreground": the
 # runner user's shell: SIGTERM, SIGHUP exec restart in the same PID, --restart-mode exit + SIGHUP = 75, and a second
 # SIGINT during the teardown of a connected profile whose core is frozen.
 # Never Tun or the kill switch.
-# Env: THRONE_APP  Throne.app, or the dir holding Throne and qThroneCore, or build-cpp's deployment/darwin-arm64
-#                  (default: THRONE_DIR, then <repo>/deployment/darwin-arm64/Throne.app)
-#      THRONECTL   thronectl built for this runner (default: thronectl on PATH)
-#      FIXTURES    script/ci/smoke_fixtures.py (default: the repo's); E2E_TMP scratch dir (default $RUNNER_TEMP/throne-e2e)
-# Needs passwordless sudo. Installs and removes /Library/LaunchDaemons/moe.Throne.headless.plist: disposable runners only.
+# Env: RAWLINE_APP  Rawline.app, or the dir holding Rawline and RawlineCore, or build-cpp's deployment/darwin-arm64
+#                  (default: RAWLINE_DIR, then <repo>/deployment/darwin-arm64/Rawline.app)
+#      RAWLINECTL   rawlinectl built for this runner (default: rawlinectl on PATH)
+#      FIXTURES    script/ci/smoke_fixtures.py (default: the repo's); E2E_TMP scratch dir (default $RUNNER_TEMP/rawline-e2e)
+# Needs passwordless sudo. Installs and removes /Library/LaunchDaemons/moe.Rawline.headless.plist: disposable runners only.
 set -euo pipefail
 
 M1_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 M1_ROOT=$(cd "$M1_SCRIPT_DIR/../../.." && pwd -P)
-: "${E2E_TMP:=${RUNNER_TEMP:-/tmp}/throne-e2e}"
+: "${E2E_TMP:=${RUNNER_TEMP:-/tmp}/rawline-e2e}"
 : "${FIXTURES:=$M1_ROOT/script/ci/smoke_fixtures.py}"
-: "${THRONECTL:=thronectl}"
-if [ -z "${THRONE_DIR:-}" ] && [ -n "${THRONE_APP:-}" ]; then
-    THRONE_DIR=$THRONE_APP
-    for M1_CANDIDATE in "$THRONE_APP/Contents/MacOS" "$THRONE_APP/Throne.app/Contents/MacOS"; do
-        if [ -d "$M1_CANDIDATE" ]; then THRONE_DIR=$M1_CANDIDATE; fi
+: "${RAWLINECTL:=rawlinectl}"
+if [ -z "${RAWLINE_DIR:-}" ] && [ -n "${RAWLINE_APP:-}" ]; then
+    RAWLINE_DIR=$RAWLINE_APP
+    for M1_CANDIDATE in "$RAWLINE_APP/Contents/MacOS" "$RAWLINE_APP/Rawline.app/Contents/MacOS"; do
+        if [ -d "$M1_CANDIDATE" ]; then RAWLINE_DIR=$M1_CANDIDATE; fi
     done
 fi
-: "${THRONE_DIR:=$M1_ROOT/deployment/darwin-arm64/Throne.app/Contents/MacOS}"
-export E2E_TMP FIXTURES THRONECTL THRONE_DIR
+: "${RAWLINE_DIR:=$M1_ROOT/deployment/darwin-arm64/Rawline.app/Contents/MacOS}"
+export E2E_TMP FIXTURES RAWLINECTL RAWLINE_DIR
 # shellcheck source=lib.sh
 source "$M1_SCRIPT_DIR/lib.sh"
 set -euo pipefail
 
-M1_LABEL=moe.Throne.headless
+M1_LABEL=moe.Rawline.headless
 M1_PLIST_SRC="$M1_ROOT/dist/macos/$M1_LABEL.plist"
 M1_PLIST_DST="/Library/LaunchDaemons/$M1_LABEL.plist"
 # The plist passes no --api-listen: the headless default.
@@ -45,13 +45,13 @@ M1_CONNECT_RE="^CONNECT fixture\\.test:$M1_HTTP_PORT -> 127\\.0\\.0\\.1:$M1_HTTP
 M1_SESSION_START='===== Rawline session start ====='
 M1_SESSION_END='===== Rawline session end (clean) ====='
 
-# A script's background job starts with SIGINT ignored, which Throne keeps (as for nohup); a terminal's foreground job does not.
+# A script's background job starts with SIGINT ignored, which Rawline keeps (as for nohup); a terminal's foreground job does not.
 M1_EXEC_DEFAULT_SIGNALS='import os, signal, sys
 for signum in (signal.SIGINT, signal.SIGHUP):
     signal.signal(signum, signal.SIG_DFL)
 os.execv(sys.argv[1], sys.argv[1:])'
 
-THRONE=
+RAWLINE=
 M1_BIN_DIR=
 M1_WORK=
 M1_DWORK=
@@ -123,7 +123,7 @@ m1_expect_exit_line() {
 
 m1_count() { grep -c "$@" 2>/dev/null || true; }
 
-m1_no_core() { ! pgrep -x qThroneCore >/dev/null; }
+m1_no_core() { ! pgrep -x RawlineCore >/dev/null; }
 
 m1_pid_gone() { ! ps -p "$1" >/dev/null 2>&1; }
 
@@ -132,7 +132,7 @@ m1_assert_no_ipc() {
     local dir found=
     for dir in /private/tmp "$@"; do
         [ -n "$dir" ] || continue
-        found=$(sudo -n find "$dir" -maxdepth 1 -name 'throneIPC-*' 2>/dev/null || true)
+        found=$(sudo -n find "$dir" -maxdepth 1 -name 'rawlineIPC-*' 2>/dev/null || true)
         if [ -n "$found" ]; then
             printf '%s\n' "$found" >&2
             fail "core IPC sockets are left in $dir (above)"
@@ -179,14 +179,14 @@ m1_proxy_once() {
     local before code
     before=$(m1_connects)
     code=$(m1_curl_via "socks5h://$M1_IN_ADDR:$M1_IN_PORT") ||
-        fail "curl through Throne's mixed inbound $M1_IN_ADDR:$M1_IN_PORT failed ($1)"
-    m1_expect "HTTP status through Throne ($1)" "$code" 204
-    (($(m1_connects) > before)) || fail "the request never reached the SOCKS5 fixture, so Throne did not proxy it ($1)"
+        fail "curl through Rawline's mixed inbound $M1_IN_ADDR:$M1_IN_PORT failed ($1)"
+    m1_expect "HTTP status through Rawline ($1)" "$code" 204
+    (($(m1_connects) > before)) || fail "the request never reached the SOCKS5 fixture, so Rawline did not proxy it ($1)"
 }
 
 m1_profile_running() {
     local out
-    out=$("$THRONECTL" --json status 2>/dev/null) || return 1
+    out=$("$RAWLINECTL" --json status 2>/dev/null) || return 1
     [ "$(m1_json state <<<"$out")" = running ] && [ "$(m1_json profile.id <<<"$out")" = "$1" ]
 }
 
@@ -196,21 +196,21 @@ m1_inputs() {
     step "M1: inputs"
     [ "$(uname -s)" = Darwin ] || fail "macos_launchd.sh runs on macOS only"
     sudo -n true 2>/dev/null || fail "passwordless sudo is required"
-    local app=${THRONE_APP:-$THRONE_DIR} out
-    [ -d "$app" ] || fail "THRONE_APP / THRONE_DIR $app is not a directory"
+    local app=${RAWLINE_APP:-$RAWLINE_DIR} out
+    [ -d "$app" ] || fail "RAWLINE_APP / RAWLINE_DIR $app is not a directory"
     app=$(cd "$app" && pwd -P)
-    if [ -x "$app/Contents/MacOS/Throne" ]; then
+    if [ -x "$app/Contents/MacOS/Rawline" ]; then
         M1_BIN_DIR=$app/Contents/MacOS
-    elif [ -x "$app/Throne.app/Contents/MacOS/Throne" ]; then
-        M1_BIN_DIR=$app/Throne.app/Contents/MacOS
-    elif [ -x "$app/Throne" ]; then
+    elif [ -x "$app/Rawline.app/Contents/MacOS/Rawline" ]; then
+        M1_BIN_DIR=$app/Rawline.app/Contents/MacOS
+    elif [ -x "$app/Rawline" ]; then
         M1_BIN_DIR=$app
     else
-        fail "no Throne in $app (looked for Contents/MacOS/Throne, Throne.app/Contents/MacOS/Throne and Throne)"
+        fail "no Rawline in $app (looked for Contents/MacOS/Rawline, Rawline.app/Contents/MacOS/Rawline and Rawline)"
     fi
-    THRONE=$M1_BIN_DIR/Throne
-    [ -x "$M1_BIN_DIR/qThroneCore" ] || fail "no qThroneCore next to $THRONE"
-    THRONECTL=$(command -v "$THRONECTL") || fail "no thronectl ($THRONECTL)"
+    RAWLINE=$M1_BIN_DIR/Rawline
+    [ -x "$M1_BIN_DIR/RawlineCore" ] || fail "no RawlineCore next to $RAWLINE"
+    RAWLINECTL=$(command -v "$RAWLINECTL") || fail "no rawlinectl ($RAWLINECTL)"
     [ -f "$FIXTURES" ] || fail "no fixtures script at $FIXTURES"
     [ -f "$M1_PLIST_SRC" ] || fail "no $M1_PLIST_SRC"
     for out in launchctl plutil python3 curl; do
@@ -222,7 +222,7 @@ m1_inputs() {
     M1_WORK=$E2E_TMP/m1
     M1_DWORK=$M1_WORK/daemon
     M1_DATA=$M1_DWORK/data
-    M1_LAUNCHD_LOG=$M1_DWORK/launchd/throne.log
+    M1_LAUNCHD_LOG=$M1_DWORK/launchd/rawline.log
     M1_PLIST_TMP=$M1_DWORK/$M1_LABEL.plist
     M1_KEY_COPY=$M1_DWORK/api.key
     M1_FIXTURE_LOG=$M1_DWORK/fixtures.log
@@ -233,12 +233,12 @@ m1_inputs() {
     xattr -dr com.apple.quarantine "${M1_BIN_DIR%/Contents/MacOS}" 2>/dev/null || true
     sw_vers || true
     echo "machine: $(uname -m), bash $BASH_VERSION, user $(id -un)"
-    file "$THRONE" "$M1_BIN_DIR/qThroneCore" || true
-    codesign -dv "$THRONE" 2>&1 || true
-    out=$("$THRONE" --headless --version) || fail "Throne --headless --version failed: $out"
+    file "$RAWLINE" "$M1_BIN_DIR/RawlineCore" || true
+    codesign -dv "$RAWLINE" 2>&1 || true
+    out=$("$RAWLINE" --headless --version) || fail "Rawline --headless --version failed: $out"
     echo "$out"
-    [[ $out == "Throne "* ]] || fail "Throne --headless --version printed '$out', want 'Throne <version>'"
-    "$THRONECTL" version || fail "thronectl version failed"
+    [[ $out == "Rawline "* ]] || fail "Rawline --headless --version printed '$out', want 'Rawline <version>'"
+    "$RAWLINECTL" version || fail "rawlinectl version failed"
 }
 
 # ---------------------------------------------------------------------------------------------------- daemon (launchd, root)
@@ -255,7 +255,7 @@ m1_service_loaded() { sudo -n launchctl print "system/$M1_LABEL" >/dev/null 2>&1
 
 m1_service_gone() { ! m1_service_loaded; }
 
-m1_daemon_health() { sudo -n "$THRONE" --health --data-dir "$M1_DATA"; }
+m1_daemon_health() { sudo -n "$RAWLINE" --health --data-dir "$M1_DATA"; }
 
 m1_daemon_healthy() { m1_daemon_health >/dev/null 2>&1; }
 
@@ -264,7 +264,7 @@ m1_daemon_first_up() {
     code=$(m1_launchd_field "last exit code")
     case $code in
         "" | "(never exited)") ;;
-        *) fail "Throne exited under launchd before it was healthy (last exit code $code)" ;;
+        *) fail "Rawline exited under launchd before it was healthy (last exit code $code)" ;;
     esac
     m1_daemon_healthy
 }
@@ -281,24 +281,24 @@ m1_plist_get() { /usr/libexec/PlistBuddy -c "Print $1" "$M1_PLIST_TMP"; }
 
 m1_write_plist() {
     local path
-    for path in "$THRONE" "$M1_DATA" "$M1_LAUNCHD_LOG"; do
+    for path in "$RAWLINE" "$M1_DATA" "$M1_LAUNCHD_LOG"; do
         case $path in
             *'&'* | *'<'* | *'>'* | *'|'* | *'\'*) fail "$path holds a character the plist rewrite does not escape" ;;
         esac
     done
-    sed -e "s|/Applications/Throne.app/Contents/MacOS/Throne|$(m1_sed_value "$THRONE")|" \
-        -e "s|--data-dir=/Library/Application Support/Throne|--data-dir=$(m1_sed_value "$M1_DATA")|" \
-        -e "s|/Library/Logs/Throne/throne.log|$(m1_sed_value "$M1_LAUNCHD_LOG")|g" \
+    sed -e "s|/Applications/Rawline.app/Contents/MacOS/Rawline|$(m1_sed_value "$RAWLINE")|" \
+        -e "s|--data-dir=/Library/Application Support/Rawline|--data-dir=$(m1_sed_value "$M1_DATA")|" \
+        -e "s|/Library/Logs/Rawline/rawline.log|$(m1_sed_value "$M1_LAUNCHD_LOG")|g" \
         "$M1_PLIST_SRC" >"$M1_PLIST_TMP"
     cat "$M1_PLIST_TMP"
     plutil -lint "$M1_PLIST_TMP" || fail "the rewritten plist does not parse"
     m1_expect Label "$(m1_plist_get :Label)" "$M1_LABEL"
-    m1_expect "ProgramArguments[0]" "$(m1_plist_get :ProgramArguments:0)" "$THRONE"
+    m1_expect "ProgramArguments[0]" "$(m1_plist_get :ProgramArguments:0)" "$RAWLINE"
     m1_expect "ProgramArguments[1]" "$(m1_plist_get :ProgramArguments:1)" --headless
     m1_expect "ProgramArguments[2]" "$(m1_plist_get :ProgramArguments:2)" "--data-dir=$M1_DATA"
     m1_expect StandardOutPath "$(m1_plist_get :StandardOutPath)" "$M1_LAUNCHD_LOG"
     m1_expect StandardErrorPath "$(m1_plist_get :StandardErrorPath)" "$M1_LAUNCHD_LOG"
-    m1_expect THRONE_RESTART_MODE "$(m1_plist_get :EnvironmentVariables:THRONE_RESTART_MODE)" exit
+    m1_expect RAWLINE_RESTART_MODE "$(m1_plist_get :EnvironmentVariables:RAWLINE_RESTART_MODE)" exit
     # launchd refuses a system plist that is not root's and read-only for others.
     sudo -n install -m 644 -o root -g wheel "$M1_PLIST_TMP" "$M1_PLIST_DST" || fail "cannot install $M1_PLIST_DST"
 }
@@ -308,13 +308,13 @@ m1_daemon() {
     sudo -n rm -rf "${M1_DWORK:?}"
     mkdir -p "$M1_DWORK" "$(dirname "$M1_LAUNCHD_LOG")"
 
-    step "M1 daemon: Throne --check as root"
+    step "M1 daemon: Rawline --check as root"
     rc=0
-    sudo -n env HOME=/var/root THRONE_RESTART_MODE=exit "$THRONE" --headless --check --data-dir "$M1_DATA" \
+    sudo -n env HOME=/var/root RAWLINE_RESTART_MODE=exit "$RAWLINE" --headless --check --data-dir "$M1_DATA" \
         >"$M1_DWORK/check.txt" 2>&1 || rc=$?
     cat "$M1_DWORK/check.txt"
-    m1_expect "Throne --check exit status" "$rc" 0
-    if sudo -n test -e "$M1_DATA"; then fail "Throne --check created $M1_DATA; it must change nothing"; fi
+    m1_expect "Rawline --check exit status" "$rc" 0
+    if sudo -n test -e "$M1_DATA"; then fail "Rawline --check created $M1_DATA; it must change nothing"; fi
 
     step "M1 daemon: the LaunchDaemon plist, pointed at this app and $M1_DATA"
     if m1_service_loaded; then
@@ -327,8 +327,8 @@ m1_daemon() {
     step "M1 daemon: launchctl bootstrap system, healthy within 90 s"
     sudo -n launchctl bootstrap system "$M1_PLIST_DST" || fail "launchctl bootstrap system $M1_PLIST_DST failed"
     M1_BOOTSTRAPPED=1
-    wait_until 90 "Throne under launchd answering --health (as root, --data-dir $M1_DATA) with exit 0" m1_daemon_first_up
-    out=$(m1_daemon_health) || fail "Throne --health failed: $out"
+    wait_until 90 "Rawline under launchd answering --health (as root, --data-dir $M1_DATA) with exit 0" m1_daemon_first_up
+    out=$(m1_daemon_health) || fail "Rawline --health failed: $out"
     echo "$out"
     m1_expect ok "$(m1_json ok <<<"$out")" true
     m1_expect ready "$(m1_json ready <<<"$out")" true
@@ -343,19 +343,19 @@ m1_daemon() {
     copy=$M1_DWORK/launchd-boot1.log
     m1_copy_root "$M1_LAUNCHD_LOG" "$copy"
     grep -qF "headless, PID $pid1, started by --headless," "$copy" || fail "the launchd log has no boot line for PID $pid1"
-    grep -qF "data dir $M1_DATA (--data-dir)" "$copy" || fail "Throne did not take the data dir from the plist's --data-dir"
-    grep -qF "restart mode exit (requested)" "$copy" || fail "Throne did not take THRONE_RESTART_MODE=exit from the plist"
+    grep -qF "data dir $M1_DATA (--data-dir)" "$copy" || fail "Rawline did not take the data dir from the plist's --data-dir"
+    grep -qF "restart mode exit (requested)" "$copy" || fail "Rawline did not take RAWLINE_RESTART_MODE=exit from the plist"
 
-    step "M1 daemon: --print-connection as root, thronectl"
-    conn=$(sudo -n "$THRONE" --print-connection --data-dir "$M1_DATA") || fail "Throne --print-connection as root failed: $conn"
+    step "M1 daemon: --print-connection as root, rawlinectl"
+    conn=$(sudo -n "$RAWLINE" --print-connection --data-dir "$M1_DATA") || fail "Rawline --print-connection as root failed: $conn"
     echo "$conn"
     eval "$conn"
-    m1_expect THRONE_ADDR "${THRONE_ADDR:-}" "$M1_DAEMON_API"
-    m1_expect THRONE_KEY_FILE "${THRONE_KEY_FILE:-}" "$M1_DATA/config/api.key"
+    m1_expect RAWLINE_ADDR "${RAWLINE_ADDR:-}" "$M1_DAEMON_API"
+    m1_expect RAWLINE_KEY_FILE "${RAWLINE_KEY_FILE:-}" "$M1_DATA/config/api.key"
     # The key file is root's alone; the docs have users copy it for themselves.
-    sudo -n install -m 600 -o "$(id -un)" "$THRONE_KEY_FILE" "$M1_KEY_COPY" || fail "cannot copy $THRONE_KEY_FILE"
-    export THRONE_KEY_FILE=$M1_KEY_COPY
-    out=$("$THRONECTL" --json status) || fail "thronectl status failed"
+    sudo -n install -m 600 -o "$(id -un)" "$RAWLINE_KEY_FILE" "$M1_KEY_COPY" || fail "cannot copy $RAWLINE_KEY_FILE"
+    export RAWLINE_KEY_FILE=$M1_KEY_COPY
+    out=$("$RAWLINECTL" --json status) || fail "rawlinectl status failed"
     echo "$out"
     m1_expect capabilities.headless "$(m1_json capabilities.headless <<<"$out")" true
     m1_expect state "$(m1_json state <<<"$out")" idle
@@ -367,33 +367,33 @@ m1_daemon() {
     code=$(m1_curl_via "socks5h://127.0.0.1:$M1_SOCKS_PORT") || fail "the fixtures do not answer each other"
     m1_expect "fixture self-test HTTP status" "$code" 204
     (($(m1_connects) > 0)) || fail "the SOCKS5 fixture did not log its own CONNECT"
-    out=$(printf 'socks5://127.0.0.1:%s#%s\n' "$M1_SOCKS_PORT" "$M1_PROFILE_NAME" | "$THRONECTL" --json import -) ||
-        fail "thronectl import failed: $out"
+    out=$(printf 'socks5://127.0.0.1:%s#%s\n' "$M1_SOCKS_PORT" "$M1_PROFILE_NAME" | "$RAWLINECTL" --json import -) ||
+        fail "rawlinectl import failed: $out"
     echo "$out"
     m1_expect "imported profiles" "$(m1_json imported <<<"$out")" 1
     id=$(m1_json profile_ids.0 <<<"$out")
     [[ $id =~ ^[0-9]+$ ]] || fail "the import returned no profile id: $id"
-    "$THRONECTL" --timeout 90s connect "$id" || fail "thronectl connect $id failed"
-    out=$("$THRONECTL" --json status) || fail "thronectl status failed"
+    "$RAWLINECTL" --timeout 90s connect "$id" || fail "rawlinectl connect $id failed"
+    out=$("$RAWLINECTL" --json status) || fail "rawlinectl status failed"
     echo "$out"
     m1_expect state "$(m1_json state <<<"$out")" running
     m1_expect profile.id "$(m1_json profile.id <<<"$out")" "$id"
     m1_inbound "$out"
     m1_proxy_once "first boot"
 
-    step "M1 daemon: SIGHUP exits 75, launchd starts Throne again, the profile resumes"
+    step "M1 daemon: SIGHUP exits 75, launchd starts Rawline again, the profile resumes"
     sudo -n kill -HUP "$pid1" || fail "cannot send SIGHUP to PID $pid1"
-    wait_until 90 "launchd starting Throne again under a PID other than $pid1, answering --health with exit 0" \
+    wait_until 90 "launchd starting Rawline again under a PID other than $pid1, answering --health with exit 0" \
         m1_daemon_restarted "$pid1"
     pid2=$(m1_daemon_pid)
-    echo "Throne PID $pid1 -> $pid2"
+    echo "Rawline PID $pid1 -> $pid2"
     code=$(m1_launchd_field "last exit code")
     if [ -z "$code" ]; then
-        echo "launchctl print shows no 'last exit code'; Throne's own EXIT line decides"
+        echo "launchctl print shows no 'last exit code'; Rawline's own EXIT line decides"
     else
         m1_expect "launchd's last exit code" "${code%%[!0-9]*}" 75
     fi
-    out=$(m1_daemon_health) || fail "Throne --health failed after the restart: $out"
+    out=$(m1_daemon_health) || fail "Rawline --health failed after the restart: $out"
     echo "$out"
     m1_expect "ok after the restart" "$(m1_json ok <<<"$out")" true
     m1_expect "previous_crash after the restart" "$(m1_json previous_crash <<<"$out")" false
@@ -404,12 +404,12 @@ m1_daemon() {
     m1_copy_root "$M1_LAUNCHD_LOG" "$copy"
     m1_expect "'EXIT 75: SIGHUP' lines" "$(m1_count -E '[|] EXIT 75: SIGHUP$' "$copy")" 1
     grep -qF "headless, PID $pid2, started by --headless," "$copy" || fail "the launchd log has no boot line for PID $pid2"
-    grep -qF "[Resume] Resuming profile $id " "$copy" || fail "the restarted Throne did not log resuming profile $id"
-    out=$("$THRONECTL" --json status) || fail "thronectl status failed"
+    grep -qF "[Resume] Resuming profile $id " "$copy" || fail "the restarted Rawline did not log resuming profile $id"
+    out=$("$RAWLINECTL" --json status) || fail "rawlinectl status failed"
     m1_inbound "$out"
     m1_proxy_once "after the SIGHUP restart"
-    "$THRONECTL" --timeout 60s disconnect || fail "thronectl disconnect failed"
-    out=$("$THRONECTL" --json status) || fail "thronectl status failed"
+    "$RAWLINECTL" --timeout 60s disconnect || fail "rawlinectl disconnect failed"
+    out=$("$RAWLINECTL" --json status) || fail "rawlinectl status failed"
     m1_expect "state after disconnect" "$(m1_json state <<<"$out")" idle
 
     step "M1 daemon: launchctl bootout, a clean exit"
@@ -417,16 +417,16 @@ m1_daemon() {
     sudo -n launchctl bootout "system/$M1_LABEL" || rc=$?
     M1_BOOTSTRAPPED=
     if ((rc != 0)); then echo "launchctl bootout returned $rc; the waits below decide"; fi
-    wait_until 60 "Throne (PID $pid2) exiting after the bootout" m1_pid_gone "$pid2"
+    wait_until 60 "Rawline (PID $pid2) exiting after the bootout" m1_pid_gone "$pid2"
     wait_until 15 "launchd dropping $M1_LABEL" m1_service_gone
-    wait_until 15 "no qThroneCore process left" m1_no_core
+    wait_until 15 "no RawlineCore process left" m1_no_core
     sudo -n rm -f "$M1_PLIST_DST"
     m1_copy_root "$M1_LAUNCHD_LOG" "$M1_DWORK/launchd-final.log"
-    m1_copy_root "$M1_DATA/config/logs/throne.log" "$M1_DWORK/throne-final.log"
-    assert_log_clean "$M1_DWORK/launchd-final.log" "$M1_DWORK/throne-final.log"
+    m1_copy_root "$M1_DATA/config/logs/rawline.log" "$M1_DWORK/rawline-final.log"
+    assert_log_clean "$M1_DWORK/launchd-final.log" "$M1_DWORK/rawline-final.log"
     m1_expect_exit_line "$M1_DWORK/launchd-final.log" "EXIT 0: SIGTERM"
-    [[ "$(tail -n 1 "$M1_DWORK/throne-final.log")" == *"$M1_SESSION_END" ]] ||
-        fail "config/logs/throne.log does not end with '$M1_SESSION_END'"
+    [[ "$(tail -n 1 "$M1_DWORK/rawline-final.log")" == *"$M1_SESSION_END" ]] ||
+        fail "config/logs/rawline.log does not end with '$M1_SESSION_END'"
     if sudo -n test -e "$M1_DATA/config/logs/running.marker"; then fail "running.marker was left behind"; fi
     m1_assert_no_ipc "$(sudo -n getconf DARWIN_USER_TEMP_DIR 2>/dev/null || true)"
 }
@@ -460,7 +460,7 @@ m1_daemon_cleanup() {
         if [ -n "$pid" ] && ! m1_pid_gone "$pid"; then sudo -n kill -KILL "$pid" 2>/dev/null; fi
     fi
     sudo -n rm -f "$M1_PLIST_DST"
-    sudo -n pkill -KILL -U 0 -x qThroneCore 2>/dev/null
+    sudo -n pkill -KILL -U 0 -x RawlineCore 2>/dev/null
     if [ -n "$M1_FIXTURE_PID" ]; then
         kill "$M1_FIXTURE_PID" 2>/dev/null
         wait "$M1_FIXTURE_PID" 2>/dev/null
@@ -478,15 +478,15 @@ m1_daemon_cleanup() {
 m1_fg_start() {
     M1_FG_LOG=$1
     shift
-    python3 -I -c "$M1_EXEC_DEFAULT_SIGNALS" "$THRONE" --headless --data-dir "$M1_FG_DATA" --api-listen "$M1_FG_API" \
+    python3 -I -c "$M1_EXEC_DEFAULT_SIGNALS" "$RAWLINE" --headless --data-dir "$M1_FG_DATA" --api-listen "$M1_FG_API" \
         --log-format plain "$@" >"$M1_FG_LOG" 2>&1 &
     M1_FG_PID=$!
-    echo "Throne PID $M1_FG_PID, log $M1_FG_LOG"
+    echo "Rawline PID $M1_FG_PID, log $M1_FG_LOG"
 }
 
-m1_fg_alive() { kill -0 "$M1_FG_PID" 2>/dev/null || fail "Throne (PID $M1_FG_PID) exited early; its log is $M1_FG_LOG"; }
+m1_fg_alive() { kill -0 "$M1_FG_PID" 2>/dev/null || fail "Rawline (PID $M1_FG_PID) exited early; its log is $M1_FG_LOG"; }
 
-m1_fg_health() { "$THRONE" --health --data-dir "$M1_FG_DATA"; }
+m1_fg_health() { "$RAWLINE" --health --data-dir "$M1_FG_DATA"; }
 
 m1_fg_healthy() {
     m1_fg_alive
@@ -502,7 +502,7 @@ m1_fg_reexeced() {
 
 m1_fg_check_health() {
     local out
-    out=$(m1_fg_health) || fail "Throne --health failed ($1): $out"
+    out=$(m1_fg_health) || fail "Rawline --health failed ($1): $out"
     echo "$out"
     m1_expect "ok ($1)" "$(m1_json ok <<<"$out")" true
     m1_expect "headless_dialogs ($1)" "$(m1_json headless_dialogs <<<"$out")" 0
@@ -513,32 +513,32 @@ m1_fg_boot() {
     local log=$1 what=$2
     shift 2
     m1_fg_start "$log" "$@"
-    wait_until 60 "Throne ($what) answering --health with exit 0" m1_fg_healthy
+    wait_until 60 "Rawline ($what) answering --health with exit 0" m1_fg_healthy
     m1_fg_check_health "$what"
 }
 
 m1_fg_wait_exit() {
     local rc=0
-    wait_until 45 "Throne (PID $M1_FG_PID) exiting after $1" m1_fg_gone
+    wait_until 45 "Rawline (PID $M1_FG_PID) exiting after $1" m1_fg_gone
     wait "$M1_FG_PID" || rc=$?
     M1_FG_PID=
     m1_expect "exit status after $1" "$rc" "$2"
 }
 
 m1_fg_assert_clean() {
-    local file=$M1_FG_DATA/config/logs/throne.log
+    local file=$M1_FG_DATA/config/logs/rawline.log
     [ -f "$file" ] || fail "no $file ($1)"
     assert_log_clean "$M1_FG_LOG" "$file"
     [[ "$(tail -n 1 "$file")" == *"$M1_SESSION_END" ]] || fail "$file does not end with '$M1_SESSION_END' ($1)"
     [ ! -e "$M1_FG_DATA/config/logs/running.marker" ] || fail "running.marker was left behind ($1)"
-    wait_until 15 "no qThroneCore process left ($1)" m1_no_core
+    wait_until 15 "no RawlineCore process left ($1)" m1_no_core
 }
 
 m1_fg_status() {
     local out
-    connect_env "$THRONE" "$M1_FG_DATA"
-    m1_expect "THRONE_ADDR ($1)" "${THRONE_ADDR:-}" "$M1_FG_API"
-    out=$("$THRONECTL" --json status) || fail "thronectl status failed ($1)"
+    connect_env "$RAWLINE" "$M1_FG_DATA"
+    m1_expect "RAWLINE_ADDR ($1)" "${RAWLINE_ADDR:-}" "$M1_FG_API"
+    out=$("$RAWLINECTL" --json status) || fail "rawlinectl status failed ($1)"
     echo "$out"
     m1_expect "capabilities.headless ($1)" "$(m1_json capabilities.headless <<<"$out")" true
     m1_expect "state ($1)" "$(m1_json state <<<"$out")" idle
@@ -548,11 +548,11 @@ m1_foreground() {
     local pid file f out id core t0
     rm -rf "${M1_FWORK:?}"
     mkdir -p "$M1_FWORK"
-    file=$M1_FG_DATA/config/logs/throne.log
+    file=$M1_FG_DATA/config/logs/rawline.log
 
     step "M1 foreground: SIGTERM exits 0"
     m1_fg_boot "$M1_FWORK/run-sigterm.log" "first start"
-    grep -qF "restart mode exec (" "$M1_FG_LOG" || fail "Throne started from a shell did not pick the exec restart mode"
+    grep -qF "restart mode exec (" "$M1_FG_LOG" || fail "Rawline started from a shell did not pick the exec restart mode"
     m1_fg_status "first start"
     kill -TERM "$M1_FG_PID"
     m1_fg_wait_exit SIGTERM 0
@@ -563,7 +563,7 @@ m1_foreground() {
     m1_fg_boot "$M1_FWORK/run-sighup-exec.log" "second start"
     pid=$M1_FG_PID
     kill -HUP "$pid"
-    wait_until 60 "Throne logging a second boot line for PID $pid and answering --health with exit 0" m1_fg_reexeced "$pid"
+    wait_until 60 "Rawline logging a second boot line for PID $pid and answering --health with exit 0" m1_fg_reexeced "$pid"
     m1_expect "'EXIT 75: SIGHUP' lines" "$(m1_count -E '[|] EXIT 75: SIGHUP$' "$M1_FG_LOG")" 1
     grep -qF "restarting in place: " "$M1_FG_LOG" || fail "no 'restarting in place' line before the exec"
     grep -qF "restart mode exec (inherited from the previous image)" "$M1_FG_LOG" ||
@@ -592,8 +592,8 @@ m1_foreground() {
     step "M1 foreground: a second SIGINT during the teardown kills the core"
     m1_fg_boot "$M1_FWORK/run-double-sigint.log" "last start" --no-resume
     m1_fg_status "last start"
-    out=$(printf 'socks5://127.0.0.1:%s#%s\n' "$M1_SOCKS_PORT" "$M1_PROFILE_NAME" | "$THRONECTL" --json import -) ||
-        fail "thronectl import failed: $out"
+    out=$(printf 'socks5://127.0.0.1:%s#%s\n' "$M1_SOCKS_PORT" "$M1_PROFILE_NAME" | "$RAWLINECTL" --json import -) ||
+        fail "rawlinectl import failed: $out"
     id=$(m1_json profile_ids.0 <<<"$out")
     [[ $id =~ ^[0-9]+$ ]] || fail "the import returned no profile id: $id"
     # Run 2 could not bind 127.0.0.1:2080 here after the root daemon part (a listener, or root's TIME_WAIT sockets, which
@@ -604,21 +604,21 @@ m1_foreground() {
     if [ -n "$holders" ]; then
         echo "::warning::127.0.0.1:2080 is still held before the foreground connect"
         echo "$holders"
-        ps -axo pid,ppid,user,comm | grep -i throne || true
+        ps -axo pid,ppid,user,comm | grep -i rawline || true
     fi
-    "$THRONECTL" settings set inbound_port="$M1_FG_IN_PORT" || fail "thronectl settings set inbound_port=$M1_FG_IN_PORT failed"
-    "$THRONECTL" --timeout 90s connect "$id" || fail "thronectl connect $id failed"
+    "$RAWLINECTL" settings set inbound_port="$M1_FG_IN_PORT" || fail "rawlinectl settings set inbound_port=$M1_FG_IN_PORT failed"
+    "$RAWLINECTL" --timeout 90s connect "$id" || fail "rawlinectl connect $id failed"
     # Back-to-back kills can merge into one pending SIGINT. A frozen core keeps the teardown in its 10 s Stop call, so the
     # second SIGINT is a delivery of its own, judged inside the teardown.
-    core=$(pgrep -n -P "$M1_FG_PID" -x qThroneCore) || fail "no qThroneCore child of Throne $M1_FG_PID"
+    core=$(pgrep -n -P "$M1_FG_PID" -x RawlineCore) || fail "no RawlineCore child of Rawline $M1_FG_PID"
     kill -STOP "$core"
     kill -INT "$M1_FG_PID"
-    wait_until 15 "Throne logging 'EXIT 0: SIGINT' (its teardown has begun)" grep -qF '| EXIT 0: SIGINT' "$M1_FG_LOG"
+    wait_until 15 "Rawline logging 'EXIT 0: SIGINT' (its teardown has begun)" grep -qF '| EXIT 0: SIGINT' "$M1_FG_LOG"
     t0=$SECONDS
     kill -INT "$M1_FG_PID"
     m1_fg_wait_exit "two SIGINTs" 0
     ((SECONDS - t0 < 8)) ||
-        fail "Throne took $((SECONDS - t0)) s to exit after the second SIGINT: the fast path did not cut the 10 s Stop wait"
+        fail "Rawline took $((SECONDS - t0)) s to exit after the second SIGINT: the fast path did not cut the 10 s Stop wait"
     grep -qF "SIGINT: second signal: killing the core" "$M1_FWORK/run-double-sigint.log" ||
         fail "the second SIGINT did not take the fast path (no 'SIGINT: second signal: killing the core' line)"
     m1_expect_exit_line "$M1_FWORK/run-double-sigint.log" "EXIT 0: SIGINT"
@@ -642,7 +642,7 @@ m1_foreground_cleanup() {
         done
         kill -KILL "$M1_FG_PID" 2>/dev/null
     fi
-    pkill -KILL -u "$(id -u)" -x qThroneCore 2>/dev/null
+    pkill -KILL -u "$(id -u)" -x RawlineCore 2>/dev/null
     exit "$rc"
 }
 

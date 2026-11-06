@@ -17,7 +17,7 @@ func startWdttPlusBootstrap(ctx context.Context, peer string) (string, func()) {
 	if err != nil {
 		return "", func() {}
 	}
-	name := "qThroneCore"
+	name := "RawlineCore"
 	if runtime.GOOS == "windows" {
 		name += ".exe"
 	}

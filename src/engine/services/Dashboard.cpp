@@ -32,7 +32,7 @@ namespace {
 namespace Engine::Dashboard {
     void SeedClashUi() {
         if (auto dashDir = QDir("dashboard"); !dashDir.exists() && QDir().mkdir("dashboard")) {
-            if (auto dashFile = QFile(":/Throne/dashboard-notice.html"); dashFile.exists() && dashFile.open(QIODevice::ReadOnly))
+            if (auto dashFile = QFile(":/Rawline/dashboard-notice.html"); dashFile.exists() && dashFile.open(QIODevice::ReadOnly))
             {
                 auto data = dashFile.readAll();
                 if (auto dest = QFile("dashboard/index.html"); dest.open(QIODevice::Truncate | QIODevice::WriteOnly))
@@ -50,11 +50,11 @@ namespace Engine::Dashboard {
         if (!dashDir.exists() && !QDir().mkpath(Configs::apiDashboardDir)) return;
         if (!QFile::exists(dashDir.filePath("index.html"))) dashboardUnpackBundled(dashDir);
         // Reinstalling replaces the whole directory, so this cannot be a one-time copy.
-        auto src = QFile(":/Throne/dashboard-bootstrap.html");
+        auto src = QFile(":/Rawline/dashboard-bootstrap.html");
         if (!src.open(QIODevice::ReadOnly)) return;
         const auto data = src.readAll();
         src.close();
-        if (auto dest = QFile(dashDir.filePath("throne.html")); dest.open(QIODevice::Truncate | QIODevice::WriteOnly)) {
+        if (auto dest = QFile(dashDir.filePath("rawline.html")); dest.open(QIODevice::Truncate | QIODevice::WriteOnly)) {
             dest.write(data);
             dest.close();
         }

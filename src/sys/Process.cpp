@@ -70,19 +70,19 @@ namespace Configs_sys {
         failed_to_start = false;
 
         auto env = Sys::ServiceManager::ChildEnvironment();
-        env.insert("THRONE_CORE_SOCKET", m_socketName);
-        env.insert("QTHRONE_CORE_SOCKET", m_socketName);
+        env.insert("RAWLINE_CORE_SOCKET", m_socketName);
+        env.insert("RAWLINE_CORE_SOCKET", m_socketName);
         // Turns an unrecovered Go panic into a real abort, so all goroutine stacks are dumped and WER captures the core too.
         env.insert("GOTRACEBACK", "crash");
-        if (m_debugMode) env.insert("THRONE_CORE_DEBUG", "1");
-        if (m_debugMode) env.insert("QTHRONE_CORE_DEBUG", "1");
+        if (m_debugMode) env.insert("RAWLINE_CORE_DEBUG", "1");
+        if (m_debugMode) env.insert("RAWLINE_CORE_DEBUG", "1");
         // Points Xray's asset loader at our writable config dir, so a geoip.dat/geosite.dat downloaded later is found with no core restart.
         env.insert("XRAY_LOCATION_ASSET", Configs::GetBasePath());
         // Never inherited: only guard_identity decides, or an identity exit would repeat with the flag already handled.
-        env.remove("THRONE_GUARD");
+        env.remove("RAWLINE_GUARD");
         guard_identity = Configs::dataManager->settingsRepo->kill_switch && !Sys::KillSwitch::instance()->identityUnsupported();
-        if (guard_identity) env.insert("THRONE_GUARD", "1");
-        if (guard_identity) env.insert("QTHRONE_GUARD", "1");
+        if (guard_identity) env.insert("RAWLINE_GUARD", "1");
+        if (guard_identity) env.insert("RAWLINE_GUARD", "1");
         setProcessEnvironment(env);
         IsolateChild(this);
         start(program, {});

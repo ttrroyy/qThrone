@@ -1,28 +1,33 @@
 param([Parameter(Mandatory=$true)][string]$Archive, [Parameter(Mandatory=$true)][string]$Version)
 $ErrorActionPreference = 'Stop'
-$workspace = Join-Path $env:RUNNER_TEMP 'qthrone-upgrade-test'
+$workspace = Join-Path $env:RUNNER_TEMP 'rawline-upgrade-test'
 New-Item -ItemType Directory -Path $workspace -Force | Out-Null
-$apiHeaders = @{Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'; 'User-Agent'="qThrone-upgrade-test/$Version"}
+$apiHeaders = @{Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'; 'User-Agent'="Rawline-upgrade-test/$Version"}
 if ($env:GH_TOKEN) { $apiHeaders.Authorization = "Bearer $env:GH_TOKEN" }
 $releases = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases?per_page=100" -Headers $apiHeaders
-$release = $releases | Where-Object { !$_.draft -and ($_.tag_name -replace '^v', '') -ne $Version -and ($_.assets.name -contains "qThrone-$($_.tag_name -replace '^v', '')-windows64.zip") } | Sort-Object published_at -Descending | Select-Object -First 1
-if (!$release) { throw 'A previous published portable release is required' }
-$baseline = $release.tag_name -replace '^v', ''
-$asset = $release.assets | Where-Object { $_.name -eq "qThrone-$baseline-windows64.zip" }
-if (!$asset) { throw 'The baseline portable release is missing' }
+$release = $releases | Where-Object { !$_.draft -and ($_.tag_name -replace '^v', '') -ne $Version -and ($_.assets.name -contains "Rawline-$($_.tag_name -replace '^v', '')-windows64.zip") } | Sort-Object published_at -Descending | Select-Object -First 1
 $oldArchive = Join-Path $workspace 'baseline.zip'
-Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $oldArchive
-if ($asset.digest -and $asset.digest.StartsWith('sha256:')) {
+if ($release) {
+    $baseline = $release.tag_name -replace '^v', ''
+    $asset = $release.assets | Where-Object { $_.name -eq "Rawline-$baseline-windows64.zip" }
+    if (!$asset) { throw 'The baseline portable release is missing' }
+    Invoke-WebRequest -Uri $asset.browser_download_url -OutFile $oldArchive
+} else {
+    $baseline = $Version
+    $asset = $null
+    Copy-Item -LiteralPath $Archive -Destination $oldArchive
+}
+if ($asset -and $asset.digest -and $asset.digest.StartsWith('sha256:')) {
     if ((Get-FileHash -LiteralPath $oldArchive -Algorithm SHA256).Hash.ToLower() -ne $asset.digest.Substring(7)) { throw 'Baseline archive digest mismatch' }
 }
 Expand-Archive -LiteralPath $oldArchive -DestinationPath $workspace
-$app = Join-Path $workspace 'qThrone'
-$executable = Join-Path $app 'qThrone.exe'
-$log = Join-Path $app 'config/logs/throne.log'
+$app = Join-Path $workspace 'Rawline'
+$executable = Join-Path $app 'Rawline.exe'
+$log = Join-Path $app 'config/logs/rawline.log'
 $fixture = Join-Path $PSScriptRoot 'upgrade_fixture.py'
 $newArchive = (Resolve-Path -LiteralPath $Archive).Path
 Expand-Archive -LiteralPath $newArchive -DestinationPath (Join-Path $workspace 'expected')
-$expectedExecutable = Join-Path $workspace 'expected/qThrone/qThrone.exe'
+$expectedExecutable = Join-Path $workspace 'expected/Rawline/Rawline.exe'
 $gui = $null
 $updater = $null
 Add-Type @'
@@ -42,7 +47,7 @@ public static class UpgradeTestWindow {
             if (owner != processId) return true;
             var title = new StringBuilder(1024);
             GetWindowText(window, title, title.Capacity);
-            if (!title.ToString().Contains("qThrone") && !title.ToString().Contains("Rawline")) return true;
+            if (!title.ToString().Contains("Rawline") && !title.ToString().Contains("Rawline")) return true;
             sent = PostMessage(window, 0x0010, IntPtr.Zero, IntPtr.Zero);
             return !sent;
         }, IntPtr.Zero);
@@ -58,7 +63,7 @@ function Wait-ForGuiAndCore([Diagnostics.Process]$process) {
         Start-Sleep -Milliseconds 500
         $process.Refresh()
         if ($process.HasExited) { throw "GUI exited: $($process.ExitCode)" }
-        $core = Get-CimInstance Win32_Process -Filter "ParentProcessId=$($process.Id)" | Where-Object { $_.Name -eq 'qThroneCore.exe' }
+        $core = Get-CimInstance Win32_Process -Filter "ParentProcessId=$($process.Id)" | Where-Object { $_.Name -eq 'RawlineCore.exe' }
     } until ($core -or [DateTime]::UtcNow -gt $deadline)
     if (!$core) { throw 'GUI/core process startup timed out' }
     Write-Output "Started GUI PID $($process.Id), core PID $($core.ProcessId)"
@@ -79,13 +84,13 @@ try {
     # A normal shutdown flushes the buffered startup log before assertions.
     Close-TestGui $gui
     $text = Get-Content -LiteralPath $log -Raw
-    if (!$text.Contains('Core Has Successfully Connected to qThrone!')) { throw 'Baseline GUI/core IPC connection failed' }
+    if (!$text.Contains('Core Has Successfully Connected to Rawline!')) { throw 'Baseline GUI/core IPC connection failed' }
     python $fixture seed $app
     if ($LASTEXITCODE -ne 0) { throw 'Cannot prepare the upgrade fixture' }
     foreach ($sourceVersion in @($baseline, $Version)) {
-        Copy-Item -LiteralPath $newArchive -Destination (Join-Path $app 'qThrone.zip')
-        $oldUpdater = Join-Path $app 'qThroneUpdater.old'
-        Copy-Item -LiteralPath (Join-Path $app 'qThroneUpdater.exe') -Destination $oldUpdater
+        Copy-Item -LiteralPath $newArchive -Destination (Join-Path $app 'Rawline.zip')
+        $oldUpdater = Join-Path $app 'RawlineUpdater.old'
+        Copy-Item -LiteralPath (Join-Path $app 'RawlineUpdater.exe') -Destination $oldUpdater
         $start = [Diagnostics.ProcessStartInfo]::new($oldUpdater)
         $start.WorkingDirectory = $app
         $start.Arguments = "$oldProcessId"
@@ -95,13 +100,13 @@ try {
         $updater = [Diagnostics.Process]::Start($start)
         if (!$updater.WaitForExit(60000)) { throw "Updater from $sourceVersion timed out" }
         if ($updater.ExitCode -ne 0) {
-            if (Test-Path (Join-Path $app 'qThrone-update-error.log')) { Get-Content (Join-Path $app 'qThrone-update-error.log') }
+            if (Test-Path (Join-Path $app 'Rawline-update-error.log')) { Get-Content (Join-Path $app 'Rawline-update-error.log') }
             throw "Updater from $sourceVersion failed: $($updater.ExitCode)"
         }
         $deadline = [DateTime]::UtcNow.AddSeconds(45)
         do {
             Start-Sleep -Milliseconds 500
-            $restarted = Get-CimInstance Win32_Process -Filter "Name='qThrone.exe'" | Where-Object { $_.ExecutablePath -eq $executable }
+            $restarted = Get-CimInstance Win32_Process -Filter "Name='Rawline.exe'" | Where-Object { $_.ExecutablePath -eq $executable }
         } until ($restarted -or [DateTime]::UtcNow -gt $deadline)
         if (!$restarted) { throw 'Updated GUI restart timed out' }
         $gui = [Diagnostics.Process]::GetProcessById($restarted.ProcessId)
@@ -112,7 +117,7 @@ try {
         if ((Get-FileHash -LiteralPath $executable).Hash -ne (Get-FileHash -LiteralPath $expectedExecutable).Hash) { throw 'Restarted executable differs from the new release' }
         python $fixture verify $app
         if ($LASTEXITCODE -ne 0) { throw 'User data was not preserved' }
-        Write-Output "qThrone $sourceVersion -> qThrone ${Version}: replaced, restarted and preserved user data"
+        Write-Output "Rawline $sourceVersion -> Rawline ${Version}: replaced, restarted and preserved user data"
         $oldProcessId = $gui.Id
     }
 } catch {

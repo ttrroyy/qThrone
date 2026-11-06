@@ -28,7 +28,7 @@ import (
 // app's TunnelManager starts it: flags on the command line, the hashes, password and the
 // SOCKS login on stdin as one START_CONFIG line. The client serves the authenticated
 // SOCKS5 itself; this bridge answers its numbered captcha requests and keeps its raw
-// output, which carries hashes and captcha tokens, out of qThrone's log.
+// output, which carries hashes and captcha tokens, out of Rawline's log.
 type wdttPlusConfig struct {
 	TCPOnly            bool     `json:"tcp_only"`
 	TurnSNI            string   `json:"turn_sni"`
@@ -222,7 +222,7 @@ func startWdttPlusChild(args []string, deviceID string, start string) (*wdttPlus
 	}
 	key := sha256.Sum256([]byte(deviceID))
 	command := exec.Command(path, args...)
-	command.Dir = filepath.Join(cache, "qThrone", "wdttplus", fmt.Sprintf("%x", key[:16]))
+	command.Dir = filepath.Join(cache, "Rawline", "wdttplus", fmt.Sprintf("%x", key[:16]))
 	if err := os.MkdirAll(command.Dir, 0700); err != nil {
 		return nil, err
 	}
@@ -316,7 +316,7 @@ func runWdttPlusBridge(path string) error {
 			return err
 		}
 		key := sha256.Sum256([]byte(c.DeviceID))
-		directory := filepath.Join(cache, "qThrone", "wdttplus", fmt.Sprintf("%x", key[:16]))
+		directory := filepath.Join(cache, "Rawline", "wdttplus", fmt.Sprintf("%x", key[:16]))
 		if err := os.MkdirAll(directory, 0700); err != nil {
 			return err
 		}

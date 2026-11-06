@@ -1,4 +1,4 @@
-name: qThrone release validation
+name: Rawline release validation
 on:
   workflow_dispatch:
     inputs:
@@ -96,7 +96,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
-        run: ./script/test_windows_upgrade.ps1 -Archive "upgrade-package/qThrone-${{ inputs.tag }}-windows64.zip" -Version "${{ inputs.tag }}"
+        run: ./script/test_windows_upgrade.ps1 -Archive "upgrade-package/Rawline-${{ inputs.tag }}-windows64.zip" -Version "${{ inputs.tag }}"
   publish:
     name: Publish validated release
     needs: [verify-build, test-upgrade]

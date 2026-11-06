@@ -11,7 +11,7 @@ import (
 )
 
 // systemResolvers lists the DNS servers of the adapters that are up, as Windows
-// itself uses them; qThrone's TUN adapter is left out.
+// itself uses them; Rawline's TUN adapter is left out.
 func systemResolvers() []string {
 	size := uint32(15 << 10)
 	var buffer []byte
@@ -35,7 +35,7 @@ func systemResolvers() []string {
 			continue
 		}
 		name := strings.ToLower(windows.UTF16PtrToString(adapter.FriendlyName))
-		if strings.Contains(name, "qthrone") || strings.Contains(name, "throne") {
+		if strings.Contains(name, "rawline") || strings.Contains(name, "rawline") {
 			continue
 		}
 		for server := adapter.FirstDnsServerAddress; server != nil; server = server.Next {

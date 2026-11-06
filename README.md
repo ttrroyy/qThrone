@@ -6,7 +6,7 @@
 
 **Клиент для Windows, Linux и macOS на ядрах sing-box и Xray**
 
-Форк [Throne](https://github.com/throneproj/Throne)
+Форк [Throne](https://github.com/throneproj/Rawline)
 
 ![Windows](https://img.shields.io/badge/Windows-0078D4?style=for-the-badge&logo=windows&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
@@ -16,7 +16,7 @@
 [![sing-box](https://img.shields.io/badge/sing--box-1F2937?style=for-the-badge)](https://github.com/SagerNet/sing-box)
 [![Xray](https://img.shields.io/badge/Xray-2563EB?style=for-the-badge)](https://github.com/XTLS/Xray-core)
 
-[![Downloads](https://img.shields.io/github/downloads/ttrroyy/qThrone/total?label=downloads-total&color=brightgreen)](https://github.com/ttrroyy/qThrone/releases)
+[![Downloads](https://img.shields.io/github/downloads/ttrroyy/RawlineDesktop/total?label=downloads-total&color=brightgreen)](https://github.com/ttrroyy/RawlineDesktop/releases)
 
 </div>
 
@@ -28,7 +28,7 @@
 
 ## Скачать
 
-Свежая версия - в [Releases](https://github.com/ttrroyy/qThrone/releases/latest).
+Свежая версия - в [Releases](https://github.com/ttrroyy/RawlineDesktop/releases/latest).
 
 - Windows: установщик `windows-universal-installer.exe` или архивы `windows64`, `windows-arm64`, `windows32`. Для старых систем - `windowslegacy64`.
 - Linux: пакеты `.deb`, `.rpm`, Arch (`.pkg.tar.zst`) и архивы `linux-amd64` / `linux-arm64`. Сборки `system-qt` используют Qt из системы.
@@ -74,15 +74,15 @@
 ## Благодарности
 
 - Ядра: [SagerNet/sing-box](https://github.com/SagerNet/sing-box), [XTLS/Xray-core](https://github.com/XTLS/Xray-core)
-- Основа клиента: [Throne](https://github.com/throneproj/Throne), [NekoRay](https://github.com/MatsuriDayo/nekoray)
-- VK и WebRTC: [proxy-turn-vk-android](https://github.com/SpaceNeuroX/proxy-turn-vk-android), [CSQTT 2.5.0 Legacy](https://github.com/ttrroyy/mrtt/releases/tag/v2.5.0-legacy), [WDTT Plus](https://github.com/Ivan4537/WDTT-Plus), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [OpenFlux](https://github.com/p1neappleXpress/OpenFlux)
+- Основа клиента: [Throne](https://github.com/throneproj/Rawline), [NekoRay](https://github.com/MatsuriDayo/nekoray)
+- VK и WebRTC: [proxy-turn-vk-android](https://github.com/SpaceNeuroX/proxy-turn-vk-android), [CSQTT 2.5.0 Legacy](https://github.com/ttrroyy/MRTT/releases/tag/v2.5.0-legacy), [WDTT Plus](https://github.com/Ivan4537/WDTT-Plus), [olcRTC](https://github.com/openlibrecommunity/olcrtc), [OpenFlux](https://github.com/p1neappleXpress/OpenFlux)
 - DNS-туннели: [dnstt](https://www.bamsoftware.com/software/dnstt/), [VayDNS](https://github.com/net2share/vaydns), [slipstream-rust](https://github.com/Mygod/slipstream-rust), [MasterDnsVPN](https://github.com/masterking32/MasterDnsVPN), [CottenDNS](https://github.com/TaJirax/cottenDNS), [Soar](https://github.com/getlantern/soar), [dnst-url-spec](https://github.com/net2share/dnst-url-spec), [SlipNet](https://github.com/anonvector/SlipNet), [WhiteDNS](https://github.com/WhiteDNS/WhiteDNS-Android)
 - S3 Bypass и TrustTunnel: [s3-bypass](https://github.com/SpaceNeuroX/s3-bypass), [Xray-core-fedarisha](https://github.com/Fedarisha/Xray-core-fedarisha), [sing-trusttunnel](https://github.com/xchacha20-poly1305/sing-trusttunnel), [TrustTunnelClient](https://github.com/TrustTunnel/TrustTunnelClient)
 - SSTP: [SwiftSSTP](https://github.com/alichdrdzn/swiftsstp)
 - Обфускация WireGuard: [wg-obfuscator](https://github.com/ClusterM/wg-obfuscator), [Phobos](https://github.com/Ground-Zerro/Phobos), [xt_wgobfs](https://github.com/infinet/xt_wgobfs), [rs-wgobfs](https://github.com/infinet/rs-wgobfs)
 - Прочее: [routeprofiles](https://github.com/throneproj/routeprofiles), [sing-box-dashboard](https://github.com/SagerNet/sing-box-dashboard)
 
-Версия для Android - [RawlineMobile](https://github.com/ttrroyy/qThroneMobile).
+Версия для Android - [RawlineMobile](https://github.com/ttrroyy/RawlineMobile).
 
 ## Обсуждение и поддержка
 

@@ -35,22 +35,22 @@ namespace Engine::HeadlessCli {
     struct LaunchOptions {
         // Absolute and clean against the launch CWD; empty: the default chain.
         QString dataDir;
-        // "--data-dir" | "THRONE_DATA_DIR" | "STATE_DIRECTORY" | "root default" | "ProgramData default" | "user config";
+        // "--data-dir" | "RAWLINE_DATA_DIR" | "STATE_DIRECTORY" | "root default" | "ProgramData default" | "user config";
         // filled by ResolveDataDir.
         QString dataDirSource;
-        // --restart-mode / THRONE_RESTART_MODE.
+        // --restart-mode / RAWLINE_RESTART_MODE.
         RestartMode restartMode = RestartMode::Auto;
-        // !--no-resume and THRONE_RESUME not 0/false/no/off.
+        // !--no-resume and RAWLINE_RESUME not 0/false/no/off.
         bool resume = true;
-        // --no-kill-switch, or THRONE_KILL_SWITCH 0/false/no/off: RuntimeOptions::killSwitchOverride.
+        // --no-kill-switch, or RAWLINE_KILL_SWITCH 0/false/no/off: RuntimeOptions::killSwitchOverride.
         bool noKillSwitch = false;
-        // --service (Windows): started by the SCM; the data dir defaults to %ProgramData%\Throne and restarts always exit.
+        // --service (Windows): started by the SCM; the data dir defaults to %ProgramData%\Rawline and restarts always exit.
         bool service = false;
-        // --log-format / THRONE_LOG_FORMAT.
+        // --log-format / RAWLINE_LOG_FORMAT.
         Logging::StdFormat logFormat = Logging::StdFormat::Auto;
         ClientMode client = ClientMode::None;
         bool debug = false;
-        // "--headless" | "THRONE_HEADLESS" | "--service" | "client mode"; logged at boot.
+        // "--headless" | "RAWLINE_HEADLESS" | "--service" | "client mode"; logged at boot.
         QString trigger;
         // For Bootstrap::OpenDataDir: {} or {"-debug"}.
         QStringList openDataDirArgs;
@@ -69,9 +69,9 @@ namespace Engine::HeadlessCli {
     // helpText() plus the exit-code table, plain English.
     QString HelpText(const QCommandLineParser &parser);
 
-    // Chain: option > THRONE_DATA_DIR > the first ':' entry of STATE_DIRECTORY > as root: /var/lib/throne (Linux),
-    // /Library/Application Support/Throne (macOS) > AppConfigLocation (HOME empty or "/": an error). Never the app dir.
-    // Windows: option > THRONE_DATA_DIR > --service or LocalSystem: %ProgramData%\Throne (SecureDataDir; refused -> 78) >
+    // Chain: option > RAWLINE_DATA_DIR > the first ':' entry of STATE_DIRECTORY > as root: /var/lib/rawline (Linux),
+    // /Library/Application Support/Rawline (macOS) > AppConfigLocation (HOME empty or "/": an error). Never the app dir.
+    // Windows: option > RAWLINE_DATA_DIR > --service or LocalSystem: %ProgramData%\Rawline (SecureDataDir; refused -> 78) >
     // AppConfigLocation; no STATE_DIRECTORY. An explicit dir that Users can write is logged as a warning.
     // create: mkpath wd and wd/config, 0700 on the dirs it created, a write probe; false (client modes) touches nothing.
     // Fills DataDir{wd, useAppdata = true, appdataDir = wd, configDir} and options->dataDirSource. 0 or ExitCode::Config.

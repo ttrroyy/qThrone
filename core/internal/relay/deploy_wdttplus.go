@@ -183,11 +183,11 @@ func wdttPlusOwnershipFrom(output string) (wdttPlusOwnership, error) {
 	return wdttPlusUnknown, nil
 }
 
-const wdttPlusStandaloneRefusal = "Сервер управляется отдельным установщиком WDTT Plus (server-installer). qThrone не меняет такую установку: используйте server-installer/install.sh на VPS"
+const wdttPlusStandaloneRefusal = "Сервер управляется отдельным установщиком WDTT Plus (server-installer). Rawline не меняет такую установку: используйте server-installer/install.sh на VPS"
 
-// wdttPlusMayInstall is assertDeploymentMayBeUpdated for the modes qThrone offers: a clean server
+// wdttPlusMayInstall is assertDeploymentMayBeUpdated for the modes Rawline offers: a clean server
 // gets a fresh install, a confirmed WDTT Plus deploy (or its kept data) a preserving update. The
-// original's reset of an incomplete install deletes the data, so qThrone leaves it to the user.
+// original's reset of an incomplete install deletes the data, so Rawline leaves it to the user.
 func wdttPlusMayInstall(ownership wdttPlusOwnership) (preserve bool, e error) {
 	switch ownership {
 	case wdttPlusNoInstall:
@@ -531,7 +531,7 @@ func (p *protocol) wdttPlusRecover(client *ssh.Client, s map[string]string, atte
 		wdttPlusMarker(probe, "WDTT_UPDATE_BACKUP_DIAGNOSTIC"))
 }
 
-// wdttPlusUninstallSteps are performUninstall's steps for the preserving removal qThrone offers;
+// wdttPlusUninstallSteps are performUninstall's steps for the preserving removal Rawline offers;
 // each may fail on its own, the final check decides.
 func wdttPlusUninstallSteps(s map[string]string) []struct{ title, command string } {
 	dtls, wg, sshPort := s["peerPort"], s["wgPort"], s["sshPort"]
@@ -643,7 +643,7 @@ func wdttPlusCommand(s map[string]string, staging string, preserve bool) string 
 }
 
 // percentEncode is QUrl::toPercentEncoding: everything but A-Z a-z 0-9 - . _ ~ is escaped,
-// so the link is the one the WDTT Plus profile of qThrone exports.
+// so the link is the one the WDTT Plus profile of Rawline exports.
 func percentEncode(value string) string {
 	var b strings.Builder
 	for _, c := range []byte(value) {

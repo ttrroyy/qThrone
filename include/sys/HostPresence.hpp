@@ -17,8 +17,8 @@ namespace Sys::HostPresence {
         qint64 started = 0;
     };
 
-    // Headless, right after the data-dir lock. euid 0: /run/throne/headless.lock (Linux) or /var/run/throne/headless.lock
-    // (macOS); otherwise $XDG_RUNTIME_DIR/throne/headless.lock; otherwise none (logged). flock LOCK_EX|LOCK_NB on a CLOEXEC fd
+    // Headless, right after the data-dir lock. euid 0: /run/rawline/headless.lock (Linux) or /var/run/rawline/headless.lock
+    // (macOS); otherwise $XDG_RUNTIME_DIR/rawline/headless.lock; otherwise none (logged). flock LOCK_EX|LOCK_NB on a CLOEXEC fd
     // held for the process lifetime (released by exit and by an exec restart), then the JSON written over the file. The file
     // is never unlinked. Windows: the mapping, created once and held for the process lifetime. False (logged, never fatal) when
     // another headless holds it or no location works. Main thread.

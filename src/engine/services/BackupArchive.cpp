@@ -113,7 +113,7 @@ namespace Engine::BackupArchive {
                 if (!it.key().startsWith("icons/")) continue;
                 const QString iconName = it.key().mid(6);
                 if (iconName.isEmpty()) continue;
-                // Archive keys are untrusted: a name such as "../throne.db" would write outside the icons folder.
+                // Archive keys are untrusted: a name such as "../rawline.db" would write outside the icons folder.
                 if (QFileInfo(iconName).fileName() != iconName || iconName.contains("..") || !allowed.contains(iconName)) {
                     MW_show_log(QStringLiteral("[Backup] Skipped icon \"%1\": not one of Rawline's icon files.").arg(iconName.left(80).simplified()));
                     continue;

@@ -21,14 +21,23 @@ func vaultKey() ([]byte, error) {
 		return nil, e
 	}
 	defer unlock()
-	value, e := keyring.Get("qThrone VK relay", "vault-key")
+	value, e := keyring.Get("Rawline VK relay", "vault-key")
+	if e == keyring.ErrNotFound {
+		// Accounts saved under the program's earlier name stay readable.
+		if earlier, earlierErr := keyring.Get("qThrone VK relay", "vault-key"); earlierErr == nil {
+			if e = keyring.Set("Rawline VK relay", "vault-key", earlier); e != nil {
+				return nil, e
+			}
+			value, e = earlier, nil
+		}
+	}
 	if e == keyring.ErrNotFound {
 		b := make([]byte, 32)
 		if _, e = rand.Read(b); e != nil {
 			return nil, e
 		}
 		value = hex.EncodeToString(b)
-		if e = keyring.Set("qThrone VK relay", "vault-key", value); e != nil {
+		if e = keyring.Set("Rawline VK relay", "vault-key", value); e != nil {
 			return nil, e
 		}
 	}
@@ -79,7 +88,18 @@ func vaultPath(id string) (string, error) {
 	if e != nil {
 		return "", e
 	}
-	dir = filepath.Join(dir, "qThrone", "relay-vault")
+	earlier := filepath.Join(dir, "qThrone", "relay-vault")
+	dir = filepath.Join(dir, "Rawline", "relay-vault")
+	if _, e = os.Stat(dir); os.IsNotExist(e) {
+		if _, e = os.Stat(earlier); e == nil {
+			if e = os.MkdirAll(filepath.Dir(dir), 0700); e != nil {
+				return "", e
+			}
+			if e = os.Rename(earlier, dir); e != nil {
+				return "", e
+			}
+		}
+	}
 	if e = os.MkdirAll(dir, 0700); e != nil {
 		return "", e
 	}

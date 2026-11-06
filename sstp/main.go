@@ -1,5 +1,5 @@
-// Command qthrone-sstp runs one SSTP VPN profile behind an authenticated
-// loopback SOCKS5 listener for qThrone.
+// Command rawline-sstp runs one SSTP VPN profile behind an authenticated
+// loopback SOCKS5 listener for Rawline.
 package main
 
 import (
@@ -85,8 +85,8 @@ func readConfig(path string) (profile, error) {
 }
 
 func main() {
-	if len(os.Args) != 3 || os.Args[1] != "--qthrone-config" {
-		fmt.Fprintln(os.Stderr, "Usage: sstp-client --qthrone-config <config.json>")
+	if len(os.Args) != 3 || os.Args[1] != "--rawline-config" {
+		fmt.Fprintln(os.Stderr, "Usage: sstp-client --rawline-config <config.json>")
 		os.Exit(2)
 	}
 

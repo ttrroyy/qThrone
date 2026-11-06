@@ -1,9 +1,9 @@
-# sing-trusttunnel for qThrone
+# sing-trusttunnel for Rawline
 
 Source: github.com/xchacha20-poly1305/sing-trusttunnel v0.3.2
 (go.sum h1:3rj5AgkB1GGaDJ4u6iSa+1kQOpnxtw/GZ7nXjZPP1gc=), GPL license retained.
 
-qThrone changes, shared with qThroneMobile (core-patches/trusttunnel):
+Rawline changes, shared with RawlineMobile (core-patches/trusttunnel):
 
 - `https_fallback.go`: QUIC profiles race their HTTP/2 fallback the way
   TrustTunnelClient's FallbackableUpstreamConnector does. QUIC starts first,

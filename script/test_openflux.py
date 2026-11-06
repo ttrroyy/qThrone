@@ -29,7 +29,7 @@ def exact(sock, n):
     return data
 
 
-USER, PASSWORD = b'qthrone-test-user', b'qthrone-test-pass'
+USER, PASSWORD = b'rawline-test-user', b'rawline-test-pass'
 
 
 def socks(port, command, host, target_port):
@@ -82,7 +82,7 @@ def main(binary, exit_binary):
     threading.Thread(target=echo, daemon=True).start()
     processes = []
     try:
-        with tempfile.TemporaryDirectory(prefix='qthrone-openflux-test-') as folder:
+        with tempfile.TemporaryDirectory(prefix='rawline-openflux-test-') as folder:
             folder = Path(folder)
             secret = 'local-integration-test-secret'
             key = folder / 'exit.key'
@@ -96,7 +96,7 @@ def main(binary, exit_binary):
                 'socks': f'127.0.0.1:{socks_port}', 'socks_user': USER.decode(), 'socks_pass': PASSWORD.decode(), 'transports': [{'type': 'direct', 'priority': 100, 'dial': f'127.0.0.1:{carrier_port}'}]}))
             os.chmod(private, 0o600)
             flags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
-            for command in ([exit_binary, '--config', str(config), '--negotiate'], [binary, '--qthrone-config', str(private)]):
+            for command in ([exit_binary, '--config', str(config), '--negotiate'], [binary, '--rawline-config', str(private)]):
                 processes.append(subprocess.Popen(command, stdin=subprocess.PIPE,
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, creationflags=flags))
                 time.sleep(0.5)

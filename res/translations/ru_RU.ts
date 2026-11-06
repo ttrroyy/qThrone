@@ -2786,8 +2786,8 @@ Rawline will restart to complete the restore.</source>
         <translation>&quot;%1&quot; также назначено для &quot;%2&quot;.</translation>
     </message>
     <message>
-        <source>Scripts connect with thronectl or the Rawline API library.</source>
-        <translation>Скрипты подключаются через thronectl или библиотеку Rawline API.</translation>
+        <source>Scripts connect with rawlinectl or the Rawline API library.</source>
+        <translation>Скрипты подключаются через rawlinectl или библиотеку Rawline API.</translation>
     </message>
     <message>
         <source>Hide</source>
@@ -8146,8 +8146,8 @@ Improves hole-punching reliability. Requires IPv4.</source>
 <context>
     <name>Engine::ConnectionManager</name>
     <message>
-        <source>A background Rawline (PID %1) owns Tun on this computer; stop it or use thronectl.</source>
-        <translation>Tun на этом компьютере занят фоновым Rawline (PID %1); остановите его или используйте thronectl.</translation>
+        <source>A background Rawline (PID %1) owns Tun on this computer; stop it or use rawlinectl.</source>
+        <translation>Tun на этом компьютере занят фоновым Rawline (PID %1); остановите его или используйте rawlinectl.</translation>
     </message>
 </context>
 <context>
@@ -8254,8 +8254,8 @@ Improves hole-punching reliability. Requires IPv4.</source>
         <translation>Rawline работает в фоновом режиме</translation>
     </message>
     <message>
-        <source>A background Rawline (PID %1) is running on this computer (data directory: %2). Tun mode is unavailable here while it runs; stop it or use thronectl.</source>
-        <translation>На этом компьютере работает фоновый Rawline (PID %1, каталог данных: %2). Пока он работает, режим Tun здесь недоступен; остановите его или используйте thronectl.</translation>
+        <source>A background Rawline (PID %1) is running on this computer (data directory: %2). Tun mode is unavailable here while it runs; stop it or use rawlinectl.</source>
+        <translation>На этом компьютере работает фоновый Rawline (PID %1, каталог данных: %2). Пока он работает, режим Tun здесь недоступен; остановите его или используйте rawlinectl.</translation>
     </message>
 </context>
 <context>
@@ -10160,12 +10160,12 @@ Deleted %5 Profiles:
 
 Windows then ignores the adapter binding that keeps Rawline&apos;s own connections out of the Tun, so they loop back into it and fail.
 
-To fix this, share the hotspot from the throne-tun adapter instead of &quot;%1&quot; (Settings &gt; Mobile hotspot &gt; Share my internet connection from), or turn the hotspot off while using Tun mode.</source>
+To fix this, share the hotspot from the rawline-tun adapter instead of &quot;%1&quot; (Settings &gt; Mobile hotspot &gt; Share my internet connection from), or turn the hotspot off while using Tun mode.</source>
         <translation>Для сетевого адаптера &quot;%1&quot; включена пересылка IPv4 — обычно потому, что через него раздаёт интернет мобильный хот-спот или общий доступ к подключению к Интернету (ICS).
 
 В этом случае Windows игнорирует привязку к адаптеру, которая не пускает собственные подключения Rawline в TUN, поэтому они зацикливаются обратно в него и не работают.
 
-Чтобы это исправить, раздавайте хот-спот с адаптера throne-tun вместо &quot;%1&quot; (Параметры &gt; Мобильный хот-спот &gt; Совместное использование подключения к Интернету) или отключайте хот-спот на время работы в режиме TUN.</translation>
+Чтобы это исправить, раздавайте хот-спот с адаптера rawline-tun вместо &quot;%1&quot; (Параметры &gt; Мобильный хот-спот &gt; Совместное использование подключения к Интернету) или отключайте хот-спот на время работы в режиме TUN.</translation>
     </message>
     <message>
         <source>Core exited, cleaning up...</source>
@@ -10478,12 +10478,12 @@ Release note:
         <translation>Слабый шифр</translation>
     </message>
     <message>
-        <source>Rawline is running in the background (PID %1). Stop the service or use thronectl.</source>
-        <translation>Rawline работает в фоновом режиме (PID %1). Остановите службу или используйте thronectl.</translation>
+        <source>Rawline is running in the background (PID %1). Stop the service or use rawlinectl.</source>
+        <translation>Rawline работает в фоновом режиме (PID %1). Остановите службу или используйте rawlinectl.</translation>
     </message>
     <message>
-        <source>Rawline is running in the background. Stop the service or use thronectl.</source>
-        <translation>Rawline работает в фоновом режиме. Остановите службу или используйте thronectl.</translation>
+        <source>Rawline is running in the background. Stop the service or use rawlinectl.</source>
+        <translation>Rawline работает в фоновом режиме. Остановите службу или используйте rawlinectl.</translation>
     </message>
     <message>
         <source>Another Rawline instance (PID %1)</source>

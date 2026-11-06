@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"qThroneCore/gen"
-	"qThroneCore/internal/boxmain"
-	"qThroneCore/internal/process"
+	"RawlineCore/gen"
+	"RawlineCore/internal/boxmain"
+	"RawlineCore/internal/process"
 )
 
 func TestRoutedTunnelDuplicateDeviceRejectedBeforeStart(t *testing.T) {

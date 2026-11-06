@@ -12,7 +12,7 @@ import (
 )
 
 func TestOutputObserverHelper(t *testing.T) {
-	if os.Args[len(os.Args)-1] == "qthrone-output-observer-helper" {
+	if os.Args[len(os.Args)-1] == "rawline-output-observer-helper" {
 		fmt.Println("[CSQTT] CAPTCHA_REQUIRED")
 		os.Exit(0)
 	}
@@ -24,7 +24,7 @@ func TestOutputObserverReceivesMutedChildOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 	observed := make(chan struct{}, 1)
-	p := NewProcess(exe, []string{"-test.run=^TestOutputObserverHelper$", "qthrone-output-observer-helper"}, true)
+	p := NewProcess(exe, []string{"-test.run=^TestOutputObserverHelper$", "rawline-output-observer-helper"}, true)
 	p.SetBackgroundProbe()
 	p.SetOutputObserver(func(b []byte) {
 		if strings.Contains(string(b), "CAPTCHA_REQUIRED") {
@@ -46,7 +46,7 @@ func TestOutputObserverReceivesMutedChildOutput(t *testing.T) {
 }
 
 func TestFailedProbeHelper(t *testing.T) {
-	if len(os.Args) > 1 && os.Args[len(os.Args)-1] == "qthrone-failed-probe-helper" {
+	if len(os.Args) > 1 && os.Args[len(os.Args)-1] == "rawline-failed-probe-helper" {
 		os.Exit(1)
 	}
 }
@@ -63,7 +63,7 @@ func TestFailedProbeDoesNotSignalActiveProfileCrash(t *testing.T) {
 		}
 		previous := os.Stdout
 		os.Stdout = w
-		p := NewProcess(exe, []string{"-test.run=^TestFailedProbeHelper$", "qthrone-failed-probe-helper"}, true)
+		p := NewProcess(exe, []string{"-test.run=^TestFailedProbeHelper$", "rawline-failed-probe-helper"}, true)
 		if mode == "probe" {
 			p.SetBackgroundProbe()
 		}
@@ -100,7 +100,7 @@ func TestFailedProbeDoesNotSignalActiveProfileCrash(t *testing.T) {
 }
 
 func TestStdinShutdownHelper(t *testing.T) {
-	if len(os.Args) < 3 || os.Args[len(os.Args)-2] != "qthrone-stdin-helper" {
+	if len(os.Args) < 3 || os.Args[len(os.Args)-2] != "rawline-stdin-helper" {
 		return
 	}
 	scanner := bufio.NewScanner(os.Stdin)
@@ -118,7 +118,7 @@ func TestOptionalGracefulShutdown(t *testing.T) {
 		t.Fatal(err)
 	}
 	result := filepath.Join(t.TempDir(), "result")
-	p := NewProcess(exe, []string{"-test.run=^TestStdinShutdownHelper$", "qthrone-stdin-helper", result}, true)
+	p := NewProcess(exe, []string{"-test.run=^TestStdinShutdownHelper$", "rawline-stdin-helper", result}, true)
 	p.EnableStdinShutdown("STOP")
 	if err = p.Start(); err != nil {
 		t.Fatal(err)
@@ -136,7 +136,7 @@ func TestOptionalGracefulShutdown(t *testing.T) {
 }
 
 func TestCSQTTDelayedShutdownHelper(t *testing.T) {
-	if len(os.Args) < 4 || os.Args[len(os.Args)-3] != "qthrone-delayed-helper" {
+	if len(os.Args) < 4 || os.Args[len(os.Args)-3] != "rawline-delayed-helper" {
 		return
 	}
 	scanner := bufio.NewScanner(os.Stdin)
@@ -154,7 +154,7 @@ func TestCSQTTShutdownAllowsNativeChildCleanup(t *testing.T) {
 		t.Fatal(err)
 	}
 	result := filepath.Join(t.TempDir(), "result")
-	p := NewProcess(exe, []string{"-test.run=^TestCSQTTDelayedShutdownHelper$", "qthrone-delayed-helper", "-csqtt-config", result}, true)
+	p := NewProcess(exe, []string{"-test.run=^TestCSQTTDelayedShutdownHelper$", "rawline-delayed-helper", "-csqtt-config", result}, true)
 	p.EnableStdinShutdown("STOP")
 	if err = p.Start(); err != nil {
 		t.Fatal(err)
@@ -172,7 +172,7 @@ func TestOrdinaryExtraProcessStillStops(t *testing.T) {
 		t.Fatal(err)
 	}
 	result := filepath.Join(t.TempDir(), "result")
-	p := NewProcess(exe, []string{"-test.run=^TestStdinShutdownHelper$", "qthrone-stdin-helper", result}, true)
+	p := NewProcess(exe, []string{"-test.run=^TestStdinShutdownHelper$", "rawline-stdin-helper", result}, true)
 	if err = p.Start(); err != nil {
 		t.Fatal(err)
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 // Only the private captcha browser uses this short-lived HTTPS proxy. Its
-// connections belong to qwdtt, which Throne already excludes from its TUN.
+// connections belong to qwdtt, which Rawline already excludes from its TUN.
 // No global Edge/Chrome routing exemption or system proxy change is needed.
 func startCaptchaProxy(parent context.Context) (string, func(), error) {
 	return startCaptchaProxyWithDial(parent, (&net.Dialer{Timeout: 15 * time.Second}).DialContext)

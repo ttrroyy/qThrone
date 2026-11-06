@@ -5,11 +5,11 @@ if [ ! -d olcrtc-source/.git ]; then
     python3 script/fetch_pinned_source.py https://github.com/openlibrecommunity/olcrtc.git "$olcrtc_revision" olcrtc-source
 fi
 test "$(git -C olcrtc-source rev-parse HEAD)" = "$olcrtc_revision"
-mkdir -p olcrtc-source/cmd/qthrone-olcrtc
-cp script/olcrtc/*.go olcrtc-source/cmd/qthrone-olcrtc/
+mkdir -p olcrtc-source/cmd/rawline-olcrtc
+cp script/olcrtc/*.go olcrtc-source/cmd/rawline-olcrtc/
 pushd olcrtc-source
-CGO_ENABLED=0 "$GOCMD" build -trimpath -ldflags='-s -w' -o "$DEST/olcrtc$([[ "$GOOS" == windows ]] && echo '.exe')" ./cmd/qthrone-olcrtc
+CGO_ENABLED=0 "$GOCMD" build -trimpath -ldflags='-s -w' -o "$DEST/olcrtc$([[ "$GOOS" == windows ]] && echo '.exe')" ./cmd/rawline-olcrtc
 cp LICENSE "$DEST/OLCRTC-LICENSE"
-printf '%s\n' 'https://github.com/openlibrecommunity/olcrtc' "Revision: $olcrtc_revision" 'Desktop integration: script/olcrtc in qThrone' > "$DEST/OLCRTC-SOURCE"
+printf '%s\n' 'https://github.com/openlibrecommunity/olcrtc' "Revision: $olcrtc_revision" 'Desktop integration: script/olcrtc in Rawline' > "$DEST/OLCRTC-SOURCE"
 tar -czf "$DEST/olcrtc-source.tar.gz" --exclude=.git --exclude=.github .
 popd

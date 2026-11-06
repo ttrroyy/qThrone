@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"qThroneCore/internal/xray"
-	"qThroneCore/internal/xraydns"
+	"RawlineCore/internal/xray"
+	"RawlineCore/internal/xraydns"
 
 	xcore "github.com/xtls/xray-core/core"
 	xinternet "github.com/xtls/xray-core/transport/internet"

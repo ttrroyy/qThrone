@@ -5,7 +5,7 @@
 #include <QString>
 #include <QStringList>
 
-// Backups on a WebDAV server, shared with RawlineForAndroid: one folder of .rwlbackup files plus a throne_backups.json
+// Backups on a WebDAV server, shared with RawlineForAndroid: one folder of .rwlbackup files plus a rawline_backups.json
 // index. Every function but FromSettings runs synchronously on a worker thread and returns an error text, empty on
 // success.
 namespace Engine::WebDavBackup {

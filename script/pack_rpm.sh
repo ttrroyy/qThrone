@@ -32,20 +32,21 @@ WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK"/{BUILD,BUILDROOT,RPMS,SOURCES,SPECS}
 
-cat >"$WORK/qThrone.desktop" <<-EOF
+cat >"$WORK/Rawline.desktop" <<-EOF
 [Desktop Entry]
 Name=Rawline
 Comment=Qt based cross-platform GUI proxy configuration manager (backend: sing-box)
-Exec=sh -c "PATH=/opt/qThrone:\$PATH /opt/qThrone/qThrone -appdata"
-Icon=/opt/qThrone/qThrone.png
+Exec=sh -c "PATH=/opt/Rawline:\$PATH /opt/Rawline/Rawline -appdata"
+Icon=/opt/Rawline/Rawline.png
 Terminal=false
 Type=Application
 Categories=Network;Application;
 EOF
 
-cat >"$WORK/qThrone.spec" <<-EOF
-Name: qthrone
+cat >"$WORK/Rawline.spec" <<-EOF
+Name: rawline
 Version: ${RPM_VERSION}
+Obsoletes: qthrone
 Release: 1
 Summary: Qt based cross-platform GUI proxy configuration manager (backend: sing-box)
 License: GPL-3.0-or-later
@@ -62,15 +63,15 @@ Qt based cross-platform GUI proxy configuration manager (backend: sing-box).
 
 %install
 rm -rf %{buildroot}
-mkdir -p %{buildroot}/opt/qThrone
-cp -a ${SRC_DIR}/. %{buildroot}/opt/qThrone/
-rm -f %{buildroot}/opt/qThrone/qThrone.debug
+mkdir -p %{buildroot}/opt/Rawline
+cp -a ${SRC_DIR}/. %{buildroot}/opt/Rawline/
+rm -f %{buildroot}/opt/Rawline/Rawline.debug
 mkdir -p %{buildroot}/usr/share/applications
-cp ${WORK}/qThrone.desktop %{buildroot}/usr/share/applications/qThrone.desktop
+cp ${WORK}/Rawline.desktop %{buildroot}/usr/share/applications/Rawline.desktop
 
 %files
-/opt/qThrone
-/usr/share/applications/qThrone.desktop
+/opt/Rawline
+/usr/share/applications/Rawline.desktop
 
 %post
 update-desktop-database &> /dev/null || :
@@ -84,6 +85,6 @@ rpmbuild -bb \
   --define "_topdir $WORK" \
   --define "_binary_payload w19T0.zstdio" \
   --target "$RPM_ARCH" \
-  "$WORK/qThrone.spec"
+  "$WORK/Rawline.spec"
 
-mv "$WORK/RPMS/$RPM_ARCH/qthrone-${RPM_VERSION}-1.${RPM_ARCH}.rpm" "qThrone-$TAG-fedora-$ARCH$SUFFIX.rpm"
+mv "$WORK/RPMS/$RPM_ARCH/rawline-${RPM_VERSION}-1.${RPM_ARCH}.rpm" "Rawline-$TAG-fedora-$ARCH$SUFFIX.rpm"

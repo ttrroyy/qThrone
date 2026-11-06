@@ -1,4 +1,4 @@
-// Package mobile is the gomobile-bound surface of ThroneCore for Android. It owns the sing-box
+// Package mobile is the gomobile-bound surface of RawlineCore for Android. It owns the sing-box
 // instance (the fork's root box.New over a context this package builds) and the in-process Xray
 // instances, mirroring internal/rpc and internal/boxmain without their IPC, signal and desktop-only
 // wiring; none of those packages may be imported here.
@@ -14,7 +14,7 @@ import (
 
 	// Pins the gomobile bind runtime in go.mod the same way the sing-box fork does.
 	_ "github.com/sagernet/gomobile"
-	// Links every Xray protocol into the AAR; qThroneCore/internal/distro/all must stay out because it
+	// Links every Xray protocol into the AAR; RawlineCore/internal/distro/all must stay out because it
 	// starts the desktop's netlink monitors at init.
 	_ "github.com/xtls/xray-core/main/distro/all"
 )

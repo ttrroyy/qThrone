@@ -1,5 +1,5 @@
-// Command qthrone-dnstun runs one DNS tunnel profile (DNSTT, VayDNS or
-// Slipstream) behind an authenticated loopback SOCKS5 listener for qThrone.
+// Command rawline-dnstun runs one DNS tunnel profile (DNSTT, VayDNS or
+// Slipstream) behind an authenticated loopback SOCKS5 listener for Rawline.
 //
 // The tunnel carries TCP streams to the server's backend, as in every client
 // of the dnst:// format: a SOCKS5 proxy, an SSH server or a Shadowsocks
@@ -132,7 +132,7 @@ type streamSource interface {
 
 func run() int {
 	log.SetFlags(log.Ltime)
-	if len(os.Args) != 3 || os.Args[1] != "--qthrone-config" {
+	if len(os.Args) != 3 || os.Args[1] != "--rawline-config" {
 		fmt.Fprintln(os.Stderr, "DNS tunnel: expected private configuration file")
 		return 2
 	}

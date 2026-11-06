@@ -142,8 +142,8 @@ void DialogIntegration::setupApiTab()
     ui->api_admin_lan->setChecked(settings->remote_api_admin_lan);
     ui->api_key->setText(savedApiKey);
     if (ui->api_enable->isChecked() && savedApiKey.isEmpty()) ui->api_key->setText(RemoteApi::KeyToText(RemoteApi::GenerateKey()));
-    ui->api_help->setText(tr("Scripts connect with thronectl or the Rawline API library.").toHtmlEscaped()
-                          + QStringLiteral("<br><a href=\"https://github.com/throneproj/Throne-api\">https://github.com/throneproj/Throne-api</a>"));
+    ui->api_help->setText(tr("Scripts connect with rawlinectl or the Rawline API library.").toHtmlEscaped()
+                          + QStringLiteral("<br><a href=\"https://github.com/throneproj/Rawline-api\">https://github.com/throneproj/Rawline-api</a>"));
 
     auto *server = RemoteApi::Server::instance();
     ui->api_status->setText(server->statusText());
@@ -193,7 +193,7 @@ void DialogIntegration::copyForScripts()
     if (ui->api_listen->currentIndex() == 1) {
         if (const auto lan = LocalNetwork::LanAddress(); !lan.isEmpty()) host = lan.contains(':') ? "[" + lan + "]" : lan;
     }
-    QApplication::clipboard()->setText(QStringLiteral("THRONE_ADDR=%1:%2\nTHRONE_KEY=%3").arg(host, QString::number(ui->api_port->value()), ui->api_key->text()));
+    QApplication::clipboard()->setText(QStringLiteral("RAWLINE_ADDR=%1:%2\nRAWLINE_KEY=%3").arg(host, QString::number(ui->api_port->value()), ui->api_key->text()));
 }
 
 void DialogIntegration::accept()

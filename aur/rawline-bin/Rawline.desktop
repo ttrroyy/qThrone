@@ -2,9 +2,9 @@
 Name=Rawline
 GenericName=Proxy Manager
 Comment=Graphical proxy manager powered by sing-box
-Exec=qthrone
-Icon=qthrone
-StartupWMClass=qThrone
+Exec=rawline
+Icon=rawline
+StartupWMClass=Rawline
 Terminal=false
 Type=Application
 Categories=Network;

@@ -124,7 +124,7 @@ QString openfluxkey::Prepare() {
     config["peer"] = "openfluxkey:" + docs.join(',');
     config["device_id"] = QString::fromLatin1(QCryptographicHash::hash(data["key_token"].toString().toUtf8(), QCryptographicHash::Sha256).toHex());
     extraCoreConf = QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact));
-    extraCoreArgs = "--qthrone-config %s";
+    extraCoreArgs = "--rawline-config %s";
     noLogs = true;
     return {};
 }

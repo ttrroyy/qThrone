@@ -1,11 +1,11 @@
-// Command qthrone-openflux runs one OpenFlux profile behind an authenticated
-// loopback SOCKS5 listener for qThrone.
+// Command rawline-openflux runs one OpenFlux profile behind an authenticated
+// loopback SOCKS5 listener for Rawline.
 //
 // The profile is started through OpenFlux's own mobile package, the code the
 // original Android app runs: Session links go to StartSessionProxy with the
 // specs ShareSessionSpecs derives (so the encryption context is the one every
 // OpenFlux client derives), classic links to StartProxy, phpbox links to
-// StartStreamProxy. The listener qThrone dials opens only once the tunnel is
+// StartStreamProxy. The listener Rawline dials opens only once the tunnel is
 // up, so a profile is never reported ready before it can carry traffic.
 package main
 
@@ -159,7 +159,7 @@ func printLogs(lastCaptcha *string) {
 }
 
 func run() int {
-	if len(os.Args) != 3 || os.Args[1] != "--qthrone-config" {
+	if len(os.Args) != 3 || os.Args[1] != "--rawline-config" {
 		fmt.Fprintln(os.Stderr, "OpenFlux: expected private configuration file")
 		return 2
 	}
@@ -173,7 +173,7 @@ func run() int {
 	mobile.SetDebugLevel(0)
 	// Service cookies (solved checks) live in the user's private cache, like the original app's store.
 	if cache, err := os.UserCacheDir(); err == nil {
-		folder := filepath.Join(cache, "qThrone", "openflux")
+		folder := filepath.Join(cache, "Rawline", "openflux")
 		if os.MkdirAll(folder, 0o700) == nil {
 			_ = mobile.SetCookieStorePath(filepath.Join(folder, "cookies.json"))
 		}

@@ -27,7 +27,7 @@ namespace Engine::Bootstrap {
 
     // Runs before any Qt object exists, so it only looks at raw argv and the environment. -dump-configs wins; --health,
     // --print-connection or --check (one or two dashes) is HeadlessClient even without --headless; --headless/-headless or a truthy
-    // THRONE_HEADLESS (not ""/0/false/no/off) is Headless.
+    // RAWLINE_HEADLESS (not ""/0/false/no/off) is Headless.
     Launch PreScan(int argc, char **argv);
 
     // software_name and software_core_name; before anything titles a dialog or notice.

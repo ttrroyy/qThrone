@@ -20,11 +20,11 @@ int TestCoreStartup() {
     }
     QLocalServer server;
     server.setSocketOptions(QLocalServer::UserAccessOption);
-    QString socketName = "qthrone-test-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
+    QString socketName = "rawline-test-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
 #ifdef Q_OS_UNIX
     // macOS runner TMPDIR plus a UUID exceeds Qt 6.4's Unix socket path limit.
     // Keep the socket in a private directory with a short absolute path.
-    QTemporaryDir socketDirectory("/tmp/qthrone-test-XXXXXX");
+    QTemporaryDir socketDirectory("/tmp/rawline-test-XXXXXX");
     if (!socketDirectory.isValid()) {
         qCritical() << "Cannot create the core startup test socket directory";
         return 1;
@@ -37,8 +37,8 @@ int TestCoreStartup() {
     }
     QProcess core;
     auto environment = QProcessEnvironment::systemEnvironment();
-    environment.remove("THRONE_GUARD");
-    environment.insert("THRONE_CORE_SOCKET", server.fullServerName());
+    environment.remove("RAWLINE_GUARD");
+    environment.insert("RAWLINE_CORE_SOCKET", server.fullServerName());
     core.setProcessEnvironment(environment);
     core.setProcessChannelMode(QProcess::MergedChannels);
     core.start(path, QStringList{});

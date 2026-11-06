@@ -100,7 +100,7 @@ QString s3bypass::Prepare() {
     config["peer"] = st["endpoint"].toString() + "/" + st["bucket"].toString() + "/" + st["prefix"].toString();
     config["device_id"] = QString::fromLatin1(QCryptographicHash::hash(st["accessKey"].toString().toUtf8(), QCryptographicHash::Sha256).toHex());
     extraCoreConf = QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact));
-    extraCoreArgs = "--qthrone-config %s";
+    extraCoreArgs = "--rawline-config %s";
     noLogs = true;
     return {};
 }

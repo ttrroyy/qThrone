@@ -22,8 +22,8 @@
         <file>icon/material/eye-off-outline.png</file>
         <file>icon/material/swap-horizontal.png</file>
     </qresource>
-    <qresource prefix="/Throne">
-        <file alias="Throne.png">public/Throne.png</file>
+    <qresource prefix="/Rawline">
+        <file alias="Rawline.png">public/Rawline.png</file>
         <file alias="Off.png">public/Off.png</file>
         <file alias="Connecting.png">public/Connecting.png</file>
         <file alias="Proxy.png">public/Proxy.png</file>

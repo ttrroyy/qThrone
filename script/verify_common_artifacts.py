@@ -32,14 +32,14 @@ def verify_cpp_artifacts(sha, jobs, artifacts, changed, suffixes=CPP_REUSE_SUFFI
         raise RuntimeError("Application sources changed; rebuild desktop artifacts")
     if not any(job["name"] == "verify-common" and job["conclusion"] == "success" for job in jobs):
         raise RuntimeError("The source GUI build must have verified its common artifacts")
-    expected = {"Throne-" + sha + "-" + suffix for suffix in suffixes}
-    if {artifact["name"] for artifact in artifacts if artifact["name"].startswith("Throne-" + sha + "-")} != expected:
+    expected = {"Rawline-" + sha + "-" + suffix for suffix in suffixes}
+    if {artifact["name"] for artifact in artifacts if artifact["name"].startswith("Rawline-" + sha + "-")} != expected:
         raise RuntimeError("Source desktop artifact set does not match the requested builds")
     for suffix in suffixes:
         matching = [job for job in jobs if job["name"].startswith("build-cpp (") and job["name"].split(", ")[3:4] == [suffix]]
         if len(matching) != 1 or matching[0]["conclusion"] != "success":
             raise RuntimeError("Desktop build did not pass: " + suffix)
-        matching = [artifact for artifact in artifacts if artifact["name"] == "Throne-" + sha + "-" + suffix]
+        matching = [artifact for artifact in artifacts if artifact["name"] == "Rawline-" + sha + "-" + suffix]
         if len(matching) != 1 or matching[0]["expired"] or matching[0]["size_in_bytes"] <= 0:
             raise RuntimeError("Desktop artifact unavailable: " + suffix)
 
@@ -92,7 +92,7 @@ def main():
         request = urllib.request.Request(
             "https://api.github.com/repos/" + repo + path,
             headers={"Authorization": "Bearer " + os.environ["GH_TOKEN"],
-                     "Accept": "application/vnd.github+json", "User-Agent": "qThrone-build-validation"})
+                     "Accept": "application/vnd.github+json", "User-Agent": "Rawline-build-validation"})
         with urllib.request.urlopen(request, timeout=30) as response:
             return json.load(response)
 
@@ -106,7 +106,7 @@ def main():
             time.sleep(5)
             run = api("/actions/runs/" + run_id)
     if run["path"] != ".github/workflows/build.yml" or run["status"] != "completed":
-        raise RuntimeError("Select a completed qThrone release build")
+        raise RuntimeError("Select a completed Rawline release build")
     jobs = api("/actions/runs/" + run_id + "/jobs?per_page=100")["jobs"]
     if cpp_mode or release_mode or pack_mode:
         sha = run["head_sha"]
@@ -154,7 +154,7 @@ def main():
         if job_section(old, name) != job_section(new, name):
             raise RuntimeError("Go build/test workflow changed: " + name)
     artifacts = api("/actions/runs/" + run_id + "/artifacts?per_page=100")["artifacts"]
-    common = [artifact for artifact in artifacts if artifact["name"].startswith("Throne-" + sha + "-Common-")]
+    common = [artifact for artifact in artifacts if artifact["name"].startswith("Rawline-" + sha + "-Common-")]
     if len(common) != 9 or any(artifact["expired"] or artifact["size_in_bytes"] <= 0 for artifact in common):
         raise RuntimeError("Complete Go artifact set is not available")
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:

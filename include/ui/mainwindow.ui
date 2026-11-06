@@ -55,7 +55,7 @@ QToolButton::menu-indicator {
          <string>Program</string>
         </property>
         <property name="icon">
-         <iconset resource="../../res/Throne.qrc">
+         <iconset resource="../../res/Rawline.qrc">
           <normaloff>:/icon/b-system-run.png</normaloff>:/icon/b-system-run.png</iconset>
         </property>
         <property name="iconSize">
@@ -104,7 +104,7 @@ QToolButton::menu-indicator {
          <string>Settings</string>
         </property>
         <property name="icon">
-         <iconset resource="../../res/Throne.qrc">
+         <iconset resource="../../res/Rawline.qrc">
           <normaloff>:/icon/b-preferences.png</normaloff>:/icon/b-preferences.png</iconset>
         </property>
         <property name="iconSize">
@@ -153,7 +153,7 @@ QToolButton::menu-indicator {
          <string>Groups</string>
         </property>
         <property name="icon">
-         <iconset resource="../../res/Throne.qrc">
+         <iconset resource="../../res/Rawline.qrc">
           <normaloff>:/icon/b-testing-button.png</normaloff>:/icon/b-testing-button.png</iconset>
         </property>
         <property name="iconSize">
@@ -202,7 +202,7 @@ QToolButton::menu-indicator {
          <string>Routing</string>
         </property>
         <property name="icon">
-         <iconset resource="../../res/Throne.qrc">
+         <iconset resource="../../res/Rawline.qrc">
           <normaloff>:/icon/b-network-routing.png</normaloff>:/icon/b-network-routing.png</iconset>
         </property>
         <property name="iconSize">
@@ -251,7 +251,7 @@ QToolButton::menu-indicator {
          <string>Tools</string>
         </property>
         <property name="icon">
-         <iconset resource="../../res/Throne.qrc">
+         <iconset resource="../../res/Rawline.qrc">
           <normaloff>:/icon/b-tools-button.png</normaloff>:/icon/b-tools-button.png</iconset>
         </property>
         <property name="iconSize">
@@ -1417,7 +1417,7 @@ QToolButton::menu-indicator {
   </customwidget>
  </customwidgets>
  <resources>
-  <include location="../../res/Throne.qrc"/>
+  <include location="../../res/Rawline.qrc"/>
  </resources>
  <connections/>
 </ui>

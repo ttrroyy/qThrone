@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"qThroneCore/gen"
+	"RawlineCore/gen"
 )
 
 type fakeClock struct{ now time.Time }
@@ -136,7 +136,7 @@ func TestOpenFluxProbeSkipsTheConnectedExit(t *testing.T) {
 // TestTransportHelperProcess is a stand-in helper: it opens its listener and, on its
 // first launch, exits shortly after to play a dropped transport.
 func TestTransportHelperProcess(t *testing.T) {
-	if len(os.Args) < 3 || os.Args[len(os.Args)-2] != "qthrone-transport-helper" {
+	if len(os.Args) < 3 || os.Args[len(os.Args)-2] != "rawline-transport-helper" {
 		return
 	}
 	path := os.Args[len(os.Args)-1]
@@ -240,7 +240,7 @@ func TestWatchdogReconnectsADroppedTransport(t *testing.T) {
 	encoded, _ := json.Marshal(map[string]string{"backend": "olcrtc", "peer": "jitsi:room", "device_id": "watchdog-test",
 		"socks": socks, "socks_user": "watchdog-user", "socks_pass": "watchdog-pass", "helper_folder": folder})
 	in := &gen.LoadConfigReq{RoutedExtraProcesses: []*gen.RoutedExtraProcess{{Path: To(helper),
-		Args: To("-test.run=^TestTransportHelperProcess$ qthrone-transport-helper %s"), Config: To(string(encoded)), OutboundTag: To("route-0"), NoOut: To(true)}}}
+		Args: To("-test.run=^TestTransportHelperProcess$ rawline-transport-helper %s"), Config: To(string(encoded)), OutboundTag: To("route-0"), NoOut: To(true)}}}
 	lifecycleMu.Lock()
 	err = startExtraSessions(context.Background(), in)
 	lifecycleMu.Unlock()

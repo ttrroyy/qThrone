@@ -44,7 +44,7 @@ func TestAdministrativeSIDClassification(t *testing.T) {
 }
 
 func TestRestrictedTokenChildHelper(t *testing.T) {
-	if len(os.Args) < 2 || os.Args[len(os.Args)-1] != "qthrone-restricted-child" {
+	if len(os.Args) < 2 || os.Args[len(os.Args)-1] != "rawline-restricted-child" {
 		return
 	}
 	self, err := selfToken()
@@ -78,7 +78,7 @@ func TestRestrictedSelfProcessInitializesWithoutElevation(t *testing.T) {
 	}
 	var mu sync.Mutex
 	var output strings.Builder
-	child, err := startRestrictedSelf(exe, []string{"-test.run=^TestRestrictedTokenChildHelper$", "qthrone-restricted-child"}, true, token, nil, func(b []byte) { mu.Lock(); output.Write(b); mu.Unlock() })
+	child, err := startRestrictedSelf(exe, []string{"-test.run=^TestRestrictedTokenChildHelper$", "rawline-restricted-child"}, true, token, nil, func(b []byte) { mu.Lock(); output.Write(b); mu.Unlock() })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -169,7 +169,7 @@ func TestOwnTokenOnlyWithoutUACSplit(t *testing.T) {
 	}
 }
 
-// Regression: with UAC off (no linked token) an elevated qThrone used the restricted self token, and qwdtt.exe died with 0xc0000142.
+// Regression: with UAC off (no linked token) an elevated Rawline used the restricted self token, and qwdtt.exe died with 0xc0000142.
 func TestElevatedWithoutUACKeepsOwnToken(t *testing.T) {
 	self, err := selfToken()
 	if err != nil {

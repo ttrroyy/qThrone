@@ -3,7 +3,7 @@
 #include <QByteArray>
 #include <QString>
 
-// Wire protocol v1, specified in spec/protocol.md of throneproj/Throne-api.
+// Wire protocol v1, specified in spec/protocol.md of throneproj/Rawline-api.
 namespace RemoteApi {
     constexpr quint16 kDefaultPort = 9095;
     constexpr char kProtocolVersion = 0x01;

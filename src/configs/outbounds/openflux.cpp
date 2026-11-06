@@ -205,7 +205,7 @@ QString openflux::Prepare() {
     config["peer"] = carrierIdentity(transports);
     config["device_id"] = QString::fromLatin1(QCryptographicHash::hash(secret.toUtf8(), QCryptographicHash::Sha256).toHex());
     extraCoreConf = QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact));
-    extraCoreArgs = "--qthrone-config %s";
+    extraCoreArgs = "--rawline-config %s";
     noLogs = true;
     return {};
 }

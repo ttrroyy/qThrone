@@ -22,7 +22,7 @@ import (
 )
 
 const (
-	stateDir  = "/var/db/Throne"
+	stateDir  = "/var/db/Rawline"
 	stateFile = stateDir + "/system-dns.json"
 	lockFile  = stateDir + "/system-dns.lock"
 )

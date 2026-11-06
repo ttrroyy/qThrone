@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # slipstream-client (Mygod/slipstream-rust) for the SlipStream DNS tunnel. The
-# qThrone helper (script/dnstun) runs it behind its authenticated listener.
+# Rawline helper (script/dnstun) runs it behind its authenticated listener.
 # Windows follows the project's own release build (vcpkg OpenSSL, picoquic
 # through scripts/build_picoquic_windows.ps1); Linux and macOS link a vendored
 # OpenSSL statically, so the binary needs no system library.
@@ -69,5 +69,5 @@ extension=''
 if [ "$RUNNER_OS" = Windows ]; then extension=.exe; fi
 cp "slipstream-source/target/$target/release/slipstream-client$extension" "csqtt-artifact/slipstream-client$extension"
 cp slipstream-source/LICENSE csqtt-artifact/Slipstream-LICENSE
-printf '%s\n' 'Original source: https://github.com/Mygod/slipstream-rust' "Revision: $revision" 'Desktop integration: script/dnstun in qThrone' > csqtt-artifact/Slipstream-SOURCE
+printf '%s\n' 'Original source: https://github.com/Mygod/slipstream-rust' "Revision: $revision" 'Desktop integration: script/dnstun in Rawline' > csqtt-artifact/Slipstream-SOURCE
 tar -czf csqtt-artifact/slipstream-source.tar.gz --exclude=target --exclude=.git --exclude=.picoquic-build -C slipstream-source .

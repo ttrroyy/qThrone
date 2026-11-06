@@ -57,7 +57,7 @@ namespace Engine::HeadlessApi {
 
         struct HeadlessApiValue {
             QString text;
-            // "--api-listen" or "THRONE_API_LISTEN", for messages.
+            // "--api-listen" or "RAWLINE_API_LISTEN", for messages.
             QString origin;
             RemoteApi::ConfigSource source = RemoteApi::ConfigSource::Default;
         };
@@ -173,7 +173,7 @@ namespace Engine::HeadlessApi {
                      RemoteApi::Overlay *out, QString *error) {
         out->headless = true;
 
-        if (const auto listen = headlessApiLookup(parser, env, HeadlessCli::kApiListen, "THRONE_API_LISTEN")) {
+        if (const auto listen = headlessApiLookup(parser, env, HeadlessCli::kApiListen, "RAWLINE_API_LISTEN")) {
             QString why;
             if (!RemoteApi::ParseListen(listen->text, out, &why)) {
                 *error = QStringLiteral("%1: %2").arg(listen->origin, why);
@@ -182,7 +182,7 @@ namespace Engine::HeadlessApi {
             out->listenSource = listen->source;
         }
 
-        if (const auto keyFile = headlessApiLookup(parser, env, HeadlessCli::kApiKeyFile, "THRONE_API_KEY_FILE")) {
+        if (const auto keyFile = headlessApiLookup(parser, env, HeadlessCli::kApiKeyFile, "RAWLINE_API_KEY_FILE")) {
             if (keyFile->text.trimmed().isEmpty()) {
                 *error = QStringLiteral("%1 needs a file path").arg(keyFile->origin);
                 return ExitCode::Usage;
@@ -193,17 +193,17 @@ namespace Engine::HeadlessApi {
 
         if (parser.isSet(QString::fromLatin1(HeadlessCli::kApiAdminLan))) {
             out->adminLan = true;
-        } else if (const auto text = env.value(QStringLiteral("THRONE_API_ADMIN_LAN")); !text.isEmpty()) {
+        } else if (const auto text = env.value(QStringLiteral("RAWLINE_API_ADMIN_LAN")); !text.isEmpty()) {
             bool on = false;
             if (!headlessApiParseBool(text, &on)) {
-                *error = QStringLiteral("THRONE_API_ADMIN_LAN: \"%1\" is not 1/true/yes/on or 0/false/no/off").arg(text);
+                *error = QStringLiteral("RAWLINE_API_ADMIN_LAN: \"%1\" is not 1/true/yes/on or 0/false/no/off").arg(text);
                 return ExitCode::Usage;
             }
             out->adminLan = on;
         }
 
         // An empty value (an unset shell or compose variable) must not silently widen the list to every address.
-        if (const auto allow = headlessApiLookup(parser, env, HeadlessCli::kApiAllow, "THRONE_API_ALLOW", true)) {
+        if (const auto allow = headlessApiLookup(parser, env, HeadlessCli::kApiAllow, "RAWLINE_API_ALLOW", true)) {
             QString why;
             if (!headlessApiValidAllow(allow->text, &why)) {
                 *error = QStringLiteral("%1: %2").arg(allow->origin, why);
@@ -221,7 +221,7 @@ namespace Engine::HeadlessApi {
             overlay->key = file.key;
             return ExitCode::Ok;
         }
-        *error = QStringLiteral("The API key file %1 is not usable: %2. Create one with: thronectl keygen -o %1").arg(overlay->keyFile, file.error);
+        *error = QStringLiteral("The API key file %1 is not usable: %2. Create one with: rawlinectl keygen -o %1").arg(overlay->keyFile, file.error);
         return ExitCode::Config;
     }
 
@@ -247,11 +247,11 @@ namespace Engine::HeadlessApi {
                                             "need it again: Rawline --headless --print-connection").arg(overlay.defaultKeyFile));
                 } else if (file.created) {
                     LOG_INFO(QStringLiteral("[API] Created the key file %1 (owner only); Rawline --headless --print-connection tells "
-                                            "thronectl where to find it.").arg(overlay.defaultKeyFile));
+                                            "rawlinectl where to find it.").arg(overlay.defaultKeyFile));
                 }
             } else {
                 state.keyError = QStringLiteral("the key file %1 is not usable: %2; delete it to have a new key created at the next "
-                                                "start, or write one with: thronectl keygen -o %1").arg(overlay.defaultKeyFile, file.error);
+                                                "start, or write one with: rawlinectl keygen -o %1").arg(overlay.defaultKeyFile, file.error);
                 LOG_WARN(QStringLiteral("[API] Not listening: %1").arg(state.keyError));
             }
         }
@@ -278,7 +278,7 @@ namespace Engine::HeadlessApi {
                 // A key file's problem and its remedy were logged when it was read.
                 LOG_WARN(QStringLiteral("[API] Not listening on %1: the key is missing or invalid (%2)%3")
                              .arg(listen, headlessApiDescribe(effective),
-                                  effective.keyFile.isEmpty() ? QStringLiteral("; pass --api-key-file FILE (or THRONE_API_KEY_FILE)")
+                                  effective.keyFile.isEmpty() ? QStringLiteral("; pass --api-key-file FILE (or RAWLINE_API_KEY_FILE)")
                                                               : QString()));
                 return {};
             case RemoteApi::ApplyResult::State::BindFailed:
@@ -288,13 +288,13 @@ namespace Engine::HeadlessApi {
             // At boot the holder is the instance that won the port; a retry could take it in that one's restart gap, for good.
             if (result.error == QAbstractSocket::AddressInUseError && headlessApiRawlineAnswers(bindAddress, config.port)) {
                 LOG_WARN(QStringLiteral("[API] Not listening on %1 (%2): another Rawline instance's API holds it; give this one "
-                                        "--api-listen PORT (or THRONE_API_LISTEN)")
+                                        "--api-listen PORT (or RAWLINE_API_LISTEN)")
                              .arg(listen, headlessApiDescribe(effective)));
                 return {};
             }
             headlessApiState().quietRetry = true;
             LOG_WARN(QStringLiteral("[API] Not listening on %1 (%2): %3; retrying quietly every %4 s. --api-listen PORT (or "
-                                    "THRONE_API_LISTEN) picks another port")
+                                    "RAWLINE_API_LISTEN) picks another port")
                          .arg(listen, headlessApiDescribe(effective), result.text)
                          .arg(kHeadlessApiQuietRetryMs / 1000));
             return {};
@@ -379,7 +379,7 @@ namespace Engine::HeadlessApi {
             const auto listen = headlessApiListenText(address, port);
             if (headlessApiRawlineAnswers(address, port)) {
                 LOG_WARN(QStringLiteral("[API] Another Rawline instance's API holds %1; give this one --api-listen PORT (or "
-                                        "THRONE_API_LISTEN)").arg(listen));
+                                        "RAWLINE_API_LISTEN)").arg(listen));
                 stop();
                 return;
             }

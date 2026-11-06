@@ -207,7 +207,7 @@ namespace GuiStartup {
         const auto holder = Sys::HostPresence::OtherHeadless();
         if (!holder) return;
         const QString text = QCoreApplication::translate("GuiStartup", "A background Rawline (PID %1) is running on this computer (data directory: %2). "
-                                                                       "Tun mode is unavailable here while it runs; stop it or use thronectl.")
+                                                                       "Tun mode is unavailable here while it runs; stop it or use rawlinectl.")
                                  .arg(QString::number(holder->pid), QDir::toNativeSeparators(holder->dataDir));
         MW_show_log("[Warn] " + text);
         // An autostart must not leave a parentless box behind; setTun's own notice covers an actual Tun attempt.

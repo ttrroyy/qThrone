@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"qThroneCore/gen"
+	"RawlineCore/gen"
 )
 
 func TestProbeLaunchedBeforeStopIsRefusedWhenItArrivesLate(t *testing.T) {

@@ -16,7 +16,7 @@ mkdir -p "$WORK/logs" "$DEPLOY"
 untar() {
     local glob="$1"
     shift
-    find download-artifact -path "*/Throne-*-$glob/artifacts.tgz" -not -path '*-Common-*' -print0 |
+    find download-artifact -path "*/Rawline-*-$glob/artifacts.tgz" -not -path '*-Common-*' -print0 |
         xargs -0 -r -I{} -P "$JOBS" tar xzf {} "$@"
 }
 
@@ -34,28 +34,28 @@ build_installer() {
         "/DAppVersionPatch=${parts[2]:-0}" \
         "/DAppVersionBuild=${parts[3]:-0}" \
         "/O$(cygpath -w "$DEPLOY")" \
-        "/FqThrone-$TAG-windows-universal-installer" \
+        "/FRawline-$TAG-windows-universal-installer" \
         "$(cygpath -w "$ROOT/script/windows_installer.iss")"
 }
 
-# Hard links give the archive its qThrone/ root without moving a dir other tasks still read.
+# Hard links give the archive its Rawline/ root without moving a dir other tasks still read.
 zip_dir() {
     mkdir -p "$WORK/$2"
-    cp -al "$DEPLOY/$1" "$WORK/$2/qThrone"
+    cp -al "$DEPLOY/$1" "$WORK/$2/Rawline"
     cd "$WORK/$2"
     if command -v zip >/dev/null; then
-        zip -q -r "$DEPLOY/qThrone-$TAG-$2.zip" qThrone
+        zip -q -r "$DEPLOY/Rawline-$TAG-$2.zip" Rawline
     else
         # Windows runners ship 7-Zip but not Info-ZIP.
-        7z a -tzip -mx=5 -bd -bso0 "$DEPLOY/qThrone-$TAG-$2.zip" qThrone
+        7z a -tzip -mx=5 -bd -bso0 "$DEPLOY/Rawline-$TAG-$2.zip" Rawline
     fi
 }
 
 zip_app() {
-    mkdir -p "$WORK/$2/qThrone"
-    mv "$DEPLOY/$1/qThrone.app" "$WORK/$2/qThrone/"
+    mkdir -p "$WORK/$2/Rawline"
+    mv "$DEPLOY/$1/Rawline.app" "$WORK/$2/Rawline/"
     cd "$WORK/$2"
-    zip -q --symlinks -r "$DEPLOY/qThrone-$TAG-$2.zip" qThrone
+    zip -q --symlinks -r "$DEPLOY/Rawline-$TAG-$2.zip" Rawline
 }
 
 zip_debug() {
@@ -98,7 +98,7 @@ windows)
     ;;
 linux-amd64 | linux-arm64)
     arch="${TARGET#linux-}"
-    untar "linux-$arch*" --exclude=qThrone.debug
+    untar "linux-$arch*" --exclude=Rawline.debug
     TASKS=(
         "deb-$arch pack_deb $arch"
         "rpm-$arch pack_rpm $arch"
@@ -108,7 +108,7 @@ linux-amd64 | linux-arm64)
     )
     ;;
 macos)
-    untar 'darwin*' --exclude=qThrone.dSYM
+    untar 'darwin*' --exclude=Rawline.dSYM
     TASKS=(
         "zip-macos-arm64 zip_app darwin-arm64 macos-arm64"
         "zip-macos-amd64 zip_app darwin-amd64 macos-amd64"
@@ -116,20 +116,20 @@ macos)
     )
     ;;
 debug)
-    untar linux-amd64 --wildcards '*/qThrone.debug'
-    untar linux-arm64 --wildcards '*/qThrone.debug'
-    untar 'windows*' --wildcards '*/qThrone.pdb'
-    untar 'darwin*' --wildcards '*/qThrone.dSYM/*'
+    untar linux-amd64 --wildcards '*/Rawline.debug'
+    untar linux-arm64 --wildcards '*/Rawline.debug'
+    untar 'windows*' --wildcards '*/Rawline.pdb'
+    untar 'darwin*' --wildcards '*/Rawline.dSYM/*'
     cd "$DEPLOY"
     mkdir -p debug
-    mv linux-amd64/qThrone.debug "debug/qThrone-$TAG-linux-amd64.debug"
-    mv linux-arm64/qThrone.debug "debug/qThrone-$TAG-linux-arm64.debug"
+    mv linux-amd64/Rawline.debug "debug/Rawline-$TAG-linux-amd64.debug"
+    mv linux-arm64/Rawline.debug "debug/Rawline-$TAG-linux-arm64.debug"
     for dir in windows-amd64 windows-arm64 windowslegacy-386 windowslegacy-amd64; do
-        mv "$dir/qThrone.pdb" "debug/qThrone-$TAG-$dir.pdb"
+        mv "$dir/Rawline.pdb" "debug/Rawline-$TAG-$dir.pdb"
     done
-    mv darwin-arm64/qThrone.app/Contents/MacOS/qThrone.dSYM "debug/qThrone-$TAG-macos-arm64.dSYM"
-    mv darwin-amd64/qThrone.app/Contents/MacOS/qThrone.dSYM "debug/qThrone-$TAG-macos-amd64.dSYM"
-    mv darwinlegacy-amd64/qThrone.app/Contents/MacOS/qThrone.dSYM "debug/qThrone-$TAG-macoslegacy-amd64.dSYM"
+    mv darwin-arm64/Rawline.app/Contents/MacOS/Rawline.dSYM "debug/Rawline-$TAG-macos-arm64.dSYM"
+    mv darwin-amd64/Rawline.app/Contents/MacOS/Rawline.dSYM "debug/Rawline-$TAG-macos-amd64.dSYM"
+    mv darwinlegacy-amd64/Rawline.app/Contents/MacOS/Rawline.dSYM "debug/Rawline-$TAG-macoslegacy-amd64.dSYM"
     TASKS=("debug-symbols zip_debug")
     ;;
 *)

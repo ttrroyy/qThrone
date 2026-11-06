@@ -1,5 +1,5 @@
 // Package guard is the kill switch: a privileged process the GUI spawns with --guard that blocks every
-// packet not sent by Throne or routed into its tun, for exactly as long as the GUI keeps its stdin open.
+// packet not sent by Rawline or routed into its tun, for exactly as long as the GUI keeps its stdin open.
 package guard
 
 import (
@@ -25,11 +25,11 @@ import (
 	"github.com/sagernet/sing/common/logger"
 )
 
-// GID marks Throne's sockets on Linux and macOS; it sits outside systemd's nspawn range (524288–1879048191).
+// GID marks Rawline's sockets on Linux and macOS; it sits outside systemd's nspawn range (524288–1879048191).
 const GID = 0x7448524F
 
 // EnvIdentity makes a root core adopt GID before it opens any socket.
-const EnvIdentity = "QTHRONE_GUARD"
+const EnvIdentity = "RAWLINE_GUARD"
 
 // IdentityExitCode is the core's exit code when ApplyIdentity fails; it must match Sys::KillSwitch::kCoreIdentityExitCode.
 const IdentityExitCode = 86
@@ -49,7 +49,7 @@ type Config struct {
 	TunCIDRs   []string `json:"tun_cidrs"`
 	ExtraPaths []string `json:"extra_paths"`
 	BridgeName string   `json:"bridge_name"`
-	// APIPort is the Throne API's TCP port, 0 when it does not listen; replies on connections peers open to it pass.
+	// APIPort is the Rawline API's TCP port, 0 when it does not listen; replies on connections peers open to it pass.
 	APIPort uint16 `json:"api_port"`
 	// KeepStates skips macOS's global pf state flush; set only when replacing a READY guard whose anchor stays loaded meanwhile.
 	KeepStates bool `json:"keep_states"`

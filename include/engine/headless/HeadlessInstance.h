@@ -16,11 +16,11 @@ namespace Engine {
 // The instance socket of a headless process and its two client modes.
 namespace Engine::HeadlessInstance {
     // Unix: <config>/.instance, or FallbackSocketName(wd, create) when that path encodes to >= 100 bytes. Windows: the pipe
-    // "throne-headless-<md5hex(wd)>". Never the GUI's rawline-<md5>. "" when the fallback fails its checks (logged).
+    // "rawline-headless-<md5hex(wd)>". Never the GUI's rawline-<md5>. "" when the fallback fails its checks (logged).
     QString SocketName(const QDir &wd, bool create = false);
 
-    // Unix: <private dir>/headless-<md5hex(wd)>; the private dir is /run/throne (root, Linux), /var/run/throne (root, macOS) or
-    // /tmp/throne-<euid>, mode 0700 and owned by us (checked). The listener also uses it when <config> cannot hold a socket
+    // Unix: <private dir>/headless-<md5hex(wd)>; the private dir is /run/rawline (root, Linux), /var/run/rawline (root, macOS) or
+    // /tmp/rawline-<euid>, mode 0700 and owned by us (checked). The listener also uses it when <config> cannot hold a socket
     // (FAT, exFAT, sshfs). create: make the dir, for the listener only; clients never create anything. "" on Windows, or when
     // the dir fails its checks (logged only with create).
     QString FallbackSocketName(const QDir &wd, bool create = false);
@@ -53,7 +53,7 @@ namespace Engine::HeadlessInstance {
     // 0 ok / 1 not ok or starting / 2 no socket, no answer within 3 s, or unparsable.
     int RunHealth(const QDir &wd);
 
-    // stdout: "export THRONE_ADDR=<host:port>" and "export THRONE_KEY_FILE=<path>", single-quoted only when needed. From HEALTH's
+    // stdout: "export RAWLINE_ADDR=<host:port>" and "export RAWLINE_KEY_FILE=<path>", single-quoted only when needed. From HEALTH's
     // api block; with no instance, from the overlay/defaults and <config>/api.key if it exists (with a note on stderr). 0; 2 when
     // the API is off, not listening (failed, key_invalid) or its key is not in a file. Never prints the key.
     int RunPrintConnection(const QDir &wd, const RemoteApi::Overlay &overlay);

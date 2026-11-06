@@ -100,7 +100,7 @@ namespace Engine {
         if (m_strikes >= kStrikesToSuppress) {
             m_suppressed = true;
             LOG_WARN(QStringLiteral("[Resume] not resuming profile %1: %2 boots in a row ended within %3 s of starting it; "
-                                    "start it once (thronectl) to clear")
+                                    "start it once (rawlinectl) to clear")
                          .arg(m_profile)
                          .arg(m_strikes)
                          .arg(kSurviveMs / 1000));

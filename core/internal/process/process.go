@@ -213,7 +213,7 @@ func childEnv() []string {
 	parent := os.Environ()
 	out := make([]string, 0, len(parent))
 	for _, kv := range parent {
-		if name, _, ok := strings.Cut(kv, "="); ok && strings.HasPrefix(strings.ToUpper(name), "THRONE") {
+		if name, _, ok := strings.Cut(kv, "="); ok && strings.HasPrefix(strings.ToUpper(name), "RAWLINE") {
 			continue
 		}
 		out = append(out, kv)

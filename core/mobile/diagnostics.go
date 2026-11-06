@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"qThroneCore/internal/diagnostics"
+	"RawlineCore/internal/diagnostics"
 
 	E "github.com/sagernet/sing/common/exceptions"
 )

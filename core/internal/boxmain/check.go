@@ -2,11 +2,11 @@ package boxmain
 
 import (
 	"context"
-	"qThroneCore/internal/obfs"
+	"RawlineCore/internal/obfs"
 
 	"github.com/sagernet/sing-box/include"
 
-	"qThroneCore/internal/boxbox"
+	"RawlineCore/internal/boxbox"
 )
 
 func Check(content []byte) error {

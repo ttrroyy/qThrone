@@ -37,8 +37,8 @@ namespace RemoteApi {
     SessionKeys DeriveKeys(const QByteArray &key, const QByteArray &serverRandom, const QByteArray &clientRandom) {
         const auto randoms = serverRandom + clientRandom;
         return {
-            QMessageAuthenticationCode::hash(QByteArrayLiteral("throne-api/1 c2s") + randoms, key, QCryptographicHash::Sha256),
-            QMessageAuthenticationCode::hash(QByteArrayLiteral("throne-api/1 s2c") + randoms, key, QCryptographicHash::Sha256),
+            QMessageAuthenticationCode::hash(QByteArrayLiteral("rawline-api/1 c2s") + randoms, key, QCryptographicHash::Sha256),
+            QMessageAuthenticationCode::hash(QByteArrayLiteral("rawline-api/1 s2c") + randoms, key, QCryptographicHash::Sha256),
         };
     }
 

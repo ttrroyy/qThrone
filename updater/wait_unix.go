@@ -26,5 +26,5 @@ func waitParent(pid int) error {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	return fmt.Errorf("qThrone did not exit within 60 seconds")
+	return fmt.Errorf("Rawline did not exit within 60 seconds")
 }

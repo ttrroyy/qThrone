@@ -1,4 +1,4 @@
-"""Render native qThrone New Year artwork as three responsive animation studies."""
+"""Render native Rawline New Year artwork as three responsive animation studies."""
 from pathlib import Path
 import math
 import re

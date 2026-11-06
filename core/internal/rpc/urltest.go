@@ -7,8 +7,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"qThroneCore/gen"
-	"qThroneCore/internal/probe"
+	"RawlineCore/gen"
+	"RawlineCore/internal/probe"
 )
 
 // The client's latest stop count. A probe it launched before that stop can reach the core after

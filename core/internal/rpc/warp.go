@@ -4,9 +4,9 @@ import (
 	"context"
 	"time"
 
-	"qThroneCore/gen"
-	"qThroneCore/internal/amnezia"
-	"qThroneCore/internal/warp"
+	"RawlineCore/gen"
+	"RawlineCore/internal/amnezia"
+	"RawlineCore/internal/warp"
 )
 
 const (

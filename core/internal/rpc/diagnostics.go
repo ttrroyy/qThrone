@@ -5,8 +5,8 @@ import (
 	"context"
 	"time"
 
-	"qThroneCore/gen"
-	"qThroneCore/internal/diagnostics"
+	"RawlineCore/gen"
+	"RawlineCore/internal/diagnostics"
 )
 
 // Never takes lifecycleMu: a wedged Start holds it exactly when the dump is needed.

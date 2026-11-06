@@ -19,7 +19,7 @@ import (
 // slipstream runs slipstream-client (Rust) as a child. On Android its build
 // listens on a Unix socket inside the private session directory; the desktop
 // build listens on a loopback port of its own, which this helper alone dials:
-// qThrone only ever reaches the tunnel through the authenticated listener.
+// Rawline only ever reaches the tunnel through the authenticated listener.
 type slipstream struct {
 	cmd     *exec.Cmd
 	network string

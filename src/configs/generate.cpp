@@ -76,7 +76,7 @@ namespace Configs {
             constexpr auto xrayFullConfigIn = "qthrone-bridge";
 
             constexpr auto adblockRuleSet = "qthrone-adblocksingbox";
-            constexpr auto privateRangesRuleSet = "qthrone-private-ranges";
+            constexpr auto privateRangesRuleSet = "rawline-private-ranges";
 
             constexpr auto mainChainPrefix = "config";
             constexpr auto routeChainPrefix = "route";
@@ -517,7 +517,7 @@ namespace Configs {
         }
 
         QString genTunName() {
-            auto tun_name = "qthrone-tun";
+            auto tun_name = "rawline-tun";
 #ifdef Q_OS_MACOS
             tun_name = "";
 #endif
@@ -2403,7 +2403,7 @@ namespace Configs {
                 ctx.outbounds.append(QJsonObject{
                 {"type", "bridge"},
                 {"tag", tags::l3Direct},
-                {"bridge_name", "qthrone-br"}
+                {"bridge_name", "rawline-br"}
                 });
             }
 

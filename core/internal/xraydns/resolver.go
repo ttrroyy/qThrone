@@ -49,11 +49,11 @@ func (r *resolver) LookupIP(domain string, option dnsfeature.IPOption) ([]net.IP
 	}
 	ctx := r.provider()
 	if ctx == nil {
-		return nil, 0, E.New("throne-dns: sing-box instance is not up yet")
+		return nil, 0, E.New("rawline-dns: sing-box instance is not up yet")
 	}
 	router := service.FromContext[adapter.DNSRouter](ctx)
 	if router == nil {
-		return nil, 0, E.New("throne-dns: sing-box DNS router is not registered")
+		return nil, 0, E.New("rawline-dns: sing-box DNS router is not registered")
 	}
 	addresses, err := router.Lookup(ctx, domain, adapter.DNSQueryOptions{
 		Transport: r.directTransport(ctx),

@@ -122,8 +122,8 @@ int main(int argc, char* argv[]) {
     const QStringList launchFiles = LaunchFiles_ExtractFromArgs(arguments, QDir::current());
 
     QDir::setCurrent(QApplication::applicationDirPath());
-    if (QFile::exists("qThroneUpdater.old")) {
-        QFile::remove("qThroneUpdater.old");
+    if (QFile::exists("RawlineUpdater.old")) {
+        QFile::remove("RawlineUpdater.old");
     }
 
     const auto dataDir = Engine::Bootstrap::ResolveDataDir(arguments, QDir(QCoreApplication::applicationDirPath()));
@@ -142,8 +142,8 @@ int main(int argc, char* argv[]) {
     if (claim.outcome == Engine::Bootstrap::ClaimOutcome::HandedOff) return 0;
     if (claim.outcome == Engine::Bootstrap::ClaimOutcome::HeldByHeadless) {
         const auto pid = claim.ownerPid;
-        const QString text = pid > 0 ? QObject::tr("Rawline is running in the background (PID %1). Stop the service or use thronectl.").arg(pid)
-                                     : QObject::tr("Rawline is running in the background. Stop the service or use thronectl.");
+        const QString text = pid > 0 ? QObject::tr("Rawline is running in the background (PID %1). Stop the service or use rawlinectl.").arg(pid)
+                                     : QObject::tr("Rawline is running in the background. Stop the service or use rawlinectl.");
         std::fputs(qPrintable(QString("%1 Data directory: %2\n").arg(text, QDir::toNativeSeparators(wd.absolutePath()))), stderr);
         if (!arguments.contains("-tray")) QMessageBox::information(nullptr, "Rawline", text);
         return 0;

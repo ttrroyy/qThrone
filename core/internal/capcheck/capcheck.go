@@ -1,4 +1,4 @@
-// Package capcheck reports what the core's own privileges allow: a setuid or file-caps core differs from Throne itself.
+// Package capcheck reports what the core's own privileges allow: a setuid or file-caps core differs from Rawline itself.
 package capcheck
 
 import (
@@ -15,7 +15,7 @@ type Result struct {
 	Detail              string `json:"detail"`
 }
 
-// Check is the line ThroneCore --check prints.
+// Check is the line RawlineCore --check prints.
 type Check struct {
 	Result
 	Euid          int    `json:"euid"`

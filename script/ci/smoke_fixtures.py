@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Loopback fixtures for script/ci/headless_smoke.sh: HTTP 204, and a SOCKS5 proxy that logs every CONNECT.
 
-SOCKS5 resolves HOSTS itself; the HTTP delay keeps a loopback latency test above 0 ms, which Throne reads as untested.
+SOCKS5 resolves HOSTS itself; the HTTP delay keeps a loopback latency test above 0 ms, which Rawline reads as untested.
 """
 
 import argparse
@@ -32,7 +32,7 @@ class EventLog:
 
 class NoContentHandler(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.0"
-    server_version = "ThroneSmoke/1"
+    server_version = "RawlineSmoke/1"
 
     def _no_content(self):
         time.sleep(self.server.delay)

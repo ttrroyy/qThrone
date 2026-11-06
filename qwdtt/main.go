@@ -220,8 +220,8 @@ func main() {
 	turnTCP := flag.Bool("turn-tcp", false, "соединяться с TURN-relay по TCP вместо UDP (обход UDP-душения на некоторых сетях, напр. Ростелеком)")
 	tunFdSock := flag.String("tun-fd-sock", "", "unix-сокет для получения TUN fd от Android (только -mode rawtun)")
 
-	bridgeConfigPath := flag.String("config", "", "private qThrone bridge configuration")
-	hashCheckConfig := flag.String("hash-check-config", "", "private qThrone hash check configuration")
+	bridgeConfigPath := flag.String("config", "", "private Rawline bridge configuration")
+	hashCheckConfig := flag.String("hash-check-config", "", "private Rawline hash check configuration")
 	flag.Parse()
 	if *hashCheckConfig != "" {
 		if *bridgeConfigPath != "" {

@@ -65,8 +65,8 @@ public:
         int found = 0;
     };
 
-    static constexpr auto RestartActionUrl = "throne-action:restart-proxy";
-    static constexpr auto DismissRestartActionUrl = "throne-action:dismiss-restart";
+    static constexpr auto RestartActionUrl = "rawline-action:restart-proxy";
+    static constexpr auto DismissRestartActionUrl = "rawline-action:dismiss-restart";
 
     void setDownloadReport(const DownloadProgressReport &report, bool show);
 

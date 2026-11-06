@@ -30,7 +30,7 @@ func archiveFor(t *testing.T, entry string) string {
 }
 
 func TestExtractRejectsTraversal(t *testing.T) {
-	for _, entry := range []string{"qThrone/../escape", "qThrone/../../escape", "../qThrone/file", "Throne/qThrone.exe", "qThrone/..\\escape"} {
+	for _, entry := range []string{"Rawline/../escape", "Rawline/../../escape", "../Rawline/file", "Rawline/Rawline.exe", "Rawline/..\\escape"} {
 		t.Run(entry, func(t *testing.T) {
 			if err := extract(archiveFor(t, entry), t.TempDir()); err == nil {
 				t.Fatal("accepted unsafe entry")
@@ -41,7 +41,7 @@ func TestExtractRejectsTraversal(t *testing.T) {
 
 func TestExtractRelease(t *testing.T) {
 	stage := t.TempDir()
-	if err := extract(archiveFor(t, "qThrone/usr/lib/test.dll"), stage); err != nil {
+	if err := extract(archiveFor(t, "Rawline/usr/lib/test.dll"), stage); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(stage, "usr", "lib", "test.dll"))

@@ -181,7 +181,7 @@ void EditWdttPlus::startHashCheck() {
         MessageBoxWarning("WDTT Plus", QStringLiteral("Клиент WDTT Plus не найден.")); return;
     }
     // The hashes travel in a private file, not on the command line other users can read.
-    hashCheckDirectory = std::make_unique<QTemporaryDir>(QDir::tempPath() + "/qthrone-wdttplus-check-XXXXXX");
+    hashCheckDirectory = std::make_unique<QTemporaryDir>(QDir::tempPath() + "/rawline-wdttplus-check-XXXXXX");
     QFile config(hashCheckDirectory->filePath("check.json"));
     if (!hashCheckDirectory->isValid() || !config.open(QIODevice::WriteOnly)) {
         MessageBoxWarning("WDTT Plus", QStringLiteral("Не удалось создать файл проверки.")); hashCheckDirectory.reset(); return;

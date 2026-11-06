@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// Secrets travel in Throne's private, temporary extra-core config, never argv.
+// Secrets travel in Rawline's private, temporary extra-core config, never argv.
 type bridgeConfig struct {
 	HashSource         string   `json:"hash_source"`
 	VKAccessToken      string   `json:"vk_access_token"`
@@ -173,7 +173,7 @@ func enterDesktopState(deviceID string) error {
 		return err
 	}
 	key := sha256.Sum256([]byte(deviceID))
-	state := filepath.Join(cache, "qThrone", "qwdtt", fmt.Sprintf("%x", key[:16]))
+	state := filepath.Join(cache, "Rawline", "qwdtt", fmt.Sprintf("%x", key[:16]))
 	if err = os.MkdirAll(state, 0700); err != nil {
 		return err
 	}

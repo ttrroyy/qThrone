@@ -7,7 +7,7 @@
 
 namespace Sys::HostTun {
     namespace {
-        // The name of a live interface called throne-tun, or empty.
+        // The name of a live interface called rawline-tun, or empty.
         QString hostTunNamedInterface() {
 #if defined(Q_OS_LINUX)
             // A non-persistent tun vanishes with the fd that created it, so its sysfs entry means a live owner.
@@ -15,7 +15,7 @@ namespace Sys::HostTun {
 #elif defined(Q_OS_WIN)
             for (const auto &netif : QNetworkInterface::allInterfaces()) {
                 const auto flags = netif.flags();
-                // A crash leaves "qthrone-tun N" adapters behind, but they are down.
+                // A crash leaves "rawline-tun N" adapters behind, but they are down.
                 if (!flags.testFlag(QNetworkInterface::IsUp) || !flags.testFlag(QNetworkInterface::IsRunning)) continue;
                 if (netif.humanReadableName().startsWith(QLatin1String(kTunName), Qt::CaseInsensitive) ||
                     netif.name().startsWith(QLatin1String(kTunName), Qt::CaseInsensitive)) {
@@ -67,7 +67,7 @@ namespace Sys::HostTun {
                 // Still refused: the Tun's prefix route would take that interface's subnet over.
                 if (hostTunLanLike(owner)) {
                     return QStringLiteral("the Tun address %1 is already used by the network interface %2 (a LAN, bridge or container "
-                                          "network such as Docker's); set tun_ipv4_cidr to an unused range (thronectl settings set "
+                                          "network such as Docker's); set tun_ipv4_cidr to an unused range (rawlinectl settings set "
                                           "tun_ipv4_cidr=CIDR)")
                         .arg(address.toString(), owner.humanReadableName());
                 }

@@ -184,11 +184,11 @@ void MainWindow::on_menu_exit_triggered() {
     if (reason == ExitReason::RunUpdater) {
         QDir::setCurrent(QApplication::applicationDirPath());
 #ifdef Q_OS_WIN
-        QFile::remove("./qThroneUpdater.old");
-        QFile::copy("./qThroneUpdater.exe", "./qThroneUpdater.old");
-        QProcess::startDetached("./qThroneUpdater.old", QStringList{QString::number(QCoreApplication::applicationPid())});
+        QFile::remove("./RawlineUpdater.old");
+        QFile::copy("./RawlineUpdater.exe", "./RawlineUpdater.old");
+        QProcess::startDetached("./RawlineUpdater.old", QStringList{QString::number(QCoreApplication::applicationPid())});
 #else
-        QProcess::startDetached("./qThroneUpdater", QStringList{QString::number(QCoreApplication::applicationPid())});
+        QProcess::startDetached("./RawlineUpdater", QStringList{QString::number(QCoreApplication::applicationPid())});
 #endif
     } else if (restart && !relaunched) {
         QDir::setCurrent(QApplication::applicationDirPath());
@@ -276,7 +276,7 @@ void MainWindow::OpenDashboard() {
     const auto show = [this, port] {
         Engine::Dashboard::SeedApi();
         // Fragment, not query: browsers never send it to the server.
-        QUrl url(QString("http://127.0.0.1:%1/dashboard/throne.html").arg(port));
+        QUrl url(QString("http://127.0.0.1:%1/dashboard/rawline.html").arg(port));
         url.setFragment(QString("secret=%1&url=127.0.0.1:%2")
                             .arg(QString::fromUtf8(QUrl::toPercentEncoding(Configs::dataManager->settingsRepo->core_box_api_secret)))
                             .arg(port),
@@ -303,7 +303,7 @@ void MainWindow::OpenDashboard() {
             });
             return;
         }
-        const auto archive = QString("throne-dashboard.zip");
+        const auto archive = QString("rawline-dashboard.zip");
         auto error = NetworkRequestHelper::DownloadAsset(dashboardDownloadURL, archive, true);
         if (error.isEmpty()) {
             bool ok = false;
@@ -364,7 +364,7 @@ void MainWindow::CheckUpdate() {
     // Releases carry no checksum or signature, so TLS is all that vouches for the download URL and the archive.
     HttpGetOptions options;
     options.strictTls = true;
-    const QString forkRepository = QStringLiteral(QTHRONE_REPOSITORY);
+    const QString forkRepository = QStringLiteral(RAWLINE_REPOSITORY);
     if (forkRepository.isEmpty()) {
         runOnUiThread([=,this] { MessageBoxInfo(tr("Update"), tr("This Rawline build has no update repository configured.")); });
         return;
@@ -433,7 +433,7 @@ void MainWindow::CheckUpdate() {
                 }
                 QString errors;
                 if (!release_download_url.isEmpty()) {
-                    auto res = NetworkRequestHelper::DownloadAsset(release_download_url, "qThrone.zip", false, true);
+                    auto res = NetworkRequestHelper::DownloadAsset(release_download_url, "Rawline.zip", false, true);
                     if (!res.isEmpty()) {
                         errors += res;
                     }

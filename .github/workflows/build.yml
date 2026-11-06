@@ -1,4 +1,4 @@
-name: qThrone release
+name: Rawline release
 on:
   workflow_dispatch:
     inputs:
@@ -267,7 +267,7 @@ jobs:
       - name: Uploading Artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: Throne-${{ github.sha }}-Common-${{ matrix.cross_os }}-${{ matrix.cross_arch }}
+          name: Rawline-${{ github.sha }}-Common-${{ matrix.cross_os }}-${{ matrix.cross_arch }}
           path: artifacts.tgz
           compression-level: 0
   build-android:
@@ -307,8 +307,8 @@ jobs:
       - name: Uploading Artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: ThroneCore-android-${{ github.sha }}
-          path: deployment/android/ThroneCore.aar
+          name: RawlineCore-android-${{ github.sha }}
+          path: deployment/android/RawlineCore.aar
           if-no-files-found: error
           compression-level: 0
   build-cpp:
@@ -399,7 +399,7 @@ jobs:
         with:
           github-token: ${{ github.token }}
           run-id: ${{ inputs.common_run_id || github.run_id }}
-          name: Throne-${{ needs.verify-common.outputs.common_sha || github.sha }}-Common-${{ matrix.common }}
+          name: Rawline-${{ needs.verify-common.outputs.common_sha || github.sha }}-Common-${{ matrix.common }}
           path: download-artifact
       # ========================================================================================================= Qt Install
       - name: Install Qt
@@ -470,8 +470,8 @@ jobs:
         if: ${{ !inputs.skip_ui_tests && contains(matrix.platform, 'ubuntu') && matrix.qt_version == '6.2.0' }}
         env:
           QT_QPA_PLATFORM: offscreen
-          THRONE_SEASONAL_PREVIEW_DIR: ${{ runner.temp }}/seasonal-preview
-        run: '"$DEST/qThrone" --self-test-qwdtt-import'
+          RAWLINE_SEASONAL_PREVIEW_DIR: ${{ runner.temp }}/seasonal-preview
+        run: '"$DEST/Rawline" --self-test-qwdtt-import'
       - name: Upload seasonal window previews
         if: always() && contains(matrix.platform, 'ubuntu') && matrix.qt_version == '6.2.0'
         uses: actions/upload-artifact@v7.0.1
@@ -493,13 +493,13 @@ jobs:
         if: contains(matrix.platform, 'windows')
         shell: pwsh
         run: |
-          $process = Start-Process -FilePath "$env:DEST/qThrone.exe" -ArgumentList '--self-test-core-startup' -Wait -PassThru -WindowStyle Hidden
+          $process = Start-Process -FilePath "$env:DEST/Rawline.exe" -ArgumentList '--self-test-core-startup' -Wait -PassThru -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw "Packaged core startup failed: $($process.ExitCode)" }
       - name: Test packaged Linux core startup
         if: contains(matrix.platform, 'ubuntu') && matrix.qt_version == '6.2.0'
         env:
           QT_QPA_PLATFORM: offscreen
-        run: '"$DEST/qThrone" --self-test-core-startup'
+        run: '"$DEST/Rawline" --self-test-core-startup'
       - name: Verify packaged macOS architectures
         if: contains(matrix.platform, 'macos')
         shell: bash
@@ -511,14 +511,14 @@ jobs:
               lipo "$binary" -verify_arch "$ARCH"
               count=$((count + 1))
             fi
-          done < <(find "$DEST/qThrone.app" -type f -print0)
+          done < <(find "$DEST/Rawline.app" -type f -print0)
           test "$count" -gt 0
       - name: Test packaged macOS core startup
         # An Intel runner can build and inspect ARM binaries, but cannot execute them.
         if: contains(matrix.platform, 'macos') && (matrix.target == 'x86_64' || runner.arch == 'ARM64')
         env:
           QT_QPA_PLATFORM: offscreen
-        run: '"$DEST/qThrone.app/Contents/MacOS/qThrone" --self-test-core-startup'
+        run: '"$DEST/Rawline.app/Contents/MacOS/Rawline" --self-test-core-startup'
       # ========================================================================================================= Deployments
       - name: Tar files
         shell: bash
@@ -526,7 +526,7 @@ jobs:
       - name: Uploading Artifact
         uses: actions/upload-artifact@v7.0.1
         with:
-          name: Throne-${{ github.sha }}-${{ matrix.dest_suffix }}
+          name: Rawline-${{ github.sha }}-${{ matrix.dest_suffix }}
           path: artifacts.tgz
           compression-level: 0
   pack:
@@ -559,7 +559,7 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v8.0.1
         with:
-          pattern: Throne-${{ github.sha }}-${{ matrix.artifacts }}
+          pattern: Rawline-${{ github.sha }}-${{ matrix.artifacts }}
           path: download-artifact
         if: inputs.cpp_run_id == '' && inputs.pack_run_id == ''
       - name: Download verified ARM binary into its artifact directory
@@ -568,15 +568,15 @@ jobs:
         with:
           github-token: ${{ github.token }}
           run-id: ${{ inputs.pack_run_id || github.run_id }}
-          name: Throne-${{ needs.verify-pack.outputs.pack_sha || github.sha }}-darwin-arm64
-          path: download-artifact/Throne-${{ needs.verify-pack.outputs.pack_sha || github.sha }}-darwin-arm64
+          name: Rawline-${{ needs.verify-pack.outputs.pack_sha || github.sha }}-darwin-arm64
+          path: download-artifact/Rawline-${{ needs.verify-pack.outputs.pack_sha || github.sha }}-darwin-arm64
       - name: Download verified unchanged desktop artifacts
         if: inputs.cpp_run_id != ''
         uses: actions/download-artifact@v8.0.1
         with:
           github-token: ${{ github.token }}
           run-id: ${{ inputs.cpp_run_id }}
-          pattern: Throne-${{ needs.verify-cpp.outputs.cpp_sha }}-${{ matrix.artifacts }}
+          pattern: Rawline-${{ needs.verify-cpp.outputs.cpp_sha }}-${{ matrix.artifacts }}
           path: download-artifact
       - name: Install packaging tools
         if: matrix.tools
@@ -589,7 +589,7 @@ jobs:
         uses: actions/upload-artifact@v7.0.1
         with:
           name: Pack-${{ github.sha }}-${{ matrix.target }}
-          path: deployment/qThrone-*
+          path: deployment/Rawline-*
           if-no-files-found: error
           compression-level: 0
       - name: Uploading Debug Artifact
@@ -632,24 +632,24 @@ jobs:
           su builder -c "cd '$PWD' && makepkg -s --noconfirm"
           pacman -U --noconfirm ./*.pkg.tar.zst
           namcap ./*.pkg.tar.zst > namcap.log
-          desktop-file-validate /usr/share/applications/qThrone.desktop
-          for binary in qThrone qThroneCore qThroneUpdater qwdtt olcrtc openflux openfluxkey csqtt-transport csqtt-compat dnstun masterdns cottendns soar s3bypass  slipstream-client wdttplus-client sstp-client; do
-            ldd "/usr/lib/qthrone/$binary" >> dependencies.log 2>&1 || true
+          desktop-file-validate /usr/share/applications/Rawline.desktop
+          for binary in Rawline RawlineCore RawlineUpdater qwdtt olcrtc openflux openfluxkey csqtt-transport csqtt-compat dnstun masterdns cottendns soar s3bypass  slipstream-client wdttplus-client sstp-client; do
+            ldd "/usr/lib/rawline/$binary" >> dependencies.log 2>&1 || true
           done
-          find /usr/lib/qthrone/usr/plugins -name '*.so' -exec ldd '{}' \; >> dependencies.log 2>&1
+          find /usr/lib/rawline/usr/plugins -name '*.so' -exec ldd '{}' \; >> dependencies.log 2>&1
           if grep 'not found' dependencies.log; then exit 1; fi
           su builder -c "bash '$GITHUB_WORKSPACE/script/test_arch_package.sh' '$PWD'"
-          su builder -c 'xvfb-run -a dbus-run-session -- /usr/bin/qthrone --self-test-core-startup'
-          test -d /home/builder/.config/qThrone
-          pacman -R --noconfirm qthrone-bin
-          test ! -e /usr/lib/qthrone
-          test -d /home/builder/.config/qThrone
+          su builder -c 'xvfb-run -a dbus-run-session -- /usr/bin/rawline --self-test-core-startup'
+          test -d /home/builder/.config/Rawline
+          pacman -R --noconfirm rawline-bin
+          test ! -e /usr/lib/rawline
+          test -d /home/builder/.config/Rawline
           mkdir -p "$GITHUB_WORKSPACE/deployment"
-          cp ./*.pkg.tar.zst "$GITHUB_WORKSPACE/deployment/qThrone-$RELEASE_TAG-arch-x86_64.pkg.tar.zst"
+          cp ./*.pkg.tar.zst "$GITHUB_WORKSPACE/deployment/Rawline-$RELEASE_TAG-arch-x86_64.pkg.tar.zst"
       - uses: actions/upload-artifact@v7.0.1
         with:
           name: Pack-${{ github.sha }}-arch
-          path: deployment/qThrone-*-arch-x86_64.pkg.tar.zst
+          path: deployment/Rawline-*-arch-x86_64.pkg.tar.zst
           if-no-files-found: error
           compression-level: 0
       - uses: actions/upload-artifact@v7.0.1
@@ -677,10 +677,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
-        run: ./script/test_windows_upgrade.ps1 -Archive "upgrade-package/qThrone-${{ github.event.inputs.tag }}-windows64.zip" -Version "${{ github.event.inputs.tag }}"
+        run: ./script/test_windows_upgrade.ps1 -Archive "upgrade-package/Rawline-${{ github.event.inputs.tag }}-windows64.zip" -Version "${{ github.event.inputs.tag }}"
       - name: Verify localized installer and complete uninstall
         shell: pwsh
-        run: ./script/test_windows_installer.ps1 -Installer "upgrade-package/qThrone-${{ github.event.inputs.tag }}-windows-universal-installer.exe"
+        run: ./script/test_windows_installer.ps1 -Installer "upgrade-package/Rawline-${{ github.event.inputs.tag }}-windows-universal-installer.exe"
   publish:
     name: Publish Release
     runs-on: ubuntu-latest
@@ -755,7 +755,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - publish
-    if: github.repository == 'throneproj/Throne' && github.event.inputs.publish == 'r'
+    if: github.repository == 'throneproj/Rawline' && github.event.inputs.publish == 'r'
     permissions:
       contents: read
     steps:
@@ -772,7 +772,7 @@ jobs:
       - name: Publish to AUR
         uses: KSXGitHub/github-actions-deploy-aur@084b0d9b15415bf9cdb65d44dad1efe37a354050 # v4.2.0
         with:
-          pkgname: throne
+          pkgname: rawline
           asset_dir: aur
           updpkgsums: true
           commit_username: throneproj-bot
@@ -780,14 +780,14 @@ jobs:
           commit_message: Update to ${{ github.event.inputs.tag }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
   # Publishes the RPM and APT repositories to this repository's GitHub Pages,
-  # served at https://throneproj.github.io/Throne/rpm/ and
-  # https://throneproj.github.io/Throne/apt/.
+  # served at https://throneproj.github.io/Rawline/rpm/ and
+  # https://throneproj.github.io/Rawline/apt/.
   publish-repos:
     name: Publish RPM and APT Repositories
     runs-on: ubuntu-latest
     needs:
       - publish
-    if: github.repository == 'throneproj/Throne' && github.event.inputs.publish == 'r'
+    if: github.repository == 'throneproj/Rawline' && github.event.inputs.publish == 'r'
     permissions:
       contents: read
       pages: write
@@ -815,14 +815,14 @@ jobs:
           printf '%s\n' "$REPO_SIGNING_KEY" | gpg --batch --import
           gpg --batch --list-secret-keys "$SIGNING_FPR" > /dev/null
           mkdir -p repo
-          gpg --batch --armor --export "$SIGNING_FPR" > repo/throne.asc
+          gpg --batch --armor --export "$SIGNING_FPR" > repo/rawline.asc
       - name: Build RPM repository
         env:
           VERSION: ${{ github.event.inputs.tag }}
         run: |
           set -euo pipefail
-          AMD64="deployment/Throne-${VERSION}-fedora-amd64-system-qt.rpm"
-          ARM64="deployment/Throne-${VERSION}-fedora-arm64-system-qt.rpm"
+          AMD64="deployment/Rawline-${VERSION}-fedora-amd64-system-qt.rpm"
+          ARM64="deployment/Rawline-${VERSION}-fedora-arm64-system-qt.rpm"
           test -f "$AMD64" && test -f "$ARM64"
           mkdir -p repo/rpm
           cp "$AMD64" "$ARM64" repo/rpm/
@@ -830,24 +830,24 @@ jobs:
           rpmsign --addsign --define "_gpg_name $SIGNING_FPR" repo/rpm/*.rpm
           createrepo_c repo/rpm
           gpg --batch --yes --local-user "$SIGNING_FPR" --armor --detach-sign repo/rpm/repodata/repomd.xml
-          printf '%s\n' '[throne]' 'name=Throne RPM repository' \
-            'baseurl=https://throneproj.github.io/Throne/rpm' \
+          printf '%s\n' '[rawline]' 'name=Rawline RPM repository' \
+            'baseurl=https://throneproj.github.io/Rawline/rpm' \
             'enabled=1' 'autorefresh=1' 'gpgcheck=1' 'repo_gpgcheck=1' \
-            'gpgkey=https://throneproj.github.io/Throne/throne.asc' > repo/rpm/throne.repo
+            'gpgkey=https://throneproj.github.io/Throne/throne.asc' > repo/rpm/rawline.repo
       - name: Build APT repository
         env:
           VERSION: ${{ github.event.inputs.tag }}
         run: |
           set -euo pipefail
-          AMD64="deployment/Throne-${VERSION}-debian-amd64-system-qt.deb"
-          ARM64="deployment/Throne-${VERSION}-debian-arm64-system-qt.deb"
+          AMD64="deployment/Rawline-${VERSION}-debian-amd64-system-qt.deb"
+          ARM64="deployment/Rawline-${VERSION}-debian-arm64-system-qt.deb"
           test -f "$AMD64" && test -f "$ARM64"
           mkdir -p repo/apt/pool/main \
             repo/apt/dists/stable/main/binary-amd64 \
             repo/apt/dists/stable/main/binary-arm64
           # dpkg-scanpackages --arch only picks up files named *_<arch>.deb.
-          cp "$AMD64" "repo/apt/pool/main/throne_${VERSION}_amd64.deb"
-          cp "$ARM64" "repo/apt/pool/main/throne_${VERSION}_arm64.deb"
+          cp "$AMD64" "repo/apt/pool/main/rawline_${VERSION}_amd64.deb"
+          cp "$ARM64" "repo/apt/pool/main/rawline_${VERSION}_arm64.deb"
           cd repo/apt
           for arch in amd64 arm64; do
             dpkg-scanpackages --arch "$arch" pool /dev/null > "dists/stable/main/binary-${arch}/Packages"
@@ -855,23 +855,23 @@ jobs:
           done
           # Staged outside dists/stable, which apt-ftparchive scans, so Release does not list itself.
           apt-ftparchive \
-            -o APT::FTPArchive::Release::Origin=throne \
-            -o APT::FTPArchive::Release::Label=Throne \
+            -o APT::FTPArchive::Release::Origin=rawline \
+            -o APT::FTPArchive::Release::Label=Rawline \
             -o APT::FTPArchive::Release::Suite=stable \
             -o APT::FTPArchive::Release::Codename=stable \
             -o 'APT::FTPArchive::Release::Architectures=amd64 arm64' \
             -o APT::FTPArchive::Release::Components=main \
-            -o 'APT::FTPArchive::Release::Description=Throne APT repository' \
+            -o 'APT::FTPArchive::Release::Description=Rawline APT repository' \
             release dists/stable > "$RUNNER_TEMP/Release"
           mv "$RUNNER_TEMP/Release" dists/stable/Release
           gpg --batch --yes --local-user "$SIGNING_FPR" --clearsign -o dists/stable/InRelease dists/stable/Release
           gpg --batch --yes --local-user "$SIGNING_FPR" --armor --detach-sign -o dists/stable/Release.gpg dists/stable/Release
-          printf '%s\n' 'deb [signed-by=/etc/apt/keyrings/throne.asc] https://throneproj.github.io/Throne/apt stable main' > throne.list
+          printf '%s\n' 'deb [signed-by=/etc/apt/keyrings/rawline.asc] https://throneproj.github.io/Rawline/apt stable main' > rawline.list
           # deb822 multi-line field: every line indented, blank lines written as " .".
           { printf '%s\n' 'Types: deb' \
-              'URIs: https://throneproj.github.io/Throne/apt' \
+              'URIs: https://throneproj.github.io/Rawline/apt' \
               'Suites: stable' 'Components: main' 'Signed-By:'
-            sed 's/^$/./; s/^/ /' ../throne.asc; } > throne.sources
+            sed 's/^$/./; s/^/ /' ../rawline.asc; } > rawline.sources
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5.0.0
         with:

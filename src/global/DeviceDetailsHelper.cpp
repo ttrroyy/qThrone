@@ -238,8 +238,13 @@ DeviceDetails GetDeviceDetails() {
         d.model = QSysInfo::prettyProductName();
     #endif
         if (d.hwid.trimmed().isEmpty()) {
-            QSettings local("qThrone", "DeviceIdentity");
+            QSettings local("Rawline", "DeviceIdentity");
             d.hwid = local.value("hwid").toString();
+            // The same device stays the same device for subscription limits.
+            if (d.hwid.isEmpty()) {
+                d.hwid = QSettings("qThrone", "DeviceIdentity").value("hwid").toString();
+                if (!d.hwid.isEmpty()) local.setValue("hwid", d.hwid);
+            }
             if (d.hwid.isEmpty()) {
                 d.hwid = QUuid::createUuid().toString(QUuid::WithoutBraces);
                 local.setValue("hwid", d.hwid);

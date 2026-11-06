@@ -19,8 +19,8 @@ func extract(archive, stage string) error {
 	}
 	defer z.Close()
 	for _, f := range z.File {
-		name := strings.TrimPrefix(f.Name, "qThrone/")
-		if f.Name == "qThrone/" {
+		name := strings.TrimPrefix(f.Name, "Rawline/")
+		if f.Name == "Rawline/" {
 			continue
 		}
 		if name == f.Name || strings.Contains(name, "\\") || filepath.IsAbs(name) || filepath.Clean(name) == ".." || strings.HasPrefix(filepath.Clean(name), ".."+string(filepath.Separator)) || f.Mode()&os.ModeSymlink != 0 {
@@ -75,16 +75,16 @@ func update() error {
 			return err
 		}
 	}
-	stage, err := os.MkdirTemp(".", ".qthrone-update-")
+	stage, err := os.MkdirTemp(".", ".rawline-update-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(stage)
-	if err := extract("qThrone.zip", stage); err != nil {
+	if err := extract("Rawline.zip", stage); err != nil {
 		return err
 	}
-	executable := "qThrone"
-	core := "qThroneCore"
+	executable := "Rawline"
+	core := "RawlineCore"
 	if runtime.GOOS == "windows" {
 		executable += ".exe"
 		core += ".exe"
@@ -94,7 +94,7 @@ func update() error {
 			return fmt.Errorf("missing release executable %s", name)
 		}
 	}
-	backup, err := os.MkdirTemp(".", ".qthrone-backup-")
+	backup, err := os.MkdirTemp(".", ".rawline-backup-")
 	if err != nil {
 		return err
 	}
@@ -135,14 +135,14 @@ func update() error {
 		installed = append(installed, name)
 	}
 	os.RemoveAll(backup)
-	os.Remove("qThrone.zip")
+	os.Remove("Rawline.zip")
 	return exec.Command("./" + executable).Start()
 }
 
 func main() {
 	if err := update(); err != nil {
-		message := fmt.Sprintf("qThrone update failed: %v\n", err)
-		os.WriteFile("qThrone-update-error.log", []byte(message), 0600)
+		message := fmt.Sprintf("Rawline update failed: %v\n", err)
+		os.WriteFile("Rawline-update-error.log", []byte(message), 0600)
 		fmt.Fprint(os.Stderr, message)
 		os.Exit(1)
 	}

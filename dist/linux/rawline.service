@@ -1,5 +1,5 @@
 [Unit]
-Description=Throne proxy manager (headless)
+Description=Rawline proxy manager (headless)
 Documentation=https://throneproj.github.io/headless/
 Wants=network-online.target
 After=network-online.target time-sync.target
@@ -8,10 +8,10 @@ StartLimitIntervalSec=0
 [Service]
 Type=notify
 NotifyAccess=main
-ExecStart=/opt/Throne/Throne --headless --data-dir=%S/throne
-EnvironmentFile=-/etc/throne/throne.env
-Environment=HOME=%S/throne
-StateDirectory=throne
+ExecStart=/opt/Rawline/Rawline --headless --data-dir=%S/rawline
+EnvironmentFile=-/etc/rawline/rawline.env
+Environment=HOME=%S/rawline
+StateDirectory=rawline
 StateDirectoryMode=0700
 UMask=0077
 Restart=on-failure

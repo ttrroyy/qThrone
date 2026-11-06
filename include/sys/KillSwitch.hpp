@@ -20,7 +20,7 @@ namespace Sys {
     public:
         enum class State { Disabled, Arming, Armed, Failed };
 
-        // qThroneCore's exit code when THRONE_GUARD is set but it cannot adopt the guard group (no CAP_SETGID, or the GID is not
+        // RawlineCore's exit code when RAWLINE_GUARD is set but it cannot adopt the guard group (no CAP_SETGID, or the GID is not
         // mapped in this user namespace). Must match guard.IdentityExitCode in core/internal/guard/guard.go.
         static constexpr int kCoreIdentityExitCode = 86;
 
@@ -38,7 +38,7 @@ namespace Sys {
         [[nodiscard]] bool failedForIdentity() const;
         [[nodiscard]] QString failureText() const;
 
-        // Any thread. Set by noteIdentityUnsupported(); CoreProcess::Start then omits THRONE_GUARD.
+        // Any thread. Set by noteIdentityUnsupported(); CoreProcess::Start then omits RAWLINE_GUARD.
         [[nodiscard]] bool identityUnsupported() const { return identityUnsupported_.load(); }
 
         // Main thread, when a core exited with kCoreIdentityExitCode. Sticky until kill_switch is turned off (never saved): the

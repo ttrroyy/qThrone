@@ -79,7 +79,7 @@ QString sstp::Prepare() {
     config["peer"] = (server.contains(':') ? "[" + server + "]" : server) + ":" + QString::number(server_port);
     config["device_id"] = QString::fromLatin1(QCryptographicHash::hash((username + QChar(0) + password).toUtf8(), QCryptographicHash::Sha256).toHex());
     extraCoreConf = QString::fromUtf8(QJsonDocument(config).toJson(QJsonDocument::Compact));
-    extraCoreArgs = "--qthrone-config %s"; noLogs = true; return {};
+    extraCoreArgs = "--rawline-config %s"; noLogs = true; return {};
 }
 BuildResult sstp::Build() {
     if (!socksPort || bridgeAuth.isEmpty()) return {{}, "SSTP bridge has not been prepared"};

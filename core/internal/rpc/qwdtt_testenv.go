@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"qThroneCore/internal/process"
+	"RawlineCore/internal/process"
 )
 
 // Probe sidecars are session-owned; never replace the active extraProcess.
@@ -187,7 +187,7 @@ func prepareQWDTTProbe(ctx context.Context, config string) (func(), error) {
 	_ = json.Unmarshal([]byte(config), &interaction)
 	if interaction.Interactive {
 		// One interactive probe owns the browser at a time, including across servers.
-		browserRelease, browserErr := acquireQWDTTProbe(queueCtx, sha256.Sum256([]byte("qThrone interactive captcha browser")))
+		browserRelease, browserErr := acquireQWDTTProbe(queueCtx, sha256.Sum256([]byte("Rawline interactive captcha browser")))
 		if browserErr != nil {
 			release()
 			return nil, browserErr

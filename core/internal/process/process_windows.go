@@ -630,7 +630,7 @@ func findProcesses(name string) []uint32 {
 
 // %TEMP% is per-user and symlink creation needs a privilege, so os.CreateTemp's O_CREATE|O_EXCL file is already un-hijackable.
 func createSecureConfigFile() (*os.File, string, error) {
-	f, err := os.CreateTemp("", "throne-extra-*.conf")
+	f, err := os.CreateTemp("", "rawline-extra-*.conf")
 	if err != nil {
 		return nil, "", err
 	}

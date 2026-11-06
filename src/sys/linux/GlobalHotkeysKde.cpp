@@ -15,8 +15,8 @@
 
 namespace {
     const QString kService = "org.kde.kglobalaccel";
-    const QString kComponent = "qthrone";
-    const QString kComponentPath = "/component/qthrone";
+    const QString kComponent = "rawline";
+    const QString kComponentPath = "/component/rawline";
     const QString kComponentInterface = "org.kde.kglobalaccel.Component";
     constexpr uint kSetPresent = 2;
     constexpr uint kNoAutoloading = 4;

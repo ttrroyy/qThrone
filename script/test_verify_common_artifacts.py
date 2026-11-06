@@ -10,7 +10,7 @@ class DesktopResumeTests(unittest.TestCase):
         self.jobs = [{'name': 'verify-common', 'conclusion': 'success'}] + [
             {'name': 'build-cpp (runner, qt, arch, ' + suffix + ', ' + suffix.replace('-system-qt', '') + ', cache)', 'conclusion': 'success'}
             for suffix in CPP_REUSE_SUFFIXES]
-        self.artifacts = [{'name': 'Throne-' + self.sha + '-' + suffix, 'expired': False, 'size_in_bytes': 100}
+        self.artifacts = [{'name': 'Rawline-' + self.sha + '-' + suffix, 'expired': False, 'size_in_bytes': 100}
                           for suffix in CPP_REUSE_SUFFIXES]
 
     def test_valid_completed_binaries_can_be_reused(self):
@@ -37,7 +37,7 @@ class DesktopResumeTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             verify_cpp_artifacts(self.sha, self.jobs, self.artifacts[1:], [])
         with self.assertRaises(RuntimeError):
-            verify_cpp_artifacts(self.sha, self.jobs, self.artifacts + [{'name': 'Throne-' + self.sha + '-darwin-arm64'}], [])
+            verify_cpp_artifacts(self.sha, self.jobs, self.artifacts + [{'name': 'Rawline-' + self.sha + '-darwin-arm64'}], [])
 
 
 class StablePublishTests(unittest.TestCase):
@@ -80,7 +80,7 @@ class PackageResumeTests(unittest.TestCase):
         self.sha = 'c' * 40
         self.jobs = [{'name': 'verify-common', 'conclusion': 'success'},
                      {'name': 'build-cpp (macos-15, qt, arm64, darwin-arm64, common)', 'conclusion': 'success'}]
-        self.artifacts = [{'name': 'Throne-' + self.sha + '-darwin-arm64', 'expired': False, 'size_in_bytes': 10}]
+        self.artifacts = [{'name': 'Rawline-' + self.sha + '-darwin-arm64', 'expired': False, 'size_in_bytes': 10}]
         for target in ('windows', 'linux-amd64', 'linux-arm64'):
             self.jobs.append({'name': 'Pack ' + target, 'conclusion': 'success'})
             self.artifacts.append({'name': 'Pack-' + self.sha + '-' + target, 'expired': False, 'size_in_bytes': 10})

@@ -8,7 +8,7 @@ import (
 )
 
 // usableResolver drops what a DNS tunnel cannot use as its resolver: loopback
-// stubs, link-local addresses and the private ranges qThrone gives its own TUN
+// stubs, link-local addresses and the private ranges Rawline gives its own TUN
 // (whose DNS answers only through the tunnel being started).
 func usableResolver(address netip.Addr) bool {
 	address = address.Unmap()

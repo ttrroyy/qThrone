@@ -17,7 +17,7 @@ func waitParent(pid int) error {
 	defer kernel.NewProc("CloseHandle").Call(handle)
 	result, _, err := kernel.NewProc("WaitForSingleObject").Call(handle, 60000)
 	if result != 0 {
-		return fmt.Errorf("waiting for qThrone to exit: result %d (%v)", result, err)
+		return fmt.Errorf("waiting for Rawline to exit: result %d (%v)", result, err)
 	}
 	return nil
 }

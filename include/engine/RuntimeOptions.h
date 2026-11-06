@@ -4,7 +4,7 @@ namespace Engine {
     // Process-wide, fixed at EngineHost::create(); the defaults are the GUI's behaviour.
     struct RuntimeOptions {
         bool headless = false;
-        // !--no-resume and THRONE_RESUME not off; the GUI never clears it.
+        // !--no-resume and RAWLINE_RESUME not off; the GUI never clears it.
         bool resume = true;
         // False: the system proxy is never set, restored, cleared at exit, persisted or accepted from the API.
         bool systemProxy = true;

@@ -3,8 +3,8 @@ package rpc
 import (
 	"context"
 
-	"qThroneCore/gen"
-	"qThroneCore/internal/rulesets"
+	"RawlineCore/gen"
+	"RawlineCore/internal/rulesets"
 )
 
 func (s *server) UpdateRuleSets(ctx context.Context, in *gen.EmptyReq) (*gen.UpdateRuleSetsResponse, error) {

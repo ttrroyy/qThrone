@@ -44,7 +44,7 @@ namespace Engine::WebDavBackup {
         constexpr int kWebDavMaxRedirects = 5;
         constexpr int kWebDavIndexFormat = 1;
         constexpr char kWebDavIndexName[] = "throne_backups.json";
-        constexpr char kWebDavDefaultFolder[] = "qThrone";
+        constexpr char kWebDavDefaultFolder[] = "Rawline";
         constexpr char kWebDavPropfindBody[] =
             R"(<?xml version="1.0" encoding="utf-8"?><d:propfind xmlns:d="DAV:"><d:prop><d:resourcetype/><d:getcontentlength/><d:getlastmodified/><d:getetag/></d:prop></d:propfind>)";
 
@@ -153,7 +153,7 @@ namespace Engine::WebDavBackup {
                 QNetworkRequest request(r.url);
                 request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
                 request.setTransferTimeout(r.timeoutMs);
-                request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("qThrone/") + QStringLiteral(NKR_VERSION));
+                request.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Rawline/") + QStringLiteral(NKR_VERSION));
                 if (r.withAuth && !auth_.isEmpty()) request.setRawHeader("Authorization", auth_);
                 if (insecure_) {
                     auto ssl = request.sslConfiguration();

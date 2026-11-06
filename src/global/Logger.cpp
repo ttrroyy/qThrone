@@ -206,7 +206,7 @@ namespace Logging {
             if (g_ringCount < RING_CAPACITY) g_ringCount++;
         }
 
-        // Caller holds g_mutex. throne.log -> throne.log.1 -> ..., oldest dropped.
+        // Caller holds g_mutex. rawline.log -> rawline.log.1 -> ..., oldest dropped.
         void rotateLocked() {
             g_file.close();
             const QString oldest = g_logPath + "." + QString::number(MAX_ROTATED_FILES);
@@ -351,7 +351,7 @@ namespace Logging {
         QDir().mkpath(g_logDir);
         QDir().mkpath(g_crashDir);
 
-        g_logPath = QDir(g_logDir).absoluteFilePath("throne.log");
+        g_logPath = QDir(g_logDir).absoluteFilePath("rawline.log");
         g_markerPath = QDir(g_logDir).absoluteFilePath("running.marker");
 
 #ifdef Q_OS_WIN

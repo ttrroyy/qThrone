@@ -3,7 +3,7 @@ from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent
 version = json.loads((root / "version.json").read_text(encoding="utf-8"))
-print(f"# qThrone {version['version']}")
+print(f"# Rawline {version['version']}")
 print()
 print("- WS и gRPC для Trojan и VLESS теперь работают на Xray, как в других клиентах, это исправляет профили с панелей вроде 3x-ui 3.11. Учитывается параметр authority.")
 print("- В профилях qWDTT, CSQTT и WDTT Plus можно выбрать хеши из созданных в клиенте.")
@@ -17,4 +17,4 @@ print("- Окно проверки OpenFlux больше не остаётся �
 print("- Название из подписки заменяет адрес в заголовке группы.")
 print("- Импорт профилей Soar из SlipNet 2.5.6.")
 print()
-print(f"Основа: Throne {version['throne_version']}, коммит [{version['throne_commit'][:8]}](https://github.com/throneproj/Throne/commit/{version['throne_commit']}).")
+print(f"Основа: Throne {version['rawline_version']}, коммит [{version['rawline_commit'][:8]}](https://github.com/throneproj/Rawline/commit/{version['rawline_commit']}).")

@@ -99,7 +99,7 @@ func solveCaptchaBrowser(parent context.Context, redirect string, visible, wdttP
 	}
 	ctx, cancel := context.WithTimeout(parent, 3*time.Minute)
 	defer cancel()
-	profile, err := os.MkdirTemp("", "qthrone-captcha-")
+	profile, err := os.MkdirTemp("", "rawline-captcha-")
 	if err != nil {
 		return "", errors.New("cannot create private captcha browser profile")
 	}

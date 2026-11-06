@@ -41,7 +41,7 @@ func removeStaleCaptchaProfiles() {
 		return
 	}
 	for _, entry := range entries {
-		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "qthrone-captcha-") {
+		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "rawline-captcha-") {
 			continue
 		}
 		if info, err := entry.Info(); err == nil && time.Since(info.ModTime()) > 10*time.Minute {

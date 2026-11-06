@@ -70,7 +70,7 @@ int TestQwdttImport() {
     QTemporaryDir fixture;
     if (!fixture.isValid()) return 1;
     auto *previousManager = Configs::dataManager;
-    Configs::initDB(fixture.filePath("throne.db").toStdString());
+    Configs::initDB(fixture.filePath("rawline.db").toStdString());
     const auto restoreManager = qScopeGuard([previousManager] {
         delete Configs::dataManager;
         Configs::dataManager = previousManager;
@@ -81,7 +81,7 @@ int TestQwdttImport() {
         const auto savedAgent = settings->user_agent;
         const auto restoreAgent = qScopeGuard([&] { settings->user_agent = savedAgent; });
         settings->user_agent.clear();
-        if (settings->GetUserAgent() != QStringLiteral("qThrone/") + QStringLiteral(NKR_VERSION) ||
+        if (settings->GetUserAgent() != QStringLiteral("Rawline/") + QStringLiteral(NKR_VERSION) ||
             Subscription::ResolveIdentity(nullptr).userAgent != QStringLiteral("Happ/3.0 Rawline/") + QStringLiteral(NKR_VERSION)) {
             qWarning("Client/subscription User-Agent does not match the build version"); ++failures;
         }
@@ -199,7 +199,7 @@ int TestQwdttImport() {
         ui.tabWidget->setCornerWidget(filter, Qt::TopRightCorner);
         const int panes = ui.splitter->count();
         auto *decoration = installSeasonalDecoration(ui.centralwidget, ui.horizontalLayout_2, ui.tabWidget->tabBar(), filter);
-        const QString screenshots = qEnvironmentVariable("THRONE_SEASONAL_PREVIEW_DIR");
+        const QString screenshots = qEnvironmentVariable("RAWLINE_SEASONAL_PREVIEW_DIR");
         if (!screenshots.isEmpty()) QDir().mkpath(screenshots);
         for (bool dark : {false, true}) {
             auto palette = window.palette();
@@ -249,8 +249,8 @@ int TestQwdttImport() {
             }
         }
     }
-    check(SaveVKRelayPreviews(qEnvironmentVariable("THRONE_SEASONAL_PREVIEW_DIR")), "VK relay screenshots saved");
-    check(SaveProviderRoutingPreviews(qEnvironmentVariable("THRONE_SEASONAL_PREVIEW_DIR")), "provider routing screenshots saved");
+    check(SaveVKRelayPreviews(qEnvironmentVariable("RAWLINE_SEASONAL_PREVIEW_DIR")), "VK relay screenshots saved");
+    check(SaveProviderRoutingPreviews(qEnvironmentVariable("RAWLINE_SEASONAL_PREVIEW_DIR")), "provider routing screenshots saved");
     const QByteArray android = "qwdtt://config?name=Main+%28demo%29&peer=203.0.113.10%3A56000&hashes=hash1%2Chash2&workers=9&port=9000&pass=a%2Bb+%26%25";
     const auto parse = [](const QByteArray &body) {
         QList<std::shared_ptr<Configs::Profile>> profiles;
@@ -544,7 +544,7 @@ int TestQwdttImport() {
             QApplication::processEvents();
             const auto image=preview.grab().toImage();
             check(!image.isNull(),"animated test indicators render inside table cells");
-            const auto directory=qEnvironmentVariable("THRONE_SEASONAL_PREVIEW_DIR");
+            const auto directory=qEnvironmentVariable("RAWLINE_SEASONAL_PREVIEW_DIR");
             if (!directory.isEmpty()) check(image.save(directory+"/test-indicators.png"),"test indicator preview saved");
         }
         DataViewHtmlGenerator panels;
@@ -1103,7 +1103,7 @@ proxies:
         const auto probe = Configs::BuildTestConfig({rtcProfile});
         check(probe->error.isEmpty() && probe->qwdttConfigs.size() == 1, "olcRTC ping and speed private bridge");
         const auto live = Configs::BuildSingBoxConfig(rtcProfile);
-        check(live->error.isEmpty() && live->extraCoreData->args.startsWith("--qthrone-config"), "olcRTC main bundled helper");
+        check(live->error.isEmpty() && live->extraCoreData->args.startsWith("--rawline-config"), "olcRTC main bundled helper");
         checkWarp(rtcProfile, true);
         check(rtc->Build().object["network"].toString() == "tcp", "olcRTC bridge cannot silently send UDP direct");
         auto mains = parse("vless://00000000-0000-4000-8000-000000000002@203.0.113.15:443?type=tcp&security=none#RTC-main");
@@ -1137,7 +1137,7 @@ proxies:
         const auto probe = Configs::BuildTestConfig({profile});
         check(probe->error.isEmpty() && probe->qwdttConfigs.size() == 1 && probe->fullConfigs.size() == 1, "OpenFlux ping and speed tests own a private bridge");
         const auto live = Configs::BuildSingBoxConfig(profile);
-        check(live->error.isEmpty() && live->extraCoreData->args.startsWith("--qthrone-config"), "OpenFlux main connection uses bundled helper");
+        check(live->error.isEmpty() && live->extraCoreData->args.startsWith("--rawline-config"), "OpenFlux main connection uses bundled helper");
         checkWarp(profile, false);
     }
     auto invalidFlux = fluxConfig; invalidFlux["secret"] = "short";
@@ -1498,8 +1498,8 @@ proxies:
     check(!ReleaseVersion::IsNewer("1.0-beta.1", "1.0.0-beta.1"), "optional patch equivalence");
     check(ReleaseVersion::IsNewer("1.1-beta.1", "1.0"), "next minor beta");
     check(!ReleaseVersion::IsNewer("invalid", "1.0"), "invalid update version");
-    check(ReleaseVersion::FromAsset("qThrone-1.0-beta.2-windows-amd64.zip") == "1.0-beta.2", "beta asset version");
-    check(ReleaseVersion::FromAsset("qThrone-1.0-linux-amd64.tar.gz") == "1.0", "stable asset version");
+    check(ReleaseVersion::FromAsset("Rawline-1.0-beta.2-windows-amd64.zip") == "1.0-beta.2", "beta asset version");
+    check(ReleaseVersion::FromAsset("Rawline-1.0-linux-amd64.tar.gz") == "1.0", "stable asset version");
     {
         auto *settings = Configs::dataManager->settingsRepo.get();
         auto &db = Configs::dataManager->getDatabase();

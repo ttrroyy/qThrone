@@ -119,7 +119,7 @@ static QString autoRunUserName() {
 
 static QString autoRunTaskName(const QString &seed) {
     const QByteArray hash = QCryptographicHash::hash(seed.toUtf8(), QCryptographicHash::Md5).toHex().left(8);
-    return "qThrone AutoRun " + QString::fromLatin1(hash);
+    return "Rawline AutoRun " + QString::fromLatin1(hash);
 }
 
 static QString autoRunExeKey() {
@@ -296,7 +296,24 @@ void AutoRun_FixTaskIfNeeded() {
     }
 }
 
+// A task the program registered under its earlier name starts an executable that is gone: autorun moves to a new one.
+static void adoptEarlierTasks() {
+    const TaskRoot root;
+    if (FAILED(root.status())) return;
+    const QString earlierExe = QDir::cleanPath(QCoreApplication::applicationDirPath() + "/qThrone.exe").toLower();
+    bool wasOn = false;
+    for (const QString &seed : {earlierExe + "|" + autoRunUserSid(), earlierExe}) {
+        const QString name = "qThrone AutoRun " + QString::fromLatin1(QCryptographicHash::hash(seed.toUtf8(), QCryptographicHash::Md5).toHex().left(8));
+        if (const auto task = root.find(name)) {
+            wasOn = wasOn || taskStartsAtLogon(task.get());
+            root.remove(name);
+        }
+    }
+    if (wasOn) AutoRun_SetEnabled(true);
+}
+
 void AutoRun_MigrateIfNeeded() {
+    adoptEarlierTasks();
     QSettings run("HKEY_CURRENT_USER\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", QSettings::NativeFormat);
     const QString name = QFileInfo(QCoreApplication::applicationFilePath()).baseName();
     const QString command = "\"" + QDir::toNativeSeparators(QCoreApplication::applicationFilePath()) + "\" -tray";

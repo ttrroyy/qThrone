@@ -3,7 +3,7 @@ package mobile
 import (
 	"context"
 
-	"qThroneCore/internal/amnezia"
+	"RawlineCore/internal/amnezia"
 )
 
 // rpc.GenQuicSignature: Chrome's first HTTP/3 flight to domain as AmneziaWG I1.. values, each "<b 0x…>",

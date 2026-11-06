@@ -64,12 +64,12 @@ extern char **environ;
 namespace Engine {
     namespace {
         // Private: an exec'd image keeps the restart mode the first one resolved (HeadlessCli::EffectiveRestartMode reads it).
-        constexpr char headlessMainInheritedModeVar[] = "THRONE_RESTART_INHERITED";
+        constexpr char headlessMainInheritedModeVar[] = "RAWLINE_RESTART_INHERITED";
         // Private: the boot had a terminal and catches SIGHUP. A hang-up during the exec reaches the new image after the tty is gone.
-        constexpr char headlessMainInheritedTtyVar[] = "THRONE_RESTART_TTY";
+        constexpr char headlessMainInheritedTtyVar[] = "RAWLINE_RESTART_TTY";
         // Private: set on every exec'd image; its boot then feeds the watchdog the reloading unit keeps armed. "reload" when the
         // predecessor's RELOADING is still open (no READY ended it), else "1".
-        constexpr char headlessMainExecedVar[] = "THRONE_RESTART_EXECED";
+        constexpr char headlessMainExecedVar[] = "RAWLINE_RESTART_EXECED";
 
         void headlessMainPrint(FILE *stream, const QString &text) {
 #ifdef Q_OS_WIN
@@ -349,7 +349,7 @@ namespace Engine {
         // Declared first so it is released last; the exec restart releases it explicitly.
         DataDirLock lock;
         auto app = std::make_unique<QCoreApplication>(argc, argv);
-        QCoreApplication::setApplicationName("qThrone");
+        QCoreApplication::setApplicationName("Rawline");
         QCoreApplication::setApplicationVersion(NKR_VERSION);
         // Now: the cached value survives an in-place upgrade and the working directory moving to <config>.
         const QString exePath = QCoreApplication::applicationFilePath();
@@ -533,11 +533,11 @@ namespace Engine {
             const auto error = Configs::DescribeDbError(e);
             const int primary = headlessMainDbPrimary(error);
             const QDir configDir(dataDir.configDir);
-            QString dbFile = configDir.absoluteFilePath(QStringLiteral("throne.db"));
+            QString dbFile = configDir.absoluteFilePath(QStringLiteral("rawline.db"));
             bool denied = false;
             if (primary == SQLITE_CANTOPEN || primary == SQLITE_READONLY) {
                 // The stats DB recreates itself unless it cannot even be moved aside (a Windows ACL denying DELETE).
-                for (const QString &name : {QStringLiteral("throne.db"), QStringLiteral("throne_stats.db")}) {
+                for (const QString &name : {QStringLiteral("rawline.db"), QStringLiteral("rawline_stats.db")}) {
                     if (const QString file = configDir.absoluteFilePath(name); Configs::DbFilesDenied(file)) {
                         dbFile = file;
                         denied = true;

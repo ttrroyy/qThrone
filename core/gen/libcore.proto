@@ -477,7 +477,7 @@ message AutoSelectorActionRequest {
   optional string member = 3 [default = ""];
 }
 
-// Throne downloads the archive (proxy settings apply there); the core has the zip reader.
+// Rawline downloads the archive (proxy settings apply there); the core has the zip reader.
 message InstallDashboardRequest {
   optional string archive_path = 1 [default = ""];
   optional string target_dir = 2 [default = ""];

@@ -11,12 +11,12 @@ from urllib.request import urlopen, urlretrieve
 from pathlib import Path
 from typing import Union
 
-REPO = "ttrroyy/qThrone"
+REPO = "ttrroyy/RawlineDesktop"
 
-APPDIR = Path("/opt/qThrone")
+APPDIR = Path("/opt/Rawline")
 DESKTOPDIR = Path("/usr/share/applications")
 
-CONFIGDIR = Path.home() / ".config/qThrone"
+CONFIGDIR = Path.home() / ".config/Rawline"
 AUTOSTARTDIR = Path.home() / ".config/autostart"
 
 
@@ -50,13 +50,13 @@ def remove_path(path: Path) -> bool:
 
 
 # Returns "version" or "unknown" when installation exists
-# Returns None when neither the Version file nor the qThrone executable are found
+# Returns None when neither the Version file nor the Rawline executable are found
 def get_installed_version(path: Path) -> Union[str, None]:
     if (path / "Version").exists():
         with open(path / Path("Version"), "r") as file:
             return file.read().strip()
 
-    if (path / "qThrone").exists():
+    if (path / "Rawline").exists():
         return "unknown"
 
     return None
@@ -198,7 +198,7 @@ def run(main):
         curses.curs_set(0)
         init_colors()
         scr.clear()
-        scr.addstr(0, 0, "┌  Welcome to qThrone CLI manager!")
+        scr.addstr(0, 0, "┌  Welcome to Rawline CLI manager!")
         scr.addstr(1, 0, "|")
         main(scr, 2)
 
@@ -213,7 +213,7 @@ def main(scr, y):
     arch = get_arch()
     version = get_installed_version(APPDIR)
     if version:
-        y = message(scr, y, f"Looks like you already have qThrone ({version}) installed")
+        y = message(scr, y, f"Looks like you already have Rawline ({version}) installed")
         bar(scr, y, 0, "|", "", C_DIM)
         scr.refresh()
         y += 1
@@ -251,28 +251,28 @@ def main(scr, y):
             version = release["version"]
             url = release["assets"][arch]
 
-            p = Progress(scr, y, f"Downloading qThrone ({version}) from GitHub")
+            p = Progress(scr, y, f"Downloading Rawline ({version}) from GitHub")
             urlretrieve(
                 url,
-                tmpdir / "qThrone.zip",
+                tmpdir / "Rawline.zip",
                 p.hook,
             )
             y = p.next_y()
 
             y = message(scr, y, "Unpacking zip archive")
-            with ZipFile(tmpdir / "qThrone.zip", "r") as zip:
+            with ZipFile(tmpdir / "Rawline.zip", "r") as zip:
                 zip.extractall(tmpdir)
 
             y = message(scr, y, "Creating .desktop file")
-            with open(tmpdir / "qThrone.desktop", "w") as file:
+            with open(tmpdir / "Rawline.desktop", "w") as file:
                 file.write(f"""[Desktop Entry]
 Version={version}
 Name=Rawline
 GenericName=Proxy Manager
 Comment=Qt based cross-platform GUI proxy configuration manager (backend: sing-box)
-Exec={APPDIR}/qThrone -appdata
-Icon={APPDIR}/qThrone.png
-StartupWMClass=qThrone
+Exec={APPDIR}/Rawline -appdata
+Icon={APPDIR}/Rawline.png
+StartupWMClass=Rawline
 Terminal=false
 Type=Application
 Categories=Network;Application;
@@ -284,28 +284,28 @@ Keywords=proxy;vpn;network;privacy;
             install(tmpdir / "Version", APPDIR / "Version", 0o644)
 
             y = message(scr, y, f"Installing binaries to {APPDIR}")
-            for name in ("qThroneCore", "qThrone", "qwdtt", "csqtt-transport", "csqtt-compat", "openflux", "openfluxkey", "olcrtc", "dnstun", "masterdns", "cottendns", "soar", "s3bypass", "slipstream-client", "wdttplus-client", "qThroneUpdater"):
-                install(tmpdir / "qThrone" / name, APPDIR / name, 0o755)
-            usr_src = tmpdir / "qThrone/usr"
+            for name in ("RawlineCore", "Rawline", "qwdtt", "csqtt-transport", "csqtt-compat", "openflux", "openfluxkey", "olcrtc", "dnstun", "masterdns", "cottendns", "soar", "s3bypass", "slipstream-client", "wdttplus-client", "RawlineUpdater"):
+                install(tmpdir / "Rawline" / name, APPDIR / name, 0o755)
+            usr_src = tmpdir / "Rawline/usr"
             for f in usr_src.rglob("*"):
                 if f.is_file():
                     rel = f.relative_to(usr_src)
                     install(f, APPDIR / "usr" / rel, 0o644)
-            install(tmpdir / "qThrone/qThrone.png", APPDIR / "qThrone.png", 0o644)
-            install(tmpdir / "qThrone/qwdtt-LICENSE", APPDIR / "qwdtt-LICENSE", 0o644)
+            install(tmpdir / "Rawline/Rawline.png", APPDIR / "Rawline.png", 0o644)
+            install(tmpdir / "Rawline/qwdtt-LICENSE", APPDIR / "qwdtt-LICENSE", 0o644)
             for name in ("CSQTT-LICENSE", "CSQTT-SOURCE", "csqtt-source.tar.gz", "CSQTT-Compat-LICENSE", "CSQTT-Compat-SOURCE", "csqtt-compat-source.tar.gz", "OpenFlux-LICENSE", "OpenFlux-SOURCE", "openflux-source.tar.gz", "OLCRTC-LICENSE", "OLCRTC-SOURCE", "olcrtc-source.tar.gz",
                          "VayDNS-LICENSE", "VayDNS-SOURCE", "vaydns-source.tar.gz", "MasterDnsVPN-LICENSE", "MasterDnsVPN-SOURCE", "masterdns-source.tar.gz",
                          "CottenDNS-LICENSE", "CottenDNS-SOURCE", "cottendns-source.tar.gz", "Soar-LICENSE", "Soar-SOURCE", "soar-source.tar.gz",
                          "OpenFluxKey-LICENSE", "OpenFluxKey-SOURCE", "openfluxkey-source.tar.gz",
                          "Xray-fedarisha-LICENSE", "Xray-fedarisha-SOURCE", "fedarisha-source.tar.gz", "Slipstream-LICENSE", "Slipstream-SOURCE", "slipstream-source.tar.gz"):
-                install(tmpdir / "qThrone" / name, APPDIR / name, 0o644)
+                install(tmpdir / "Rawline" / name, APPDIR / name, 0o644)
 
             y = message(scr, y, f"Installing .desktop to {DESKTOPDIR}")
-            install(tmpdir / "qThrone.desktop", DESKTOPDIR / "qThrone.desktop", 0o644)
+            install(tmpdir / "Rawline.desktop", DESKTOPDIR / "Rawline.desktop", 0o644)
 
     elif action == "Uninstall":
         if version is None:
-            y = message(scr, y, "qThrone installation was not found", ok=False)
+            y = message(scr, y, "Rawline installation was not found", ok=False)
             scr.addstr(y, 0, "└  Press any key to exit")
             scr.refresh()
             scr.getch()
@@ -314,7 +314,7 @@ Keywords=proxy;vpn;network;privacy;
         confirm, y = select(
             scr,
             y,
-            "Are you sure you want to uninstall qThrone?",
+            "Are you sure you want to uninstall Rawline?",
             ["Yes", "No"],
         )
 
@@ -328,7 +328,7 @@ Keywords=proxy;vpn;network;privacy;
         remove_path(APPDIR)
 
         y = message(scr, y, f"Removing .desktop file from {DESKTOPDIR}")
-        remove_path(DESKTOPDIR / "qThrone.desktop")
+        remove_path(DESKTOPDIR / "Rawline.desktop")
 
         y = message(scr, y, "Uninstallation successfully completed!")
     scr.addstr(y, 0, "└  Press any key to exit")

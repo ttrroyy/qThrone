@@ -244,7 +244,7 @@ namespace Engine {
         if (engine == nullptr) {
             LOG_WARN("HeadlessRuntime::bootStart() before EngineHost::create(); nothing resumes");
         } else if (!m_options.resume) {
-            LOG_INFO("[Resume] Off (--no-resume or THRONE_RESUME); the core starts with no profile.");
+            LOG_INFO("[Resume] Off (--no-resume or RAWLINE_RESUME); the core starts with no profile.");
         } else if (remembered < 0) {
             LOG_INFO("[Resume] No profile to resume.");
         } else if (const auto profile = Configs::dataManager->profilesRepo->GetProfile(remembered); profile == nullptr) {

@@ -26,10 +26,10 @@ VersionInfoDescription=Rawline Setup
 VersionInfoCopyright=Rawline
 SourceDir=..
 OutputDir=deployment
-OutputBaseFilename=qThroneSetup
-SetupIconFile=res\Throne.ico
+OutputBaseFilename=RawlineSetup
+SetupIconFile=res\Rawline.ico
 UninstallDisplayName=Rawline
-UninstallDisplayIcon={app}\qThrone.exe
+UninstallDisplayIcon={app}\Rawline.exe
 WizardStyle=modern
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
@@ -42,7 +42,7 @@ RestartApplications=no
 LanguageDetectionMethod=uilanguage
 UsePreviousLanguage=no
 ShowLanguageDialog=auto
-; Uninstall removes the associations Throne registers at runtime, so Explorer has to reload them.
+; Uninstall removes the associations Rawline registers at runtime, so Explorer has to reload them.
 ChangesAssociations=yes
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -70,39 +70,43 @@ Source: "deployment\windows-arm64\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags
 Source: "deployment\windowslegacy-386\*"; DestDir: "{app}"; Excludes: "*.pdb"; Flags: ignoreversion; Check: IsX86OS
 
 [Icons]
-Name: "{autoprograms}\Rawline"; Filename: "{app}\qThrone.exe"
-Name: "{autodesktop}\Rawline"; Filename: "{app}\qThrone.exe"
+Name: "{autoprograms}\Rawline"; Filename: "{app}\Rawline.exe"
+Name: "{autodesktop}\Rawline"; Filename: "{app}\Rawline.exe"
 
 [Registry]
-Root: HKA; Subkey: "Software\qThrone"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Rawline"; ValueType: string; ValueName: "InstallPath"; ValueData: "{app}"; Flags: uninsdeletekey
 
 [InstallDelete]
 Type: files; Name: "{autoprograms}\qThrone.lnk"
 Type: files; Name: "{autodesktop}\qThrone.lnk"
+Type: files; Name: "{app}\qThrone.exe"
+Type: files; Name: "{app}\qThroneCore.exe"
+Type: files; Name: "{app}\qThroneUpdater.exe"
+Type: files; Name: "{app}\qThroneUpdater.old"
 
 [UninstallDelete]
-Type: files; Name: "{app}\qThroneUpdater.old"
+Type: files; Name: "{app}\RawlineUpdater.old"
 Type: filesandordirs; Name: "{app}"; Check: OwnInstallDirectory
-Type: filesandordirs; Name: "{localappdata}\qThrone"; Check: OwnUserDataDirectory
-Type: filesandordirs; Name: "{userappdata}\qThrone"
+Type: filesandordirs; Name: "{localappdata}\Rawline"; Check: OwnUserDataDirectory
+Type: filesandordirs; Name: "{userappdata}\Rawline"
 
 [Run]
-Filename: "{app}\qThrone.exe"; Description: "{cm:LaunchProgram,Rawline}"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\Rawline.exe"; Description: "{cm:LaunchProgram,Rawline}"; Flags: postinstall nowait skipifsilent
 
 [Code]
 const
-  LegacyUninstall = 'Microsoft\Windows\CurrentVersion\Uninstall\qThrone';
+  LegacyUninstall = 'Microsoft\Windows\CurrentVersion\Uninstall\Rawline';
 
 function OwnInstallDirectory: Boolean;
 begin
-  Result := CompareText(ExtractFileName(RemoveBackslashUnlessRoot(ExpandConstant('{app}'))), 'qThrone') = 0;
+  Result := CompareText(ExtractFileName(RemoveBackslashUnlessRoot(ExpandConstant('{app}'))), 'Rawline') = 0;
 end;
 
 function OwnUserDataDirectory: Boolean;
 begin
   // An independently installed portable copy may occupy this path.
-  Result := (CompareText(ExpandConstant('{app}'), ExpandConstant('{localappdata}\qThrone')) = 0) or
-    not FileExists(ExpandConstant('{localappdata}\qThrone\qThrone.exe'));
+  Result := (CompareText(ExpandConstant('{app}'), ExpandConstant('{localappdata}\Rawline')) = 0) or
+    not FileExists(ExpandConstant('{localappdata}\Rawline\Rawline.exe'));
 end;
 
 // The NSIS installer was 32-bit, so on 64-bit Windows its HKLM keys sit under WOW6432Node of this installer's 64-bit view.
@@ -128,15 +132,15 @@ begin
   Result := CompareText(RemoveBackslashUnlessRoot(Dir), RemoveBackslashUnlessRoot(ExpandConstant('{app}'))) = 0;
 end;
 
-// An NSIS install keeps its folder, since Throne's config lives next to the exe.
+// An NSIS install keeps its folder, since Rawline's config lives next to the exe.
 function DefaultInstallDir(Param: String): String;
 begin
-  if LegacyValue('qThrone', 'InstallPath', Result) then
+  if LegacyValue('Rawline', 'InstallPath', Result) then
     Exit;
   if IsAdminInstallMode then
-    Result := ExpandConstant('{autopf}\qThrone')
+    Result := ExpandConstant('{autopf}\Rawline')
   else
-    Result := ExpandConstant('{localappdata}\qThrone');
+    Result := ExpandConstant('{localappdata}\Rawline');
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -148,16 +152,16 @@ begin
   if CurPageID <> wpSelectDir then
     Exit;
   Dir := RemoveBackslashUnlessRoot(WizardDirValue);
-  // Uninstalling can delete <dir>\config, so Throne must get a folder of its own.
-  if CompareText(ExtractFileName(Dir), 'qThrone') <> 0 then
+  // Uninstalling can delete <dir>\config, so Rawline must get a folder of its own.
+  if CompareText(ExtractFileName(Dir), 'Rawline') <> 0 then
   begin
-    Dir := AddBackslash(Dir) + 'qThrone';
+    Dir := AddBackslash(Dir) + 'Rawline';
     WizardForm.DirEdit.Text := Dir;
   end;
   if IsAdminInstallMode then
     Exit;
   Created := not DirExists(Dir);
-  Probe := AddBackslash(Dir) + '.throne-write-test';
+  Probe := AddBackslash(Dir) + '.rawline-write-test';
   Result := ForceDirectories(Dir) and SaveStringToFile(Probe, '', False);
   DeleteFile(Probe);
   if Created then
@@ -181,7 +185,7 @@ begin
   DeleteFile(ExpandConstant('{app}\uninstall.exe'));
 end;
 
-procedure StopThrone;
+procedure StopRawline;
 var
   Locator, Service, Processes, Process: Variant;
   Prefix, ExePath: String;
@@ -193,7 +197,7 @@ begin
   try
     Locator := CreateOleObject('WbemScripting.SWbemLocator');
     Service := Locator.ConnectServer('.', 'root\CIMV2');
-    Processes := Service.ExecQuery('SELECT * FROM Win32_Process WHERE Name = ''qThrone.exe'' OR Name = ''qThroneCore.exe'' OR Name = ''qwdtt.exe'' OR Name = ''csqtt-transport.exe'' OR Name = ''csqtt-compat.exe'' OR Name = ''openflux.exe'' OR Name = ''openfluxkey.exe'' OR Name = ''olcrtc.exe'' OR Name = ''dnstun.exe'' OR Name = ''masterdns.exe'' OR Name = ''cottendns.exe'' OR Name = ''soar.exe'' OR Name = ''s3bypass.exe'' OR Name = ''slipstream-client.exe'' OR Name = ''wdttplus-client.exe''');
+    Processes := Service.ExecQuery('SELECT * FROM Win32_Process WHERE Name = ''Rawline.exe'' OR Name = ''RawlineCore.exe'' OR Name = ''qwdtt.exe'' OR Name = ''csqtt-transport.exe'' OR Name = ''csqtt-compat.exe'' OR Name = ''openflux.exe'' OR Name = ''openfluxkey.exe'' OR Name = ''olcrtc.exe'' OR Name = ''dnstun.exe'' OR Name = ''masterdns.exe'' OR Name = ''cottendns.exe'' OR Name = ''soar.exe'' OR Name = ''s3bypass.exe'' OR Name = ''slipstream-client.exe'' OR Name = ''wdttplus-client.exe''');
     for I := 0 to Processes.Count - 1 do
     begin
       Process := Processes.ItemIndex(I);
@@ -209,35 +213,35 @@ begin
       end;
     end;
   except
-    Log('Could not stop Throne: ' + GetExceptionMessage);
+    Log('Could not stop Rawline: ' + GetExceptionMessage);
   end;
   if Stopped then
     Sleep(1000);
 end;
 
-// Throne writes these at runtime; an entry that points at another copy by now belongs to that copy.
+// Rawline writes these at runtime; an entry that points at another copy by now belongs to that copy.
 function PointsAtApp(const SubKey: String): Boolean;
 var
   Command: String;
 begin
   Result := RegQueryStringValue(HKEY_CURRENT_USER, SubKey + '\shell\open\command', '', Command) and
-    (Pos(Lowercase(ExpandConstant('{app}\qThrone.exe')), Lowercase(Command)) > 0);
+    (Pos(Lowercase(ExpandConstant('{app}\Rawline.exe')), Lowercase(Command)) > 0);
 end;
 
 procedure RemoveOpenWith(const Ext: String);
 begin
-  RegDeleteValue(HKEY_CURRENT_USER, 'Software\Classes\' + Ext + '\OpenWithProgids', 'qThrone.Config');
+  RegDeleteValue(HKEY_CURRENT_USER, 'Software\Classes\' + Ext + '\OpenWithProgids', 'Rawline.Config');
 end;
 
 procedure RemoveAssociations;
 begin
-  if PointsAtApp('Software\Classes\throne') then
-    RegDeleteKeyIncludingSubkeys(HKEY_CURRENT_USER, 'Software\Classes\throne');
-  if PointsAtApp('Software\Classes\Applications\qThrone.exe') then
-    RegDeleteKeyIncludingSubkeys(HKEY_CURRENT_USER, 'Software\Classes\Applications\qThrone.exe');
-  if not PointsAtApp('Software\Classes\qThrone.Config') then
+  if PointsAtApp('Software\Classes\rawline') then
+    RegDeleteKeyIncludingSubkeys(HKEY_CURRENT_USER, 'Software\Classes\rawline');
+  if PointsAtApp('Software\Classes\Applications\Rawline.exe') then
+    RegDeleteKeyIncludingSubkeys(HKEY_CURRENT_USER, 'Software\Classes\Applications\Rawline.exe');
+  if not PointsAtApp('Software\Classes\Rawline.Config') then
     Exit;
-  RegDeleteKeyIncludingSubkeys(HKEY_CURRENT_USER, 'Software\Classes\qThrone.Config');
+  RegDeleteKeyIncludingSubkeys(HKEY_CURRENT_USER, 'Software\Classes\Rawline.Config');
   RemoveOpenWith('.json');
   RemoveOpenWith('.conf');
   RemoveOpenWith('.yaml');
@@ -247,7 +251,7 @@ begin
   RemoveOpenWith('.txt');
 end;
 
-// Throne writes these to HKLM when it runs elevated, so a per-user uninstall lacks the rights to remove them.
+// Rawline writes these to HKLM when it runs elevated, so a per-user uninstall lacks the rights to remove them.
 procedure RemoveCrashDumpKey(const ExeName: String);
 var
   SubKey, Folder: String;
@@ -257,7 +261,7 @@ begin
     Exit;
   Folder := Lowercase(AddBackslash(Folder));
   if (Pos(Lowercase(AddBackslash(ExpandConstant('{app}'))), Folder) = 1) or
-     (Pos(Lowercase(ExpandConstant('{localappdata}\qThrone\')), Folder) = 1) then
+     (Pos(Lowercase(ExpandConstant('{localappdata}\Rawline\')), Folder) = 1) then
     RegDeleteKeyIncludingSubkeys(HKEY_LOCAL_MACHINE, SubKey);
 end;
 
@@ -267,10 +271,10 @@ var
   I, J: Integer;
   Command, TaskName, ExePath: String;
 begin
-  ExePath := ExpandConstant('{app}\qThrone.exe');
-  if RegQueryStringValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'qThrone', Command) and
+  ExePath := ExpandConstant('{app}\Rawline.exe');
+  if RegQueryStringValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'Rawline', Command) and
      (Pos(Lowercase(ExePath), Lowercase(Command)) > 0) then
-    RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'qThrone');
+    RegDeleteValue(HKEY_CURRENT_USER, 'Software\Microsoft\Windows\CurrentVersion\Run', 'Rawline');
   try
     Scheduler := CreateOleObject('Schedule.Service');
     Scheduler.Connect;
@@ -280,7 +284,7 @@ begin
     begin
       Task := Tasks.Item(I);
       TaskName := Task.Name;
-      if Pos('qThrone AutoRun ', TaskName) = 1 then
+      if Pos('Rawline AutoRun ', TaskName) = 1 then
       begin
         Actions := Task.Definition.Actions;
         for J := 1 to Actions.Count do
@@ -312,10 +316,10 @@ begin
   App := ExpandConstant('{app}');
   if CurUninstallStep = usUninstall then
   begin
-    StopThrone;
+    StopRawline;
     RemoveAssociations;
-    RemoveCrashDumpKey('qThrone.exe');
-    RemoveCrashDumpKey('qThroneCore.exe');
+    RemoveCrashDumpKey('Rawline.exe');
+    RemoveCrashDumpKey('RawlineCore.exe');
     RemoveAutoRun;
   end
   else if CurUninstallStep = usPostUninstall then

@@ -5,8 +5,8 @@ import (
 	"os"
 	"runtime"
 
-	"qThroneCore/gen"
-	"qThroneCore/internal/capcheck"
+	"RawlineCore/gen"
+	"RawlineCore/internal/capcheck"
 )
 
 func (s *server) IsPrivileged(ctx context.Context, _ *gen.EmptyReq) (*gen.IsPrivilegedResponse, error) {

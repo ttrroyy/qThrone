@@ -300,7 +300,7 @@ namespace Engine {
         }
 #endif
         QCoreApplication app(argc, argv);
-        QCoreApplication::setApplicationName("qThrone");
+        QCoreApplication::setApplicationName("Rawline");
         Logging::EnableStdSink(Logging::Level::Info);
 
         QStringList arguments = QCoreApplication::arguments();
@@ -315,7 +315,7 @@ namespace Engine {
         }
         const QDir outDir(QDir::cleanPath(launchCwd.absoluteFilePath(arguments.at(flagIndex + 1))));
         const QString appdataPath = QDir::cleanPath(launchCwd.absoluteFilePath(arguments.at(appdataIndex + 1)));
-        if (const auto dbPath = QDir(appdataPath).absoluteFilePath("config/throne.db"); !QFileInfo(dbPath).isFile()) {
+        if (const auto dbPath = QDir(appdataPath).absoluteFilePath("config/rawline.db"); !QFileInfo(dbPath).isFile()) {
             PrintError(QString("-dump-configs: no database at %1").arg(QDir::toNativeSeparators(dbPath)));
             return ExitCode::NoInput;
         }
@@ -351,7 +351,7 @@ namespace Engine {
         if (!RemovePreviousDump(outDir)) return ExitCode::CantCreate;
 
         QDir::setCurrent(dataDir.configDir);
-        Configs::initDB(QString(QDir::currentPath() + QDir::separator() + "throne.db").toStdString());
+        Configs::initDB(QString(QDir::currentPath() + QDir::separator() + "rawline.db").toStdString());
         auto &settings = *Configs::dataManager->settingsRepo;
         settings.noSave = true;
         settings.flag_use_appdata = dataDir.useAppdata;

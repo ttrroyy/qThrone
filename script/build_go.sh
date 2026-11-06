@@ -14,7 +14,7 @@ fi
 
 if [[ "$GOOS" == "windows" || "$GOOS" == "linux" ]]; then
     pushd updater
-    CGO_ENABLED=0 $GOCMD build -trimpath -ldflags="-s -w" -o "$DEST/qThroneUpdater$([[ "$GOOS" == "windows" ]] && echo ".exe")" .
+    CGO_ENABLED=0 $GOCMD build -trimpath -ldflags="-s -w" -o "$DEST/RawlineUpdater$([[ "$GOOS" == "windows" ]] && echo ".exe")" .
     popd
 fi
 
@@ -45,7 +45,7 @@ CGO_ENABLED=0 $GOCMD build -trimpath -ldflags="-s -w" -o "$DEST/qwdtt$([[ "$GOOS
 cp LICENSE "$DEST/qwdtt-LICENSE"
 popd
 
-#### SSTP: the same userspace PPP/TLS/SOCKS client as qThroneMobile ####
+#### SSTP: the same userspace PPP/TLS/SOCKS client as RawlineMobile ####
 pushd sstp
 CGO_ENABLED=0 $GOCMD build -mod=readonly -trimpath -ldflags="-s -w" -o "$DEST/sstp-client$([[ "$GOOS" == "windows" ]] && echo ".exe")" .
 cp LICENSE "$DEST/SSTP-LICENSE"
@@ -78,5 +78,5 @@ if [[ "$GOOS" == "darwin" ]]; then
   done
 fi
 VERSION_SINGBOX=$(go list -m -f '{{.Version}}' github.com/sagernet/sing-box)
-$GOCMD build -v -o "$DEST/qThroneCore$([[ "$GOOS" == "windows" ]] && echo ".exe")" -trimpath -ldflags "-w -s -X 'github.com/sagernet/sing-box/constant.Version=${VERSION_SINGBOX}' -X 'internal/godebug.defaultGODEBUG=multipathtcp=0' -checklinkname=0" -tags "$TAGS"
+$GOCMD build -v -o "$DEST/RawlineCore$([[ "$GOOS" == "windows" ]] && echo ".exe")" -trimpath -ldflags "-w -s -X 'github.com/sagernet/sing-box/constant.Version=${VERSION_SINGBOX}' -X 'internal/godebug.defaultGODEBUG=multipathtcp=0' -checklinkname=0" -tags "$TAGS"
 popd

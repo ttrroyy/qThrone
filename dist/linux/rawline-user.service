@@ -1,0 +1,26 @@
+# systemd user unit: Rawline headless in your own session, sharing the desktop app's data.
+# Install:
+#   install -Dm644 rawline-user.service ~/.config/systemd/user/rawline.service
+#   systemctl --user daemon-reload && systemctl --user enable --now rawline
+#   loginctl enable-linger "$USER"    # start at boot, without a login
+# Quit the desktop app first; while the unit runs, the app reports that Rawline is running in the background.
+# Tun needs a setuid-root core: the desktop app sets it up when it first asks for privileges, and
+# Rawline --check prints the commands.
+[Unit]
+Description=Rawline (headless, user)
+Documentation=https://throneproj.github.io/headless/
+After=network-online.target
+
+[Service]
+Type=notify
+ExecStart=/opt/Rawline/Rawline --headless --data-dir=%h/.config/Rawline
+Restart=on-failure
+RestartSec=3
+RestartForceExitStatus=75
+RestartPreventExitStatus=3 64 78
+KillMode=mixed
+TimeoutStopSec=45
+WatchdogSec=60
+
+[Install]
+WantedBy=default.target

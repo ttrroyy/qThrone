@@ -1,17 +1,17 @@
 # Maintainer: Mahdi Sarikhani <mahdisarikhani@outlook.com>
 # Maintainer: parhelia
 
-pkgname=throne
+pkgname=rawline
 pkgver=
 pkgrel=
 pkgdesc="Cross-platform GUI proxy utility (Empowered by sing-box)"
 arch=('i686' 'pentium4' 'x86_64' 'armv7h' 'aarch64' 'loongarch64' 'riscv64')
 url="https://throneproj.github.io"
 license=('GPL-3.0-or-later')
-conflicts=(throne-bin throne-git throne-sysqt-bin)
+conflicts=(rawline-bin rawline-git rawline-sysqt-bin)
 depends=('glibc' 'qt6-base')
 makedepends=('cmake' 'gendesk' 'git' 'go' 'lld' 'protobuf' 'qt6-tools' 'vulkan-headers')
-source=("${pkgname}-${pkgver}.tar.gz::https://github.com/throneproj/Throne/archive/${pkgver}.tar.gz"
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/throneproj/Rawline/archive/${pkgver}.tar.gz"
         "${pkgname}.sh"
         "git+https://github.com/throneproj/routeprofiles.git#branch=rule-set")
 sha256sums=('0b01f134a82a888cf667e4a04e96ba287374a3008d5d507732ba572c56e5d26f'
@@ -64,10 +64,10 @@ build() {
 }
 
 package() {
-    install -Dm755 build/Throne{,Core} -t "${pkgdir}/usr/lib/${pkgname}"
+    install -Dm755 build/Rawline{,Core} -t "${pkgdir}/usr/lib/${pkgname}"
     install -Dm755 "${pkgname}.sh" "${pkgdir}/usr/bin/${pkgname}"
     install -Dm644 "${pkgname}.desktop" -t "${pkgdir}/usr/share/applications"
 
     cd "${pkgname^}-${pkgver}"
-    install -Dm644 res/public/Throne.png "${pkgdir}/usr/share/pixmaps/${pkgname}.png"
+    install -Dm644 res/public/Rawline.png "${pkgdir}/usr/share/pixmaps/${pkgname}.png"
 }

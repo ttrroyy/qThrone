@@ -10835,12 +10835,12 @@ Direct: %2</source>
 
 Windows then ignores the adapter binding that keeps Rawline&apos;s own connections out of the Tun, so they loop back into it and fail.
 
-To fix this, share the hotspot from the throne-tun adapter instead of &quot;%1&quot; (Settings &gt; Mobile hotspot &gt; Share my internet connection from), or turn the hotspot off while using Tun mode.</source>
+To fix this, share the hotspot from the rawline-tun adapter instead of &quot;%1&quot; (Settings &gt; Mobile hotspot &gt; Share my internet connection from), or turn the hotspot off while using Tun mode.</source>
         <translation>IPv4 转发在网络适配器 &quot;%1&quot; 上开启，这通常是因为“移动热点”或“Internet 连接共享”功能共享它。
 
 然后，导致 Windows 忽略旨在阻止 Rawline 自身的连接进入 Tun 模式的适配器绑定，从而使流量回环到其本身而导致连接失败。
 
-要修复这个问题，从 throne-tun 适配器而不是 &quot;%1&quot; 中共享热点 (设置&gt; 移动热点 &gt; 共享我的互联网连接来自)，或者在运行 Tun 模式时关闭热点。</translation>
+要修复这个问题，从 rawline-tun 适配器而不是 &quot;%1&quot; 中共享热点 (设置&gt; 移动热点 &gt; 共享我的互联网连接来自)，或者在运行 Tun 模式时关闭热点。</translation>
     </message>
     <message>
         <location filename="Rawline-1.3.1/src/sys/Process.cpp" line="84"/>
@@ -12238,15 +12238,15 @@ Remove that endpoint from this routing profile as well?</source>
         <translation>Rawline 正在后台运行</translation>
     </message>
     <message>
-        <source>A background Rawline (PID %1) is running on this computer (data directory: %2). Tun mode is unavailable here while it runs; stop it or use thronectl.</source>
-        <translation>此计算机上正在运行后台 Rawline（PID %1，数据目录：%2）。它运行期间此处无法使用 Tun 模式；请停止它或使用 thronectl。</translation>
+        <source>A background Rawline (PID %1) is running on this computer (data directory: %2). Tun mode is unavailable here while it runs; stop it or use rawlinectl.</source>
+        <translation>此计算机上正在运行后台 Rawline（PID %1，数据目录：%2）。它运行期间此处无法使用 Tun 模式；请停止它或使用 rawlinectl。</translation>
     </message>
 </context>
 <context>
     <name>Engine::ConnectionManager</name>
     <message>
-        <source>A background Rawline (PID %1) owns Tun on this computer; stop it or use thronectl.</source>
-        <translation>此计算机上的 Tun 由后台 Rawline（PID %1）占用；请停止它或使用 thronectl。</translation>
+        <source>A background Rawline (PID %1) owns Tun on this computer; stop it or use rawlinectl.</source>
+        <translation>此计算机上的 Tun 由后台 Rawline（PID %1）占用；请停止它或使用 rawlinectl。</translation>
     </message>
 </context>
 </TS>

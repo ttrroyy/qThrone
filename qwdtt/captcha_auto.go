@@ -21,26 +21,26 @@ var errCaptchaSlider = errors.New("webview captcha failed: slider requires the m
 // captchaIntercept reads VK's captchaNotRobot.check answers inside the page and
 // notices VK's own close cross, as the original window does.
 const captchaIntercept = `(() => {
-	if (window.__qthroneCaptchaHook) return; window.__qthroneCaptchaHook = true;
+	if (window.__rawlineCaptchaHook) return; window.__rawlineCaptchaHook = true;
 	const receive = text => { try {
 		const data = JSON.parse(text);
 		const token = data.response && data.response.success_token;
-		if (typeof token === 'string' && token.length > 0) { window.__qthroneCaptchaToken = token; return; }
-		if (data.response && data.response.status) window.__qthroneCaptchaStatus = String(data.response.status);
-		if (data.response && data.response.show_captcha_type === 'slider') window.__qthroneCaptchaFailure = 'slider';
-		else if (data.error) window.__qthroneCaptchaFailure = 'error';
+		if (typeof token === 'string' && token.length > 0) { window.__rawlineCaptchaToken = token; return; }
+		if (data.response && data.response.status) window.__rawlineCaptchaStatus = String(data.response.status);
+		if (data.response && data.response.show_captcha_type === 'slider') window.__rawlineCaptchaFailure = 'slider';
+		else if (data.error) window.__rawlineCaptchaFailure = 'error';
 	} catch (e) {} };
 	const isCheck = u => String(u || '').includes('captchaNotRobot.check');
 	const fetchOriginal = window.fetch;
-	window.fetch = async function(...args) { const input = args[0]; if (isCheck(typeof input === 'string' ? input : (input && input.url))) window.__qthroneCheckSent = true; const response = await fetchOriginal.apply(this, args); if (response.url.includes('captchaNotRobot.check')) response.clone().text().then(receive); return response; };
+	window.fetch = async function(...args) { const input = args[0]; if (isCheck(typeof input === 'string' ? input : (input && input.url))) window.__rawlineCheckSent = true; const response = await fetchOriginal.apply(this, args); if (response.url.includes('captchaNotRobot.check')) response.clone().text().then(receive); return response; };
 	const openOriginal = XMLHttpRequest.prototype.open;
-	XMLHttpRequest.prototype.open = function(method, url, ...rest) { this.__qthroneUrl = String(url || ''); return openOriginal.call(this, method, url, ...rest); };
+	XMLHttpRequest.prototype.open = function(method, url, ...rest) { this.__rawlineUrl = String(url || ''); return openOriginal.call(this, method, url, ...rest); };
 	const sendOriginal = XMLHttpRequest.prototype.send;
-	XMLHttpRequest.prototype.send = function(...args) { if (isCheck(this.__qthroneUrl)) window.__qthroneCheckSent = true; this.addEventListener('load', () => { if (this.responseURL.includes('captchaNotRobot.check') && (!this.responseType || this.responseType === 'text')) receive(this.responseText); }); return sendOriginal.apply(this, args); };
-	document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.vkc__ModalCardBase-module__dismiss')) window.__qthroneCaptchaDismissed = true; }, true);
+	XMLHttpRequest.prototype.send = function(...args) { if (isCheck(this.__rawlineUrl)) window.__rawlineCheckSent = true; this.addEventListener('load', () => { if (this.responseURL.includes('captchaNotRobot.check') && (!this.responseType || this.responseType === 'text')) receive(this.responseText); }); return sendOriginal.apply(this, args); };
+	document.addEventListener('click', e => { if (e.target.closest && e.target.closest('.vkc__ModalCardBase-module__dismiss')) window.__rawlineCaptchaDismissed = true; }, true);
 })();`
 
-const captchaState = `JSON.stringify({token: window.__qthroneCaptchaToken || null, failure: window.__qthroneCaptchaFailure || null, dismissed: !!window.__qthroneCaptchaDismissed, checkSent: !!window.__qthroneCheckSent, status: window.__qthroneCaptchaStatus || ''})`
+const captchaState = `JSON.stringify({token: window.__rawlineCaptchaToken || null, failure: window.__rawlineCaptchaFailure || null, dismissed: !!window.__rawlineCaptchaDismissed, checkSent: !!window.__rawlineCheckSent, status: window.__rawlineCaptchaStatus || ''})`
 
 // captchaCheckbox answers "manual" for a slider or kaleidoscope, else the checkbox label as [left, top, width, height].
 const captchaCheckbox = `(() => {

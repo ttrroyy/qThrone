@@ -13,7 +13,7 @@ class QObject;
 
 // The Rawline API of a headless process: the overlay from flags/env, its keys, the bind and its status.
 namespace Engine::HeadlessApi {
-    // --api-listen/--api-key-file/--api-admin-lan/--api-allow over THRONE_API_LISTEN/_KEY_FILE/_ADMIN_LAN/_ALLOW; flags win.
+    // --api-listen/--api-key-file/--api-admin-lan/--api-allow over RAWLINE_API_LISTEN/_KEY_FILE/_ADMIN_LAN/_ALLOW; flags win.
     // Bools 1|true|yes|on / 0|false|no|off; paths absolute against launchCwd. 0, or ExitCode::Usage with *error.
     int ParseOverlay(const QCommandLineParser &parser, const QProcessEnvironment &env, const QDir &launchCwd,
                      RemoteApi::Overlay *out, QString *error);

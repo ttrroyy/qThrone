@@ -48,14 +48,14 @@ namespace Engine::HeadlessInstance {
         // not ours alone; without create nothing is made, and a missing dir is fine (nothing listens in it).
         QString headlessInstancePrivateDir(bool create, QString *why) {
             const auto euid = ::geteuid();
-            QByteArray dir = QByteArrayLiteral("/tmp/throne-") + QByteArray::number(qulonglong(euid));
+            QByteArray dir = QByteArrayLiteral("/tmp/rawline-") + QByteArray::number(qulonglong(euid));
             if (euid == 0) {
                 // Under a root-only parent: no user can pre-create it.
 #ifdef Q_OS_MACOS
-                dir = QByteArrayLiteral("/var/run/throne");
+                dir = QByteArrayLiteral("/var/run/rawline");
 #else
                 struct stat run{};
-                dir = ::stat("/run", &run) == 0 && S_ISDIR(run.st_mode) ? QByteArrayLiteral("/run/throne") : QByteArrayLiteral("/var/run/throne");
+                dir = ::stat("/run", &run) == 0 && S_ISDIR(run.st_mode) ? QByteArrayLiteral("/run/rawline") : QByteArrayLiteral("/var/run/rawline");
 #endif
             }
             struct stat st{};
@@ -116,7 +116,7 @@ namespace Engine::HeadlessInstance {
         QString headlessInstanceLinkLabel(const QString &line) {
             const QUrl url(line);
             const auto scheme = url.scheme().toLower();
-            if ((scheme == QLatin1String("rawline") || scheme == QLatin1String("throne")) && !url.host().isEmpty()) return QStringLiteral("rawline://") + headlessInstancePrintable(url.host());
+            if ((scheme == QLatin1String("rawline") || scheme == QLatin1String("rawline")) && !url.host().isEmpty()) return QStringLiteral("rawline://") + headlessInstancePrintable(url.host());
             return scheme + QStringLiteral("://");
         }
 
@@ -127,7 +127,7 @@ namespace Engine::HeadlessInstance {
                 return QStringLiteral("HEADLESS pid=%1 version=%2").arg(QCoreApplication::applicationPid()).arg(QStringLiteral(NKR_VERSION)).toUtf8();
             }
             if (line.startsWith(QLatin1String("rawline://"), Qt::CaseInsensitive) || line.startsWith(QLatin1String("throne://"), Qt::CaseInsensitive) || line.startsWith(QLatin1String("file://"), Qt::CaseInsensitive)) {
-                LOG_WARN(QStringLiteral("[Instance] Refused a %1 link from another launch: headless Rawline takes links and files through thronectl.")
+                LOG_WARN(QStringLiteral("[Instance] Refused a %1 link from another launch: headless Rawline takes links and files through rawlinectl.")
                              .arg(headlessInstanceLinkLabel(line)));
                 return QByteArrayLiteral("REJECT headless");
             }
@@ -297,7 +297,7 @@ namespace Engine::HeadlessInstance {
     QString SocketName(const QDir &wd, bool create) {
 #ifdef Q_OS_WIN
         Q_UNUSED(create)
-        return QStringLiteral("qthrone-headless-") + headlessInstanceHash(wd);
+        return QStringLiteral("rawline-headless-") + headlessInstanceHash(wd);
 #else
         // sun_path is 104 bytes on macOS and 108 on Linux.
         const auto path = QDir(wd.absoluteFilePath(QStringLiteral("config"))).absoluteFilePath(QStringLiteral(".instance"));
@@ -431,7 +431,7 @@ namespace Engine::HeadlessInstance {
                                                 : QStringLiteral("No headless Rawline answered on %1; using the flags, the environment and %2.")
                                                       .arg(headlessInstanceWhere(wd), defaultKeyFile));
             if (overlay.enabled.has_value() && !*overlay.enabled) {
-                headlessInstanceNote(QStringLiteral("The Rawline API is turned off (--api-listen or THRONE_API_LISTEN)."));
+                headlessInstanceNote(QStringLiteral("The Rawline API is turned off (--api-listen or RAWLINE_API_LISTEN)."));
                 return ExitCode::NoInstance;
             }
             address = overlay.port.has_value() ? headlessInstanceConnectAddress(overlay.address.isNull() ? QHostAddress(QHostAddress::LocalHost) : overlay.address, *overlay.port)
@@ -440,14 +440,14 @@ namespace Engine::HeadlessInstance {
             else if (QFileInfo::exists(defaultKeyFile)) keyFile = defaultKeyFile;
         }
 
-        // Exported: eval of a bare assignment leaves it out of thronectl's environment.
-        headlessInstancePrint(stdout, (QStringLiteral("export THRONE_ADDR=") + headlessInstanceShellValue(address)).toLocal8Bit());
+        // Exported: eval of a bare assignment leaves it out of rawlinectl's environment.
+        headlessInstancePrint(stdout, (QStringLiteral("export RAWLINE_ADDR=") + headlessInstanceShellValue(address)).toLocal8Bit());
         if (keyFile.isEmpty()) {
             headlessInstanceNote(QStringLiteral("The API key is not in a file (it comes from the settings, or none was created yet); "
-                                                "give thronectl THRONE_KEY or --key-file."));
+                                                "give rawlinectl RAWLINE_KEY or --key-file."));
             return ExitCode::NoInstance;
         }
-        headlessInstancePrint(stdout, (QStringLiteral("export THRONE_KEY_FILE=") + headlessInstanceShellValue(keyFile)).toLocal8Bit());
+        headlessInstancePrint(stdout, (QStringLiteral("export RAWLINE_KEY_FILE=") + headlessInstanceShellValue(keyFile)).toLocal8Bit());
         return ExitCode::Ok;
     }
 } // namespace Engine::HeadlessInstance

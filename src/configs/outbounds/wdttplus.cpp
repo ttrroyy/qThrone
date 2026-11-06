@@ -53,7 +53,7 @@ QString wdttplus::DeviceInfo() {
     const QLocale locale;
     const QJsonObject info{{"name", QSysInfo::prettyProductName()}, {"manufacturer", ""}, {"brand", ""},
         {"model", QSysInfo::prettyProductName()}, {"os", QSysInfo::productType()}, {"os_version", QSysInfo::productVersion()},
-        {"abi", QSysInfo::currentCpuArchitecture()}, {"app_version", "qThrone"}, {"locale", locale.bcp47Name()},
+        {"abi", QSysInfo::currentCpuArchitecture()}, {"app_version", "Rawline"}, {"locale", locale.bcp47Name()},
         {"country", QLocale::territoryToCode(locale.territory())}, {"time_zone", QString::fromUtf8(QTimeZone::systemTimeZoneId())}};
     return QString::fromUtf8(QJsonDocument(info).toJson(QJsonDocument::Compact));
 }

@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/netip"
 	"os"
-	"qThroneCore/internal/obfs"
+	"RawlineCore/internal/obfs"
 
-	"qThroneCore/internal/xray"
+	"RawlineCore/internal/xray"
 
 	box "github.com/sagernet/sing-box"
 	"github.com/sagernet/sing-box/adapter"

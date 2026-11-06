@@ -124,7 +124,7 @@ func runCSQTTBridge(path string) error {
 	// Legacy owns sessions by server/password, including profiles with different local device IDs.
 	peerHost, _, _ := net.SplitHostPort(c.Peer)
 	key := sha256.Sum256([]byte(strings.ToLower(peerHost) + "\x00" + c.Password))
-	command.Dir = filepath.Join(cache, "qThrone", "csqtt", fmt.Sprintf("%x", key[:16]))
+	command.Dir = filepath.Join(cache, "Rawline", "csqtt", fmt.Sprintf("%x", key[:16]))
 	if err := os.MkdirAll(command.Dir, 0700); err != nil {
 		return err
 	}

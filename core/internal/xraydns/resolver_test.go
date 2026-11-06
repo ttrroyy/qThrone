@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"qThroneCore/internal/boxbox"
-	"qThroneCore/internal/boxmain"
+	"RawlineCore/internal/boxbox"
+	"RawlineCore/internal/boxmain"
 
 	C "github.com/sagernet/sing-box/constant"
 	dnsfeature "github.com/xtls/xray-core/features/dns"

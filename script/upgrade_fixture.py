@@ -7,13 +7,13 @@ action, directory = sys.argv[1:3]
 root = Path(directory)
 if action == 'prepare':
     (root / 'config').mkdir(exist_ok=True)
-    connection = sqlite3.connect(root / 'config/throne.db')
+    connection = sqlite3.connect(root / 'config/rawline.db')
     connection.execute('CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT NOT NULL)')
     connection.execute("INSERT OR REPLACE INTO settings(key,value) VALUES('disable_tray','true')")
     connection.commit()
     connection.close()
     raise SystemExit(0)
-connection = sqlite3.connect(root / 'config/throne.db')
+connection = sqlite3.connect(root / 'config/rawline.db')
 if action == 'seed':
     connection.execute("INSERT INTO groups(id,name,url,skip_auto_update,profiles_json) VALUES(901,'Upgrade subscription','https://example.invalid/subscription',1,'[901,902]')")
     for profile_id, mode in [(901, 'raw'), (902, 'wg')]:
@@ -35,7 +35,7 @@ snapshot = {
     'profiles': connection.execute('SELECT id,type,name,gid,outbound_json FROM profiles WHERE id IN (901,902) ORDER BY id').fetchall(),
     'group': connection.execute('SELECT id,name,url,skip_auto_update,profiles_json FROM groups WHERE id=901').fetchall(),
     'settings': connection.execute("SELECT key,value FROM settings WHERE key IN ('test_url','allow_beta_update') ORDER BY key").fetchall(),
-    # Named columns: an upgrade may add new ones (Throne's per-profile DNS), which is not a change of what was stored.
+    # Named columns: an upgrade may add new ones (Rawline's per-profile DNS), which is not a change of what was stored.
     'routes': connection.execute('SELECT id,name,default_outbound_id FROM route_profiles WHERE id=901').fetchall(),
 }
 snapshot = json.loads(json.dumps(snapshot))

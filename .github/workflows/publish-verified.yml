@@ -1,4 +1,4 @@
-name: Publish verified qThrone release from stable
+name: Publish verified Rawline release from stable
 on:
   workflow_dispatch:
     inputs:
@@ -38,8 +38,8 @@ jobs:
         run: |
           set -euo pipefail
           VERSION=$(python3 -c 'import json,re; v=json.load(open("version.json"))["version"]; assert re.fullmatch(r"\d+\.\d+(?:\.\d+)?",v); print(v)')
-          test -f "deployment/qThrone-$VERSION-windows64.zip"
-          test -f "deployment/qThrone-$VERSION-macos-arm64.zip"
+          test -f "deployment/Rawline-$VERSION-windows64.zip"
+          test -f "deployment/Rawline-$VERSION-macos-arm64.zip"
           python3 script/release_notes.py > "$RUNNER_TEMP/release-notes.md"
           TAG="v$VERSION"
           retry() {

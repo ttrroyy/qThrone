@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# CI smoke test of headless Throne on Linux: leg "a" as the runner user, leg "b" as root under systemd-run Type=notify.
-# Env: THRONE_DIR (default <repo>/deployment/linux-amd64), THRONECTL (leg a), SMOKE_WORK (default $RUNNER_TEMP/throne-smoke).
+# CI smoke test of headless Rawline on Linux: leg "a" as the runner user, leg "b" as root under systemd-run Type=notify.
+# Env: RAWLINE_DIR (default <repo>/deployment/linux-amd64), RAWLINECTL (leg a), SMOKE_WORK (default $RUNNER_TEMP/rawline-smoke).
 set -Eeuo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 LEG=${1:?usage: headless_smoke.sh a|b}
-THRONE_DIR=${THRONE_DIR:-$ROOT/deployment/linux-amd64}
-THRONE="$THRONE_DIR/Throne"
-THRONECTL=${THRONECTL:-thronectl}
-WORK=${SMOKE_WORK:-${RUNNER_TEMP:-/tmp}/throne-smoke}
+RAWLINE_DIR=${RAWLINE_DIR:-$ROOT/deployment/linux-amd64}
+RAWLINE="$RAWLINE_DIR/Rawline"
+RAWLINECTL=${RAWLINECTL:-rawlinectl}
+WORK=${SMOKE_WORK:-${RUNNER_TEMP:-/tmp}/rawline-smoke}
 
 # A widget or dialog creeping into headless must fail here, not render offscreen.
 unset DISPLAY WAYLAND_DISPLAY QT_QPA_PLATFORM
@@ -19,14 +19,14 @@ SOCKS_PORT=1080
 FIXTURE_URL="http://fixture.test:$HTTP_PORT/"
 FIXTURE_CONNECT="^CONNECT fixture\\.test:$HTTP_PORT -> 127\\.0\\.0\\.1:$HTTP_PORT ok\$"
 
-B_UNIT="throne-smoke-${GITHUB_RUN_ID:-$$}-${GITHUB_RUN_ATTEMPT:-1}"
-B_DATA=/var/lib/throne-smoke
-B_INSTALL=/opt/throne-smoke
+B_UNIT="rawline-smoke-${GITHUB_RUN_ID:-$$}-${GITHUB_RUN_ATTEMPT:-1}"
+B_DATA=/var/lib/rawline-smoke
+B_INSTALL=/opt/rawline-smoke
 B_API_LISTEN=127.0.0.1:19096
 B_RECORD="$WORK/b-exits.txt"
 
 DATA=
-THRONE_PID=
+RAWLINE_PID=
 FIXTURE_PID=
 B_STARTED=
 
@@ -74,32 +74,32 @@ show_file() {
     fi
 }
 
-no_core() { ! pgrep -x qThroneCore >/dev/null; }
+no_core() { ! pgrep -x RawlineCore >/dev/null; }
 
 assert_no_ipc_sockets() {
     local dir
     for dir in /tmp "${TMPDIR:-/tmp}"; do
-        if compgen -G "$dir/throneIPC-*" >/dev/null; then
-            ls -l "$dir"/throneIPC-* >&2
+        if compgen -G "$dir/rawlineIPC-*" >/dev/null; then
+            ls -l "$dir"/rawlineIPC-* >&2
             fail "core IPC sockets are left in $dir"
         fi
     done
 }
 
 check_binaries() {
-    [ -x "$THRONE" ] || fail "no Throne at $THRONE"
-    [ -x "$THRONE_DIR/qThroneCore" ] || fail "no qThroneCore in $THRONE_DIR"
+    [ -x "$RAWLINE" ] || fail "no Rawline at $RAWLINE"
+    [ -x "$RAWLINE_DIR/RawlineCore" ] || fail "no RawlineCore in $RAWLINE_DIR"
     local missing
-    missing=$(ldd "$THRONE" | grep 'not found' || true)
+    missing=$(ldd "$RAWLINE" | grep 'not found' || true)
     if [ -n "$missing" ]; then
         echo "$missing" >&2
-        fail "Throne cannot load its shared libraries on this runner (lines above)"
+        fail "Rawline cannot load its shared libraries on this runner (lines above)"
     fi
 }
 
 # ---------------------------------------------------------------------------------------------------- leg a: runner user
 
-ctl() { "$THRONECTL" "$@"; }
+ctl() { "$RAWLINECTL" "$@"; }
 
 connects() { grep -cE "$FIXTURE_CONNECT" "$WORK/fixtures.log" || true; }
 
@@ -130,86 +130,86 @@ stop_fixtures() {
 
 run_check() {
     local rc=0
-    "$THRONE" --headless --check --data-dir "$DATA" --api-listen "$API_LISTEN" >"$1" 2>&1 || rc=$?
+    "$RAWLINE" --headless --check --data-dir "$DATA" --api-listen "$API_LISTEN" >"$1" 2>&1 || rc=$?
     cat "$1"
-    expect_eq "Throne --headless --check exit status" "$rc" 0
+    expect_eq "Rawline --headless --check exit status" "$rc" 0
 }
 
-start_throne() {
+start_rawline() {
     local logfile=$1
     shift
-    "$THRONE" --headless --data-dir "$DATA" --api-listen "$API_LISTEN" --log-format plain "$@" >"$logfile" 2>&1 &
-    THRONE_PID=$!
-    echo "Throne PID $THRONE_PID, log $logfile"
+    "$RAWLINE" --headless --data-dir "$DATA" --api-listen "$API_LISTEN" --log-format plain "$@" >"$logfile" 2>&1 &
+    RAWLINE_PID=$!
+    echo "Rawline PID $RAWLINE_PID, log $logfile"
 }
 
 healthy() {
-    if ! kill -0 "$THRONE_PID" 2>/dev/null; then
+    if ! kill -0 "$RAWLINE_PID" 2>/dev/null; then
         local rc=0
-        wait "$THRONE_PID" || rc=$?
-        THRONE_PID=
-        fail "Throne exited with status $rc before it was healthy"
+        wait "$RAWLINE_PID" || rc=$?
+        RAWLINE_PID=
+        fail "Rawline exited with status $rc before it was healthy"
     fi
-    "$THRONE" --health --data-dir "$DATA" >/dev/null 2>&1
+    "$RAWLINE" --health --data-dir "$DATA" >/dev/null 2>&1
 }
 
 health_json() {
     local out
-    out=$("$THRONE" --health --data-dir "$DATA") || fail "Throne --health failed: $out"
+    out=$("$RAWLINE" --health --data-dir "$DATA") || fail "Rawline --health failed: $out"
     echo "$out"
 }
 
-stop_throne() {
+stop_rawline() {
     local deadline=$((SECONDS + 45)) rc=0
-    if ! kill -TERM "$THRONE_PID" 2>/dev/null; then
-        wait "$THRONE_PID" || rc=$?
-        THRONE_PID=
-        fail "Throne had already exited with status $rc before SIGTERM"
+    if ! kill -TERM "$RAWLINE_PID" 2>/dev/null; then
+        wait "$RAWLINE_PID" || rc=$?
+        RAWLINE_PID=
+        fail "Rawline had already exited with status $rc before SIGTERM"
     fi
-    while kill -0 "$THRONE_PID" 2>/dev/null; do
-        ((SECONDS < deadline)) || fail "Throne did not exit within 45 s of SIGTERM"
+    while kill -0 "$RAWLINE_PID" 2>/dev/null; do
+        ((SECONDS < deadline)) || fail "Rawline did not exit within 45 s of SIGTERM"
         sleep 0.5
     done
-    wait "$THRONE_PID" || rc=$?
-    THRONE_PID=
+    wait "$RAWLINE_PID" || rc=$?
+    RAWLINE_PID=
     expect_eq "exit status after SIGTERM" "$rc" 0
 }
 
 assert_clean_exit() {
-    local runlog=$1 filelog="$DATA/config/logs/throne.log"
+    local runlog=$1 filelog="$DATA/config/logs/rawline.log"
     [ -f "$filelog" ] || fail "no $filelog"
     if grep -nE 'HEADLESS-(DIALOG|WIDGET)|POLICY-UNBOUND' "$runlog" "$filelog"; then
         fail "headless reached a dialog, a widget or an unbound policy call (lines above)"
     fi
     grep -qF '===== Rawline session end (clean) =====' "$filelog" || fail "$filelog has no clean session end"
     [ ! -e "$DATA/config/logs/running.marker" ] || fail "running.marker was left behind"
-    wait_for 5 "qThroneCore exiting" no_core
+    wait_for 5 "RawlineCore exiting" no_core
     assert_no_ipc_sockets
 }
 
 leg_a() {
-    command -v "$THRONECTL" >/dev/null || fail "no thronectl ($THRONECTL)"
+    command -v "$RAWLINECTL" >/dev/null || fail "no rawlinectl ($RAWLINECTL)"
     DATA="$WORK/a-data"
     rm -rf "$DATA"
     start_fixtures
 
-    say "Throne --headless --check before the first start"
+    say "Rawline --headless --check before the first start"
     run_check "$WORK/a-check-before.txt"
 
-    say "Starting Throne as $(id -un)"
-    start_throne "$WORK/a-run.log"
-    wait_for 60 "Throne reporting healthy" healthy
+    say "Starting Rawline as $(id -un)"
+    start_rawline "$WORK/a-run.log"
+    wait_for 60 "Rawline reporting healthy" healthy
 
-    say "Throne --headless --check while it runs"
+    say "Rawline --headless --check while it runs"
     run_check "$WORK/a-check-running.txt"
 
-    say "Connecting thronectl"
+    say "Connecting rawlinectl"
     local out id address port before code latency
-    out=$("$THRONE" --print-connection --data-dir "$DATA") || fail "Throne --print-connection failed"
+    out=$("$RAWLINE" --print-connection --data-dir "$DATA") || fail "Rawline --print-connection failed"
     echo "$out"
     eval "$out"
-    expect_eq THRONE_ADDR "${THRONE_ADDR:-}" "$API_LISTEN"
-    [ -r "${THRONE_KEY_FILE:-}" ] || fail "THRONE_KEY_FILE '${THRONE_KEY_FILE:-}' is not a readable file"
+    expect_eq RAWLINE_ADDR "${RAWLINE_ADDR:-}" "$API_LISTEN"
+    [ -r "${RAWLINE_KEY_FILE:-}" ] || fail "RAWLINE_KEY_FILE '${RAWLINE_KEY_FILE:-}' is not a readable file"
 
     ctl settings set "test_url=$FIXTURE_URL"
     out=$(printf 'socks5://127.0.0.1:%s#smoke\n' "$SOCKS_PORT" | ctl --json import -)
@@ -217,7 +217,7 @@ leg_a() {
     expect_eq "imported profiles" "$(jget imported <<<"$out")" 1
     id=$(jget profile_ids.0 <<<"$out")
 
-    say "thronectl connect $id"
+    say "rawlinectl connect $id"
     ctl --timeout 90s connect "$id"
     out=$(ctl --json status)
     echo "$out"
@@ -235,42 +235,42 @@ leg_a() {
     say "curl through the mixed inbound $address:$port"
     before=$(connects)
     code=$(curl -sS --max-time 20 -x "socks5h://$address:$port" -o /dev/null -w '%{http_code}' "$FIXTURE_URL") ||
-        fail "curl through Throne's inbound failed"
-    expect_eq "HTTP status through Throne" "$code" 204
-    (($(connects) > before)) || fail "the request never reached the SOCKS5 fixture, so Throne did not proxy it"
+        fail "curl through Rawline's inbound failed"
+    expect_eq "HTTP status through Rawline" "$code" 204
+    (($(connects) > before)) || fail "the request never reached the SOCKS5 fixture, so Rawline did not proxy it"
 
-    say "thronectl test latency $id"
+    say "rawlinectl test latency $id"
     out=$(ctl --json --timeout 120s test latency "$id")
     echo "$out"
     expect_eq "latency test state" "$(jget state <<<"$out")" done
     latency=$(jget results.0.latency_ms <<<"$out")
     [[ $latency =~ ^[0-9]+$ ]] && ((latency > 0)) || fail "latency_ms is $latency, want > 0"
 
-    say "thronectl disconnect"
+    say "rawlinectl disconnect"
     ctl --timeout 60s disconnect
     out=$(ctl --json status)
     expect_eq state "$(jget state <<<"$out")" idle
 
-    say "Throne --health"
+    say "Rawline --health"
     out=$(health_json)
     echo "$out"
     expect_eq ok "$(jget ok <<<"$out")" true
     expect_eq headless_dialogs "$(jget headless_dialogs <<<"$out")" 0
 
     say "SIGTERM"
-    stop_throne
+    stop_rawline
     assert_clean_exit "$WORK/a-run.log"
 
     say "Restart with --no-resume"
-    start_throne "$WORK/a-run2.log" --no-resume
-    wait_for 60 "Throne reporting healthy after the restart" healthy
+    start_rawline "$WORK/a-run2.log" --no-resume
+    wait_for 60 "Rawline reporting healthy after the restart" healthy
     out=$(health_json)
     echo "$out"
     expect_eq previous_crash "$(jget previous_crash <<<"$out")" false
-    if grep -n 'did not shut down cleanly' "$WORK/a-run2.log" "$DATA/config/logs/throne.log"; then
+    if grep -n 'did not shut down cleanly' "$WORK/a-run2.log" "$DATA/config/logs/rawline.log"; then
         fail "the restart reports an unclean previous session (lines above)"
     fi
-    stop_throne
+    stop_rawline
     assert_clean_exit "$WORK/a-run2.log"
     stop_fixtures
 }
@@ -283,16 +283,16 @@ dump_a() {
 }
 
 cleanup_a() {
-    if [ -n "$THRONE_PID" ] && kill -0 "$THRONE_PID" 2>/dev/null; then
-        kill -TERM "$THRONE_PID" 2>/dev/null
+    if [ -n "$RAWLINE_PID" ] && kill -0 "$RAWLINE_PID" 2>/dev/null; then
+        kill -TERM "$RAWLINE_PID" 2>/dev/null
         local i
         for i in $(seq 20); do
-            kill -0 "$THRONE_PID" 2>/dev/null || break
+            kill -0 "$RAWLINE_PID" 2>/dev/null || break
             sleep 0.5
         done
-        kill -KILL "$THRONE_PID" 2>/dev/null
+        kill -KILL "$RAWLINE_PID" 2>/dev/null
     fi
-    pkill -KILL -x -u "$(id -u)" qThroneCore 2>/dev/null
+    pkill -KILL -x -u "$(id -u)" RawlineCore 2>/dev/null
     stop_fixtures
 }
 
@@ -311,7 +311,7 @@ restarted() {
 
 b_health() {
     local out
-    out=$(sudo "$B_INSTALL/Throne" --health --data-dir="$B_DATA") || fail "Throne --health as root failed: $out"
+    out=$(sudo "$B_INSTALL/Rawline" --health --data-dir="$B_DATA") || fail "Rawline --health as root failed: $out"
     echo "$out"
     expect_eq ok "$(jget ok <<<"$out")" true
     expect_eq headless_dialogs "$(jget headless_dialogs <<<"$out")" 0
@@ -324,7 +324,7 @@ leg_b() {
     rm -f "$B_RECORD"
     # Root runs a root-owned copy, as from a package.
     sudo mkdir -p "$B_INSTALL"
-    sudo cp -a "$THRONE_DIR/." "$B_INSTALL/"
+    sudo cp -a "$RAWLINE_DIR/." "$B_INSTALL/"
     sudo chown -R root:root "$B_INSTALL"
     printf '#!/bin/sh\necho "$SERVICE_RESULT $EXIT_CODE $EXIT_STATUS" >> '\''%s'\''\n' "$B_RECORD" >"$WORK/b-record.sh"
 
@@ -336,8 +336,8 @@ leg_b() {
         -p RestartForceExitStatus=75 -p "RestartPreventExitStatus=3 64 78" \
         -p "ExecStopPost=/bin/sh $WORK/b-record.sh" \
         --setenv=HOME="$B_DATA" \
-        "$B_INSTALL/Throne" --headless --data-dir="$B_DATA" --api-listen="$B_API_LISTEN" ||
-        fail "systemd-run failed: Throne exited, or never sent READY=1 within TimeoutStartSec"
+        "$B_INSTALL/Rawline" --headless --data-dir="$B_DATA" --api-listen="$B_API_LISTEN" ||
+        fail "systemd-run failed: Rawline exited, or never sent READY=1 within TimeoutStartSec"
 
     expect_eq ActiveState "$(prop ActiveState)" active
     expect_eq SubState "$(prop SubState)" running
@@ -381,10 +381,10 @@ leg_b() {
     if grep -niE 'watchdog timeout|did not shut down cleanly' "$WORK/b-journal.txt"; then
         fail "the watchdog fired, or a restart found an unclean previous session (lines above)"
     fi
-    sudo cat "$B_DATA/config/logs/throne.log" >"$WORK/b-throne.log"
-    grep -qF '===== Rawline session end (clean) =====' "$WORK/b-throne.log" || fail "throne.log has no clean session end"
+    sudo cat "$B_DATA/config/logs/rawline.log" >"$WORK/b-rawline.log"
+    grep -qF '===== Rawline session end (clean) =====' "$WORK/b-rawline.log" || fail "rawline.log has no clean session end"
     if sudo test -e "$B_DATA/config/logs/running.marker"; then fail "running.marker was left behind"; fi
-    wait_for 5 "qThroneCore exiting" no_core
+    wait_for 5 "RawlineCore exiting" no_core
     assert_no_ipc_sockets
 }
 

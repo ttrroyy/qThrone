@@ -7,10 +7,10 @@ import (
 	"runtime"
 	"time"
 
-	"qThroneCore/gen"
-	"qThroneCore/internal/boxmain"
-	"qThroneCore/internal/sysdns"
-	"qThroneCore/internal/xray"
+	"RawlineCore/gen"
+	"RawlineCore/internal/boxmain"
+	"RawlineCore/internal/sysdns"
+	"RawlineCore/internal/xray"
 
 	"github.com/sagernet/sing-box/option"
 	E "github.com/sagernet/sing/common/exceptions"

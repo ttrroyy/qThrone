@@ -13,7 +13,7 @@
 #include <QTimer>
 
 namespace {
-    constexpr auto REORDER_ROW_MIME_TYPE = "application/x-throne-row";
+    constexpr auto REORDER_ROW_MIME_TYPE = "application/x-rawline-row";
     constexpr int REORDER_INDICATOR_THICKNESS = 2;
     constexpr int REORDER_INDICATOR_INSET = 4;
 

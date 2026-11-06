@@ -1,4 +1,4 @@
-module qThroneCore
+module RawlineCore
 
 go 1.26.0
 

@@ -127,7 +127,7 @@ EditQWDTT::EditQWDTT(QWidget *parent) : QWidget(parent) {
 #endif
         executable = QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(executable);
         if (!QFileInfo(executable).isExecutable()) { MessageBoxWarning("qWDTT", "Клиент проверки qWDTT не найден."); return; }
-        hashCheckDirectory = std::make_unique<QTemporaryDir>(QDir::tempPath() + "/qthrone-hash-check-XXXXXX");
+        hashCheckDirectory = std::make_unique<QTemporaryDir>(QDir::tempPath() + "/rawline-hash-check-XXXXXX");
         QFile config(hashCheckDirectory->filePath("check.json"));
         if (!hashCheckDirectory->isValid() || !config.open(QIODevice::WriteOnly)) {
             MessageBoxWarning("qWDTT", "Не удалось создать файл проверки."); hashCheckDirectory.reset(); return;

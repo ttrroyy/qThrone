@@ -6,15 +6,15 @@ if [ ! -d openflux-source/.git ]; then
 fi
 test "$(git -C openflux-source rev-parse HEAD)" = "$revision"
 # The client runs through OpenFlux's own mobile package, as the original apps do.
-mkdir -p openflux-source/mobile/cmd/qthrone-openflux
-cp script/openflux/*.go openflux-source/mobile/cmd/qthrone-openflux/
+mkdir -p openflux-source/mobile/cmd/rawline-openflux
+cp script/openflux/*.go openflux-source/mobile/cmd/rawline-openflux/
 pushd openflux-source/mobile
 # The Yandex check opens in a private browser window, as qWDTT's VK captcha does.
 "$GOCMD" get github.com/chromedp/chromedp@v0.14.2
-CGO_ENABLED=0 "$GOCMD" build -trimpath -ldflags='-s -w -checklinkname=0' -o "$DEST/openflux$([[ "$GOOS" == windows ]] && echo '.exe')" ./cmd/qthrone-openflux
+CGO_ENABLED=0 "$GOCMD" build -trimpath -ldflags='-s -w -checklinkname=0' -o "$DEST/openflux$([[ "$GOOS" == windows ]] && echo '.exe')" ./cmd/rawline-openflux
 popd
 pushd openflux-source
 cp LICENSE "$DEST/OpenFlux-LICENSE"
-printf '%s\n' 'https://github.com/p1neappleXpress/OpenFlux' "Revision: $revision" 'Desktop integration: script/openflux in qThrone' > "$DEST/OpenFlux-SOURCE"
+printf '%s\n' 'https://github.com/p1neappleXpress/OpenFlux' "Revision: $revision" 'Desktop integration: script/openflux in Rawline' > "$DEST/OpenFlux-SOURCE"
 tar -czf "$DEST/openflux-source.tar.gz" --exclude=.git --exclude=.idea --exclude=ios-app --exclude=docker --exclude=.github .
 popd

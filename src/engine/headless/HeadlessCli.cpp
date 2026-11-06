@@ -49,12 +49,18 @@ namespace Engine::HeadlessCli {
             return true;
         }
 
+        // The data of a service set up under the program's earlier name moves with it, keeping its owner and permissions.
+        QString headlessCliAdoptEarlierRoot(const QString &now, const QString &before) {
+            if (!QFileInfo::exists(now) && QFileInfo::exists(before)) QFile::rename(before, now);
+            return now;
+        }
+
 #ifndef Q_OS_WIN
         QString headlessCliRootDefault() {
 #if defined(Q_OS_LINUX)
-            if (::geteuid() == 0) return QStringLiteral("/var/lib/throne");
+            if (::geteuid() == 0) return headlessCliAdoptEarlierRoot(QStringLiteral("/var/lib/rawline"), QStringLiteral("/var/lib/throne"));
 #elif defined(Q_OS_MACOS)
-            if (::geteuid() == 0) return QStringLiteral("/Library/Application Support/Throne");
+            if (::geteuid() == 0) return headlessCliAdoptEarlierRoot(QStringLiteral("/Library/Application Support/Rawline"), QStringLiteral("/Library/Application Support/Throne"));
 #endif
             return {};
         }
@@ -65,7 +71,7 @@ namespace Engine::HeadlessCli {
             return QString::fromLocal8Bit(std::strerror(error));
         }
 
-        // Every missing component is created 0700 at once, so no other user can slip a config/ or throne.db in first.
+        // Every missing component is created 0700 at once, so no other user can slip a config/ or rawline.db in first.
         bool headlessCliMakeDirs(const QString &path, QString *error) {
             QStringList missing;
             QString current = path;
@@ -182,7 +188,7 @@ namespace Engine::HeadlessCli {
             }
 #endif
             // A fresh random name, created exclusively: a planted link or file is never followed or truncated.
-            QTemporaryFile probe(QDir(path).absoluteFilePath(".throne-write-test-XXXXXX"));
+            QTemporaryFile probe(QDir(path).absoluteFilePath(".rawline-write-test-XXXXXX"));
             if (!probe.open()) {
                 *error = QString("%1 is not writable: %2").arg(QDir::toNativeSeparators(path), probe.errorString());
                 return false;
@@ -218,7 +224,7 @@ namespace Engine::HeadlessCli {
         // Before any option: the default compacted mode would split -appdata or -headless into single letters.
         parser.setSingleDashWordOptionMode(QCommandLineParser::ParseAsLongOptions);
         parser.setApplicationDescription(
-            "Rawline without a window, driven through the Rawline API (thronectl). One or two dashes both work for every option.");
+            "Rawline without a window, driven through the Rawline API (rawlinectl). One or two dashes both work for every option.");
         parser.addHelpOption();
         parser.addVersionOption();
 
@@ -228,59 +234,59 @@ namespace Engine::HeadlessCli {
 
 #ifdef Q_OS_WIN
         parser.addOption({{kDataDir, "appdata"},
-                          "Data directory (THRONE_DATA_DIR). Default: %ProgramData%\\Throne with --service or as LocalSystem, "
+                          "Data directory (RAWLINE_DATA_DIR). Default: %ProgramData%\\Rawline with --service or as LocalSystem, "
                           "else the per-user configuration directory (%LOCALAPPDATA%\\Rawline). A portable desktop install keeps "
                           "its data next to the program: pass --data-dir <program directory> to share it.",
                           "DIR"});
 #else
         parser.addOption({{kDataDir, "appdata"},
-                          "Data directory (THRONE_DATA_DIR). Default: $STATE_DIRECTORY, then /var/lib/throne as root on Linux "
-                          "(/Library/Application Support/Throne on macOS), else the per-user configuration directory (such as "
-                          "~/.config/Throne). A portable desktop install keeps its data next to the program: pass --data-dir "
+                          "Data directory (RAWLINE_DATA_DIR). Default: $STATE_DIRECTORY, then /var/lib/rawline as root on Linux "
+                          "(/Library/Application Support/Rawline on macOS), else the per-user configuration directory (such as "
+                          "~/.config/Rawline). A portable desktop install keeps its data next to the program: pass --data-dir "
                           "<program directory> to share it.",
                           "DIR"});
 #endif
         parser.addOption({kRestartMode,
                           "What a restart request (exit code 75) does: exit leaves it to the service manager, exec re-runs Rawline "
                           "in place (on Windows: starts a new Rawline process), auto picks exit under systemd, launchd, a container "
-                          "init or as a Windows service and exec otherwise (THRONE_RESTART_MODE). Default: auto.",
+                          "init or as a Windows service and exec otherwise (RAWLINE_RESTART_MODE). Default: auto.",
                           "MODE"});
-        parser.addOption({kNoResume, "Do not reconnect the last profile at start (THRONE_RESUME=0)."});
+        parser.addOption({kNoResume, "Do not reconnect the last profile at start (RAWLINE_RESUME=0)."});
         parser.addOption({kNoKillSwitch,
                           "Keep the kill switch off for this run even when the settings turn it on; profiles stay refused "
-                          "until kill_switch is turned off (THRONE_KILL_SWITCH=0)."});
+                          "until kill_switch is turned off (RAWLINE_KILL_SWITCH=0)."});
         parser.addOption({kLogFormat,
-                          "Log format on stderr: auto, journal (systemd priority prefixes) or plain (THRONE_LOG_FORMAT). "
+                          "Log format on stderr: auto, journal (systemd priority prefixes) or plain (RAWLINE_LOG_FORMAT). "
                           "Default: auto.",
                           "FORMAT"});
         parser.addOption({kApiListen,
-                          "Rawline API listener: PORT, IPv4:PORT, [IPv6]:PORT, *:PORT, or off (THRONE_API_LISTEN). Default: "
+                          "Rawline API listener: PORT, IPv4:PORT, [IPv6]:PORT, *:PORT, or off (RAWLINE_API_LISTEN). Default: "
                           "127.0.0.1:9095, unless the settings enable the API.",
                           "LISTEN"});
         parser.addOption({kApiKeyFile,
-                          "Rawline API key file; it must exist (create it with: thronectl keygen -o FILE) "
-                          "(THRONE_API_KEY_FILE). Default: <data dir>/config/api.key, created on the first start.",
+                          "Rawline API key file; it must exist (create it with: rawlinectl keygen -o FILE) "
+                          "(RAWLINE_API_KEY_FILE). Default: <data dir>/config/api.key, created on the first start.",
                           "FILE"});
         parser.addOption({kApiAdminLan,
                           "Accept management requests from the local network, not only from this device "
-                          "(THRONE_API_ADMIN_LAN=1)."});
+                          "(RAWLINE_API_ADMIN_LAN=1)."});
         parser.addOption({kApiAllow,
                           "Addresses or subnets allowed to use a non-local API listener, separated by commas or spaces "
-                          "(THRONE_API_ALLOW). An empty value, or one with only separators, exits 64; leave THRONE_API_ALLOW "
+                          "(RAWLINE_API_ALLOW). An empty value, or one with only separators, exits 64; leave RAWLINE_API_ALLOW "
                           "unset to allow every address.",
                           "LIST"});
         parser.addOption({kHealth,
                           "Ask the running instance for its health and print one JSON line; exit 0 healthy, 1 not healthy "
                           "or starting, 2 no answer."});
         parser.addOption({kPrintConnection,
-                          "Print \"export THRONE_ADDR=...\" and \"export THRONE_KEY_FILE=...\" lines for thronectl: "
+                          "Print \"export RAWLINE_ADDR=...\" and \"export RAWLINE_KEY_FILE=...\" lines for rawlinectl: "
                           "eval \"$(Rawline --print-connection)\"."});
         parser.addOption({kCheck, "Check whether this host can run Rawline headless (data dir, TLS, core, Tun, kill switch, ports) "
                                   "and print one line per item."});
         // Registered everywhere so that Parse can name the platform instead of reporting an unknown option.
         QCommandLineOption service(kService,
                                    "Run as a Windows service, started by the Service Control Manager (install-service.bat); started "
-                                   "any other way it exits 64. The data directory defaults to %ProgramData%\\Throne, and a restart "
+                                   "any other way it exits 64. The data directory defaults to %ProgramData%\\Rawline, and a restart "
                                    "request exits 75 for the service's recovery actions.");
 #ifndef Q_OS_WIN
         service.setFlags(QCommandLineOption::HiddenFromHelp);
@@ -306,7 +312,7 @@ namespace Engine::HeadlessCli {
         if (parser.isSet(QStringLiteral("help")) || parser.isSet(QStringLiteral("help-all"))) return ParseOutcome::Help;
         if (parser.isSet(QStringLiteral("version"))) return ParseOutcome::Version;
         if (const auto positional = parser.positionalArguments(); !positional.isEmpty()) {
-            *message = QString("unexpected argument \"%1\": links and files are imported with thronectl").arg(positional.first());
+            *message = QString("unexpected argument \"%1\": links and files are imported with rawlinectl").arg(positional.first());
             return ParseOutcome::Usage;
         }
 
@@ -344,7 +350,7 @@ namespace Engine::HeadlessCli {
         out->trigger = out->client != ClientMode::None ? QStringLiteral("client mode")
                        : parser.isSet(QStringLiteral("headless")) ? QStringLiteral("--headless")
                        : out->service                             ? QStringLiteral("--service")
-                                                                  : QStringLiteral("THRONE_HEADLESS");
+                                                                  : QStringLiteral("RAWLINE_HEADLESS");
 
         if (parser.isSet(kDataDir)) {
             const QString value = parser.value(kDataDir);
@@ -360,28 +366,28 @@ namespace Engine::HeadlessCli {
                 *message = QString("--restart-mode must be auto, exit or exec, not \"%1\"").arg(parser.value(kRestartMode));
                 return ParseOutcome::Usage;
             }
-        } else if (const QString value = env.value("THRONE_RESTART_MODE"); !value.isEmpty()) {
+        } else if (const QString value = env.value("RAWLINE_RESTART_MODE"); !value.isEmpty()) {
             if (!headlessCliParseRestartMode(value, &out->restartMode)) {
-                *message = QString("THRONE_RESTART_MODE must be auto, exit or exec, not \"%1\"").arg(value);
+                *message = QString("RAWLINE_RESTART_MODE must be auto, exit or exec, not \"%1\"").arg(value);
                 return ParseOutcome::Usage;
             }
         }
 
         out->resume = !parser.isSet(kNoResume);
-        if (const QString value = env.value("THRONE_RESUME"); !value.isEmpty()) {
+        if (const QString value = env.value("RAWLINE_RESUME"); !value.isEmpty()) {
             const int resume = headlessCliParseBool(value);
             if (resume < 0) {
-                *message = QString("THRONE_RESUME must be 1, true, yes, on, 0, false, no or off, not \"%1\"").arg(value);
+                *message = QString("RAWLINE_RESUME must be 1, true, yes, on, 0, false, no or off, not \"%1\"").arg(value);
                 return ParseOutcome::Usage;
             }
             if (resume == 0) out->resume = false;
         }
 
         out->noKillSwitch = parser.isSet(kNoKillSwitch);
-        if (const QString value = env.value("THRONE_KILL_SWITCH"); !value.isEmpty()) {
+        if (const QString value = env.value("RAWLINE_KILL_SWITCH"); !value.isEmpty()) {
             const int killSwitch = headlessCliParseBool(value);
             if (killSwitch < 0) {
-                *message = QString("THRONE_KILL_SWITCH must be 1, true, yes, on, 0, false, no or off, not \"%1\"").arg(value);
+                *message = QString("RAWLINE_KILL_SWITCH must be 1, true, yes, on, 0, false, no or off, not \"%1\"").arg(value);
                 return ParseOutcome::Usage;
             }
             if (killSwitch == 0) out->noKillSwitch = true;
@@ -392,9 +398,9 @@ namespace Engine::HeadlessCli {
                 *message = QString("--log-format must be auto, journal or plain, not \"%1\"").arg(parser.value(kLogFormat));
                 return ParseOutcome::Usage;
             }
-        } else if (const QString value = env.value("THRONE_LOG_FORMAT"); !value.isEmpty()) {
+        } else if (const QString value = env.value("RAWLINE_LOG_FORMAT"); !value.isEmpty()) {
             if (!headlessCliParseLogFormat(value, &out->logFormat)) {
-                *message = QString("THRONE_LOG_FORMAT must be auto, journal or plain, not \"%1\"").arg(value);
+                *message = QString("RAWLINE_LOG_FORMAT must be auto, journal or plain, not \"%1\"").arg(value);
                 return ParseOutcome::Usage;
             }
         }
@@ -408,11 +414,11 @@ namespace Engine::HeadlessCli {
         QString text = parser.helpText() + QStringLiteral(
             "\n"
             "Environment:\n"
-            "  THRONE_HEADLESS=1   run headless without --headless\n"
+            "  RAWLINE_HEADLESS=1   run headless without --headless\n"
             "  Every option above names its variable; a flag wins over its variable.\n"
             "\n"
             "Exit codes:\n"
-            "  0   stopped (SIGTERM, SIGINT, Ctrl+C, a service stop, thronectl shutdown); --health: healthy; --check:\n"
+            "  0   stopped (SIGTERM, SIGINT, Ctrl+C, a service stop, rawlinectl shutdown); --health: healthy; --check:\n"
             "      nothing failed\n"
             "  1   start failed (data dir lock, instance socket, database (transient), core IPC listener, API address\n"
             "      never appeared); --health: not healthy or still starting; --check: an item failed\n"
@@ -422,20 +428,20 @@ namespace Engine::HeadlessCli {
             "  64  bad option, option value or environment value; --service not started by the Windows service manager\n"
             "  70  the core kept failing and Rawline gave up, or it was not usable for 60 s (see Recovery)\n"
             "  71  the progress watchdog found the engine stuck (a profile connecting for 180 s or stopping for 90 s)\n"
-            "  75  restart requested (thronectl restart, SIGHUP, backup restore) with --restart-mode exit, or as a\n"
+            "  75  restart requested (rawlinectl restart, SIGHUP, backup restore) with --restart-mode exit, or as a\n"
             "      Windows service\n"
             "  78  configuration error (data directory, API key file, API listener, unusable database file)\n"
             "\n"
             "Recovery:\n"
             "  If saved settings keep Rawline unreachable (kill switch, Tun), start it once with --no-resume\n"
-            "  --no-kill-switch: no profile starts and the kill switch stays off for that run, so thronectl on this host\n"
+            "  --no-kill-switch: no profile starts and the kill switch stays off for that run, so rawlinectl on this host\n"
             "  can change the settings. After three boots in a row without a working core, Rawline stays up (degraded\n"
             "  core_gave_up) instead of exiting 70 or 71, so the API stays reachable.\n");
 #ifdef Q_OS_WIN
         text += QStringLiteral(
             "\n"
             "Windows:\n"
-            "  qThrone.exe returns to the prompt at once. For the exit code run it with start \"\" /wait qThrone.exe ... in\n"
+            "  Rawline.exe returns to the prompt at once. For the exit code run it with start \"\" /wait Rawline.exe ... in\n"
             "  cmd, or with Start-Process -Wait -PassThru in PowerShell.\n");
 #endif
         return text;
@@ -448,12 +454,13 @@ namespace Engine::HeadlessCli {
         if (!options->dataDir.isEmpty()) {
             path = options->dataDir;
             options->dataDirSource = QStringLiteral("--data-dir");
-        } else if (const QString value = env.value("THRONE_DATA_DIR"); !value.isEmpty()) {
+        } else if (const QString value = env.value("RAWLINE_DATA_DIR"); !value.isEmpty()) {
             // Still the launch CWD: RunHeadless resolves the dir before OpenDataDir moves it.
             path = QDir::current().absoluteFilePath(value);
-            options->dataDirSource = QStringLiteral("THRONE_DATA_DIR");
+            options->dataDirSource = QStringLiteral("RAWLINE_DATA_DIR");
 #ifdef Q_OS_WIN
         } else if (path = Sys::ServiceManager::SystemDataDir(options->service); !path.isEmpty()) {
+            path = headlessCliAdoptEarlierRoot(path, QFileInfo(path).dir().filePath(QStringLiteral("Throne")));
             options->dataDirSource = QStringLiteral("ProgramData default");
             systemDefault = true;
 #else
@@ -465,7 +472,7 @@ namespace Engine::HeadlessCli {
 #endif
         } else {
 #ifdef Q_OS_UNIX
-            // Without a home, AppConfigLocation becomes /.config/Throne.
+            // Without a home, AppConfigLocation becomes /.config/Rawline.
             const QString home = QDir::cleanPath(env.value("HOME"));
 #ifdef Q_OS_LINUX
             const bool xdgConfig = QDir::isAbsolutePath(env.value("XDG_CONFIG_HOME"));
@@ -473,7 +480,7 @@ namespace Engine::HeadlessCli {
             const bool xdgConfig = false;
 #endif
             if (!xdgConfig && (home.isEmpty() || home == "/")) {
-                *error = "HOME is not set (or is /), so there is no per-user data directory; pass --data-dir DIR or set THRONE_DATA_DIR";
+                *error = "HOME is not set (or is /), so there is no per-user data directory; pass --data-dir DIR or set RAWLINE_DATA_DIR";
                 return ExitCode::Config;
             }
 #endif
@@ -535,7 +542,7 @@ namespace Engine::HeadlessCli {
         return RestartMode::Exec;
 #else
         // Set by the image that exec'd us: the launching shell may be gone and our new parent says nothing about a supervisor.
-        if (env.value("THRONE_RESTART_INHERITED") == "exec") {
+        if (env.value("RAWLINE_RESTART_INHERITED") == "exec") {
             *why = "inherited from the previous image";
             return RestartMode::Exec;
         }

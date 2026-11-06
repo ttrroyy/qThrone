@@ -61,10 +61,10 @@ namespace Configs {
     QString FindCoreRealPath() {
 #ifdef NKR_CORE_IN_PATH
         // Packaged installs may launch the core through a privilege wrapper on PATH (NixOS security wrappers).
-        const auto wrapped = QStandardPaths::findExecutable("qThroneCore");
+        const auto wrapped = QStandardPaths::findExecutable("RawlineCore");
         if (!wrapped.isEmpty()) return wrapped;
 #endif
-        auto fn = QCoreApplication::applicationDirPath() + "/qThroneCore";
+        auto fn = QCoreApplication::applicationDirPath() + "/RawlineCore";
 #ifdef Q_OS_WIN
         fn += ".exe";
 #endif

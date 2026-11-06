@@ -5,8 +5,8 @@ import (
 	"errors"
 	"time"
 
-	"qThroneCore/gen"
-	"qThroneCore/internal/probe"
+	"RawlineCore/gen"
+	"RawlineCore/internal/probe"
 )
 
 func speedTestResultToProto(res probe.SpeedTestResult) *gen.SpeedTestResult {

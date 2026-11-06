@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(qThrone VERSION 1.0)
+project(Rawline VERSION 1.0)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -563,7 +563,7 @@ set(PROJECT_SOURCES
         src/ui/setting/RouteDnsEditor.cpp
         include/ui/setting/RouteDnsEditor.h
 
-        res/Throne.qrc
+        res/Rawline.qrc
         res/Seasonal.qrc
         ${QV2RAY_RC}
         res/darkstyle.qrc
@@ -845,55 +845,55 @@ list(APPEND PROJECT_SOURCES ${ENGINE_SOURCES})
 list(APPEND PROJECT_SOURCES ${PLATFORM_HEADLESS_SOURCES})
 
 # Qt exe
-qt_add_executable(qThrone
+qt_add_executable(Rawline
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
 )
 
-option(THRONE_ENGINE_LINT "Check the engine/UI boundary on every build" ON)
-if (THRONE_ENGINE_LINT)
+option(RAWLINE_ENGINE_LINT "Check the engine/UI boundary on every build" ON)
+if (RAWLINE_ENGINE_LINT)
     add_custom_target(engine_boundary
             COMMAND ${CMAKE_COMMAND} -DROOT=${CMAKE_SOURCE_DIR} -P ${CMAKE_SOURCE_DIR}/cmake/EngineBoundary.cmake
             COMMENT "Checking the engine/UI boundary"
             VERBATIM)
-    add_dependencies(qThrone engine_boundary)
+    add_dependencies(Rawline engine_boundary)
 endif ()
 
 # Target
 
-set_property(TARGET qThrone PROPERTY AUTOUIC ON)
-set_property(TARGET qThrone PROPERTY AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/include/ui")
-set_property(TARGET qThrone PROPERTY AUTOMOC ON)
+set_property(TARGET Rawline PROPERTY AUTOUIC ON)
+set_property(TARGET Rawline PROPERTY AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/include/ui")
+set_property(TARGET Rawline PROPERTY AUTOMOC ON)
 file(GLOB SEASONAL_ART_RESOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/res/Seasonal_*.qrc")
-target_sources(qThrone PRIVATE ${SEASONAL_ART_RESOURCES})
-set_property(TARGET qThrone PROPERTY AUTORCC ON)
+target_sources(Rawline PRIVATE ${SEASONAL_ART_RESOURCES})
+set_property(TARGET Rawline PROPERTY AUTORCC ON)
 
 
 # Target Source macOS
 
-set(MACOSX_ICON ${CMAKE_SOURCE_DIR}/res/Throne.icns)
+set(MACOSX_ICON ${CMAKE_SOURCE_DIR}/res/Rawline.icns)
 if (APPLE)
-    target_sources(qThrone PRIVATE ${MACOSX_ICON})
+    target_sources(Rawline PRIVATE ${MACOSX_ICON})
 endif ()
 
-set_target_properties(qThrone PROPERTIES
-        MACOSX_BUNDLE_ICON_FILE "Throne.icns"
+set_target_properties(Rawline PROPERTIES
+        MACOSX_BUNDLE_ICON_FILE "Rawline.icns"
         RESOURCE ${MACOSX_ICON}
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/res/MacOSXBundleInfo.plist
-        MACOSX_BUNDLE_GUI_IDENTIFIER moe.qThrone.macosx
+        MACOSX_BUNDLE_GUI_IDENTIFIER moe.Rawline.macosx
         MACOSX_BUNDLE_BUNDLE_NAME Rawline
         MACOSX_BUNDLE TRUE
         WIN32_EXECUTABLE TRUE
 )
 
 if (WIN32 AND MSVC)
-    set_target_properties(qThrone PROPERTIES UNITY_BUILD ON)
+    set_target_properties(Rawline PROPERTIES UNITY_BUILD ON)
 endif ()
 set_property(SOURCE "3rdparty/SQLiteCpp/src/sqlite3.c" PROPERTY SKIP_UNITY_BUILD_INCLUSION ON)
 set_property(SOURCE "3rdparty/monocypher/monocypher.c" PROPERTY SKIP_UNITY_BUILD_INCLUSION ON)
 
 # Verified to link. OMIT_VIRTUALTABLE/VIEW/ANALYZE/CTE/WINDOWFUNC/DECLTYPE all break this build.
-target_compile_definitions(qThrone PRIVATE
+target_compile_definitions(Rawline PRIVATE
         SQLITE_DQS=0
         SQLITE_DEFAULT_MEMSTATUS=0
         SQLITE_DEFAULT_WAL_SYNCHRONOUS=1
@@ -926,27 +926,27 @@ set(LUPDATE_OPTIONS
 )
 # lupdate sees only the target's include paths; without the repo root it cannot resolve EngineTr.h, and files the
 # MainWindowTr::tr strings under a MainWindowTr context instead of MainWindow.
-target_include_directories(qThrone PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-qt_add_lupdate(qThrone TS_FILES ${TS_FILES} OPTIONS ${LUPDATE_OPTIONS})
-qt_add_lrelease(qThrone TS_FILES ${TS_FILES} QM_FILES_OUTPUT_VARIABLE QM_FILES)
+target_include_directories(Rawline PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+qt_add_lupdate(Rawline TS_FILES ${TS_FILES} OPTIONS ${LUPDATE_OPTIONS})
+qt_add_lrelease(Rawline TS_FILES ${TS_FILES} QM_FILES_OUTPUT_VARIABLE QM_FILES)
 
 configure_file(res/translations/translations.qrc ${CMAKE_BINARY_DIR} COPYONLY)
-target_sources(qThrone PRIVATE ${CMAKE_BINARY_DIR}/translations.qrc)
+target_sources(Rawline PRIVATE ${CMAKE_BINARY_DIR}/translations.qrc)
 
 # Target Link
 if(TARGET Qt6::ZlibPrivate)
-    target_link_libraries(qThrone PRIVATE Qt6::ZlibPrivate)
+    target_link_libraries(Rawline PRIVATE Qt6::ZlibPrivate)
 else()
     find_package(ZLIB REQUIRED)
-    target_link_libraries(qThrone PRIVATE ZLIB::ZLIB)
+    target_link_libraries(Rawline PRIVATE ZLIB::ZLIB)
 endif()
 
-target_link_libraries(qThrone PRIVATE
+target_link_libraries(Rawline PRIVATE
         Qt6::Widgets Qt6::Network ${QT_DBUS_LIBRARY}
         Threads::Threads
         ${NKR_EXTERNAL_TARGETS}
         ${PLATFORM_LIBRARIES}
 )
 
-set_target_properties(qThrone PROPERTIES OUTPUT_NAME qThrone)
-qt_finalize_executable(qThrone)
+set_target_properties(Rawline PROPERTIES OUTPUT_NAME Rawline)
+qt_finalize_executable(Rawline)

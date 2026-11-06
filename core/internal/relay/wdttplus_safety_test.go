@@ -100,7 +100,7 @@ validate_deploy_data_mode
 echo MODE_OK`, "ROOT="+root, "SOURCE="+source, "WDTT_INSTALL_MODE="+mode, "WDTT_PRESERVE_DATA="+keep)
 }
 
-// Every server state is classified as WDTT Plus classifies it, and whatever qThrone then runs
+// Every server state is classified as WDTT Plus classifies it, and whatever Rawline then runs
 // passes deploy.sh's own check of the install mode.
 func TestWdttPlusScenariosPassDeployScript(t *testing.T) {
 	wdttPlusLinux(t)
@@ -117,7 +117,7 @@ func TestWdttPlusScenariosPassDeployScript(t *testing.T) {
 			wdttPlusWrite(t, root, "etc/wdtt/.android-deploy-preserved", "Preserved by WDTT Plus Android deploy\n", 0o600)
 		}, wdttPlusAndroidDeploy},
 		{"old install without the marker", func(t *testing.T, root string) { wdttPlusInstalled(t, root, legacyUnit) }, wdttPlusLegacyDeploy},
-		{"kept after qThrone removal", func(t *testing.T, root string) {
+		{"kept after Rawline removal", func(t *testing.T, root string) {
 			wdttPlusKeptData(t, root)
 			wdttPlusWrite(t, root, "etc/wdtt/.android-deploy-preserved", "Preserved by WDTT Plus Android deploy\n", 0o600)
 		}, wdttPlusPreservedData},

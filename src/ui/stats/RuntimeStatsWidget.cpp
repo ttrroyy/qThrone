@@ -187,7 +187,7 @@ void RuntimeStatsWidget::refreshLive() {
 
     qint64 dbBytes = 0;
     const QDir dir(QDir::currentPath());
-    for (const QFileInfo& fi : dir.entryInfoList(QStringList{QStringLiteral("throne*.db*")}, QDir::Files))
+    for (const QFileInfo& fi : dir.entryInfoList(QStringList{QStringLiteral("rawline*.db*")}, QDir::Files))
         dbBytes += fi.size();
     ui->vDbSize->setText(ReadableSize(dbBytes));
 

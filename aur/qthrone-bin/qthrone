@@ -1,3 +1,0 @@
-#!/bin/sh
-export PATH="/usr/lib/qthrone:$PATH"
-exec /usr/lib/qthrone/qThrone -appdata "$@"

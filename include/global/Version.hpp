@@ -34,7 +34,7 @@ inline bool IsNewer(const QString &candidate, const QString &current) {
 }
 
 inline QString FromAsset(const QString &asset) {
-    static const QRegularExpression pattern(R"(^qThrone-(\d+\.\d+(?:\.\d+)?(?:-(?:alpha|beta|rc)\.\d+)?)-)");
+    static const QRegularExpression pattern(R"(^Rawline-(\d+\.\d+(?:\.\d+)?(?:-(?:alpha|beta|rc)\.\d+)?)-)");
     return pattern.match(asset).captured(1);
 }
 }

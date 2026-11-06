@@ -1,32 +1,32 @@
 #Requires -Version 7.2
 <#
 .SYNOPSIS
-    W1: headless Throne as a Windows service, end to end, on a GitHub-hosted Windows runner (elevated PowerShell 7).
+    W1: headless Rawline as a Windows service, end to end, on a GitHub-hosted Windows runner (elevated PowerShell 7).
 .DESCRIPTION
-    Copies the windows-amd64 deployment to "C:\Program Files\Throne", installs it with dist\windows\install-service.bat
-    and checks the service: RUNNING, the C:\ProgramData\Throne ACL, Throne.exe --health, --check and --print-connection,
-    a SOCKS profile through thronectl and the mixed inbound, thronectl restart through the SCM recovery actions,
+    Copies the windows-amd64 deployment to "C:\Program Files\Rawline", installs it with dist\windows\install-service.bat
+    and checks the service: RUNNING, the C:\ProgramData\Rawline ACL, Rawline.exe --health, --check and --print-connection,
+    a SOCKS profile through rawlinectl and the mixed inbound, rawlinectl restart through the SCM recovery actions,
     sc.exe stop and uninstall-service.bat; then a console-less foreground run that taskkill without /F stops. The
     fixtures (smoke_fixtures.py) run on the runner.
 
-    It creates the service Throne, C:\ProgramData\Throne and C:\Program Files\Throne and removes them again, so it
+    It creates the service Rawline, C:\ProgramData\Rawline and C:\Program Files\Rawline and removes them again, so it
     refuses to run when any of them exists, and outside GitHub Actions it runs only with -AllowHostChanges.
-.PARAMETER ThroneDir
-    The unpacked windows-amd64 deployment (Throne.exe, qThroneCore.exe).
-.PARAMETER Thronectl
-    thronectl.exe built for the runner.
+.PARAMETER RawlineDir
+    The unpacked windows-amd64 deployment (Rawline.exe, RawlineCore.exe).
+.PARAMETER Rawlinectl
+    rawlinectl.exe built for the runner.
 .PARAMETER Fixtures
     script\ci\smoke_fixtures.py.
 .PARAMETER RepoRoot
-    The Throne checkout, for dist\windows\install-service.bat and uninstall-service.bat.
+    The Rawline checkout, for dist\windows\install-service.bat and uninstall-service.bat.
 .PARAMETER WorkDir
     Scratch and log directory; the script works in its windows-service subdirectory, which a failed job uploads.
-    Default: $env:E2E_TMP, else $env:RUNNER_TEMP\throne-e2e.
+    Default: $env:E2E_TMP, else $env:RUNNER_TEMP\rawline-e2e.
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][string]$ThroneDir,
-    [Parameter(Mandatory)][string]$Thronectl,
+    [Parameter(Mandatory)][string]$RawlineDir,
+    [Parameter(Mandatory)][string]$Rawlinectl,
     [Parameter(Mandatory)][string]$Fixtures,
     [Parameter(Mandatory)][string]$RepoRoot,
     [string]$WorkDir,
@@ -40,18 +40,18 @@ $PSNativeCommandUseErrorActionPreference = $false
 
 if (-not $WorkDir) {
     $WorkDir = if ($env:E2E_TMP) { $env:E2E_TMP }
-    elseif ($env:RUNNER_TEMP) { Join-Path $env:RUNNER_TEMP 'throne-e2e' }
-    else { Join-Path ([IO.Path]::GetTempPath()) 'throne-e2e' }
+    elseif ($env:RUNNER_TEMP) { Join-Path $env:RUNNER_TEMP 'rawline-e2e' }
+    else { Join-Path ([IO.Path]::GetTempPath()) 'rawline-e2e' }
 }
-$ThroneDir, $Thronectl, $Fixtures, $RepoRoot, $WorkDir = foreach ($path in @($ThroneDir, $Thronectl, $Fixtures, $RepoRoot, $WorkDir)) {
+$RawlineDir, $Rawlinectl, $Fixtures, $RepoRoot, $WorkDir = foreach ($path in @($RawlineDir, $Rawlinectl, $Fixtures, $RepoRoot, $WorkDir)) {
     [IO.Path]::GetFullPath($ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($path))
 }
 
-$ServiceName = 'Throne'
-$DataDir = Join-Path $env:ProgramData 'Throne'
-$ServiceLog = Join-Path $DataDir 'config\logs\throne.log'
-$InstallDir = Join-Path $env:ProgramFiles 'Throne'
-$ThroneExe = Join-Path $InstallDir 'Throne.exe'
+$ServiceName = 'Rawline'
+$DataDir = Join-Path $env:ProgramData 'Rawline'
+$ServiceLog = Join-Path $DataDir 'config\logs\rawline.log'
+$InstallDir = Join-Path $env:ProgramFiles 'Rawline'
+$RawlineExe = Join-Path $InstallDir 'Rawline.exe'
 $Sc = Join-Path $env:SystemRoot 'System32\sc.exe'
 $Curl = Join-Path $env:SystemRoot 'System32\curl.exe'
 $TaskKill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
@@ -60,7 +60,7 @@ $UninstallBat = Join-Path $RepoRoot 'dist\windows\uninstall-service.bat'
 $Work = Join-Path $WorkDir 'windows-service'
 $FixtureLog = Join-Path $Work 'fixtures.log'
 $ForegroundData = Join-Path $Work 'foreground-data'
-$ForegroundLog = Join-Path $ForegroundData 'config\logs\throne.log'
+$ForegroundLog = Join-Path $ForegroundData 'config\logs\rawline.log'
 
 $HttpPort = 18380
 $SocksPort = 11380
@@ -130,7 +130,7 @@ function Assert-NotContains([string]$What, [string]$Text, [string]$Needle) {
 
 function Assert-LogClean([string]$What, [string]$Text) {
     $hits = @($Text -split "`r?`n" | Where-Object { $_ -match 'HEADLESS-(DIALOG|WIDGET)|POLICY-UNBOUND' })
-    if ($hits.Count -gt 0) { Fail ("{0} shows headless Throne reaching a GUI-only path:`n{1}" -f $What, ($hits -join "`n")) }
+    if ($hits.Count -gt 0) { Fail ("{0} shows headless Rawline reaching a GUI-only path:`n{1}" -f $What, ($hits -join "`n")) }
 }
 
 function Wait-Until {
@@ -152,7 +152,7 @@ function Wait-Until {
     }
 }
 
-# Opened with FILE_SHARE_WRITE: Throne and the fixtures keep their logs open for writing.
+# Opened with FILE_SHARE_WRITE: Rawline and the fixtures keep their logs open for writing.
 function Read-Shared([string]$Path) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return '' }
     $stream = [IO.FileStream]::new($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, ([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
@@ -203,7 +203,7 @@ function Invoke-Native {
 }
 
 function Invoke-Ctl([string[]]$Arguments, [switch]$Quiet) {
-    Invoke-Native $Thronectl $Arguments -Quiet:$Quiet
+    Invoke-Native $Rawlinectl $Arguments -Quiet:$Quiet
 }
 
 function ConvertFrom-JsonText([string]$Text, [string]$What) {
@@ -216,9 +216,9 @@ function ConvertFrom-JsonText([string]$Text, [string]$What) {
 
 function Invoke-CtlJson([string[]]$Arguments) {
     $r = Invoke-Ctl (@('--json') + $Arguments)
-    if ($r.Code -ne 0) { Fail "thronectl $($Arguments -join ' ') exited with $($r.Code): $($r.Err)" }
+    if ($r.Code -ne 0) { Fail "rawlinectl $($Arguments -join ' ') exited with $($r.Code): $($r.Err)" }
     Write-Host $r.Out
-    ConvertFrom-JsonText $r.Out "thronectl $($Arguments -join ' ')"
+    ConvertFrom-JsonText $r.Out "rawlinectl $($Arguments -join ' ')"
 }
 
 function Get-StatusOrNull {
@@ -245,20 +245,20 @@ function Get-JsonField($Object, [string]$Path) {
     return , $value
 }
 
-# Throne.exe is a GUI-subsystem program: only Start-Process -Wait gets its exit code, and its output goes to files.
-function Invoke-ThroneClient {
+# Rawline.exe is a GUI-subsystem program: only Start-Process -Wait gets its exit code, and its output goes to files.
+function Invoke-RawlineClient {
     param(
         [Parameter(Mandatory, Position = 0)][string]$Name,
         [Parameter(Mandatory, Position = 1)][string[]]$Arguments,
         [switch]$Quiet
     )
     $line = Join-CommandLine $Arguments
-    if (-not $Quiet) { Write-Host "> Throne.exe $line" }
+    if (-not $Quiet) { Write-Host "> Rawline.exe $line" }
     $outFile = Join-Path $Work "client-$Name.out"
     $errFile = Join-Path $Work "client-$Name.err"
-    $process = Start-Process -FilePath $ThroneExe -ArgumentList $line -Wait -PassThru -NoNewWindow `
+    $process = Start-Process -FilePath $RawlineExe -ArgumentList $line -Wait -PassThru -NoNewWindow `
         -RedirectStandardOutput $outFile -RedirectStandardError $errFile
-    if ($null -eq $process.ExitCode) { Fail "Throne.exe $line left no exit code" }
+    if ($null -eq $process.ExitCode) { Fail "Rawline.exe $line left no exit code" }
     $result = [pscustomobject]@{
         Code = [int]$process.ExitCode
         Out  = (Read-Shared $outFile).Trim()
@@ -273,7 +273,7 @@ function Invoke-ThroneClient {
 }
 
 function Get-Health([string]$Name, [string]$Dir, [switch]$Quiet) {
-    $r = Invoke-ThroneClient $Name @('--health', '--data-dir', $Dir) -Quiet:$Quiet
+    $r = Invoke-RawlineClient $Name @('--health', '--data-dir', $Dir) -Quiet:$Quiet
     $json = $null
     if ($r.Out) {
         try { $json = $r.Out | ConvertFrom-Json } catch { $json = $null }
@@ -305,18 +305,18 @@ function ConvertFrom-ExportLines([string]$Text) {
     $vars
 }
 
-function Get-ThroneService {
+function Get-RawlineService {
     Get-CimInstance -ClassName Win32_Service -Filter "Name='$ServiceName'"
 }
 
 function Get-RequiredService([string]$When) {
-    $service = Get-ThroneService
+    $service = Get-RawlineService
     if ($null -eq $service) { Fail "the $ServiceName service is gone $When" }
     $service
 }
 
 function Get-OwnProcesses {
-    @(Get-Process -Name Throne, qThroneCore -ErrorAction SilentlyContinue | Where-Object {
+    @(Get-Process -Name Rawline, RawlineCore -ErrorAction SilentlyContinue | Where-Object {
             $path = $_.Path
             $path -and $path.StartsWith($InstallDir + '\', [StringComparison]::OrdinalIgnoreCase)
         })
@@ -342,10 +342,10 @@ function Invoke-ProxiedRequest([string]$Proxy) {
     $r.Out.Trim()
 }
 
-function Assert-ProxiedThroughThrone([string]$Proxy) {
+function Assert-ProxiedThroughRawline([string]$Proxy) {
     $before = Get-ConnectCount
-    Assert-Equal "HTTP status through Throne's mixed inbound $Proxy" (Invoke-ProxiedRequest $Proxy) '204'
-    if ((Get-ConnectCount) -le $before) { Fail 'the request never reached the SOCKS5 fixture, so Throne did not proxy it' }
+    Assert-Equal "HTTP status through Rawline's mixed inbound $Proxy" (Invoke-ProxiedRequest $Proxy) '204'
+    if ((Get-ConnectCount) -le $before) { Fail 'the request never reached the SOCKS5 fixture, so Rawline did not proxy it' }
 }
 
 function Get-AclSnapshot([string]$Path) {
@@ -417,8 +417,8 @@ function Show-State {
         (Invoke-Native $Sc @('queryex', $ServiceName) -Quiet).Out
         (Invoke-Native $Sc @('qc', $ServiceName) -Quiet).Out
     }
-    Show-Group 'Throne processes' {
-        Get-Process -Name Throne, qThroneCore -ErrorAction SilentlyContinue | Format-Table Id, ProcessName, StartTime, Path -AutoSize
+    Show-Group 'Rawline processes' {
+        Get-Process -Name Rawline, RawlineCore -ErrorAction SilentlyContinue | Format-Table Id, ProcessName, StartTime, Path -AutoSize
     }
     Show-Group 'Service Control Manager and application error events' {
         foreach ($filter in @(
@@ -427,7 +427,7 @@ function Show-State {
             )) {
             $events = @()
             try { $events = @(Get-WinEvent -FilterHashtable $filter -ErrorAction Stop) } catch { $events = @() }
-            $events | Where-Object { $_.Message -match 'Throne' } | Sort-Object TimeCreated | ForEach-Object {
+            $events | Where-Object { $_.Message -match 'Rawline' } | Sort-Object TimeCreated | ForEach-Object {
                 '{0:HH:mm:ss} {1} {2}' -f $_.TimeCreated, $_.Id, ($_.Message -replace '\s+', ' ')
             }
         }
@@ -447,7 +447,7 @@ function Save-ServiceData {
 
 function Show-Logs {
     $saved = Join-Path $Work 'service-data\config'
-    Show-File (Join-Path $saved 'logs\throne.log') 300
+    Show-File (Join-Path $saved 'logs\rawline.log') 300
     foreach ($file in @(Get-ChildItem -Path (Join-Path $saved 'logs') -Filter 'crashed-*.log' -ErrorAction SilentlyContinue)) {
         Show-File $file.FullName 200
     }
@@ -475,19 +475,19 @@ function Invoke-Safely([string]$What, [scriptblock]$Action) {
 
 function Invoke-Cleanup([bool]$Failed) {
     if ($Failed) { Invoke-Safely 'showing the service state' { Show-State } }
-    Invoke-Safely 'stopping the foreground Throne' {
+    Invoke-Safely 'stopping the foreground Rawline' {
         $process = $Ctx.ForegroundProcess
         if ($null -ne $process -and -not $process.HasExited) { $process.Kill($true) }
     }
     Invoke-Safely 'uninstalling the service' {
-        if ($Ctx.OwnService -and $null -ne (Get-ThroneService)) {
+        if ($Ctx.OwnService -and $null -ne (Get-RawlineService)) {
             Write-Host 'cleanup: uninstall-service.bat'
             $r = Invoke-Native $UninstallBat
             Write-Host $r.Out
-            if ($null -ne (Get-ThroneService)) { $null = Invoke-Native $Sc @('delete', $ServiceName) }
+            if ($null -ne (Get-RawlineService)) { $null = Invoke-Native $Sc @('delete', $ServiceName) }
         }
     }
-    Invoke-Safely 'stopping leftover Throne processes' {
+    Invoke-Safely 'stopping leftover Rawline processes' {
         $left = Get-OwnProcesses
         if ($left.Count -gt 0) {
             Write-Host "cleanup: killing $(($left | ForEach-Object { "$($_.ProcessName) $($_.Id)" }) -join ', ')"
@@ -516,20 +516,20 @@ function Invoke-W1 {
     if ($env:GITHUB_ACTIONS -ne 'true' -and -not $AllowHostChanges) {
         Fail "this installs the service $ServiceName and writes $DataDir and $InstallDir; outside GitHub Actions pass -AllowHostChanges"
     }
-    foreach ($file in @((Join-Path $ThroneDir 'Throne.exe'), (Join-Path $ThroneDir 'qThroneCore.exe'), $Thronectl, $Fixtures,
+    foreach ($file in @((Join-Path $RawlineDir 'Rawline.exe'), (Join-Path $RawlineDir 'RawlineCore.exe'), $Rawlinectl, $Fixtures,
             $InstallBat, $UninstallBat, $Sc, $Curl, $TaskKill)) {
         if (-not (Test-Path -LiteralPath $file -PathType Leaf)) { Fail "missing $file" }
     }
-    if ($null -ne (Get-ThroneService)) { Fail "a service named $ServiceName already exists; this test installs its own" }
+    if ($null -ne (Get-RawlineService)) { Fail "a service named $ServiceName already exists; this test installs its own" }
     if (Test-Path -LiteralPath $DataDir) { Fail "$DataDir already exists; this test checks the one the service creates" }
     if (Test-Path -LiteralPath $InstallDir) { Fail "$InstallDir already exists; this test installs there" }
-    if (Get-Process -Name Throne, qThroneCore -ErrorAction SilentlyContinue) { Fail 'Throne or qThroneCore is already running' }
-    # thronectl and the client modes must find everything through --data-dir and --print-connection.
-    Get-ChildItem Env: | Where-Object { $_.Name -like 'THRONE_*' } | ForEach-Object { Remove-Item -LiteralPath "Env:$($_.Name)" }
+    if (Get-Process -Name Rawline, RawlineCore -ErrorAction SilentlyContinue) { Fail 'Rawline or RawlineCore is already running' }
+    # rawlinectl and the client modes must find everything through --data-dir and --print-connection.
+    Get-ChildItem Env: | Where-Object { $_.Name -like 'RAWLINE_*' } | ForEach-Object { Remove-Item -LiteralPath "Env:$($_.Name)" }
     $python = Get-Command python -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($null -eq $python) { Fail 'python is not on PATH' }
     $version = Invoke-Ctl @('version')
-    Assert-Equal 'thronectl version exit status' $version.Code 0
+    Assert-Equal 'rawlinectl version exit status' $version.Code 0
     Write-Host $version.Out
 
     Step 'fixtures (HTTP 204 and SOCKS5 on the runner)'
@@ -554,11 +554,11 @@ function Invoke-W1 {
     Step 'install-service.bat'
     New-Item -ItemType Directory -Path $InstallDir | Out-Null
     $Ctx.OwnInstallDir = $true
-    Get-ChildItem -LiteralPath $ThroneDir -Force | Copy-Item -Destination $InstallDir -Recurse -Force
-    $r = Invoke-ThroneClient 'version' @('--headless', '--version')
-    Assert-Equal 'Throne.exe --headless --version exit status' $r.Code 0
-    if (-not $r.Out.StartsWith('Throne ')) { Fail "Throne.exe --headless --version printed '$($r.Out)'" }
-    $r = Invoke-ThroneClient 'service-outside-scm' @('--headless', '--service')
+    Get-ChildItem -LiteralPath $RawlineDir -Force | Copy-Item -Destination $InstallDir -Recurse -Force
+    $r = Invoke-RawlineClient 'version' @('--headless', '--version')
+    Assert-Equal 'Rawline.exe --headless --version exit status' $r.Code 0
+    if (-not $r.Out.StartsWith('Rawline ')) { Fail "Rawline.exe --headless --version printed '$($r.Out)'" }
+    $r = Invoke-RawlineClient 'service-outside-scm' @('--headless', '--service')
     Assert-Equal 'exit status of --service outside the SCM' $r.Code 64
     Assert-Contains '--service outside the SCM stderr' $r.Err 'was not started by the Windows Service Control Manager'
     $h = Get-Health 'health-before-install' $DataDir
@@ -567,12 +567,12 @@ function Invoke-W1 {
 
     $Ctx.OwnDataDir = $true
     $Ctx.OwnService = $true
-    $r = Invoke-Native $InstallBat @($ThroneExe)
+    $r = Invoke-Native $InstallBat @($RawlineExe)
     Write-Host $r.Out
     if ($r.Err) { Write-Host "stderr: $($r.Err)" }
     Assert-Equal 'install-service.bat exit status' $r.Code 0
     $service = Get-RequiredService 'after install-service.bat'
-    if ($service.PathName -ine ('"{0}" --headless --service' -f $ThroneExe)) { Fail "the service runs '$($service.PathName)'" }
+    if ($service.PathName -ine ('"{0}" --headless --service' -f $RawlineExe)) { Fail "the service runs '$($service.PathName)'" }
     Assert-Equal 'service account' $service.StartName 'LocalSystem'
     Assert-Equal 'service start mode' $service.StartMode 'Auto'
     $key = "HKLM:\SYSTEM\CurrentControlSet\Services\$ServiceName"
@@ -584,7 +584,7 @@ function Invoke-W1 {
     if ($failure.Out -notmatch 'RESTART[^\r\n]*3000 milliseconds') { Fail 'sc qfailure shows no restart after 3000 ms as the first action' }
 
     Step 'service RUNNING'
-    Wait-Until 90 'the Throne service RUNNING' {
+    Wait-Until 90 'the Rawline service RUNNING' {
         $s = Get-RequiredService 'while it starts'
         if ($s.State -eq 'Stopped') {
             Fail ('the service stopped while starting: exit code {0}, service-specific {1}' -f $s.ExitCode, $s.ServiceSpecificExitCode)
@@ -593,7 +593,7 @@ function Invoke-W1 {
     }
     $servicePid = [int](Get-RequiredService 'once running').ProcessId
     $serviceProcess = Get-Process -Id $servicePid
-    if ($serviceProcess.Path -ine $ThroneExe) { Fail "the service PID $servicePid runs '$($serviceProcess.Path)', not $ThroneExe" }
+    if ($serviceProcess.Path -ine $RawlineExe) { Fail "the service PID $servicePid runs '$($serviceProcess.Path)', not $RawlineExe" }
     Write-Host "service PID $servicePid"
 
     Step "$DataDir access: SYSTEM and Administrators only"
@@ -607,14 +607,14 @@ function Invoke-W1 {
             Fail "$DataDir has the rule $($rule.AccessControlType) $($rule.FileSystemRights) for $($rule.IdentityReference) (inherited: $($rule.IsInherited))"
         }
     }
-    foreach ($entry in @('config', 'config\api.key', 'config\throne.db')) {
+    foreach ($entry in @('config', 'config\api.key', 'config\rawline.db')) {
         $path = Join-Path $DataDir $entry
         if (-not (Test-Path -LiteralPath $path)) { Fail "the running service has no $path" }
         $null = Assert-AdminOnlyEntry $path
     }
 
-    Step 'Throne.exe --health and --check beside the service'
-    Wait-Until 30 'Throne.exe --health exit status 0' { (Get-Health 'health-service' $DataDir -Quiet).Code -eq 0 }
+    Step 'Rawline.exe --health and --check beside the service'
+    Wait-Until 30 'Rawline.exe --health exit status 0' { (Get-Health 'health-service' $DataDir -Quiet).Code -eq 0 }
     $h = Get-Health 'health-service' $DataDir
     Assert-Healthy 'the service' $h
     Assert-Equal 'previous_crash' (Get-JsonField $h.Json 'previous_crash') $false
@@ -624,25 +624,25 @@ function Invoke-W1 {
     if ($null -eq $degraded) { Fail 'the service --health has no degraded field' }
     if ($null -ne $degraded.Value) { Fail "the service degraded is '$($degraded.Value)', want null" }
     Assert-Equal 'state' (Get-JsonField $h.Json 'state') 'idle'
-    $r = Invoke-ThroneClient 'check-service' @('--check', '--data-dir', $DataDir)
-    Assert-Equal 'Throne.exe --check exit status beside the service' $r.Code 0
+    $r = Invoke-RawlineClient 'check-service' @('--check', '--data-dir', $DataDir)
+    Assert-Equal 'Rawline.exe --check exit status beside the service' $r.Code 0
     $outLines = @($r.Out -split "`r?`n")
     $failedItems = @($outLines | Where-Object { $_.StartsWith('[FAIL]') })
     if ($failedItems.Count -gt 0) { Fail ("--check failed items:`n{0}" -f ($failedItems -join "`n")) }
     $instance = @($outLines | Where-Object { $_.StartsWith('[INFO] instance: running: ') })
     if ($instance.Count -ne 1 -or -not $instance[0].Contains("PID $servicePid")) { Fail "--check does not see the service (PID $servicePid) as the running instance" }
 
-    Step 'Throne.exe --print-connection and thronectl status'
-    $r = Invoke-ThroneClient 'print-connection-service' @('--print-connection', '--data-dir', $DataDir)
-    Assert-Equal 'Throne.exe --print-connection exit status' $r.Code 0
+    Step 'Rawline.exe --print-connection and rawlinectl status'
+    $r = Invoke-RawlineClient 'print-connection-service' @('--print-connection', '--data-dir', $DataDir)
+    Assert-Equal 'Rawline.exe --print-connection exit status' $r.Code 0
     $connection = ConvertFrom-ExportLines $r.Out
-    Assert-Equal 'THRONE_ADDR' $connection['THRONE_ADDR'] '127.0.0.1:9095'
-    $keyFile = $connection['THRONE_KEY_FILE']
-    if (-not $keyFile) { Fail '--print-connection printed no THRONE_KEY_FILE' }
+    Assert-Equal 'RAWLINE_ADDR' $connection['RAWLINE_ADDR'] '127.0.0.1:9095'
+    $keyFile = $connection['RAWLINE_KEY_FILE']
+    if (-not $keyFile) { Fail '--print-connection printed no RAWLINE_KEY_FILE' }
     $expectedKey = Join-Path $DataDir 'config\api.key'
-    if ([IO.Path]::GetFullPath($keyFile) -ine $expectedKey) { Fail "THRONE_KEY_FILE is $keyFile, want $expectedKey" }
-    $env:THRONE_ADDR = $connection['THRONE_ADDR']
-    $env:THRONE_KEY_FILE = $keyFile
+    if ([IO.Path]::GetFullPath($keyFile) -ine $expectedKey) { Fail "RAWLINE_KEY_FILE is $keyFile, want $expectedKey" }
+    $env:RAWLINE_ADDR = $connection['RAWLINE_ADDR']
+    $env:RAWLINE_KEY_FILE = $keyFile
     $status = Invoke-CtlJson @('status')
     Assert-Equal 'capabilities.headless' (Get-JsonField $status 'capabilities.headless') $true
     Assert-Equal 'state' (Get-JsonField $status 'state') 'idle'
@@ -657,20 +657,20 @@ function Invoke-W1 {
     if ($null -eq $profileId) { Fail 'the import returned no profile id' }
     $r = Invoke-Ctl @('--timeout', '90s', 'connect', "$profileId")
     Write-Host $r.Out
-    if ($r.Code -ne 0) { Fail "thronectl connect $profileId exited with $($r.Code): $($r.Err)" }
+    if ($r.Code -ne 0) { Fail "rawlinectl connect $profileId exited with $($r.Code): $($r.Err)" }
     $status = Invoke-CtlJson @('status')
     Assert-Equal 'state' (Get-JsonField $status 'state') 'running'
     Assert-Equal 'profile.id' (Get-JsonField $status 'profile.id') $profileId
     Assert-Equal 'tun' (Get-JsonField $status 'tun') $false
-    Assert-ProxiedThroughThrone (Get-InboundProxy $status)
+    Assert-ProxiedThroughRawline (Get-InboundProxy $status)
 
-    Step 'thronectl restart: exit 75, the SCM recovery starts it again'
+    Step 'rawlinectl restart: exit 75, the SCM recovery starts it again'
     $restart = Invoke-CtlJson @('restart')
     Assert-Equal 'restarting' (Get-JsonField $restart 'restarting') $true
     Assert-Equal 'resume' (Get-JsonField $restart 'resume') $true
     $watch = @{ OldPid = $servicePid; Seen = ''; Stopped = $null; OldLog = $null }
     # The old log survives only between the old process's exit and the recovery start 3 s later, which truncates it.
-    Wait-Until 120 'the SCM recovery to run Throne again (RUNNING with a new PID)' {
+    Wait-Until 120 'the SCM recovery to run Rawline again (RUNNING with a new PID)' {
         $s = Get-RequiredService 'during the restart'
         $seen = '{0}, PID {1}, exit code {2}, service-specific {3}' -f $s.State, $s.ProcessId, $s.ExitCode, $s.ServiceSpecificExitCode
         if ($seen -ne $watch.Seen) {
@@ -684,8 +684,8 @@ function Invoke-W1 {
         $s.State -eq 'Running' -and $s.ProcessId -ne 0 -and $s.ProcessId -ne $watch.OldPid
     } -WaitIntervalMs 200
     if ($null -ne $watch.Stopped) {
-        Assert-Equal 'WIN32_EXIT_CODE after thronectl restart' $watch.Stopped.ExitCode 1066
-        Assert-Equal 'SERVICE_EXIT_CODE after thronectl restart' $watch.Stopped.ServiceSpecificExitCode 75
+        Assert-Equal 'WIN32_EXIT_CODE after rawlinectl restart' $watch.Stopped.ExitCode 1066
+        Assert-Equal 'SERVICE_EXIT_CODE after rawlinectl restart' $watch.Stopped.ServiceSpecificExitCode 75
     } else {
         Write-Host 'note: the STOPPED state between the exit and the recovery start was not sampled'
     }
@@ -698,22 +698,22 @@ function Invoke-W1 {
     }
     $restartPid = [int](Get-RequiredService 'after the restart').ProcessId
     Write-Host "service PID $restartPid after the restart"
-    Wait-Until 90 'Throne.exe --health exit status 0 after the restart' { (Get-Health 'health-after-restart' $DataDir -Quiet).Code -eq 0 }
+    Wait-Until 90 'Rawline.exe --health exit status 0 after the restart' { (Get-Health 'health-after-restart' $DataDir -Quiet).Code -eq 0 }
     $h = Get-Health 'health-after-restart' $DataDir
     Assert-Healthy 'the restarted service' $h
     Assert-Equal 'previous_crash after a restart' (Get-JsonField $h.Json 'previous_crash') $false
-    Assert-Equal 'previous_exit.code after thronectl restart' (Get-JsonField $h.Json 'previous_exit.code') 75
-    Assert-Equal 'previous_exit.reason after thronectl restart' (Get-JsonField $h.Json 'previous_exit.reason') 'restart requested'
+    Assert-Equal 'previous_exit.code after rawlinectl restart' (Get-JsonField $h.Json 'previous_exit.code') 75
+    Assert-Equal 'previous_exit.reason after rawlinectl restart' (Get-JsonField $h.Json 'previous_exit.reason') 'restart requested'
     Wait-Until 90 'the profile resumed after the restart' {
         $s = Get-StatusOrNull
         $null -ne $s -and (Get-JsonField $s 'state') -eq 'running'
     }
     $status = Invoke-CtlJson @('status')
     Assert-Equal 'resumed profile.id' (Get-JsonField $status 'profile.id') $profileId
-    Assert-ProxiedThroughThrone (Get-InboundProxy $status)
+    Assert-ProxiedThroughRawline (Get-InboundProxy $status)
     $r = Invoke-Ctl @('--timeout', '60s', 'disconnect')
     Write-Host $r.Out
-    if ($r.Code -ne 0) { Fail "thronectl disconnect exited with $($r.Code): $($r.Err)" }
+    if ($r.Code -ne 0) { Fail "rawlinectl disconnect exited with $($r.Code): $($r.Err)" }
     Assert-Equal 'state after disconnect' (Get-JsonField (Invoke-CtlJson @('status')) 'state') 'idle'
 
     Step 'sc.exe stop: STOPPED with exit code 0, no recovery'
@@ -733,14 +733,14 @@ function Invoke-W1 {
         Start-Sleep -Milliseconds 500
     }
     Wait-Until 30 "the service process (PID $restartPid) exiting" { $null -eq (Get-Process -Id $restartPid -ErrorAction SilentlyContinue) }
-    Wait-Until 15 'no qThroneCore.exe left' { $null -eq (Get-Process -Name qThroneCore -ErrorAction SilentlyContinue) }
+    Wait-Until 15 'no RawlineCore.exe left' { $null -eq (Get-Process -Name RawlineCore -ErrorAction SilentlyContinue) }
     $log = Read-Shared $ServiceLog
     Assert-LogClean $ServiceLog $log
     if ($log -notmatch "(?m)^\s*pid\s*:\s*$restartPid\s*$") { Fail "$ServiceLog is not the log of PID $restartPid" }
     Assert-Contains $ServiceLog $log 'started by --headless'
     Assert-Contains $ServiceLog $log "data dir $DataDir (ProgramData default)" -IgnoreCase
     Assert-Contains $ServiceLog $log 'restart mode exit (Windows service)'
-    if ($log -notmatch '\[Service\] Running under the Service Control Manager as "Throne"; preshutdown timeout (raised to 45 s|\d+ s)\.') {
+    if ($log -notmatch '\[Service\] Running under the Service Control Manager as "Rawline"; preshutdown timeout (raised to 45 s|\d+ s)\.') {
         Fail "$ServiceLog has no '[Service] Running under the Service Control Manager' line with a preshutdown timeout of at least 45 s"
     }
     Assert-Contains $ServiceLog $log "[Resume] Resuming profile $profileId"
@@ -754,39 +754,39 @@ function Invoke-W1 {
     $r = Invoke-Native $UninstallBat
     Write-Host $r.Out
     Assert-Equal 'uninstall-service.bat exit status' $r.Code 0
-    Wait-Until 30 'the Throne service deleted' { $null -eq (Get-ThroneService) }
-    if (-not (Test-Path -LiteralPath (Join-Path $DataDir 'config\throne.db'))) { Fail "uninstall-service.bat removed the data in $DataDir; it must stay" }
+    Wait-Until 30 'the Rawline service deleted' { $null -eq (Get-RawlineService) }
+    if (-not (Test-Path -LiteralPath (Join-Path $DataDir 'config\rawline.db'))) { Fail "uninstall-service.bat removed the data in $DataDir; it must stay" }
     $h = Get-Health 'health-after-uninstall' $DataDir
     Assert-Equal '--health exit status after the uninstall' $h.Code 2
 
     Step 'console-less foreground run stopped by taskkill without /F'
     $foregroundArgs = Join-CommandLine @('--headless', '--data-dir', $ForegroundData, '--api-listen', "127.0.0.1:$ForegroundApiPort")
-    Write-Host "> Throne.exe $foregroundArgs"
-    $foreground = Start-Process -FilePath $ThroneExe -ArgumentList $foregroundArgs -NoNewWindow -PassThru `
+    Write-Host "> Rawline.exe $foregroundArgs"
+    $foreground = Start-Process -FilePath $RawlineExe -ArgumentList $foregroundArgs -NoNewWindow -PassThru `
         -RedirectStandardOutput (Join-Path $Work 'foreground.stdout') -RedirectStandardError (Join-Path $Work 'foreground.stderr')
     $null = $foreground.Handle
     $Ctx.ForegroundProcess = $foreground
-    Wait-Until 90 'the foreground Throne healthy' {
-        if ($Ctx.ForegroundProcess.HasExited) { Fail "the foreground Throne exited with $($Ctx.ForegroundProcess.ExitCode) before it was healthy" }
+    Wait-Until 90 'the foreground Rawline healthy' {
+        if ($Ctx.ForegroundProcess.HasExited) { Fail "the foreground Rawline exited with $($Ctx.ForegroundProcess.ExitCode) before it was healthy" }
         (Get-Health 'health-foreground' $ForegroundData -Quiet).Code -eq 0
     }
-    Assert-Healthy 'the foreground Throne' (Get-Health 'health-foreground' $ForegroundData)
-    $r = Invoke-ThroneClient 'print-connection-foreground' @('--print-connection', '--data-dir', $ForegroundData)
+    Assert-Healthy 'the foreground Rawline' (Get-Health 'health-foreground' $ForegroundData)
+    $r = Invoke-RawlineClient 'print-connection-foreground' @('--print-connection', '--data-dir', $ForegroundData)
     Assert-Equal 'foreground --print-connection exit status' $r.Code 0
     $connection = ConvertFrom-ExportLines $r.Out
-    Assert-Equal 'foreground THRONE_ADDR' $connection['THRONE_ADDR'] "127.0.0.1:$ForegroundApiPort"
+    Assert-Equal 'foreground RAWLINE_ADDR' $connection['RAWLINE_ADDR'] "127.0.0.1:$ForegroundApiPort"
     $r = Invoke-Native $TaskKill @('/PID', "$($foreground.Id)")
     Write-Host $r.Out
     if ($r.Err) { Write-Host "stderr: $($r.Err)" }
     Assert-Equal 'taskkill /PID exit status' $r.Code 0
-    if (-not $foreground.WaitForExit(60000)) { Fail "the foreground Throne (PID $($foreground.Id)) did not exit within 60 s of taskkill" }
-    Assert-Equal 'foreground Throne exit status after taskkill without /F' $foreground.ExitCode 0
-    Wait-Until 15 'no qThroneCore.exe left' { $null -eq (Get-Process -Name qThroneCore -ErrorAction SilentlyContinue) }
+    if (-not $foreground.WaitForExit(60000)) { Fail "the foreground Rawline (PID $($foreground.Id)) did not exit within 60 s of taskkill" }
+    Assert-Equal 'foreground Rawline exit status after taskkill without /F' $foreground.ExitCode 0
+    Wait-Until 15 'no RawlineCore.exe left' { $null -eq (Get-Process -Name RawlineCore -ErrorAction SilentlyContinue) }
     $log = Read-Shared $ForegroundLog
     Assert-LogClean $ForegroundLog $log
     Assert-LogClean 'the foreground stderr' (Read-Shared (Join-Path $Work 'foreground.stderr'))
     Assert-Contains $ForegroundLog $log "data dir $ForegroundData (--data-dir)" -IgnoreCase
-    Assert-Contains $ForegroundLog $log 'restart mode exec (not a Windows service; a new Throne process starts)'
+    Assert-Contains $ForegroundLog $log 'restart mode exec (not a Windows service; a new Rawline process starts)'
     Assert-Contains $ForegroundLog $log 'Stop request: WM_CLOSE (taskkill without /F).'
     Assert-Contains $ForegroundLog $log 'EXIT 0: stop request (Ctrl+C, closing the console, signing out or taskkill)'
     Assert-Contains $ForegroundLog $log $CleanEnd

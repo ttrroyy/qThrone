@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Rawline headless as a LaunchDaemon (root). Install:
+    sudo mkdir -p /Library/Logs/Rawline
+    sudo install -m 644 -o root -g wheel moe.Rawline.headless.plist /Library/LaunchDaemons/
+    sudo xattr -dr com.apple.quarantine /Applications/Rawline.app    (unsigned builds only)
+    sudo launchctl bootstrap system /Library/LaunchDaemons/moe.Rawline.headless.plist
+  Stop it with: sudo launchctl bootout system/moe.Rawline.headless
+  launchd cannot exempt exit codes, so a configuration error (3, 64, 78) is retried every ThrottleInterval seconds.
+-->
+<plist version="1.0"><dict>
+  <key>Label</key><string>moe.Rawline.headless</string>
+  <key>ProgramArguments</key><array>
+    <string>/Applications/Rawline.app/Contents/MacOS/Rawline</string>
+    <string>--headless</string>
+    <string>--data-dir=/Library/Application Support/Rawline</string>
+  </array>
+  <key>EnvironmentVariables</key><dict>
+    <key>RAWLINE_RESTART_MODE</key><string>exit</string>
+    <key>HOME</key><string>/var/root</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+  <key>ThrottleInterval</key><integer>10</integer>
+  <key>ExitTimeOut</key><integer>45</integer>
+  <key>Umask</key><integer>63</integer>
+  <key>StandardOutPath</key><string>/Library/Logs/Rawline/rawline.log</string>
+  <key>StandardErrorPath</key><string>/Library/Logs/Rawline/rawline.log</string>
+</dict></plist>

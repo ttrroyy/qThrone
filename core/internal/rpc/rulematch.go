@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"qThroneCore/internal/boxbox"
+	"RawlineCore/internal/boxbox"
 
 	"github.com/gofrs/uuid/v5"
 	"github.com/sagernet/sing-box/adapter"

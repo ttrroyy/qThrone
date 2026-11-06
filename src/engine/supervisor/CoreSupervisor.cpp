@@ -54,7 +54,7 @@ namespace {
         PostNotice({NoticeLevel::Warning, QObject::tr("IPv4 forwarding breaks Tun mode"),
                     QObject::tr("IPv4 forwarding is on for the network adapter \"%1\", usually because Mobile Hotspot or Internet Connection Sharing is sharing it.\n\n"
                                 "Windows then ignores the adapter binding that keeps Rawline's own connections out of the Tun, so they loop back into it and fail.\n\n"
-                                "To fix this, share the hotspot from the qthrone-tun adapter instead of \"%1\" (Settings > Mobile hotspot > Share my internet connection from), or turn the hotspot off while using Tun mode.")
+                                "To fix this, share the hotspot from the rawline-tun adapter instead of \"%1\" (Settings > Mobile hotspot > Share my internet connection from), or turn the hotspot off while using Tun mode.")
                         .arg(adapter)});
     }
 
@@ -177,7 +177,7 @@ namespace Engine {
         m_debugMode = (Configs::dataManager->settingsRepo->log_level == "debug");
 
         Configs::dataManager->settingsRepo->core_socket_name =
-            "throneIPC-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
+            "rawlineIPC-" + QUuid::createUuid().toString(QUuid::WithoutBraces);
         m_server = new QLocalServer(this);
         m_server->setSocketOptions(QLocalServer::UserAccessOption);
         const bool listening = m_server->listen(Configs::dataManager->settingsRepo->core_socket_name);
@@ -624,7 +624,7 @@ namespace Engine {
         const bool wasConnected = !failedToStart && gen == m_acceptedGen && !wasProbing;
         auto *killSwitch = Sys::KillSwitch::instance();
         if (!wasConnected && exitCode == Sys::KillSwitch::kCoreIdentityExitCode && !killSwitch->identityUnsupported()) {
-            // Not a start failure: the kill switch fails closed instead, and the next spawn omits THRONE_GUARD.
+            // Not a start failure: the kill switch fails closed instead, and the next spawn omits RAWLINE_GUARD.
             const QString detail = m_lastCoreErrorGen == gen && !m_lastCoreError.isEmpty()
                                        ? m_lastCoreError
                                        : QStringLiteral("kill switch: cannot adopt the guard group");

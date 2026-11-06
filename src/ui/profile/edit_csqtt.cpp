@@ -180,7 +180,7 @@ void EditCSQTT::startHashCheck() {
     executable = QDir(QCoreApplication::applicationDirPath()).absoluteFilePath(executable);
     if (!QFileInfo(executable).isExecutable()) { MessageBoxWarning("CSQTT", QStringLiteral("Клиент CSQTT не найден.")); return; }
     // The hashes travel in a private file, not on the command line other users can read.
-    hashCheckDirectory = std::make_unique<QTemporaryDir>(QDir::tempPath() + "/qthrone-csqtt-check-XXXXXX");
+    hashCheckDirectory = std::make_unique<QTemporaryDir>(QDir::tempPath() + "/rawline-csqtt-check-XXXXXX");
     QFile config(hashCheckDirectory->filePath("check.json"));
     if (!hashCheckDirectory->isValid() || !config.open(QIODevice::WriteOnly)) {
         MessageBoxWarning("CSQTT", QStringLiteral("Не удалось создать файл проверки.")); hashCheckDirectory.reset(); return;

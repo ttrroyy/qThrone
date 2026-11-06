@@ -1,7 +1,7 @@
 """Generate core/internal/relay/wdttplus_exit_scripts.go: the shell scripts of WDTT Plus's
 «Выходной IP и прокси», byte for byte, as Go raw strings.
 
-Source: qThroneMobile's deploy/WdttPlusExit.kt, itself a copy of WDTT-Plus ui/DeployTab.kt,
+Source: RawlineMobile's deploy/WdttPlusExit.kt, itself a copy of WDTT-Plus ui/DeployTab.kt,
 ExternalProxyDiagnostics.kt and OutboundProbe.kt at commit f706ccd. Every script is checked
 against the WDTT-Plus sources before it is written. Kotlin interpolations become ⟦n⟧ markers
 that exitScript fills in the order listed in each comment.

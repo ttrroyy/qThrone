@@ -232,9 +232,9 @@ namespace Engine::Preflight {
             if (::kill(static_cast<pid_t>(pid), 0) != 0 && errno != EPERM) return false;
             // kill() already proved it alive; a name this OS or user cannot read does not undo that.
             const QString name = Bootstrap::ProcessName(pid);
-            return name.isEmpty() || name.contains(QLatin1String("throne"), Qt::CaseInsensitive);
+            return name.isEmpty() || name.contains(QLatin1String("rawline"), Qt::CaseInsensitive);
 #else
-            return Bootstrap::ProcessName(pid).contains(QLatin1String("throne"), Qt::CaseInsensitive);
+            return Bootstrap::ProcessName(pid).contains(QLatin1String("rawline"), Qt::CaseInsensitive);
 #endif
         }
 
@@ -331,7 +331,7 @@ namespace Engine::Preflight {
             }
 #ifdef Q_OS_UNIX
             if (const QString home = env.value(QStringLiteral("HOME")); home.isEmpty() || QDir::cleanPath(home) == QLatin1String("/")) {
-                report.info(QStringLiteral("HOME is not set (or is /): keep naming the data dir explicitly (--data-dir, THRONE_DATA_DIR or "
+                report.info(QStringLiteral("HOME is not set (or is /): keep naming the data dir explicitly (--data-dir, RAWLINE_DATA_DIR or "
                                            "STATE_DIRECTORY)"));
             }
 #else
@@ -550,7 +550,7 @@ namespace Engine::Preflight {
 
         PreflightSettings preflightSettings(PreflightReport &report, const Bootstrap::DataDir &dataDir, const PreflightInstance &instance) {
             PreflightSettings settings;
-            const QString dbFile = QDir(dataDir.configDir).absoluteFilePath(QStringLiteral("throne.db"));
+            const QString dbFile = QDir(dataDir.configDir).absoluteFilePath(QStringLiteral("rawline.db"));
             const QString shown = preflightNative(dbFile);
             const QString advice = QStringLiteral("make %1 and its -wal and -shm files readable and writable by the user Rawline runs as").arg(shown);
             const QFileInfo info(dbFile);
@@ -590,7 +590,7 @@ namespace Engine::Preflight {
                     report.warn(QStringLiteral("settings: cannot read %1 (%2); the checks below use the defaults").arg(shown, read.error));
                 }
             }
-            const QString statsFile = QDir(dataDir.configDir).absoluteFilePath(QStringLiteral("throne_stats.db"));
+            const QString statsFile = QDir(dataDir.configDir).absoluteFilePath(QStringLiteral("rawline_stats.db"));
             if (Configs::DbFilesDenied(statsFile)) {
                 report.warn(QStringLiteral("settings: this user cannot read and write %1 (traffic statistics)").arg(preflightNative(statsFile)),
                             {QStringLiteral("make %1 and its -wal and -shm files readable and writable by the user Rawline runs as")
@@ -625,7 +625,7 @@ namespace Engine::Preflight {
 
         struct PreflightCore {
             QString path;
-            // qThroneCore --check answered with its JSON line.
+            // RawlineCore --check answered with its JSON line.
             bool reported = false;
             QJsonObject report;
         };
@@ -663,7 +663,7 @@ namespace Engine::Preflight {
             const QFileInfo info(core.path);
             if (!info.exists()) {
                 report.fail(QStringLiteral("core: %1 is missing").arg(shown),
-                            {QStringLiteral("reinstall Rawline: qThroneCore must sit next to the Rawline binary")});
+                            {QStringLiteral("reinstall Rawline: RawlineCore must sit next to the Rawline binary")});
                 return core;
             }
             if (!info.isFile() || !info.isExecutable()) {
@@ -680,8 +680,8 @@ namespace Engine::Preflight {
             QProcess process;
             QProcessEnvironment childEnv = Sys::ServiceManager::ChildEnvironment(env);
             // An older core without --check would wait for this socket instead of failing at once.
-            childEnv.remove(QStringLiteral("THRONE_CORE_SOCKET"));
-            childEnv.remove(QStringLiteral("THRONE_GUARD"));
+            childEnv.remove(QStringLiteral("RAWLINE_CORE_SOCKET"));
+            childEnv.remove(QStringLiteral("RAWLINE_GUARD"));
             process.setProcessEnvironment(childEnv);
             process.setStandardInputFile(QProcess::nullDevice());
             Configs_sys::SetIsolatedChildren(true);
@@ -719,10 +719,10 @@ namespace Engine::Preflight {
                 const int code = process.exitCode();
                 if (error.contains(QLatin1String("parent check"))) {
                     report.fail(QStringLiteral("core: %1 refuses to run under this Rawline").arg(shown) + errorSuffix,
-                                {QStringLiteral("Rawline and qThroneCore must come from the same release and sit in the same directory")});
-                } else if (code == 0 || error.contains(QLatin1String("THRONE_CORE_SOCKET"))) {
-                    report.warn(QStringLiteral("core: %1 does not support --check (an older qThroneCore?)").arg(shown) + skipped,
-                                {QStringLiteral("install Rawline and qThroneCore from the same release")});
+                                {QStringLiteral("Rawline and RawlineCore must come from the same release and sit in the same directory")});
+                } else if (code == 0 || error.contains(QLatin1String("RAWLINE_CORE_SOCKET"))) {
+                    report.warn(QStringLiteral("core: %1 does not support --check (an older RawlineCore?)").arg(shown) + skipped,
+                                {QStringLiteral("install Rawline and RawlineCore from the same release")});
                 } else {
                     report.fail(QStringLiteral("core: %1 exited with code %2").arg(shown).arg(code) + errorSuffix, buildFix);
                 }
@@ -915,7 +915,7 @@ namespace Engine::Preflight {
             switch (source) {
                 case RemoteApi::ConfigSource::Settings: return QStringLiteral("from the settings");
                 case RemoteApi::ConfigSource::Flags: return QStringLiteral("from --api-listen");
-                case RemoteApi::ConfigSource::Environment: return QStringLiteral("from THRONE_API_LISTEN");
+                case RemoteApi::ConfigSource::Environment: return QStringLiteral("from RAWLINE_API_LISTEN");
                 case RemoteApi::ConfigSource::Default: break;
             }
             return QStringLiteral("the headless default");
@@ -965,20 +965,20 @@ namespace Engine::Preflight {
                     if (RemoteApi::KeyFromText(settings.remoteApiKey).isEmpty()) {
                         report.warn(QStringLiteral("API key: remote_api_key in the settings is missing or invalid, so the Rawline API will not "
                                                    "listen (key_invalid)"),
-                                    {QStringLiteral("pass --api-key-file FILE (create one with: thronectl keygen -o FILE)")});
+                                    {QStringLiteral("pass --api-key-file FILE (create one with: rawlinectl keygen -o FILE)")});
                     } else {
                         report.ok(QStringLiteral("API key: from the settings (remote_api_key)"));
                     }
                     return;
                 case PreflightApi::Key::ExplicitFile: {
                     const QString source = overlay.keyFileSource == RemoteApi::ConfigSource::Flags ? QStringLiteral("--api-key-file")
-                                                                                                   : QStringLiteral("THRONE_API_KEY_FILE");
+                                                                                                   : QStringLiteral("RAWLINE_API_KEY_FILE");
                     const auto file = RemoteApi::LoadKeyFile(api.keyFile, false);
                     if (file.error.isEmpty()) {
                         report.ok(QStringLiteral("API key: %1 (%2)").arg(shown, source));
                     } else {
                         report.fail(QStringLiteral("API key: %1 (%2) is not usable: %3; Rawline --headless exits 78").arg(shown, source, file.error),
-                                    {QStringLiteral("create one with: thronectl keygen -o %1").arg(preflightQuote(api.keyFile))});
+                                    {QStringLiteral("create one with: rawlinectl keygen -o %1").arg(preflightQuote(api.keyFile))});
                     }
                     return;
                 }
@@ -997,7 +997,7 @@ namespace Engine::Preflight {
                         report.ok(QStringLiteral("API key: %1").arg(shown));
                     } else {
                         report.warn(QStringLiteral("API key: %1 is not usable (%2), so the Rawline API may not listen").arg(shown, file.error),
-                                    {QStringLiteral("delete it to have a new key created at the next start, or write one with: thronectl "
+                                    {QStringLiteral("delete it to have a new key created at the next start, or write one with: rawlinectl "
                                                     "keygen -o %1")
                                          .arg(preflightQuote(api.keyFile))});
                     }
@@ -1160,22 +1160,22 @@ namespace Engine::Preflight {
             } else if (const auto address = preflightListenAddress(settings.inboundAddress, QStringLiteral("127.0.0.1")); !address) {
                 report.fail(QStringLiteral("port: the mixed proxy listen address \"%1\" is not an IP address, so profiles fail to start")
                                 .arg(settings.inboundAddress),
-                            {QStringLiteral("thronectl settings set inbound_address=127.0.0.1")});
+                            {QStringLiteral("rawlinectl settings set inbound_address=127.0.0.1")});
             } else {
                 listeners << coreListener(QStringLiteral("the mixed proxy, inbound_port"), *address, settings.inboundPort, false,
-                                          QStringLiteral("pick another: thronectl settings set inbound_port=PORT"));
+                                          QStringLiteral("pick another: rawlinectl settings set inbound_port=PORT"));
             }
 
             const QString dnsLabel = QStringLiteral("the core's DNS server, dns_in_port");
-            const QString dnsChange = QStringLiteral("pick another: thronectl settings set dns_in_port=PORT");
+            const QString dnsChange = QStringLiteral("pick another: rawlinectl settings set dns_in_port=PORT");
             listeners << coreListener(dnsLabel, QHostAddress(QHostAddress::LocalHost), settings.dnsInPort, false, dnsChange);
             listeners << coreListener(dnsLabel, QHostAddress(QHostAddress::LocalHost), settings.dnsInPort, true, dnsChange);
             if (settings.clashApiPort > 0) {
                 const QString clashLabel = QStringLiteral("the Clash API, clash_api_port");
                 const QString clashChange =
-                    QStringLiteral("pick another: thronectl settings set clash_api_port=PORT (0 turns the Clash API off)");
-                const QStringList clashAddressFix{QStringLiteral("thronectl settings set clash_listen_addr=127.0.0.1, or turn the Clash API "
-                                                                 "off: thronectl settings set clash_api_port=0")};
+                    QStringLiteral("pick another: rawlinectl settings set clash_api_port=PORT (0 turns the Clash API off)");
+                const QStringList clashAddressFix{QStringLiteral("rawlinectl settings set clash_listen_addr=127.0.0.1, or turn the Clash API "
+                                                                 "off: rawlinectl settings set clash_api_port=0")};
                 const QString clashName = settings.clashListen.trimmed();
                 if (const auto address = preflightListenAddress(settings.clashListen, QStringLiteral("127.0.0.1")); address) {
                     listeners << coreListener(clashLabel, *address, settings.clashApiPort, false, clashChange);
@@ -1195,7 +1195,7 @@ namespace Engine::Preflight {
             if (settings.coreApiPort > 0) {
                 listeners << coreListener(QStringLiteral("the sing-box API, singbox_api_port"), QHostAddress(QHostAddress::LocalHost),
                                           settings.coreApiPort, false,
-                                          QStringLiteral("pick another: thronectl settings set singbox_api_port=PORT (0 turns the sing-box API off)"));
+                                          QStringLiteral("pick another: rawlinectl settings set singbox_api_port=PORT (0 turns the sing-box API off)"));
             }
 
             for (qsizetype i = 0; i < listeners.size(); ++i) {
@@ -1327,13 +1327,13 @@ namespace Engine::Preflight {
                 report.info(QStringLiteral("Tun owner: %1 (perhaps %2, PID %3)").arg(conflict, instance.who, QString::number(instance.pid)));
             } else if (!lanOwner.isEmpty()) {
                 report.warn(QStringLiteral("Tun owner: %1").arg(conflict),
-                            {QStringLiteral("%1 is a LAN, bridge or container network (such as Docker's), not a VPN: thronectl settings set "
+                            {QStringLiteral("%1 is a LAN, bridge or container network (such as Docker's), not a VPN: rawlinectl settings set "
                                             "tun_ipv4_cidr=CIDR with a range no network interface here uses")
                                  .arg(lanOwner)});
             } else {
                 report.warn(QStringLiteral("Tun owner: %1").arg(conflict),
                             {QStringLiteral("stop the other Rawline or VPN before turning Tun on; when it only holds the Tun address, "
-                                            "thronectl settings set tun_ipv4_cidr=CIDR also works")});
+                                            "rawlinectl settings set tun_ipv4_cidr=CIDR also works")});
             }
         }
 

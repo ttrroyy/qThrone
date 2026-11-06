@@ -1,0 +1,3 @@
+#!/bin/sh
+export PATH="/usr/lib/rawline:$PATH"
+exec /usr/lib/rawline/Rawline -appdata "$@"

@@ -36,11 +36,11 @@
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>moe.qThrone.macosx</string>
+			<string>moe.Rawline.macosx</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>rawline</string>
-				<string>throne</string>
+				<string>rawline</string>
 			</array>
 		</dict>
 	</array>
@@ -48,7 +48,7 @@
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>qThrone profile</string>
+			<string>Rawline profile</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>

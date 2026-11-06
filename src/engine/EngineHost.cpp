@@ -301,7 +301,7 @@ namespace Engine {
         if (m_options.headless) {
             Sys::KillSwitch::instance()->setOverride(m_options.killSwitchOverride);
             if (m_options.killSwitchOverride && Configs::dataManager->settingsRepo->kill_switch) {
-                LOG_WARN(QStringLiteral("[Kill switch] kill_switch is on, but --no-kill-switch (THRONE_KILL_SWITCH) keeps it off for this run; "
+                LOG_WARN(QStringLiteral("[Kill switch] kill_switch is on, but --no-kill-switch (RAWLINE_KILL_SWITCH) keeps it off for this run; "
                                         "profiles stay refused until kill_switch is turned off"));
             }
         }

@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"qThroneCore/gen"
-	"qThroneCore/internal/boxbox"
+	"RawlineCore/gen"
+	"RawlineCore/internal/boxbox"
 
 	"github.com/sagernet/sing-box/adapter"
 	E "github.com/sagernet/sing/common/exceptions"

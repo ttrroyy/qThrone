@@ -82,7 +82,7 @@ const forkReady = `(function () {
 func solveCaptcha(page string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	profile, err := os.MkdirTemp("", "qthrone-openflux-check-")
+	profile, err := os.MkdirTemp("", "rawline-openflux-check-")
 	if err != nil {
 		return "", errors.New("cannot create a private browser profile")
 	}
@@ -166,7 +166,7 @@ func solveCaptcha(page string) (string, error) {
 }
 
 // As qWDTT's captcha (qwdtt/captcha_proxy.go): only the private check browser uses this short-lived
-// HTTPS proxy. Its connections belong to this helper, which qThrone already excludes from its TUN, so
+// HTTPS proxy. Its connections belong to this helper, which Rawline already excludes from its TUN, so
 // the check passes on the same address the transport uses.
 // No global Edge/Chrome routing exemption or system proxy change is needed.
 func startCaptchaProxy(parent context.Context) (string, func(), error) {

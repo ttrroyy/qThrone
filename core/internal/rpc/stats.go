@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"qThroneCore/gen"
+	"RawlineCore/gen"
 
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/common/trafficcontrol"

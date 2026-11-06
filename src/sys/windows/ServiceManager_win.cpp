@@ -531,7 +531,7 @@ namespace Sys::ServiceManager {
             constexpr SECURITY_INFORMATION what = DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION;
             if (GetSecurityDescriptorDacl(wanted, &present, &dacl, &defaulted) && present && dacl != nullptr) {
                 code = SetSecurityInfo(directory, SE_FILE_OBJECT, what, nullptr, nullptr, dacl, nullptr);
-                // By name as well: only SetNamedSecurityInfoW pushes the inheritable ACEs down to throne.db, api.key and the rest (T12).
+                // By name as well: only SetNamedSecurityInfoW pushes the inheritable ACEs down to rawline.db, api.key and the rest (T12).
                 if (code == ERROR_SUCCESS) {
                     code = SetNamedSecurityInfoW(target.data(), SE_FILE_OBJECT, what, nullptr, nullptr, dacl, nullptr);
                 }

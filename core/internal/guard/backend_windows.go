@@ -15,7 +15,7 @@ import (
 	"time"
 	"unsafe"
 
-	"qThroneCore/internal/winipcfg"
+	"RawlineCore/internal/winipcfg"
 
 	"golang.org/x/sys/windows"
 )
@@ -340,7 +340,7 @@ func (b *wfpBackend) verify() error {
 func resolveAppIDs(extraPaths []string) (appIDs []*fwpByteBlob, skipped []string, err error) {
 	self, err := os.Executable()
 	if err != nil {
-		return nil, nil, fmt.Errorf("locate the qThroneCore executable: %w", err)
+		return nil, nil, fmt.Errorf("locate the RawlineCore executable: %w", err)
 	}
 	appID, err := appIDFromFile(self)
 	if err != nil {
@@ -385,7 +385,7 @@ func findTuns(name string) ([]tunAdapter, error) {
 	return tuns, nil
 }
 
-// Windows names a new adapter "qthrone-tun 2" while a stale instance still holds the plain name.
+// Windows names a new adapter "rawline-tun 2" while a stale instance still holds the plain name.
 func isTunAlias(alias, name string) bool {
 	if len(alias) < len(name) || !strings.EqualFold(alias[:len(name)], name) {
 		return false

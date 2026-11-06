@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
-	"qThroneCore/internal/ssr"
+	"RawlineCore/internal/ssr"
 	"strings"
 	"sync"
 	"time"
@@ -26,7 +26,7 @@ import (
 )
 
 // TypeWireGuardObfs is the hidden UDP outbound a WireGuard endpoint with "obfs" dials through.
-const TypeWireGuardObfs = "qthrone-wgobfs"
+const TypeWireGuardObfs = "rawline-wgobfs"
 
 // WireGuardObfsOptions selects the obfuscator a WireGuard endpoint speaks to its server.
 type WireGuardObfsOptions struct {

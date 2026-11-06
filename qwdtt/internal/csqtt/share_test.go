@@ -6,7 +6,7 @@ import (
 )
 
 func TestLegacySharePayloadMatchesMobileAESGCM(t *testing.T) {
-	// Independent fixture shared with qThroneMobile, using the Legacy key and nonce layout.
+	// Independent fixture shared with RawlineMobile, using the Legacy key and nonce layout.
 	const link = "csqtt://AAECAwQFBgcICQoLnWJ4sGLhXEU4Lx5kmNv4OgG3nIAwttrQ9J8P4vf_mYSVcA21sCLBNlFIYwCVOGm4NBpIOEwOveKOn3k9OmGrnU1kpW32LX1P0DYwJIoD72fH_zBQH5eZPx1htJPKCYwG_P6KzrnibBCrY2UYCouGNKq--cwoSbO-Zv1WI6UBk5mQ98ct_g"
 	plain, err := SharePayload(link, false)
 	if err != nil || !strings.Contains(plain, "host=198.51.100.25") || !strings.Contains(plain, "Pre250-Secret") {

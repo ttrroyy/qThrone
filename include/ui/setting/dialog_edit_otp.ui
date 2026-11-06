@@ -58,7 +58,7 @@
           <bool>true</bool>
          </property>
          <property name="icon">
-          <iconset resource="../../../res/Throne.qrc">
+          <iconset resource="../../../res/Rawline.qrc">
            <normaloff>:/icon/material/eye-outline.png</normaloff>:/icon/material/eye-outline.png</iconset>
          </property>
          <property name="autoRaise">
@@ -211,7 +211,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../../../res/Throne.qrc"/>
+  <include location="../../../res/Rawline.qrc"/>
  </resources>
  <connections>
   <connection>

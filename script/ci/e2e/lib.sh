@@ -6,7 +6,7 @@
 #   step NAME                       end the open log group, open one named NAME, add "- NAME" to the job summary
 #   fail MSG                        ::error:: MSG (prefixed with the current step) and exit 1
 #   wait_until TIMEOUT_S DESC CMD   run CMD every 0.5 s until it succeeds; fail "DESC: not within TIMEOUT_S s"
-#   connect_env THRONE DATA_DIR     export THRONE_ADDR and THRONE_KEY_FILE from THRONE --print-connection
+#   connect_env RAWLINE DATA_DIR     export RAWLINE_ADDR and RAWLINE_KEY_FILE from RAWLINE --print-connection
 #   assert_log_clean FILE...        fail when a log names HEADLESS-DIALOG, HEADLESS-WIDGET or POLICY-UNBOUND
 #   start_fixtures LISTEN LOGFILE   start smoke_fixtures.py in the background on LISTEN, wait until it listens, set
 #                                   FIXTURE_PID; prints nothing. Its ready file is LOGFILE.ready, its stderr LOGFILE.stderr
@@ -90,18 +90,18 @@ wait_until() {
 }
 
 connect_env() {
-    local throne=$1 data=$2 out line re='^export THRONE_(ADDR|KEY_FILE)='
-    out=$("$throne" --print-connection --data-dir "$data") ||
-        fail "$throne --print-connection --data-dir $data exited with status $?${out:+ after printing: $out}"
+    local rawline=$1 data=$2 out line re='^export RAWLINE_(ADDR|KEY_FILE)='
+    out=$("$rawline" --print-connection --data-dir "$data") ||
+        fail "$rawline --print-connection --data-dir $data exited with status $?${out:+ after printing: $out}"
     # Only the two export lines are ever evaluated.
     while IFS= read -r line; do
-        [[ $line =~ $re ]] || fail "unexpected line from $throne --print-connection: $line"
+        [[ $line =~ $re ]] || fail "unexpected line from $rawline --print-connection: $line"
     done <<<"$out"
-    unset THRONE_KEY
+    unset RAWLINE_KEY
     eval "$out"
-    [ -n "${THRONE_ADDR:-}" ] || fail "$throne --print-connection printed no THRONE_ADDR"
-    [ -r "${THRONE_KEY_FILE:-}" ] || fail "THRONE_KEY_FILE '${THRONE_KEY_FILE:-}' from --print-connection is not a readable file"
-    echo "THRONE_ADDR=$THRONE_ADDR THRONE_KEY_FILE=$THRONE_KEY_FILE" >&2
+    [ -n "${RAWLINE_ADDR:-}" ] || fail "$rawline --print-connection printed no RAWLINE_ADDR"
+    [ -r "${RAWLINE_KEY_FILE:-}" ] || fail "RAWLINE_KEY_FILE '${RAWLINE_KEY_FILE:-}' from --print-connection is not a readable file"
+    echo "RAWLINE_ADDR=$RAWLINE_ADDR RAWLINE_KEY_FILE=$RAWLINE_KEY_FILE" >&2
 }
 
 assert_log_clean() {
@@ -121,7 +121,7 @@ assert_log_clean() {
         checked=$((checked + 1))
     done
     ((checked > 0)) || fail "assert_log_clean: none of these logs exists: $*"
-    ((dirty == 0)) || fail "headless Throne reached a dialog, a widget or an unbound policy call (lines above)"
+    ((dirty == 0)) || fail "headless Rawline reached a dialog, a widget or an unbound policy call (lines above)"
 }
 
 start_fixtures() {

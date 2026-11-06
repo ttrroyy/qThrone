@@ -15,19 +15,19 @@ import (
 
 	"github.com/xtls/xray-core/core"
 
-	"qThroneCore/internal/boxmain"
-	"qThroneCore/internal/capcheck"
-	"qThroneCore/internal/guard"
-	"qThroneCore/internal/ipc"
-	"qThroneCore/internal/parentcheck"
-	"qThroneCore/internal/providergeo"
-	"qThroneCore/internal/relay"
-	"qThroneCore/internal/rpc"
-	"qThroneCore/internal/sysdns"
+	"RawlineCore/internal/boxmain"
+	"RawlineCore/internal/capcheck"
+	"RawlineCore/internal/guard"
+	"RawlineCore/internal/ipc"
+	"RawlineCore/internal/parentcheck"
+	"RawlineCore/internal/providergeo"
+	"RawlineCore/internal/relay"
+	"RawlineCore/internal/rpc"
+	"RawlineCore/internal/sysdns"
 
 	C "github.com/sagernet/sing-box/constant"
 
-	_ "qThroneCore/internal/distro/all"
+	_ "RawlineCore/internal/distro/all"
 )
 
 const (
@@ -75,7 +75,7 @@ func watchMemory() {
 
 func writeHeapProfile() (string, error) {
 	// Core runs privileged: a guessable clock-derived name lets a planted symlink turn this into a root-owned write anywhere.
-	f, err := os.CreateTemp("", "throne-core-heap-*.pprof")
+	f, err := os.CreateTemp("", "rawline-core-heap-*.pprof")
 	if err != nil {
 		return "", err
 	}
@@ -87,14 +87,14 @@ func writeHeapProfile() (string, error) {
 }
 
 func RunCore() {
-	socketName := os.Getenv("QTHRONE_CORE_SOCKET")
+	socketName := os.Getenv("RAWLINE_CORE_SOCKET")
 	if socketName == "" {
-		socketName = os.Getenv("THRONE_CORE_SOCKET")
+		socketName = os.Getenv("RAWLINE_CORE_SOCKET")
 	}
 	if socketName == "" {
-		log.Fatal("QTHRONE_CORE_SOCKET not set")
+		log.Fatal("RAWLINE_CORE_SOCKET not set")
 	}
-	debug := os.Getenv("QTHRONE_CORE_DEBUG") == "1" || os.Getenv("THRONE_CORE_DEBUG") == "1"
+	debug := os.Getenv("RAWLINE_CORE_DEBUG") == "1" || os.Getenv("RAWLINE_CORE_DEBUG") == "1"
 
 	parentcheck.CheckParentProcess()
 	if err := guard.ApplyIdentity(); err != nil {

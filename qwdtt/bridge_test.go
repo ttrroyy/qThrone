@@ -113,7 +113,7 @@ func TestSOCKSTCPAndUDP(t *testing.T) {
 	}()
 	c := testControl(t, a, "secret")
 	testRequest(t, c, 1, tcp.Addr().String())
-	message := bytes.Repeat([]byte("qThrone TCP payload"), 700)
+	message := bytes.Repeat([]byte("Rawline TCP payload"), 700)
 	if _, err = c.Write(message); err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func TestSOCKSTCPAndUDP(t *testing.T) {
 	defer relay.Close()
 	_ = relay.SetDeadline(time.Now().Add(5 * time.Second))
 	frame := append([]byte{0, 0, 0}, encodeSOCKSAddress(udp.LocalAddr().String())...)
-	frame = append(frame, []byte("qThrone UDP payload")...)
+	frame = append(frame, []byte("Rawline UDP payload")...)
 	_, _ = relay.Write(frame)
 	b := make([]byte, 2048)
 	n, err := relay.Read(b)

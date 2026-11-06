@@ -367,7 +367,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
     });
     // Checking releases also supports manual installation (AppData/macOS),
     // so it must not depend on the presence or name of an updater executable.
-    ui->actionCheck_For_Update->setEnabled(!QStringLiteral(QTHRONE_REPOSITORY).isEmpty());
+    ui->actionCheck_For_Update->setEnabled(!QStringLiteral(RAWLINE_REPOSITORY).isEmpty());
 
     setupConnectionList();
     ui->stats_widget->tabBar()->setCurrentIndex(Configs::dataManager->settingsRepo->stats_tab);

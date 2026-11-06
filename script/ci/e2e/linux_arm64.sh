@@ -2,14 +2,14 @@
 # L3 of the headless e2e suite, on the arm64 runner. In debian:bookworm, the stand-in for Raspberry Pi OS bookworm
 # (glibc 2.36): apt refuses the bundled arm64 .deb for its glibc floor, and installs the system-qt one, which then runs
 # headless in the foreground through the proxy scenario.
-# Env: SYSTEMQT_DEB, BUNDLED_DEB (Throne-<tag>-debian-arm64-system-qt.deb, Throne-<tag>-debian-arm64.deb), THRONECTL
-# (a linux/arm64 thronectl), FIXTURES, E2E_TMP; BOOKWORM_IMAGE (default debian:bookworm). Needs docker.
+# Env: SYSTEMQT_DEB, BUNDLED_DEB (Rawline-<tag>-debian-arm64-system-qt.deb, Rawline-<tag>-debian-arm64.deb), RAWLINECTL
+# (a linux/arm64 rawlinectl), FIXTURES, E2E_TMP; BOOKWORM_IMAGE (default debian:bookworm). Needs docker.
 # The system-qt part re-runs this script inside its container, with the argument "inside".
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 ROOT=$(cd "$SCRIPT_DIR/../../.." && pwd)
-: "${E2E_TMP:=${RUNNER_TEMP:-/tmp}/throne-e2e}"
+: "${E2E_TMP:=${RUNNER_TEMP:-/tmp}/rawline-e2e}"
 : "${FIXTURES:=$ROOT/script/ci/smoke_fixtures.py}"
 export E2E_TMP FIXTURES
 # shellcheck source=lib.sh
@@ -59,13 +59,13 @@ host_bundled_refused() {
     dpkg-deb -f "$deb" Depends
     [ -n "$floor" ] || fail "$(basename "$deb") declares no libc6 (>= ...) floor, so apt cannot refuse it on an older glibc"
     out=$(docker run --rm --platform "$PLATFORM" -e DEBIAN_FRONTEND=noninteractive \
-        -v "$deb:/pkg/throne-bundled.deb:ro" "$IMAGE" bash -c '
+        -v "$deb:/pkg/rawline-bundled.deb:ro" "$IMAGE" bash -c '
             apt-get update -qq >/dev/null || { echo "apt-get update failed"; exit 90; }
             echo "bookworm libc6 $(dpkg-query -W -f="\${Version}" libc6)"
             rc=0
-            apt-get install -y --no-install-recommends /pkg/throne-bundled.deb || rc=$?
+            apt-get install -y --no-install-recommends /pkg/rawline-bundled.deb || rc=$?
             echo "apt-get install exit status $rc"
-            if dpkg -s throne >/dev/null 2>&1; then echo "throne is installed"; fi
+            if dpkg -s rawline >/dev/null 2>&1; then echo "rawline is installed"; fi
         ' 2>&1) || rc=$?
     echo "$out"
     ((rc == 0)) || fail "the bookworm container for the bundled deb failed with status $rc"
@@ -74,7 +74,7 @@ host_bundled_refused() {
     if ! dpkg --compare-versions "$have" lt "$floor"; then
         fail "bookworm's libc6 $have satisfies the bundled deb's floor libc6 (>= $floor), so apt cannot refuse it there"
     fi
-    if grep -qx 'apt-get install exit status 0' <<<"$out" || grep -qx 'throne is installed' <<<"$out"; then
+    if grep -qx 'apt-get install exit status 0' <<<"$out" || grep -qx 'rawline is installed' <<<"$out"; then
         fail "apt installed the bundled arm64 deb on bookworm (glibc $have) although it needs libc6 (>= $floor)"
     fi
     grep -qF "Depends: libc6 (>= $floor)" <<<"$out" ||
@@ -83,16 +83,16 @@ host_bundled_refused() {
 }
 
 host_main() {
-    local systemqt bundled thronectl fixtures args=()
+    local systemqt bundled rawlinectl fixtures args=()
     systemqt=${SYSTEMQT_DEB:?set SYSTEMQT_DEB to the arm64 system-qt .deb}
     bundled=${BUNDLED_DEB:?set BUNDLED_DEB to the bundled arm64 .deb}
-    thronectl=${THRONECTL:?set THRONECTL to a linux/arm64 thronectl}
-    for file in "$systemqt" "$bundled" "$thronectl" "$FIXTURES"; do
+    rawlinectl=${RAWLINECTL:?set RAWLINECTL to a linux/arm64 rawlinectl}
+    for file in "$systemqt" "$bundled" "$rawlinectl" "$FIXTURES"; do
         [ -f "$file" ] || fail "'$file' is not a file"
     done
     systemqt=$(readlink -f "$systemqt")
     bundled=$(readlink -f "$bundled")
-    thronectl=$(readlink -f "$thronectl")
+    rawlinectl=$(readlink -f "$rawlinectl")
     fixtures=$(readlink -f "$FIXTURES")
     [ "$(uname -m)" = aarch64 ] || fail "L3 runs on an arm64 runner; this one is $(uname -m)"
     command -v docker >/dev/null || fail "no docker on this runner"
@@ -106,12 +106,12 @@ host_main() {
     host_bundled_refused "$bundled"
 
     step "L3: the arm64 system-qt deb in bookworm (container)"
-    CONTAINER="throne-e2e-arm64-${GITHUB_RUN_ID:-local}-$$"
+    CONTAINER="rawline-e2e-arm64-${GITHUB_RUN_ID:-local}-$$"
     args=(--rm --init --name "$CONTAINER" --platform "$PLATFORM"
         -e E2E_INSIDE=1 -e DEBIAN_FRONTEND=noninteractive -e E2E_TMP=/e2e/out
-        -e THRONECTL=/usr/local/bin/thronectl -e FIXTURES=/e2e/smoke_fixtures.py
+        -e RAWLINECTL=/usr/local/bin/rawlinectl -e FIXTURES=/e2e/smoke_fixtures.py
         -v "$SCRIPT_DIR:/e2e/ci:ro" -v "$fixtures:/e2e/smoke_fixtures.py:ro"
-        -v "$systemqt:/pkg/throne-system-qt.deb:ro" -v "$thronectl:/usr/local/bin/thronectl:ro"
+        -v "$systemqt:/pkg/rawline-system-qt.deb:ro" -v "$rawlinectl:/usr/local/bin/rawlinectl:ro"
         -v "$OUT:/e2e/out")
     for var in CI GITHUB_ACTIONS; do
         if [ -n "${!var:-}" ]; then args+=(-e "$var"); fi
@@ -129,9 +129,9 @@ host_main() {
 
 # ==================================================================================================== inside (bookworm)
 
-THRONE=/opt/Throne/Throne
-DATA=/var/lib/throne-e2e
-FILE_LOG=$DATA/config/logs/throne.log
+RAWLINE=/opt/Rawline/Rawline
+DATA=/var/lib/rawline-e2e
+FILE_LOG=$DATA/config/logs/rawline.log
 API_LISTEN=127.0.0.1:19383
 FIXTURE_HTTP_PORT=18383
 FIXTURE_SOCKS_PORT=11383
@@ -142,36 +142,36 @@ FIXTURE_URL="http://fixture.test:$HTTP_PORT/"
 CONNECT_RE="^CONNECT fixture\\.test:$HTTP_PORT -> 127\\.0\\.0\\.1:$HTTP_PORT ok\$"
 RUN_LOG=
 FIXTURE_LOG=
-THRONE_PID=
+RAWLINE_PID=
 PROFILE_ID=
 
 in_connects() { grep -cE "$CONNECT_RE" "$FIXTURE_LOG" 2>/dev/null || true; }
 
 in_connects_above() { (($(in_connects) > $1)); }
 
-in_alive() { kill -0 "$THRONE_PID" 2>/dev/null; }
+in_alive() { kill -0 "$RAWLINE_PID" 2>/dev/null; }
 
 in_gone() { ! in_alive; }
 
-in_no_core() { ! pgrep -x qThroneCore >/dev/null; }
+in_no_core() { ! pgrep -x RawlineCore >/dev/null; }
 
 in_healthy() {
-    in_alive || fail "Throne (PID $THRONE_PID) exited before it was healthy"
-    "$THRONE" --health --data-dir "$DATA" >/dev/null 2>&1
+    in_alive || fail "Rawline (PID $RAWLINE_PID) exited before it was healthy"
+    "$RAWLINE" --health --data-dir "$DATA" >/dev/null 2>&1
 }
 
 in_state_is() {
     local out
-    out=$("$THRONECTL" --json status 2>/dev/null) || return 1
+    out=$("$RAWLINECTL" --json status 2>/dev/null) || return 1
     [ "$(pk_json state <<<"$out")" = "$1" ]
 }
 
 in_cleanup() {
     local rc=$1 file
     [ -n "$RUN_LOG" ] || return 0
-    [ -f "$FILE_LOG" ] && cp "$FILE_LOG" "$E2E_TMP/throne.log"
+    [ -f "$FILE_LOG" ] && cp "$FILE_LOG" "$E2E_TMP/rawline.log"
     if ((rc != 0)); then
-        echo "::group::FAILED (status $rc): Throne's stderr, throne.log, fixtures"
+        echo "::group::FAILED (status $rc): Rawline's stderr, rawline.log, fixtures"
         for file in "$RUN_LOG" "$FIXTURE_LOG" "$FIXTURE_LOG.stderr"; do
             [ -f "$file" ] && echo "--- $file" && cat "$file"
         done
@@ -181,15 +181,15 @@ in_cleanup() {
         fi
         echo "::endgroup::"
     fi
-    if [ -n "$THRONE_PID" ] && in_alive; then
-        kill -TERM "$THRONE_PID"
+    if [ -n "$RAWLINE_PID" ] && in_alive; then
+        kill -TERM "$RAWLINE_PID"
         for _ in $(seq 40); do
             in_alive || break
             sleep 0.5
         done
-        kill -KILL "$THRONE_PID" 2>/dev/null
+        kill -KILL "$RAWLINE_PID" 2>/dev/null
     fi
-    pkill -KILL -x qThroneCore 2>/dev/null
+    pkill -KILL -x RawlineCore 2>/dev/null
     chmod -R a+rX "$E2E_TMP" 2>/dev/null
     return 0
 }
@@ -199,19 +199,19 @@ inside_main() {
     [ "${E2E_INSIDE:-}" = 1 ] && [ -f /.dockerenv ] || fail "the inside part runs only in the container that the host part starts"
     unset DISPLAY WAYLAND_DISPLAY QT_QPA_PLATFORM
     mkdir -p "$E2E_TMP"
-    RUN_LOG=$E2E_TMP/throne-stderr.log
+    RUN_LOG=$E2E_TMP/rawline-stderr.log
     FIXTURE_LOG=$E2E_TMP/fixtures.log
 
     step "L3: apt-get install the arm64 system-qt deb"
     apt-get update -qq
-    apt-get install -y --no-install-recommends /pkg/throne-system-qt.deb
-    [ "$(dpkg-query -W -f='${Status}' throne)" = "install ok installed" ] || fail "throne is not installed after apt-get install"
-    out=$(ldd "$THRONE" /opt/Throne/qThroneCore 2>&1) || true
+    apt-get install -y --no-install-recommends /pkg/rawline-system-qt.deb
+    [ "$(dpkg-query -W -f='${Status}' rawline)" = "install ok installed" ] || fail "rawline is not installed after apt-get install"
+    out=$(ldd "$RAWLINE" /opt/Rawline/RawlineCore 2>&1) || true
     if grep -F 'not found' <<<"$out"; then
-        fail "Throne does not load on bookworm (lines above): the system-qt package misses a dependency"
+        fail "Rawline does not load on bookworm (lines above): the system-qt package misses a dependency"
     fi
-    "$THRONE" --headless --version
-    # Test tools only after the package, so its own Depends had to pull in everything Throne loads.
+    "$RAWLINE" --headless --version
+    # Test tools only after the package, so its own Depends had to pull in everything Rawline loads.
     apt-get install -y --no-install-recommends python3 curl procps ca-certificates
 
     step "L3: fixtures (HTTP $HTTP_PORT, SOCKS5 $SOCKS_PORT)"
@@ -221,12 +221,12 @@ inside_main() {
     pk_eq "fixture self-test HTTP status" "$code" 204
     (($(in_connects) > 0)) || fail "the SOCKS5 fixture did not log its own CONNECT"
 
-    step "L3: Throne --headless in the foreground, health 0"
-    "$THRONE" --headless --data-dir "$DATA" --api-listen "$API_LISTEN" --log-format plain >"$RUN_LOG" 2>&1 &
-    THRONE_PID=$!
-    echo "Throne PID $THRONE_PID, data dir $DATA, stderr $RUN_LOG"
-    wait_until 90 "Throne --health exiting 0" in_healthy
-    out=$("$THRONE" --health --data-dir "$DATA") || fail "Throne --health exited $?: $out"
+    step "L3: Rawline --headless in the foreground, health 0"
+    "$RAWLINE" --headless --data-dir "$DATA" --api-listen "$API_LISTEN" --log-format plain >"$RUN_LOG" 2>&1 &
+    RAWLINE_PID=$!
+    echo "Rawline PID $RAWLINE_PID, data dir $DATA, stderr $RUN_LOG"
+    wait_until 90 "Rawline --health exiting 0" in_healthy
+    out=$("$RAWLINE" --health --data-dir "$DATA") || fail "Rawline --health exited $?: $out"
     echo "$out"
     pk_eq "--health ok" "$(pk_json ok <<<"$out")" true
     pk_eq "--health ready" "$(pk_json ready <<<"$out")" true
@@ -234,28 +234,28 @@ inside_main() {
     pk_eq "--health headless_dialogs" "$(pk_json headless_dialogs <<<"$out")" 0
     pk_eq "--health previous_crash" "$(pk_json previous_crash <<<"$out")" false
     pk_eq "$DATA mode" "$(stat -c '%a' "$DATA")" 700
-    # Under docker's umask 022 and a single start, only Throne's own create mode keeps the key from others.
+    # Under docker's umask 022 and a single start, only Rawline's own create mode keeps the key from others.
     mode=$(stat -c '%a' "$DATA/config/api.key") || fail "no $DATA/config/api.key"
-    (((8#$mode & 8#077) == 0)) || fail "$DATA/config/api.key has mode $mode: Throne created the API key readable by others"
+    (((8#$mode & 8#077) == 0)) || fail "$DATA/config/api.key has mode $mode: Rawline created the API key readable by others"
 
-    step "L3: --print-connection and thronectl status"
-    connect_env "$THRONE" "$DATA"
-    pk_eq THRONE_ADDR "${THRONE_ADDR:-}" "$API_LISTEN"
-    pk_eq THRONE_KEY_FILE "${THRONE_KEY_FILE:-}" "$DATA/config/api.key"
-    out=$("$THRONECTL" --json status) || fail "thronectl status failed"
+    step "L3: --print-connection and rawlinectl status"
+    connect_env "$RAWLINE" "$DATA"
+    pk_eq RAWLINE_ADDR "${RAWLINE_ADDR:-}" "$API_LISTEN"
+    pk_eq RAWLINE_KEY_FILE "${RAWLINE_KEY_FILE:-}" "$DATA/config/api.key"
+    out=$("$RAWLINECTL" --json status) || fail "rawlinectl status failed"
     echo "$out"
     pk_eq capabilities.headless "$(pk_json capabilities.headless <<<"$out")" true
     pk_eq state "$(pk_json state <<<"$out")" idle
 
     step "L3: import a SOCKS profile, connect, proxy through the mixed inbound, disconnect"
-    out=$(printf 'socks5://127.0.0.1:%s#%s\n' "$SOCKS_PORT" "$PROFILE_NAME" | "$THRONECTL" --json import -) ||
-        fail "thronectl import failed"
+    out=$(printf 'socks5://127.0.0.1:%s#%s\n' "$SOCKS_PORT" "$PROFILE_NAME" | "$RAWLINECTL" --json import -) ||
+        fail "rawlinectl import failed"
     echo "$out"
     pk_eq imported "$(pk_json imported <<<"$out")" 1
     PROFILE_ID=$(pk_json profile_ids.0 <<<"$out")
     [[ $PROFILE_ID =~ ^[0-9]+$ ]] || fail "profile_ids.0 is '$PROFILE_ID'"
-    "$THRONECTL" --timeout 90s connect "$PROFILE_ID"
-    out=$("$THRONECTL" --json status) || fail "thronectl status failed"
+    "$RAWLINECTL" --timeout 90s connect "$PROFILE_ID"
+    out=$("$RAWLINECTL" --json status) || fail "rawlinectl status failed"
     echo "$out"
     pk_eq state "$(pk_json state <<<"$out")" running
     pk_eq profile.id "$(pk_json profile.id <<<"$out")" "$PROFILE_ID"
@@ -270,24 +270,24 @@ inside_main() {
     esac
     before=$(in_connects)
     code=$(curl -sS --max-time 20 -x "socks5h://$address:$port" -o /dev/null -w '%{http_code}' "$FIXTURE_URL") ||
-        fail "curl through Throne's mixed inbound $address:$port failed"
-    pk_eq "HTTP status through Throne" "$code" 204
+        fail "curl through Rawline's mixed inbound $address:$port failed"
+    pk_eq "HTTP status through Rawline" "$code" 204
     wait_until 5 "the SOCKS5 fixture logging the proxied CONNECT" in_connects_above "$before"
-    "$THRONECTL" --timeout 60s disconnect
-    wait_until 15 "state idle after thronectl disconnect" in_state_is idle
+    "$RAWLINECTL" --timeout 60s disconnect
+    wait_until 15 "state idle after rawlinectl disconnect" in_state_is idle
 
     step "L3: SIGTERM: exit 0, clean session end"
-    kill -TERM "$THRONE_PID"
-    wait_until 45 "Throne exiting after SIGTERM" in_gone
+    kill -TERM "$RAWLINE_PID"
+    wait_until 45 "Rawline exiting after SIGTERM" in_gone
     rc=0
-    wait "$THRONE_PID" || rc=$?
-    THRONE_PID=
+    wait "$RAWLINE_PID" || rc=$?
+    RAWLINE_PID=
     pk_eq "exit status after SIGTERM" "$rc" 0
-    # Sanity only: a core Throne leaked exits by itself once its IPC connection closes; the log line below is the check.
-    wait_until 10 "no qThroneCore process left" in_no_core
+    # Sanity only: a core Rawline leaked exits by itself once its IPC connection closes; the log line below is the check.
+    wait_until 10 "no RawlineCore process left" in_no_core
     [ -f "$FILE_LOG" ] || fail "no $FILE_LOG"
     grep -qE 'core process exited: code=-?[0-9]+ status=(normal|crash) \(during shutdown\)' "$FILE_LOG" ||
-        fail "$FILE_LOG has no 'core process exited ... (during shutdown)' line: Throne did not stop and reap its core"
+        fail "$FILE_LOG has no 'core process exited ... (during shutdown)' line: Rawline did not stop and reap its core"
     grep -qF 'EXIT 0: SIGTERM' "$FILE_LOG" || fail "$FILE_LOG does not log 'EXIT 0: SIGTERM'"
     grep -qF '===== Rawline session end (clean) =====' "$FILE_LOG" || fail "$FILE_LOG has no clean session end"
     [ ! -e "$DATA/config/logs/running.marker" ] || fail "running.marker was left behind"

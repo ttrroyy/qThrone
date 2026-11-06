@@ -6,13 +6,13 @@ set(PLATFORM_HEADLESS_SOURCES src/sys/windows/ServiceManager_win.cpp src/sys/win
 include(cmake/windows/generate_product_version.cmake)
 generate_product_version(
         QV2RAY_RC
-        ICON "${CMAKE_SOURCE_DIR}/res/Throne.ico"
+        ICON "${CMAKE_SOURCE_DIR}/res/Rawline.ico"
         NAME "Rawline"
         BUNDLE "Rawline"
         COMPANY_NAME "Rawline"
         COMPANY_COPYRIGHT "Rawline"
         FILE_DESCRIPTION "Rawline"
-        ORIGINAL_FILENAME "qThrone.exe"
+        ORIGINAL_FILENAME "Rawline.exe"
         VERSION_MAJOR ${NKR_VERSION_MAJOR}
         VERSION_MINOR ${NKR_VERSION_MINOR}
         VERSION_PATCH ${NKR_VERSION_PATCH}

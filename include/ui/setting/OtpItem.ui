@@ -144,7 +144,7 @@
          <string>Edit</string>
         </property>
         <property name="icon">
-         <iconset resource="../../../res/Throne.qrc">
+         <iconset resource="../../../res/Rawline.qrc">
           <normaloff>:/icon/material/pencil-outline.png</normaloff>:/icon/material/pencil-outline.png</iconset>
         </property>
         <property name="autoRaise">
@@ -158,7 +158,7 @@
          <string>Export</string>
         </property>
         <property name="icon">
-         <iconset resource="../../../res/Throne.qrc">
+         <iconset resource="../../../res/Rawline.qrc">
           <normaloff>:/icon/material/qrcode.png</normaloff>:/icon/material/qrcode.png</iconset>
         </property>
         <property name="autoRaise">
@@ -172,7 +172,7 @@
          <string>Delete</string>
         </property>
         <property name="icon">
-         <iconset resource="../../../res/Throne.qrc">
+         <iconset resource="../../../res/Rawline.qrc">
           <normaloff>:/icon/material/delete.png</normaloff>:/icon/material/delete.png</iconset>
         </property>
         <property name="autoRaise">
@@ -186,7 +186,7 @@
   </layout>
  </widget>
  <resources>
-  <include location="../../../res/Throne.qrc"/>
+  <include location="../../../res/Rawline.qrc"/>
  </resources>
  <connections/>
 </ui>
