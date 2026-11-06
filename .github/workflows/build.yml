@@ -242,7 +242,12 @@ jobs:
         run: |
           set -xeuo pipefail
           cd ~/cronet-go
-          go run ./cmd/build-naive --target=linux/${{ matrix.cross_arch }} download-toolchain
+          # snapshot.debian.org, where the sysroot comes from, fails in bursts longer than the script's own retries.
+          for attempt in 1 2 3 4 5 6; do
+            go run ./cmd/build-naive --target=linux/${{ matrix.cross_arch }} download-toolchain && exit 0
+            sleep 300
+          done
+          exit 1
       - name: Set Chromium toolchain environment
         if: matrix.cross_os == 'linux'
         run: |
