@@ -73,9 +73,9 @@ namespace Configs {
             constexpr auto dnsSystem = "dns-system";
             constexpr auto mixedIn = "mixed-in";
             constexpr auto tunIn = "tun-in";
-            constexpr auto xrayFullConfigIn = "qthrone-bridge";
+            constexpr auto xrayFullConfigIn = "rawline-bridge";
 
-            constexpr auto adblockRuleSet = "qthrone-adblocksingbox";
+            constexpr auto adblockRuleSet = "rawline-adblocksingbox";
             constexpr auto privateRangesRuleSet = "rawline-private-ranges";
 
             constexpr auto mainChainPrefix = "config";
@@ -1927,7 +1927,7 @@ namespace Configs {
                     auto inboundTags = rule["inboundTag"].toArray();
                     bool migrated = false;
                     for (qsizetype j = 0; j < inboundTags.size(); ++j) {
-                        if (inboundTags[j].toString() == "throne-bridge") {
+                        if (inboundTags[j].toString() == "rawline-bridge") {
                             inboundTags[j] = tags::xrayFullConfigIn;
                             migrated = true;
                         }

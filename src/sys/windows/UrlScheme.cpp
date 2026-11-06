@@ -54,7 +54,7 @@ bool UrlScheme_IsCurrent(Association a) {
 }
 
 static void applyLinks(const QString &command) {
-    for (const QString &name : {QStringLiteral("rawline"), QStringLiteral("rawline")}) {
+    for (const QString &name : {QStringLiteral("rawline")}) {
         QSettings scheme(kClasses + "\\" + name, QSettings::NativeFormat);
         scheme.setValue("Default", "URL:Rawline Protocol");
         scheme.setValue("URL Protocol", "");
@@ -98,7 +98,6 @@ void UrlScheme_Remove(Association a) {
     // Removing from the parent key drops the whole subtree; QSettings::remove("") would only empty it and leave the node behind.
     QSettings classes(kClasses, QSettings::NativeFormat);
     if (a == Association::Links) {
-        classes.remove("rawline");
         classes.remove("rawline");
     } else {
         classes.remove(kProgId);

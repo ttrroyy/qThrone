@@ -268,7 +268,6 @@ bool EditProviderRouting(Configs::SubscriptionOptions &options, QWidget *parent)
         auto document = profiles[index].toObject();
         const auto provider = PR::Source(document, changed.routing_provider).toLower();
         document.remove("_rawline_source");
-        document.remove("_qthrone_source");
         QApplication::clipboard()->setText(
             provider + "://routing/add/" +
             QString::fromLatin1(QJsonDocument(document)

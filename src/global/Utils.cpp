@@ -552,13 +552,13 @@ QString Deeplink_ExtractFromArgs(const QStringList &args) {
             i++;
             continue;
         }
-        if (CurrentLinkScheme(args[i]).startsWith("rawline://")) return CurrentLinkScheme(args[i]);
+        if (args[i].startsWith("rawline://")) return args[i];
     }
     return {};
 }
 
 void Deeplink_Submit(const QString &url) {
-    if (url.isEmpty() || !CurrentLinkScheme(url).startsWith("rawline://")) return;
+    if (url.isEmpty() || !url.startsWith("rawline://")) return;
     if (MW_handle_deeplink) {
         MW_handle_deeplink(url);
     } else {
@@ -587,7 +587,7 @@ QStringList LaunchFiles_ExtractFromArgs(const QStringList &args, const QDir &lau
             if (launchArgTakesValue(arg)) i++;
             continue;
         }
-        if (CurrentLinkScheme(arg).startsWith("rawline://")) continue;
+        if (arg.startsWith("rawline://")) continue;
 
         // A relative path resolves against the directory we were launched from, which main() abandons early.
         auto path = arg.startsWith("file://") ? QUrl(arg).toLocalFile() : arg;

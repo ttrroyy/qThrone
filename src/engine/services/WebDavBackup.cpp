@@ -274,7 +274,7 @@ namespace Engine::WebDavBackup {
 
         bool WebDavSafeFileName(const QString &name) {
             return !name.isEmpty() && !name.contains(u'/') && !name.contains(u'\\') && name != QLatin1String(".") &&
-                   name != QLatin1String("..") && (name.endsWith(QLatin1String(".rwlbackup"), Qt::CaseInsensitive) || name.endsWith(QLatin1String(".thrbackup"), Qt::CaseInsensitive));
+                   name != QLatin1String("..") && name.endsWith(QLatin1String(".rwlbackup"), Qt::CaseInsensitive);
         }
 
         // Newest first; unknown dates sort last.

@@ -38,11 +38,6 @@ inline osType getOS()
 }
 
 inline QString software_name;
-
-// Links shared before the rename name the old scheme; they still open.
-inline QString CurrentLinkScheme(const QString &text) {
-    return text.startsWith(QLatin1String("throne://"), Qt::CaseInsensitive) ? QStringLiteral("rawline://") + text.mid(9) : text;
-}
 inline QString software_core_name;
 
 // Epoch-seconds, set once in main().

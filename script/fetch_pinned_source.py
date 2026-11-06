@@ -32,7 +32,13 @@ def fetch(repository, revision, destination, snapshot_only=False):
             bundle = Path(folder) / 'source.bundle'
             bundle.write_bytes(payload)
             subprocess.run(['git', '-C', str(destination), 'bundle', 'verify', str(bundle)], check=True)
-            subprocess.run(['git', '-C', str(destination), 'fetch', str(bundle), 'refs/heads/qthrone-source-pin'], check=True)
+            fetched = subprocess.run(['git', '-C', str(destination), 'fetch', str(bundle), 'refs/heads/qthrone-source-pin']).returncode == 0
+            if not fetched:
+                # A snapshot made from a shallow clone has no parents to walk: its objects are taken directly.
+                pack = payload[payload.index(b'\n\n') + 2:]
+                subprocess.run(['git', '-C', str(destination), 'index-pack', '--stdin', '--fix-thin'], input=pack, stdout=subprocess.DEVNULL, check=True)
+                (destination / '.git' / 'shallow').write_text(revision + '\n')
+                (destination / '.git' / 'FETCH_HEAD').write_text(revision + '\n')
     actual = subprocess.check_output(['git', '-C', str(destination), 'rev-parse', 'FETCH_HEAD'], text=True).strip()
     assert actual == revision, 'Unexpected source revision'
     subprocess.run(['git', '-C', str(destination), 'checkout', '-q', '--detach', 'FETCH_HEAD'], check=True)

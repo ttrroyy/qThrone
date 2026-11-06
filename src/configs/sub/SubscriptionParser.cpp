@@ -1354,7 +1354,7 @@ namespace Subscription {
                 jsonLink(toQString(line), false);
                 return;
             }
-            if (scan::startsWithNoCase(line, "rawline://add/") || scan::startsWithNoCase(line, "throne://add/")) {
+            if (scan::startsWithNoCase(line, "rawline://add/")) {
                 jsonLink(toQString(line), true);
                 return;
             }

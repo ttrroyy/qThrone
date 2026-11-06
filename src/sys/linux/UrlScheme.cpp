@@ -12,7 +12,7 @@
 // Both associations live in this one entry, told apart by its MimeType list.
 static const QString kDesktopId = "rawline-url-handler.desktop";
 
-static const QStringList kLinkTypes = {"x-scheme-handler/rawline", "x-scheme-handler/rawline"};
+static const QStringList kLinkTypes = {"x-scheme-handler/rawline"};
 static const QStringList kConfigTypes = {"application/json", "application/yaml", "text/yaml"};
 
 static const QStringList &typesOf(Association a) {

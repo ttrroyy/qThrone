@@ -81,8 +81,8 @@ namespace Configs {
                     tls->cipher_suites = ImportTlsCipherSuites(splitCipherSuites(objN["cs"].toString()), "cs");
                 }
 
-                // rawlineExtra (throneExtra in older links) holds what the V2RayN schema cannot; the dummy authority only satisfies QUrl.
-                if (const auto extra = objN.contains("rawlineExtra") ? objN["rawlineExtra"].toString() : objN["throneExtra"].toString(); !extra.isEmpty()) {
+                // rawlineExtra holds what the V2RayN schema cannot; the dummy authority only satisfies QUrl.
+                if (const auto extra = objN["rawlineExtra"].toString(); !extra.isEmpty()) {
                     const QString extraLink = "vmess://x@127.0.0.1:1?" + extra;
                     transport->ParseFromLink(extraLink);
                     multiplex->ParseFromLink(extraLink);

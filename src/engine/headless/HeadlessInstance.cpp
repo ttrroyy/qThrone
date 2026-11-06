@@ -116,7 +116,7 @@ namespace Engine::HeadlessInstance {
         QString headlessInstanceLinkLabel(const QString &line) {
             const QUrl url(line);
             const auto scheme = url.scheme().toLower();
-            if ((scheme == QLatin1String("rawline") || scheme == QLatin1String("rawline")) && !url.host().isEmpty()) return QStringLiteral("rawline://") + headlessInstancePrintable(url.host());
+            if (scheme == QLatin1String("rawline") && !url.host().isEmpty()) return QStringLiteral("rawline://") + headlessInstancePrintable(url.host());
             return scheme + QStringLiteral("://");
         }
 
@@ -126,7 +126,7 @@ namespace Engine::HeadlessInstance {
                 LOG_DEBUG(QStringLiteral("[Instance] HELLO from %1").arg(headlessInstancePrintable(line.mid(6).trimmed())));
                 return QStringLiteral("HEADLESS pid=%1 version=%2").arg(QCoreApplication::applicationPid()).arg(QStringLiteral(NKR_VERSION)).toUtf8();
             }
-            if (line.startsWith(QLatin1String("rawline://"), Qt::CaseInsensitive) || line.startsWith(QLatin1String("throne://"), Qt::CaseInsensitive) || line.startsWith(QLatin1String("file://"), Qt::CaseInsensitive)) {
+            if (line.startsWith(QLatin1String("rawline://"), Qt::CaseInsensitive) || line.startsWith(QLatin1String("file://"), Qt::CaseInsensitive)) {
                 LOG_WARN(QStringLiteral("[Instance] Refused a %1 link from another launch: headless Rawline takes links and files through rawlinectl.")
                              .arg(headlessInstanceLinkLabel(line)));
                 return QByteArrayLiteral("REJECT headless");

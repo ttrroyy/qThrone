@@ -20,13 +20,13 @@
 
 namespace Subscription::ProviderRouting {
 QString Source(const QJsonObject &document, const QString &fallback) {
-    return document.value("_rawline_source").toString(document.value("_qthrone_source").toString(fallback.isEmpty() ? "Happ" : fallback));
+    return document.value("_rawline_source").toString(fallback.isEmpty() ? "Happ" : fallback);
 }
 QString Identity(const QJsonObject &document, const QString &fallback) {
     return Source(document, fallback) + QChar(0) + document.value("Name").toString();
 }
 bool SameSettings(QJsonObject a, QJsonObject b) {
-    for (const auto &key : {"Name", "LastUpdated", "_rawline_source", "_qthrone_source"}) { a.remove(key); b.remove(key); }
+    for (const auto &key : {"Name", "LastUpdated", "_rawline_source"}) { a.remove(key); b.remove(key); }
     return a == b;
 }
 namespace {
