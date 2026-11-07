@@ -88,3 +88,14 @@ func TestMRTTResponseAndPath(t *testing.T) {
 		t.Fatal(got)
 	}
 }
+
+func TestMRTTBatchTakesOnlyApiReads(t *testing.T) {
+	if !mrttBatchValid([]string{"/api/clients", "/api/groups"}) {
+		t.Fatal("api paths refused")
+	}
+	for _, paths := range [][]string{nil, {"/etc/passwd"}, {"/api/x y"}, {"/api/a\nHost: x"}, make([]string, 17)} {
+		if mrttBatchValid(paths) {
+			t.Fatal(paths)
+		}
+	}
+}

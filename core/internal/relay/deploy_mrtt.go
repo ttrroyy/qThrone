@@ -228,6 +228,18 @@ func (p *protocol) deployMRTT(client *ssh.Client, s map[string]string, install b
 }
 
 // mrttRequest is one call of the server's management API: it listens on 127.0.0.1 only, so it goes through SSH with the deploy's access.
+func mrttBatchValid(paths []string) bool {
+	if len(paths) == 0 || len(paths) > 16 {
+		return false
+	}
+	for _, path := range paths {
+		if !strings.HasPrefix(path, "/api/") || strings.ContainsAny(path, " \r\n") {
+			return false
+		}
+	}
+	return true
+}
+
 func mrttRequest(client *ssh.Client, s map[string]string, method, path, body string) (string, error) {
 	connection, e := client.Dial("tcp", net.JoinHostPort("127.0.0.1", s["webPort"]))
 	if e != nil {
@@ -427,8 +439,12 @@ func (p *protocol) mrttAdmin(s map[string]string, raw string) (any, error) {
 		Target   map[string]string `json:"target"`
 		ID       string            `json:"id"`
 		Password string            `json:"remote_password"`
+		Paths    []string          `json:"paths"`
 	}
 	if e := json.Unmarshal([]byte(raw), &request); e != nil {
+		return nil, fmt.Errorf("Некорректный запрос")
+	}
+	if request.Action == "batch" && !mrttBatchValid(request.Paths) {
 		return nil, fmt.Errorf("Некорректный запрос")
 	}
 	if e := validateMRTT(s, false); e != nil {
@@ -440,6 +456,17 @@ func (p *protocol) mrttAdmin(s map[string]string, raw string) (any, error) {
 	}
 	defer client.Close()
 	switch request.Action {
+	case "batch":
+		// The screen's sections in one go: each answer, or its own error, by path.
+		answers := map[string]map[string]string{}
+		for _, path := range request.Paths {
+			if body, e := mrttRequest(client, s, "GET", path, ""); e == nil {
+				answers[path] = map[string]string{"body": body}
+			} else {
+				answers[path] = map[string]string{"error": e.Error()}
+			}
+		}
+		return answers, nil
 	case "exit-add":
 		if request.Target == nil || validateMRTT(request.Target, false) != nil {
 			return nil, fmt.Errorf("Некорректный сервер выхода")

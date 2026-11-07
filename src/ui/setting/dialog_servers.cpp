@@ -908,8 +908,16 @@ class MrttServer : public ServerScreen {
         return {};
     }
     void reload() {
-        api("GET", "/api/groups", {}, [this](const QString &text) {
-            groups = QJsonDocument::fromJson(text.toUtf8()).array();
+        // One SSH connection for all of them: a process and a handshake per section made the window slow to fill.
+        call("mrtt-admin", {{"action", "batch"}, {"paths", QJsonArray{"/api/groups", "/api/clients", "/api/routing-rules", "/api/settings", "/api/local-proxy"}}},
+             [this](const QJsonValue &value) {
+            const auto answers = value.toObject();
+            const auto body = [&answers, this](const QString &path) {
+                const auto answer = answers[path].toObject();
+                if (answer.contains("error")) status->setText(answer["error"].toString());
+                return answer["body"].toString().toUtf8();
+            };
+            groups = QJsonDocument::fromJson(body("/api/groups")).array();
             const auto current = groupFilter->currentData();
             const QSignalBlocker blocker(groupFilter);
             groupFilter->clear();
@@ -917,15 +925,14 @@ class MrttServer : public ServerScreen {
             groupFilter->addItem(QStringLiteral("Без группы"), QString(""));
             for (const auto &entry : groups) groupFilter->addItem(entry.toObject()["name"].toString(), entry.toObject()["id"].toString());
             groupFilter->setCurrentIndex(qMax(0, groupFilter->findData(current)));
+            rules = QJsonDocument::fromJson(body("/api/routing-rules")).array();
+            clients = QJsonDocument::fromJson(body("/api/clients")).array();
+            settings = QJsonDocument::fromJson(body("/api/settings")).object();
             showGroups();
-            api("GET", "/api/clients", {}, [this](const QString &list) {
-                clients = QJsonDocument::fromJson(list.toUtf8()).array();
-                showClients();
-            });
+            showClients();
+            showRules();
+            showProxy(QJsonDocument::fromJson(body("/api/local-proxy")).object());
         });
-        api("GET", "/api/routing-rules", {}, [this](const QString &text) { rules = QJsonDocument::fromJson(text.toUtf8()).array(); showRules(); showGroups(); });
-        api("GET", "/api/settings", {}, [this](const QString &text) { settings = QJsonDocument::fromJson(text.toUtf8()).object(); });
-        api("GET", "/api/local-proxy", {}, [this](const QString &text) { showProxy(QJsonDocument::fromJson(text.toUtf8()).object()); });
     }
     void showClients() {
         QList<QJsonObject> visible;

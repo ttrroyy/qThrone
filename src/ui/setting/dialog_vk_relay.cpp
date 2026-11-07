@@ -47,6 +47,10 @@
 #include <QTabWidget>
 #include <QThread>
 #include <QTimer>
+#include <QAbstractButton>
+#include <QPainter>
+#include <QShowEvent>
+#include <QHideEvent>
 #include <QUuid>
 #include <QVBoxLayout>
 
@@ -396,6 +400,29 @@ struct Job {
     RelayTask *task = nullptr;
 };
 static QList<Job> jobs;
+// The status circle: an arc that turns while it is shown.
+class Spinner : public QAbstractButton {
+public:
+    explicit Spinner(QWidget *parent) : QAbstractButton(parent) {
+        setFixedSize(26, 26);
+        setCursor(Qt::PointingHandCursor);
+        timer.setInterval(30);
+        QObject::connect(&timer, &QTimer::timeout, this, [this] { angle = (angle + 12) % 360; update(); });
+    }
+protected:
+    void showEvent(QShowEvent *) override { timer.start(); }
+    void hideEvent(QHideEvent *) override { timer.stop(); }
+    void paintEvent(QPaintEvent *) override {
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        QPen pen(palette().color(QPalette::WindowText), 2.5, Qt::SolidLine, Qt::RoundCap);
+        painter.setPen(pen);
+        painter.drawArc(rect().adjusted(4, 4, -4, -4), -angle * 16, 270 * 16);
+    }
+private:
+    QTimer timer;
+    int angle = 0;
+};
 static QMap<int, std::function<void()>> watchers;
 static int nextWatcher = 0;
 static void changed() {
@@ -1477,21 +1504,24 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
             return;
         }
     };
-    for (const auto &kind : {QString("qwdtt"), QString("csqtt"), QString("mrtt"), QString("wdttplus"), QString("freeturn")}) {
+    for (const auto &kind : {QString("mrtt"), QString("qwdtt"), QString("csqtt"), QString("wdttplus"), QString("freeturn")}) {
         auto *page = new QWidget(tabs);
         page->setEnabled(false);
         pages->append(page);
         tabs->addTab(page, "Деплой " + kindTitle(kind));
         auto *pageLayout = new QVBoxLayout(page);
         if (kind == "mrtt") {
-            // Seen only while installs run.
-            auto *jobsButton = new QPushButton(page);
+            // A turning circle at the top right, only while installs run; a click opens their window.
+            auto *jobsButton = new MrttJobs::Spinner(page);
             jobsButton->hide();
-            pageLayout->addWidget(jobsButton);
-            connect(jobsButton, &QPushButton::clicked, this, [this] { MrttJobs::show(this); });
+            auto *top = new QHBoxLayout;
+            top->addStretch();
+            top->addWidget(jobsButton);
+            pageLayout->addLayout(top);
+            connect(jobsButton, &MrttJobs::Spinner::clicked, this, [this] { MrttJobs::show(this); });
             const int token = MrttJobs::nextWatcher++;
             MrttJobs::watchers[token] = [jobsButton] {
-                jobsButton->setText(QStringLiteral("Идёт установка: %1").arg(MrttJobs::jobs.size()));
+                jobsButton->setToolTip(QStringLiteral("Установка серверов: %1").arg(MrttJobs::jobs.size()));
                 jobsButton->setVisible(!MrttJobs::jobs.isEmpty());
             };
             MrttJobs::watchers[token]();
