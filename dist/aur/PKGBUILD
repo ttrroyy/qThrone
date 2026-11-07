@@ -11,7 +11,7 @@ license=('GPL-3.0-or-later')
 conflicts=(rawline-bin rawline-git rawline-sysqt-bin)
 depends=('glibc' 'qt6-base')
 makedepends=('cmake' 'gendesk' 'git' 'go' 'lld' 'protobuf' 'qt6-tools' 'vulkan-headers')
-source=("${pkgname}-${pkgver}.tar.gz::https://github.com/throneproj/Rawline/archive/${pkgver}.tar.gz"
+source=("${pkgname}-${pkgver}.tar.gz::https://github.com/throneproj/Throne/archive/${pkgver}.tar.gz"
         "${pkgname}.sh"
         "git+https://github.com/throneproj/routeprofiles.git#branch=rule-set")
 sha256sums=('0b01f134a82a888cf667e4a04e96ba287374a3008d5d507732ba572c56e5d26f'

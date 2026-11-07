@@ -3,7 +3,7 @@
 # The build context holds the bundled Linux builds as linux-amd64/ and linux-arm64/ (one is enough for a single platform):
 #   - CI: each Rawline-<tag>-linux-<arch>.zip unzipped, its Rawline/ dir renamed to linux-<arch>/;
 #   - locally: deployment/ after a build (Dockerfile.dockerignore sends only those dirs, without Rawline.debug).
-# RAWLINE_API_REF is the throneproj/Rawline-api commit rawlinectl is built from; CI passes build.yml's RAWLINE_API_REF.
+# RAWLINE_API_REF is the throneproj/Throne-api commit rawlinectl is built from; CI passes build.yml's RAWLINE_API_REF.
 #   docker build -f docker/Dockerfile --build-arg RAWLINE_API_REF=<commit> -t rawline deployment
 #   docker buildx build --platform linux/amd64,linux/arm64 -f docker/Dockerfile --build-arg RAWLINE_API_REF=<commit> <context>
 
@@ -18,7 +18,7 @@ WORKDIR /src
 RUN set -e; \
     if [ -z "$RAWLINE_API_REF" ]; then echo "pass --build-arg RAWLINE_API_REF=<Rawline-api commit>" >&2; exit 1; fi; \
     git init -q .; \
-    git fetch -q --depth=1 https://github.com/throneproj/Rawline-api "$RAWLINE_API_REF" \
+    git fetch -q --depth=1 https://github.com/throneproj/Throne-api "$RAWLINE_API_REF" \
         || { echo "Rawline-api $RAWLINE_API_REF is not on GitHub" >&2; exit 1; }; \
     git checkout -q FETCH_HEAD
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -o /out/rawlinectl ./cmd/rawlinectl
@@ -28,7 +28,7 @@ ARG TARGETARCH
 ARG DEBIAN_FRONTEND=noninteractive
 LABEL org.opencontainers.image.title="Rawline" \
       org.opencontainers.image.description="Rawline proxy manager, headless; managed with rawlinectl" \
-      org.opencontainers.image.source="https://github.com/throneproj/Rawline" \
+      org.opencontainers.image.source="https://github.com/throneproj/Throne" \
       org.opencontainers.image.licenses="GPL-3.0-or-later"
 # --headless runs the desktop binary, so the libraries Qt's GUI modules link must load even though no window ever opens.
 # libgssapi-krb5-2: Qt's official QtNetwork links it (Negotiate authentication); CI runners have it preinstalled.

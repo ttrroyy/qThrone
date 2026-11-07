@@ -31,7 +31,7 @@ namespace Subscription {
 }
 
 namespace RemoteApi {
-    // The endpoints of spec/api.md in throneproj/Rawline-api. UI thread only.
+    // The endpoints of spec/api.md in throneproj/Throne-api. UI thread only.
     class Router : public QObject {
         Q_OBJECT
 

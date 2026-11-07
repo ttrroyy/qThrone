@@ -758,7 +758,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - publish
-    if: github.repository == 'throneproj/Rawline' && github.event.inputs.publish == 'r'
+    if: github.repository == 'throneproj/Throne' && github.event.inputs.publish == 'r'
     permissions:
       contents: read
     steps:
@@ -783,14 +783,14 @@ jobs:
           commit_message: Update to ${{ github.event.inputs.tag }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
   # Publishes the RPM and APT repositories to this repository's GitHub Pages,
-  # served at https://throneproj.github.io/Rawline/rpm/ and
-  # https://throneproj.github.io/Rawline/apt/.
+  # served at https://throneproj.github.io/Throne/rpm/ and
+  # https://throneproj.github.io/Throne/apt/.
   publish-repos:
     name: Publish RPM and APT Repositories
     runs-on: ubuntu-latest
     needs:
       - publish
-    if: github.repository == 'throneproj/Rawline' && github.event.inputs.publish == 'r'
+    if: github.repository == 'throneproj/Throne' && github.event.inputs.publish == 'r'
     permissions:
       contents: read
       pages: write
@@ -834,7 +834,7 @@ jobs:
           createrepo_c repo/rpm
           gpg --batch --yes --local-user "$SIGNING_FPR" --armor --detach-sign repo/rpm/repodata/repomd.xml
           printf '%s\n' '[rawline]' 'name=Rawline RPM repository' \
-            'baseurl=https://throneproj.github.io/Rawline/rpm' \
+            'baseurl=https://throneproj.github.io/Throne/rpm' \
             'enabled=1' 'autorefresh=1' 'gpgcheck=1' 'repo_gpgcheck=1' \
             'gpgkey=https://throneproj.github.io/Throne/throne.asc' > repo/rpm/rawline.repo
       - name: Build APT repository
@@ -869,10 +869,10 @@ jobs:
           mv "$RUNNER_TEMP/Release" dists/stable/Release
           gpg --batch --yes --local-user "$SIGNING_FPR" --clearsign -o dists/stable/InRelease dists/stable/Release
           gpg --batch --yes --local-user "$SIGNING_FPR" --armor --detach-sign -o dists/stable/Release.gpg dists/stable/Release
-          printf '%s\n' 'deb [signed-by=/etc/apt/keyrings/rawline.asc] https://throneproj.github.io/Rawline/apt stable main' > rawline.list
+          printf '%s\n' 'deb [signed-by=/etc/apt/keyrings/rawline.asc] https://throneproj.github.io/Throne/apt stable main' > rawline.list
           # deb822 multi-line field: every line indented, blank lines written as " .".
           { printf '%s\n' 'Types: deb' \
-              'URIs: https://throneproj.github.io/Rawline/apt' \
+              'URIs: https://throneproj.github.io/Throne/apt' \
               'Suites: stable' 'Components: main' 'Signed-By:'
             sed 's/^$/./; s/^/ /' ../rawline.asc; } > rawline.sources
       - name: Upload Pages artifact

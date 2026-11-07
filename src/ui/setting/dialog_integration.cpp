@@ -143,7 +143,7 @@ void DialogIntegration::setupApiTab()
     ui->api_key->setText(savedApiKey);
     if (ui->api_enable->isChecked() && savedApiKey.isEmpty()) ui->api_key->setText(RemoteApi::KeyToText(RemoteApi::GenerateKey()));
     ui->api_help->setText(tr("Scripts connect with rawlinectl or the Rawline API library.").toHtmlEscaped()
-                          + QStringLiteral("<br><a href=\"https://github.com/throneproj/Rawline-api\">https://github.com/throneproj/Rawline-api</a>"));
+                          + QStringLiteral("<br><a href=\"https://github.com/throneproj/Throne-api\">https://github.com/throneproj/Throne-api</a>"));
 
     auto *server = RemoteApi::Server::instance();
     ui->api_status->setText(server->statusText());

@@ -17,4 +17,4 @@ print("- Окно проверки OpenFlux больше не остаётся �
 print("- Название из подписки заменяет адрес в заголовке группы.")
 print("- Импорт профилей Soar из SlipNet 2.5.6.")
 print()
-print(f"Основа: Throne {version['rawline_version']}, коммит [{version['rawline_commit'][:8]}](https://github.com/throneproj/Rawline/commit/{version['rawline_commit']}).")
+print(f"Основа: Throne {version['rawline_version']}, коммит [{version['rawline_commit'][:8]}](https://github.com/throneproj/Throne/commit/{version['rawline_commit']}).")

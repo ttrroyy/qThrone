@@ -8,7 +8,11 @@ if (INPUT_VERSION STREQUAL "")
 endif ()
 set(NKR_VERSION "${INPUT_VERSION}")
 set(RAWLINE_REPOSITORY "$ENV{GITHUB_REPOSITORY}" CACHE STRING "Rawline GitHub repository (owner/name)")
-if (RAWLINE_REPOSITORY STREQUAL "throneproj/Rawline")
+# The repository is renamed after the first release; builds made before that already ask the new name for updates.
+if (RAWLINE_REPOSITORY STREQUAL "ttrroyy/qThrone")
+    set(RAWLINE_REPOSITORY "ttrroyy/RawlineDesktop")
+endif ()
+if (RAWLINE_REPOSITORY STREQUAL "throneproj/Throne")
     set(RAWLINE_REPOSITORY "")
 endif ()
 

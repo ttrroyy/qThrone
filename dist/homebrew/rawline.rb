@@ -5,10 +5,10 @@ cask "rawline" do
   sha256 arm:   "@SHA256_ARM64@",
          intel: "@SHA256_AMD64@"
 
-  url "https://github.com/throneproj/Rawline/releases/download/#{version}/Rawline-#{version}-macos-#{arch}.zip"
+  url "https://github.com/throneproj/Throne/releases/download/#{version}/Rawline-#{version}-macos-#{arch}.zip"
   name "Rawline"
   desc "Cross-platform GUI proxy utility powered by sing-box"
-  homepage "https://github.com/throneproj/Rawline"
+  homepage "https://github.com/throneproj/Throne"
 
   depends_on macos: :ventura
 
