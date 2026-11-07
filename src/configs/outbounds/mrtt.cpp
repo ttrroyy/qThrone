@@ -17,7 +17,7 @@
 
 namespace Configs {
 namespace {
-const QString scheme = "mrtt://";
+const QString mrttScheme = "mrtt://";
 QString endpoint(const QString &host, int port) { return (host.contains(':') ? "[" + host + "]" : host) + ":" + QString::number(port); }
 QString helperPath(const QString &name) {
     QString file = name;
@@ -136,7 +136,7 @@ bool mrtt::ParseFromJson(const QJsonObject &object) {
 // parseMrttLink / parseMrttV2 of the original app: only the encrypted form, no nested links.
 bool mrtt::ParseFromLink(const QString &link) {
     const auto trimmed = link.trimmed();
-    if (!trimmed.startsWith(scheme, Qt::CaseInsensitive) || trimmed.size() > 1 << 16) return false;
+    if (!trimmed.startsWith(mrttScheme, Qt::CaseInsensitive) || trimmed.size() > 1 << 16) return false;
     const auto plain = SharePayload(trimmed, false);
     if (plain.isEmpty() || plain.contains("://") || (!plain.contains("host=") && !plain.contains("connect?"))) return false;
     QMap<QString, QString> values;

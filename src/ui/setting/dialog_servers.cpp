@@ -1071,7 +1071,7 @@ class MrttServer : public ServerScreen {
         room->addItem(QStringLiteral("Комната сервера"), false); room->addItem(QStringLiteral("Без комнаты"), true);
         room->setCurrentIndex(client["link_room_off"].toBool() ? 1 : 0);
         form.form->addRow(QStringLiteral("Комната Jitsi"), room);
-        const auto roomVisible = [=] {
+        const auto roomVisible = [transport, room, &form] {
             const bool jitsi = transport->currentData() == "jitsi";
             room->setVisible(jitsi);
             form.form->labelForField(room)->setVisible(jitsi);
