@@ -31,6 +31,9 @@ QStringList RelayAccountHashes(int count, QString *error);
 QStringList RelayAutoHashes(const QString &type, const QString &server, int port, int count, QString *error);
 void RelayPickHashes(QWidget *parent, const QString &type, const QString &server, int port, int limit);
 QString RelayAccountToken(QString *error);
+// The bound MAX account: {token, group}; an error when none is bound.
+QJsonObject RelayMaxAccount(QString *error);
+bool ConfirmMaxRisk(QWidget *parent);
 bool ResetQWDTTHashSources();
 bool SaveVKRelayPreviews(const QString &directory);
 

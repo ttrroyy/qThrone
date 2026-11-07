@@ -197,7 +197,7 @@ begin
   try
     Locator := CreateOleObject('WbemScripting.SWbemLocator');
     Service := Locator.ConnectServer('.', 'root\CIMV2');
-    Processes := Service.ExecQuery('SELECT * FROM Win32_Process WHERE Name = ''Rawline.exe'' OR Name = ''RawlineCore.exe'' OR Name = ''qwdtt.exe'' OR Name = ''freeturn-client.exe'' OR Name = ''csqtt-transport.exe'' OR Name = ''csqtt-compat.exe'' OR Name = ''openflux.exe'' OR Name = ''openfluxkey.exe'' OR Name = ''olcrtc.exe'' OR Name = ''dnstun.exe'' OR Name = ''masterdns.exe'' OR Name = ''cottendns.exe'' OR Name = ''soar.exe'' OR Name = ''s3bypass.exe'' OR Name = ''slipstream-client.exe'' OR Name = ''wdttplus-client.exe''');
+    Processes := Service.ExecQuery('SELECT * FROM Win32_Process WHERE Name = ''Rawline.exe'' OR Name = ''RawlineCore.exe'' OR Name = ''qwdtt.exe'' OR Name = ''freeturn-client.exe'' OR Name = ''csqtt-transport.exe'' OR Name = ''mrtt-transport.exe'' OR Name = ''csqtt-compat.exe'' OR Name = ''openflux.exe'' OR Name = ''openfluxkey.exe'' OR Name = ''olcrtc.exe'' OR Name = ''dnstun.exe'' OR Name = ''masterdns.exe'' OR Name = ''cottendns.exe'' OR Name = ''soar.exe'' OR Name = ''s3bypass.exe'' OR Name = ''slipstream-client.exe'' OR Name = ''wdttplus-client.exe''');
     for I := 0 to Processes.Count - 1 do
     begin
       Process := Processes.ItemIndex(I);

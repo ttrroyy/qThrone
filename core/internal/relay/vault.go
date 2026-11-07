@@ -81,7 +81,7 @@ func vaultLock(ctx context.Context, name string) (func(), error) {
 	}
 }
 func vaultPath(id string) (string, error) {
-	if id != "account" && id != "servers" {
+	if id != "account" && id != "servers" && id != "max" {
 		return "", fmt.Errorf("Неизвестное хранилище")
 	}
 	dir, e := os.UserConfigDir()

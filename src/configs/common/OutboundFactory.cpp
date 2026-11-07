@@ -38,6 +38,7 @@
 #include "include/configs/outbounds/s3bypass.h"
 #include "include/configs/outbounds/sstp.h"
 #include "include/configs/outbounds/freeturn.h"
+#include "include/configs/outbounds/mrtt.h"
 #include "include/configs/outbounds/naive.h"
 #include "include/configs/outbounds/direct.h"
 
@@ -55,6 +56,7 @@ namespace Configs
         if (type == "openfluxkey") return new openfluxkey();
         if (type == "sstp") return new sstp();
         if (type == "freeturn") return new freeturn();
+        if (type == "mrtt") return new mrtt();
         if (type == "socks") return new socks();
         if (type == "http") return new http();
         if (type == "shadowsocks") return new shadowsocks();

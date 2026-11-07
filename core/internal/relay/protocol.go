@@ -116,7 +116,7 @@ func Run(input io.Reader, output io.Writer) (err error) {
 		}
 	case "deploy", "uninstall":
 		err = p.deploy(r)
-	case "qwdtt-admin", "wdttplus-admin", "wdttplus-backup-export", "wdttplus-exit", "freeturn-admin":
+	case "qwdtt-admin", "wdttplus-admin", "wdttplus-backup-export", "wdttplus-exit", "freeturn-admin", "mrtt-admin":
 		// Server management of a deployed server; SSH only with the host key remembered at deploy.
 		for _, k := range []string{"sshPassword", "key", "keyPassword", "sudoPassword", "password", "adminToken"} {
 			p.secrets = append(p.secrets, r.Server[k])
@@ -129,6 +129,8 @@ func Run(input io.Reader, output io.Writer) (err error) {
 			value, err = p.wdttPlusAdmin(r.Server, r.Value)
 		case "freeturn-admin":
 			value, err = p.freeturnAdmin(r.Server, r.Value)
+		case "mrtt-admin":
+			value, err = p.mrttAdmin(r.Server, r.Value)
 		case "wdttplus-exit":
 			value, err = p.wdttPlusExit(r.Server, r.Value)
 		default:
@@ -149,6 +151,23 @@ func Run(input io.Reader, output io.Writer) (err error) {
 		}
 	case "vk-login":
 		err = p.login(r)
+	case "max-login":
+		err = p.maxLogin(r)
+	case "max-info":
+		var info map[string]any
+		info, err = maxInfo()
+		if err == nil {
+			p.emit("result", "", info)
+		}
+	case "max-token":
+		var account maxAccount
+		account, err = readMaxAccount()
+		if err == keyring.ErrNotFound {
+			err = fmt.Errorf("Привяжите аккаунт MAX в настройках VK-релея")
+		}
+		if err == nil {
+			p.emit("result", "", map[string]string{"token": account.Token, "group": account.Group})
+		}
 	case "vk-hashes":
 		err = p.hashes(r)
 	case "vk-hashes-delete":

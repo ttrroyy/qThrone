@@ -356,6 +356,7 @@ namespace Configs {
         QString relay_device_id;
         int qwdtt_auto_hash_count = 1;
         bool vk_relay_linked = false;
+        bool mrtt_max_risk_acknowledged = false;
 
         // Last 5 custom entries per field.
         QStringList dial_bind_interface_history = {};

@@ -25,6 +25,10 @@ cp deployment/${DEST_SUFFIX%-system-qt}/OpenFlux-LICENSE $DEST
 cp deployment/${DEST_SUFFIX%-system-qt}/OpenFlux-SOURCE $DEST
 cp deployment/${DEST_SUFFIX%-system-qt}/openflux-source.tar.gz $DEST
 cp deployment/${DEST_SUFFIX%-system-qt}/csqtt-transport $DEST
+cp deployment/${DEST_SUFFIX%-system-qt}/mrtt-transport $DEST
+cp deployment/${DEST_SUFFIX%-system-qt}/MRTT-LICENSE $DEST
+cp deployment/${DEST_SUFFIX%-system-qt}/MRTT-SOURCE $DEST
+cp deployment/${DEST_SUFFIX%-system-qt}/mrtt-source.tar.gz $DEST
 cp deployment/${DEST_SUFFIX%-system-qt}/CSQTT-LICENSE $DEST
 cp deployment/${DEST_SUFFIX%-system-qt}/CSQTT-SOURCE $DEST
 cp deployment/${DEST_SUFFIX%-system-qt}/csqtt-source.tar.gz $DEST

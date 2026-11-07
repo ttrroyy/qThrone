@@ -14,6 +14,7 @@ set(UI_INCLUDE_ALLOWLIST
         # Rawline: native transports read the VK binding settings; ProviderRouting reports through the main window.
         src/configs/outbounds/csqtt.cpp
         src/configs/outbounds/freeturn.cpp
+        src/configs/outbounds/mrtt.cpp
         src/configs/outbounds/qwdtt.cpp
         src/configs/outbounds/wdttplus.cpp
         src/configs/sub/ProviderRouting.cpp

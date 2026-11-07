@@ -133,6 +133,19 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) == 2 && (os.Args[1] == "-mrtt-share-decode" || os.Args[1] == "-mrtt-share-encode") {
+		if err := mrttShare(os.Args[1] == "-mrtt-share-encode"); err != nil {
+			os.Exit(1)
+		}
+		return
+	}
+	if len(os.Args) == 3 && os.Args[1] == "-mrtt-config" {
+		if err := runMRTTBridge(os.Args[2]); err != nil {
+			log.Printf("[MRTT] %v", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) == 3 && os.Args[1] == "-csqtt-config" {
 		if err := runCSQTTBridge(os.Args[2]); err != nil {
 			log.Printf("[CSQTT] %v", err)

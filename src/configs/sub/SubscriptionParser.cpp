@@ -8,6 +8,7 @@
 #include "include/configs/sub/vpnFileImport.hpp"
 #include "include/database/ProfilesRepo.h"
 #include "include/configs/outbounds/dnstunnel.h"
+#include "include/configs/outbounds/mrtt.h"
 #include "include/configs/outbounds/s3bypass.h"
 #include "include/global/Utils.hpp"
 #include "include/global/Configs.hpp"
@@ -161,6 +162,7 @@ namespace Subscription {
             {"wdttplus", {"wdtt://"}, {"wdttplus"}, {}},
             {"qwdtt", {"qwdtt://", "qwdtt:config"}, {"qwdtt", "wdtt"}, {}},
             {"csqtt", {"csqtt://"}, {"csqtt"}, {}},
+            {"mrtt", {"mrtt://"}, {"mrtt"}, {}},
             // The wlruscfd/openflux-server fork's links, before the original's openflux://v1/.
             {"openfluxkey", {"openflux://import"}, {"openfluxkey"}, {}},
             {"openflux", {"openflux://"}, {"openflux"}, {}},
@@ -199,7 +201,7 @@ namespace Subscription {
         const char *typeForScheme(std::string_view link) {
             for (const auto &p : kProtocols) {
                 for (const char *scheme : p.schemes) {
-                    if (scheme != nullptr && ((std::string_view(p.type) == "qwdtt" || std::string_view(p.type) == "csqtt" || std::string_view(p.type) == "wdttplus" || std::string_view(p.type) == "shadowsocksr")
+                    if (scheme != nullptr && ((std::string_view(p.type) == "qwdtt" || std::string_view(p.type) == "csqtt" || std::string_view(p.type) == "mrtt" || std::string_view(p.type) == "wdttplus" || std::string_view(p.type) == "shadowsocksr")
                         ? scan::startsWithNoCase(link, scheme) : link.starts_with(scheme))) return p.type;
                 }
             }
@@ -1378,6 +1380,20 @@ namespace Subscription {
             }
             if (scan::startsWithNoCase(line, "phobos://")) {
                 phobosLink(toQString(line));
+                return;
+            }
+            // An MRTT subscription: one link with several configs; only valid mrtt links enter, this is a trust boundary.
+            if (scan::startsWithNoCase(line, "mrttsub://")) {
+                const auto payload = QJsonDocument::fromJson(Configs::mrtt::SharePayload(toQString(line), false).toUtf8()).object();
+                if (payload["v"].toInt() != 1) { log(QStringLiteral("Некорректная подписка MRTT")); return; }
+                for (const auto &entry : payload["links"].toArray()) {
+                    const auto item = entry.toObject();
+                    auto ent = Configs::ProfilesRepo::NewProfile("mrtt");
+                    if (ent->outbound->ParseFromLink(item["link"].toString())) {
+                        if (!item["name"].toString().isEmpty()) ent->outbound->name = item["name"].toString();
+                        produce(ent);
+                    }
+                }
                 return;
             }
 

@@ -22,6 +22,7 @@ var transportKinds = map[string]transportKind{
 	"sstp":  {executable: "sstp-client", flag: "--rawline-config", probeStartup: 45 * time.Second, connectStartup: 45 * time.Second, quiet: true},
 	"":      {executable: "qwdtt", flag: "-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
 	"csqtt": {executable: "qwdtt", flag: "-csqtt-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
+	"mrtt":  {executable: "qwdtt", flag: "-mrtt-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
 	// WDTT Plus runs its own client behind the qwdtt helper, which answers its captcha.
 	"wdttplus": {executable: "qwdtt", flag: "-wdttplus-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute},
 	"freeturn": {executable: "freeturn-client", flag: "--rawline-config", vk: true, probeStartup: 5 * time.Minute, connectStartup: 5 * time.Minute, quiet: true},

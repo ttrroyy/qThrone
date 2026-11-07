@@ -391,6 +391,9 @@ jobs:
       - name: Build original CSQTT transport
         shell: bash
         run: bash script/build_csqtt.sh
+      - name: Build MRTT transport
+        shell: bash
+        run: bash script/build_mrtt.sh
       - name: Build SlipStream client
         shell: bash
         run: bash script/build_slipstream.sh
@@ -633,7 +636,7 @@ jobs:
           pacman -U --noconfirm ./*.pkg.tar.zst
           namcap ./*.pkg.tar.zst > namcap.log
           desktop-file-validate /usr/share/applications/Rawline.desktop
-          for binary in Rawline RawlineCore RawlineUpdater qwdtt freeturn-client olcrtc openflux openfluxkey csqtt-transport csqtt-compat dnstun masterdns cottendns soar s3bypass  slipstream-client wdttplus-client sstp-client; do
+          for binary in Rawline RawlineCore RawlineUpdater qwdtt freeturn-client olcrtc openflux openfluxkey csqtt-transport csqtt-compat mrtt-transport dnstun masterdns cottendns soar s3bypass  slipstream-client wdttplus-client sstp-client; do
             ldd "/usr/lib/rawline/$binary" >> dependencies.log 2>&1 || true
           done
           find /usr/lib/rawline/usr/plugins -name '*.so' -exec ldd '{}' \; >> dependencies.log 2>&1

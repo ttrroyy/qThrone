@@ -11,6 +11,7 @@
 #include "include/database/ProfilesRepo.h"
 #include "include/configs/outbounds/wdttplus.h"
 #include "include/configs/outbounds/csqtt.h"
+#include "include/configs/outbounds/mrtt.h"
 #include "include/engine/EngineEvents.h"
 #include "include/global/HTTPRequestHelper.hpp"
 #include "include/global/Notice.hpp"
@@ -530,7 +531,7 @@ namespace Subscription {
     }
 
     QJsonObject PreserveRelaySettings(const QString &type, QJsonObject incoming, const QList<QJsonObject> &previous) {
-        if (type != "qwdtt" && type != "csqtt" && type != "wdttplus") return incoming;
+        if (type != "qwdtt" && type != "csqtt" && type != "mrtt" && type != "wdttplus") return incoming;
         QList<QJsonObject> named, matching;
         QSet<QString> relatedIDs;
         for (const auto &old : previous) {
@@ -545,7 +546,7 @@ namespace Subscription {
             if (old.value("hash_source").toString("manual") == "manual" && old.value("manual_hashes_override").toBool()) {
                 incoming["hashes"] = old.value("hashes");
             } else if (old.value("hash_source").toString("manual") == "manual") {
-                const int limit = type == "csqtt" ? 6 : 4;
+                const int limit = type == "csqtt" || type == "mrtt" ? 6 : 4;
                 const auto prefix = incoming.value("hashes").toArray();
                 const auto previousSlots = old.value("hashes").toArray();
                 QJsonArray merged;
@@ -569,6 +570,12 @@ namespace Subscription {
             if (old.contains("turn_tcp")) incoming["turn_tcp"] = old.value("turn_tcp");
             if (type == "qwdtt") for (const auto *key : {"raw_port", "obfs", "vk_anon_path", "captcha_mode", "go_dns"})
                 if (old.contains(key)) incoming[key] = old.value(key);
+            if (type == "mrtt") {
+                for (const auto *key : {"srtp_mode", "turn_transport", "vk_anon_path", "captcha_mode", "fingerprint", "client_ids", "custom_turn_ips", "mtu", "jitsi_workers", "transport", "max_group"})
+                    if (old.contains(key)) incoming[key] = old.value(key);
+                if (incoming.value("vk_access_token").toString().isEmpty() && old.contains("vk_access_token"))
+                    incoming["vk_access_token"] = old.value("vk_access_token");
+            }
             if (type == "csqtt") {
                 for (const auto *key : {"turn_transport", "srtp_mode", "obfs", "vk_anon_path", "captcha_mode", "fingerprint", "client_ids", "custom_turn_ips", "csqtt_version"})
                     if (old.contains(key)) incoming[key] = old.value(key);
@@ -584,7 +591,8 @@ namespace Subscription {
             const int maximum = type == "wdttplus" ? Configs::wdttplus::WorkerLimit(incoming.value("max_workers").toInt())
                 : type == "csqtt" ? 100 : qBound(1, count, 4) * 27;
             const int requested = old.value("workers").toInt(type == "qwdtt" ? 9 : 18);
-            incoming["workers"] = type == "csqtt" ? Configs::csqtt::NormalizeWorkers(requested, count)
+            incoming["workers"] = type == "mrtt" ? Configs::mrtt::NormalizeWorkers(requested, count, incoming.value("hash_source").toString() == "auto_js" || incoming.value("transport").toString() == "max")
+                : type == "csqtt" ? Configs::csqtt::NormalizeWorkers(requested, count)
                 : qBound(9, requested, maximum) / 9 * 9;
             if (!candidates.first().value("device_id").toString().isEmpty()) incoming["device_id"] = candidates.first().value("device_id");
         } else if (relatedIDs.size() == 1) incoming["device_id"] = *relatedIDs.begin();
@@ -1109,7 +1117,7 @@ namespace Subscription {
 
         QList<QJsonObject> previousHashes;
         forEachProfile(group->Profiles(), [&](const std::shared_ptr<Configs::Profile> &ent) {
-            if (ent->type == "qwdtt" || ent->type == "csqtt" || ent->type == "wdttplus") {
+            if (ent->type == "qwdtt" || ent->type == "csqtt" || ent->type == "mrtt" || ent->type == "wdttplus") {
                 Configs::dataManager->profilesRepo->RestoreTransportIdentity(ent.get());
                 auto previous = ent->outbound->ExportToJson();
                 previous["_type"] = ent->type;
@@ -1248,7 +1256,7 @@ namespace Subscription {
         MW_show_log(">>>>>>>> " + QObject::tr("Processing subscription data..."));
         auto parseSink = sinkFor(sink, report);
         parseSink.profile = [&sink, previousHashes](std::shared_ptr<Configs::Profile> ent) {
-            if (ent->type == "qwdtt" || ent->type == "csqtt" || ent->type == "wdttplus") {
+            if (ent->type == "qwdtt" || ent->type == "csqtt" || ent->type == "mrtt" || ent->type == "wdttplus") {
                 ent->outbound->ParseFromJson(PreserveRelaySettings(ent->type, ent->outbound->ExportToJson(), previousHashes));
             }
             sink.add(std::move(ent));

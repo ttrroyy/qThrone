@@ -179,7 +179,7 @@ namespace Configs {
         if (json.contains("outbound") && json["outbound"].isObject()) {
             auto stored = json["outbound"].toObject();
             // Older releases did not distinguish imported hashes from manually edited slots.
-            if ((type == "qwdtt" || type == "csqtt" || type == "wdttplus") && !stored.contains("manual_hashes_override"))
+            if ((type == "qwdtt" || type == "csqtt" || type == "mrtt" || type == "wdttplus") && !stored.contains("manual_hashes_override"))
                 stored["manual_hashes_override"] = true;
             if ((type == "qwdtt" || type == "csqtt" || type == "wdttplus") && !stored.contains("hash_source"))
                 stored["hash_source"] = "manual";

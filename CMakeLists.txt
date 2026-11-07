@@ -354,6 +354,10 @@ set(PROJECT_SOURCES
         include/configs/outbounds/sstp.h
         src/ui/profile/edit_sstp.cpp
         include/ui/profile/edit_sstp.h
+        src/configs/outbounds/mrtt.cpp
+        include/configs/outbounds/mrtt.h
+        src/ui/profile/edit_mrtt.cpp
+        include/ui/profile/edit_mrtt.h
         src/configs/outbounds/freeturn.cpp
         include/configs/outbounds/freeturn.h
         src/ui/profile/edit_freeturn.cpp

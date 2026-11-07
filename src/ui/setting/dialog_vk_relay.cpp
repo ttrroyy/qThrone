@@ -4,6 +4,7 @@
 #include "include/configs/outbounds/wdttplus.h"
 #include "include/database/ProfilesRepo.h"
 #include "include/configs/outbounds/freeturn.h"
+#include "include/configs/outbounds/mrtt.h"
 #include "include/global/Configs.hpp"
 #include "include/global/Utils.hpp"
 #include "include/ui/profile/edit_qwdtt.h"
@@ -52,7 +53,7 @@ namespace {
 // Like the original app, a deployment's qWDTT link names no tunnel mode: the client's
 // default (WG) applies. Links stored by earlier versions said RAW; they read the same now.
 QString kindTitle(const QString &kind) {
-    return kind == "qwdtt" ? QStringLiteral("qWDTT") : kind == "csqtt" ? QStringLiteral("CSQTT") : kind == "freeturn" ? QStringLiteral("FreeTurn") : QStringLiteral("WDTT Plus");
+    return kind == "qwdtt" ? QStringLiteral("qWDTT") : kind == "csqtt" ? QStringLiteral("CSQTT") : kind == "mrtt" ? QStringLiteral("MRTT") : kind == "freeturn" ? QStringLiteral("FreeTurn") : QStringLiteral("WDTT Plus");
 }
 QString normalizedRelayLink(QString link) {
     if (link.startsWith("csqtt://connect?", Qt::CaseInsensitive)) {
@@ -208,6 +209,45 @@ static QJsonValue relayAccountValue(const QString &operation, int count, QString
         *error = QStringLiteral("VK не вернул хеши");
     return result;
 }
+// MaxTransportRiskDialog of the original app.
+bool ConfirmMaxRisk(QWidget *parent) {
+    auto *settings = Configs::dataManager->settingsRepo.get();
+    if (settings->mrtt_max_risk_acknowledged) return true;
+    QDialog dialog(parent);
+    dialog.setWindowTitle(QStringLiteral("Внимание!"));
+    dialog.setMinimumWidth(460);
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *never = new QCheckBox(QStringLiteral("Больше не предупреждать"), &dialog);
+    layout->addWidget(never);
+    for (const auto &paragraph : {QStringLiteral("Транспорт MAX работает через ваш личный аккаунт MAX: туннель создаёт звонок в группе и держит его открытым, используя неофициальные методы веб-клиента."),
+                                  QStringLiteral("Такое использование нарушает правила сервиса и заметно повышает риск ограничения или блокировки аккаунта MAX, вплоть до потери привязанного номера. Оценить вероятность бана заранее невозможно."),
+                                  QStringLiteral("Используйте отдельный, второстепенный аккаунт и не привязывайте основной. Продолжая, вы принимаете эти риски на себя.")}) {
+        auto *text = new QLabel(paragraph, &dialog);
+        text->setWordWrap(true);
+        layout->addWidget(text);
+    }
+    auto *cancel = new QPushButton(QStringLiteral("Отмена"), &dialog);
+    auto *accept = new QPushButton(&dialog);
+    layout->addWidget(cancel);
+    layout->addWidget(accept);
+    QObject::connect(cancel, &QPushButton::clicked, &dialog, &QDialog::reject);
+    QObject::connect(accept, &QPushButton::clicked, &dialog, &QDialog::accept);
+    auto left = std::make_shared<int>(5);
+    const auto show = [accept, left] {
+        accept->setEnabled(*left <= 0);
+        accept->setText(*left > 0 ? QStringLiteral("Всё равно продолжить (%1)").arg(*left) : QStringLiteral("Всё равно продолжить"));
+    };
+    show();
+    auto *timer = new QTimer(&dialog);
+    QObject::connect(timer, &QTimer::timeout, &dialog, [left, show, timer] { --*left; show(); if (*left <= 0) timer->stop(); });
+    timer->start(1000);
+    if (dialog.exec() != QDialog::Accepted) return false;
+    if (never->isChecked()) { settings->mrtt_max_risk_acknowledged = true; settings->Save(); }
+    return true;
+}
+QJsonObject RelayMaxAccount(QString *error) {
+    return relayAccountValue("max-token", 0, error).toObject();
+}
 QStringList RelayAccountHashes(int count, QString *error) {
     const auto value = relayAccountValue("vk-hashes", count, error);
     const auto hashes = value.isObject() ? value.toObject()["hashes"].toArray() : value.toArray();
@@ -295,7 +335,7 @@ bool ResetQWDTTHashSources() {
     settings->vk_relay_linked = false;
     settings->qwdtt_hash_source = "manual";
     bool saved = settings->Save();
-    for (const auto *type : {"qwdtt", "csqtt", "wdttplus", "freeturn"}) for (int id : Configs::dataManager->profilesRepo->GetProfileIdsByType(type)) {
+    for (const auto *type : {"qwdtt", "csqtt", "mrtt", "wdttplus", "freeturn"}) for (int id : Configs::dataManager->profilesRepo->GetProfileIdsByType(type)) {
         const auto profile = Configs::dataManager->profilesRepo->GetProfile(id);
         if (!profile) continue;
         auto config = profile->outbound->ExportToJson();
@@ -303,6 +343,7 @@ bool ResetQWDTTHashSources() {
             if (auto *relay = dynamic_cast<Configs::qwdtt *>(profile->outbound.get())) relay->hashSource = "manual";
             if (auto *relay = dynamic_cast<Configs::wdttplus *>(profile->outbound.get())) relay->hashSource = "manual";
             if (auto *relay = dynamic_cast<Configs::freeturn *>(profile->outbound.get())) relay->hashSource = "manual";
+            if (auto *relay = dynamic_cast<Configs::mrtt *>(profile->outbound.get())) relay->hashSource = "manual";
             if (auto *relay = dynamic_cast<Configs::csqtt *>(profile->outbound.get())) {
                 relay->hashSource = "manual";
                 if (relay->vkAnonPath == "auto_js") relay->vkAnonPath = "vkcalls";
@@ -325,7 +366,7 @@ QJsonObject freshServer(const QString &kind) {
             {"user", "root"},
             {"auth", "password"},
             {"sshPort", "22"},
-            {"peerPort", kind == "csqtt" ? "46000" : "56000"},
+            {"peerPort", kind == "csqtt" || kind == "mrtt" ? "46000" : "56000"},
             {"wgPort", kind == "freeturn" ? "51820" : "56001"},
             {"ftMethod", "docker"},
             {"ftBackend", "new"},
@@ -435,7 +476,7 @@ class ServerEditor : public QDialog {
     }
     void secrets() {
         QDialog dialog(this);
-        dialog.setWindowTitle(server["kind"] == "qwdtt" ? "Секреты (бот, пароли)" : server["kind"] == "wdttplus" ? "Главный пароль" : "Авторизация");
+        dialog.setWindowTitle(server["kind"] == "mrtt" ? "Пароль владельца" : server["kind"] == "qwdtt" ? "Секреты (бот, пароли)" : server["kind"] == "wdttplus" ? "Главный пароль" : "Авторизация");
         dialog.resize(640, 240);
         dialog.setMinimumSize(560, 210);
         auto *layout = new QVBoxLayout(&dialog);
@@ -449,6 +490,8 @@ class ServerEditor : public QDialog {
         else if (server["kind"] == "qwdtt")
             keys += {{"botToken", "Токен Telegram-бота (необязательно)"},
                      {"adminId", "Telegram ID администратора (необязательно)"}};
+        else if (server["kind"] == "mrtt")
+            keys[0].second = "Пароль владельца";
         else
             keys += {{"webUser", "Логин веб-панели"}, {"webPassword", "Пароль веб-панели"}};
         for (const auto &[key, label] : keys) {
@@ -561,7 +604,7 @@ class ServerEditor : public QDialog {
         scroll->setWidget(body);
         auto *layout = new QVBoxLayout(body);
         auto *secretsButton =
-            new QPushButton(server["kind"] == "qwdtt" ? "Секреты (бот, пароли)" : server["kind"] == "wdttplus" ? "Главный пароль" : "Авторизация", body);
+            new QPushButton(server["kind"] == "mrtt" ? "Пароль владельца" : server["kind"] == "qwdtt" ? "Секреты (бот, пароли)" : server["kind"] == "wdttplus" ? "Главный пароль" : "Авторизация", body);
         secretsButton->setObjectName("relaySecrets");
         // FreeTurn's installer generates its own keys: there is nothing to enter.
         secretsButton->setVisible(server["kind"] != "freeturn");
@@ -669,7 +712,7 @@ class ServerEditor : public QDialog {
         manual->setChecked(server["manualPorts"] == "true");
         form->addRow(manual);
         QStringList ports{"peerPort"};
-        QStringList labels{server["kind"] == "csqtt" || server["kind"] == "freeturn" ? "Порт туннеля" : "Порт DTLS"};
+        QStringList labels{server["kind"] == "csqtt" || server["kind"] == "mrtt" || server["kind"] == "freeturn" ? "Порт туннеля" : "Порт DTLS"};
         if (server["kind"] == "qwdtt") {
             ports += {"wgPort", "directPort", "rawPort"};
             labels += {"Порт WireGuard", "Прямой порт", "Порт RAW"};
@@ -681,7 +724,8 @@ class ServerEditor : public QDialog {
             labels += {"Порт WG", "Локальный порт"};
         } else {
             ports.append("webPort");
-            labels.append("Порт веб-панели");
+            // MRTT's API listens on 127.0.0.1 only and is reached through SSH.
+            labels.append(server["kind"] == "mrtt" ? "Порт API" : "Порт веб-панели");
         }
         for (int i = 0; i < ports.size(); ++i) {
             auto *edit = add(ports[i], labels[i]);
@@ -692,7 +736,7 @@ class ServerEditor : public QDialog {
             visible(manual->isChecked());
             connect(manual, &QCheckBox::toggled, edit, visible);
         }
-        if (server["kind"] == "csqtt") {
+        if (server["kind"] == "csqtt" || server["kind"] == "mrtt") {
             docker = new QCheckBox("Установить в Docker", group);
             docker->setChecked(server["docker"] == "true");
             form->addRow(docker);
@@ -796,9 +840,9 @@ class LongPress : public QObject {
 // Puts [hashes] into the chosen qWDTT, CSQTT and WDTT Plus profiles as their own (manual) hashes.
 void ApplyHashesToProfiles(QWidget *parent, const QStringList &hashes, QLabel *status) {
     QList<std::shared_ptr<Configs::Profile>> profiles;
-    for (const auto *type : {"qwdtt", "csqtt", "wdttplus", "freeturn"}) for (int id : Configs::dataManager->profilesRepo->GetProfileIdsByType(type))
+    for (const auto *type : {"qwdtt", "csqtt", "mrtt", "wdttplus", "freeturn"}) for (int id : Configs::dataManager->profilesRepo->GetProfileIdsByType(type))
         if (auto profile = Configs::dataManager->profilesRepo->GetProfile(id)) profiles << profile;
-    if (profiles.isEmpty()) { status->setText("Нет профилей qWDTT, CSQTT, WDTT Plus или FreeTurn"); return; }
+    if (profiles.isEmpty()) { status->setText("Нет профилей qWDTT, CSQTT, MRTT, WDTT Plus или FreeTurn"); return; }
     QDialog dialog(parent);
     dialog.setWindowTitle("Применить к профилям");
     auto *layout = new QVBoxLayout(&dialog);
@@ -824,6 +868,7 @@ void ApplyHashesToProfiles(QWidget *parent, const QStringList &hashes, QLabel *s
         if (auto *relay = dynamic_cast<Configs::qwdtt *>(profile->outbound.get())) { relay->hashes = hashes.mid(0, 4); relay->hashSource = "manual"; }
         if (auto *relay = dynamic_cast<Configs::wdttplus *>(profile->outbound.get())) { relay->hashes = hashes.mid(0, 4); relay->hashSource = "manual"; }
         if (auto *relay = dynamic_cast<Configs::csqtt *>(profile->outbound.get())) { relay->hashes = hashes.mid(0, 6); relay->hashSource = "manual"; }
+        if (auto *relay = dynamic_cast<Configs::mrtt *>(profile->outbound.get())) { relay->hashes = hashes.mid(0, 6); relay->hashSource = "manual"; relay->manualRelayHashes = true; }
         if (auto *relay = dynamic_cast<Configs::freeturn *>(profile->outbound.get())) { relay->links = hashes.join('\n'); relay->hashSource = "manual"; }
         if (Configs::dataManager->profilesRepo->Save(profile)) applied++;
     }
@@ -1169,6 +1214,24 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
     accountButtons->addWidget(link);
     accountButtons->addWidget(unlink);
     unlink->setEnabled(false);
+    auto *maxGroup = new QGroupBox("Аккаунт MAX", accountPage);
+    accountLayout->addWidget(maxGroup);
+    auto *maxForm = new QVBoxLayout(maxGroup);
+    auto *maxIdentity = new QLabel("Проверка аккаунта…", maxGroup);
+    maxIdentity->setWordWrap(true);
+    maxForm->addWidget(maxIdentity);
+    auto *maxId = new QLabel(maxGroup);
+    maxId->setForegroundRole(QPalette::PlaceholderText);
+    maxId->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    maxId->hide();
+    maxForm->addWidget(maxId);
+    auto *maxButtons = new QHBoxLayout;
+    maxForm->addLayout(maxButtons);
+    auto *maxLink = new QPushButton("Привязать MAX", maxGroup);
+    auto *maxUnlink = new QPushButton("Отвязать MAX", maxGroup);
+    maxButtons->addWidget(maxLink);
+    maxButtons->addWidget(maxUnlink);
+    maxUnlink->setEnabled(false);
     auto *hashGroup = new QGroupBox("Хеши VK", accountPage);
     accountLayout->addWidget(hashGroup);
     auto *hashForm = new QFormLayout(hashGroup);
@@ -1197,7 +1260,8 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
             const auto info = event["value"].toObject();
             const bool linked = info["linked"].toBool();
             identity->setText(linked ? "Аккаунт привязан" : "Аккаунт не привязан");
-            accountId->setText(linked ? info["user"].toString() : QString());
+            link->setText(linked ? "Изменить привязку VK" : "Привязать аккаунт VK");
+            accountId->setText(linked && !info["user"].toString().isEmpty() ? "ID: " + info["user"].toString() : QString());
             accountId->setVisible(!accountId->text().isEmpty());
             settings->vk_relay_linked = linked;
             autoEnabled(source, linked);
@@ -1233,6 +1297,7 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
                 source->setCurrentIndex(0);
                 autoEnabled(source, false);
                 identity->setText("Аккаунт не привязан");
+                link->setText("Привязать аккаунт VK");
                 accountId->clear();
                 accountId->hide();
                 unlink->setEnabled(false);
@@ -1242,6 +1307,36 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
                 status->setText(event["text"].toString());
         });
     });
+    auto *maxTask = new RelayTask(this);
+    const auto maxHandler = [=](const QJsonObject &event) {
+        if (event["type"] == "result") {
+            const auto info = event["value"].toObject();
+            const bool linked = info["linked"].toBool();
+            maxIdentity->setText(linked ? "MAX привязан" : "Войдите в MAX и откройте нужную группу. Приложение сохранит привязку автоматически.");
+            maxLink->setText(linked ? "Изменить привязку" : "Привязать MAX");
+            maxId->setText(linked ? "Группа: " + info["group"].toString() : QString());
+            maxId->setVisible(linked);
+            maxUnlink->setEnabled(linked);
+        }
+        if (event["type"] == "progress" || event["type"] == "error") status->setText(event["text"].toString());
+        if (event["type"] == "cancelled") status->clear();
+        if (event["type"] == "finished") maxLink->setEnabled(true);
+    };
+    maxTask->start({{"operation", "max-info"}}, maxHandler);
+    connect(maxLink, &QPushButton::clicked, this, [=, this] {
+        // The warning of the original app, with its five seconds and the choice not to see it again.
+        if (!ConfirmMaxRisk(this)) return;
+        maxLink->setEnabled(false);
+        maxTask->start({{"operation", "max-login"}, {"value", palette().window().color().lightness() < 128 ? "dark" : "light"}}, maxHandler);
+    });
+    connect(maxUnlink, &QPushButton::clicked, this, [=, this] {
+        if (QMessageBox::question(this, "Отвязать MAX", "Токен и группа MAX будут удалены из этого приложения. Профили MRTT с транспортом MAX перестанут подключаться.") != QMessageBox::Yes) return;
+        maxTask->start({{"operation", "secret-delete"}, {"id", "max"}}, [=](const QJsonObject &event) {
+            if (event["type"] == "done") maxTask->start({{"operation", "max-info"}}, maxHandler);
+            if (event["type"] == "error") status->setText(event["text"].toString());
+        });
+    });
+    connect(this, &QDialog::finished, maxTask, &RelayTask::cancel);
     auto *storeTask = new RelayTask(this);
     auto servers = std::make_shared<QJsonArray>();
     auto lists = std::make_shared<QMap<QString, QListWidget *>>();
@@ -1295,7 +1390,7 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
             return;
         }
     };
-    for (const auto &kind : {QString("qwdtt"), QString("csqtt"), QString("wdttplus"), QString("freeturn")}) {
+    for (const auto &kind : {QString("qwdtt"), QString("csqtt"), QString("mrtt"), QString("wdttplus"), QString("freeturn")}) {
         auto *page = new QWidget(tabs);
         page->setEnabled(false);
         pages->append(page);

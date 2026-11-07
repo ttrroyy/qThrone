@@ -181,8 +181,8 @@ namespace Engine {
             {
                 // CSQTT and WDTT Plus run their own transport binary next to the bridge: both need the kill switch's pass.
                 QStringList transportPaths{extraCore.path};
-                if (extraCore.args.startsWith("-csqtt-config") || extraCore.args.startsWith("-wdttplus-config")) {
-                    QString nativeName = extraCore.args.startsWith("-csqtt-config") ? "csqtt-transport" : "wdttplus-client";
+                if (extraCore.args.startsWith("-csqtt-config") || extraCore.args.startsWith("-wdttplus-config") || extraCore.args.startsWith("-mrtt-config")) {
+                    QString nativeName = extraCore.args.startsWith("-csqtt-config") ? "csqtt-transport" : extraCore.args.startsWith("-mrtt-config") ? "mrtt-transport" : "wdttplus-client";
 #ifdef Q_OS_WIN
                     nativeName += ".exe";
 #endif

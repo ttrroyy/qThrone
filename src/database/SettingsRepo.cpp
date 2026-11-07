@@ -59,6 +59,7 @@ namespace Configs {
             {"test_defaults_182_migrated", &test_defaults_182_migrated},
             {"test_url_https_199_migrated", &test_url_https_199_migrated},
             {"vk_relay_linked", &vk_relay_linked},
+            {"mrtt_max_risk_acknowledged", &mrtt_max_risk_acknowledged},
             {"disable_tray",                  &disable_tray},
             {"random_inbound_port",           &random_inbound_port},
             {"mux_padding",                   &mux_padding},

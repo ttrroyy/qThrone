@@ -205,7 +205,7 @@ namespace Engine {
 
         if (!change.restart || settings->started_id < 0) return false;
         if (const auto current = runningSnapshot();
-            !enable && current && (current->type == "qwdtt" || current->type == "csqtt" || current->type == "wdttplus")) {
+            !enable && current && (current->type == "qwdtt" || current->type == "csqtt" || current->type == "mrtt" || current->type == "wdttplus")) {
             // Leaving TUN must not silently start a new VK authorization cycle of a native transport.
             StopOptions options;
             options.manual = true;

@@ -57,6 +57,9 @@ func validateServer(s map[string]string, install bool) error {
 	if s["kind"] == "freeturn" {
 		return validateFreeturn(s, install)
 	}
+	if s["kind"] == "mrtt" {
+		return validateMRTT(s, install)
+	}
 	if s["kind"] != "qwdtt" && s["kind"] != "csqtt" && s["kind"] != "wdttplus" {
 		return fmt.Errorf("Неизвестный протокол")
 	}
@@ -193,6 +196,9 @@ func (p *protocol) deploy(r Request) error {
 	}
 	if s["kind"] == "freeturn" {
 		return p.deployFreeturn(client, s, install)
+	}
+	if s["kind"] == "mrtt" {
+		return p.deployMRTT(client, s, install, machine)
 	}
 	binary := "assets/server"
 	if s["kind"] == "qwdtt" && machine != "x86_64" && install {
