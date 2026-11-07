@@ -31,6 +31,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLabel>
+#include <QMap>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMessageBox>
@@ -383,9 +384,85 @@ QJsonObject freshServer(const QString &kind) {
             // The server is bound to this computer, like the original apps bind it to the phone:
             // the deployment link names no device and new profiles take this ID.
             {"deviceId", Configs::RelayDeviceID()},
+            {"password", kind == "mrtt" ? QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-').left(16) : QString()},
             {"adminToken", QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-') +
                                QUuid::createUuid().toString(QUuid::WithoutBraces).remove('-')}};
 }
+// The MRTT installs going on now, as its app shows them: several run side by side, each with its own step.
+namespace MrttJobs {
+struct Job {
+    QString id, title, step;
+    int percent = 0;
+    RelayTask *task = nullptr;
+};
+static QList<Job> jobs;
+static QMap<int, std::function<void()>> watchers;
+static int nextWatcher = 0;
+static void changed() {
+    for (const auto &watcher : QMap<int, std::function<void()>>(watchers)) watcher();
+}
+static bool running(const QString &id) {
+    for (const auto &job : jobs) if (job.id == id) return true;
+    return false;
+}
+static void add(const Job &job) { jobs.append(job); changed(); }
+static void update(const QString &id, const QString &step, int percent) {
+    for (auto &job : jobs) if (job.id == id) {
+        job.step = step;
+        if (percent >= 0) job.percent = percent;
+    }
+    changed();
+}
+static void remove(const QString &id) {
+    jobs.removeIf([&id](const Job &job) { return job.id == id; });
+    changed();
+}
+// The window of the button: each server's step with a cross, «Отменить все» from two on; it goes away when the work ends.
+static void show(QWidget *parent) {
+    auto *dialog = new QDialog(parent);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setWindowTitle(QStringLiteral("Установка серверов"));
+    dialog->setMinimumWidth(460);
+    auto *layout = new QVBoxLayout(dialog);
+    auto *list = new QWidget(dialog);
+    auto *rows = new QVBoxLayout(list);
+    rows->setContentsMargins(0, 0, 0, 0);
+    layout->addWidget(list);
+    auto *all = new QPushButton(QStringLiteral("Отменить все"), dialog);
+    layout->addWidget(all);
+    QObject::connect(all, &QPushButton::clicked, dialog, [] { for (const auto &job : QList<Job>(jobs)) if (job.task) job.task->cancel(); });
+    const auto refresh = [=] {
+        if (jobs.isEmpty()) { dialog->close(); return; }
+        while (auto *item = rows->takeAt(0)) { delete item->widget(); delete item; }
+        for (const auto &job : jobs) {
+            auto *row = new QWidget(list);
+            auto *line = new QHBoxLayout(row);
+            line->setContentsMargins(0, 0, 0, 0);
+            auto *text = new QVBoxLayout;
+            auto *title = new QLabel(QStringLiteral("<b>%1</b><br>%2").arg(job.title.toHtmlEscaped(), job.step.toHtmlEscaped()), row);
+            text->addWidget(title);
+            auto *bar = new QProgressBar(row);
+            bar->setRange(0, 100);
+            bar->setValue(job.percent);
+            text->addWidget(bar);
+            line->addLayout(text, 1);
+            auto *cross = new QPushButton(QStringLiteral("✕"), row);
+            cross->setToolTip(QStringLiteral("Отменить установку"));
+            auto *task = job.task;
+            QObject::connect(cross, &QPushButton::clicked, row, [task] { if (task) task->cancel(); });
+            line->addWidget(cross);
+            rows->addWidget(row);
+        }
+        all->setVisible(jobs.size() >= 2);
+    };
+    const int token = nextWatcher++;
+    watchers[token] = refresh;
+    QObject::connect(dialog, &QObject::destroyed, [token] { watchers.remove(token); });
+    refresh();
+    dialog->show();
+}
+}
+
 class ServerEditor : public QDialog {
     friend bool ::SaveVKRelayPreviews(const QString &directory);
     QJsonObject server;
@@ -518,6 +595,11 @@ class ServerEditor : public QDialog {
     void run(bool uninstall) {
         if (task->running())
             return;
+        // One operation per server: the same server may be open in another window.
+        if (server["kind"] == "mrtt" && MrttJobs::running(server["id"].toString())) {
+            step->setText(QStringLiteral("На этом сервере уже идёт операция"));
+            return;
+        }
         capture();
         if (uninstall &&
             QMessageBox::question(this, "Удалить сервис с VPS",
@@ -532,13 +614,18 @@ class ServerEditor : public QDialog {
         console->clear();
         progress->setValue(0);
         setBusy(true);
+        const bool mrttJob = server["kind"] == "mrtt";
+        const auto jobId = server["id"].toString();
+        if (mrttJob) MrttJobs::add({jobId, server["name"].toString().isEmpty() ? server["host"].toString() : server["name"].toString(), QStringLiteral("Подключение"), 0, task});
         auto requestServer = server;
         for (const auto &key : {"console", "status", "progress"})
             requestServer.remove(key);
         task->start({{"operation", uninstall ? "uninstall" : "deploy"}, {"server", requestServer}},
-                    [this](const QJsonObject &event) {
+                    [this, mrttJob, jobId](const QJsonObject &event) {
                         const auto type = event["type"].toString();
                         const auto text = event["text"].toString();
+                        if (mrttJob && type == "progress") MrttJobs::update(jobId, text, event["value"].isDouble() ? event["value"].toInt() : -1);
+                        if (mrttJob && type == "finished") MrttJobs::remove(jobId);
                         if (type == "trust")
                             task->approve(QMessageBox::question(this, "SSH-ключ VPS",
                                                                 "Первое подключение к " + server["host"].toString() +
@@ -1396,6 +1483,20 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
         pages->append(page);
         tabs->addTab(page, "Деплой " + kindTitle(kind));
         auto *pageLayout = new QVBoxLayout(page);
+        if (kind == "mrtt") {
+            // Seen only while installs run.
+            auto *jobsButton = new QPushButton(page);
+            jobsButton->hide();
+            pageLayout->addWidget(jobsButton);
+            connect(jobsButton, &QPushButton::clicked, this, [this] { MrttJobs::show(this); });
+            const int token = MrttJobs::nextWatcher++;
+            MrttJobs::watchers[token] = [jobsButton] {
+                jobsButton->setText(QStringLiteral("Идёт установка: %1").arg(MrttJobs::jobs.size()));
+                jobsButton->setVisible(!MrttJobs::jobs.isEmpty());
+            };
+            MrttJobs::watchers[token]();
+            connect(this, &QObject::destroyed, [token] { MrttJobs::watchers.remove(token); });
+        }
         auto *group = new QGroupBox("VPS для деплоя", page);
         pageLayout->addWidget(group);
         auto *groupLayout = new QVBoxLayout(group);
@@ -1405,7 +1506,8 @@ DialogVKRelay::DialogVKRelay(QWidget *parent) : QDialog(parent) {
         const auto open = [=, this](QJsonObject server) {
             auto *editor = new ServerEditor(server, persist, this, checkpoint);
             editor->setAttribute(Qt::WA_DeleteOnClose);
-            editor->setWindowModality(Qt::WindowModal);
+            // MRTT installs run side by side: its windows do not block each other or the status button.
+            if (server["kind"] != "mrtt") editor->setWindowModality(Qt::WindowModal);
             editor->show();
         };
         // A saved server opens its menu; "Управление сервером" there is this deploy editor.

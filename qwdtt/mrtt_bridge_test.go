@@ -100,6 +100,12 @@ func TestMRTTShareMatchesTheOriginalLink(t *testing.T) {
 	if again, err := mrttSharePayload(link, false); err != nil || again != plain {
 		t.Fatal(again, err)
 	}
+	// The original's scripts/make_mrtt_link.py gives this link for this text.
+	const original = "mrtt://nTNteRMGk2tTnQmI_H6q5mNe3lJzMk7-wseaQsVINHEs9GKcR2tnJvS8M9Pzd1WelBdgOiCID1JgCRTQr04fW4NAM4W60YCgCN9XmxfyvkAukfpDTETKanrWFsEFpzFjOHuwAZz0q8XpHK0kZRs1Y_ankEkJ4Ji6rXIdD6hfMCIpg00jLU_OG7WxrAeh"
+	made, err := mrttSharePayload("connect?v=2&host=vpn.example.com&peer=46000&password=abc123&jitsi=meet.example.org%2Froom&seats=6&transport=jitsi", true)
+	if err != nil || made != original {
+		t.Fatal(made, err)
+	}
 	sub, err := mrttSharePayload(`{"v":1}`, true)
 	if err != nil || !strings.HasPrefix(sub, "mrttsub://") {
 		t.Fatal(sub, err)
