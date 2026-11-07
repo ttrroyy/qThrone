@@ -4,6 +4,7 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFileInfo>
+#include <QHostAddress>
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <QUrl>
@@ -180,6 +181,22 @@ QString dnsHostPort(const QString &host, int port) {
 QString dnsEncodeAll(const QString &value) { return QString::fromLatin1(QUrl::toPercentEncoding(value)); }
 
 bool dnsHasLineBreak(const QString &value) { return value.contains('\n') || value.contains('\r'); }
+}
+
+QStringList dnstunnel::ResolverList(const QString &line) {
+    static const QRegularExpression separator("[,\\s]+");
+    static const QRegularExpression ipv4("^(\\d{1,3}(?:\\.\\d{1,3}){3})(?::\\d{1,5})?$");
+    static const QRegularExpression ipv6("^\\[([^\\]]+)\\](?::\\d{1,5})?$");
+    const auto tokens = line.split(separator, Qt::SkipEmptyParts);
+    for (const auto &token : tokens) {
+        const auto v4 = ipv4.match(token);
+        const auto v6 = ipv6.match(token);
+        QHostAddress address;
+        const bool valid = v4.hasMatch() ? address.setAddress(v4.captured(1)) && address.protocol() == QAbstractSocket::IPv4Protocol
+                                         : address.setAddress(v6.hasMatch() ? v6.captured(1) : token) && address.protocol() == QAbstractSocket::IPv6Protocol;
+        if (!valid) return {};
+    }
+    return tokens;
 }
 
 const QStringList &dnstunnel::Kinds() {

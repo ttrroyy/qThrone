@@ -823,10 +823,14 @@ namespace Subscription {
             const ParseSink &sink;
             int produced = 0;
             int reported = 0;
+            // The address lines of the text being read, for the DNS tunnels in it.
+            QJsonArray resolvers;
 
             void produce(ProfilePtr ent) {
                 if (ent == nullptr) return;
                 ++produced;
+                if (auto *tunnel = dynamic_cast<Configs::dnstunnel *>(ent->outbound.get());
+                    tunnel && !resolvers.isEmpty() && tunnel->data["resolvers"].toArray().isEmpty()) tunnel->data["resolvers"] = resolvers;
                 if (sink.profile) sink.profile(std::move(ent));
             }
 
@@ -964,7 +968,16 @@ namespace Subscription {
             }
 
             if (needParse && text.find('\n') != npos) {
-                scan::forEachItem(text, [&](std::string_view item) { document(item, true, false, depth + 1, overrideName); });
+                const auto addressLine = [](std::string_view line) { return Configs::dnstunnel::ResolverList(QString::fromUtf8(line.data(), static_cast<qsizetype>(line.size()))); };
+                const auto outer = resolvers;
+                QStringList found;
+                for (const auto &line : QString::fromUtf8(text.data(), static_cast<qsizetype>(text.size())).split('\n')) found += Configs::dnstunnel::ResolverList(line);
+                found.removeDuplicates();
+                if (!found.isEmpty()) resolvers = QJsonArray::fromStringList(found);
+                scan::forEachItem(text, [&](std::string_view item) {
+                    if (addressLine(item).isEmpty()) document(item, true, false, depth + 1, overrideName);
+                });
+                resolvers = outer;
                 return;
             }
 

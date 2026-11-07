@@ -1240,6 +1240,11 @@ proxies:
         const QByteArray white = R"({"schema":"whitedns.profile","version":1,"profile":{"name":"Iran","server":{"domain":"v.example.com","encryption_key":"k3y","encryption_method":2}}})";
         const auto whiteDns = read("masterdns://" + QString::fromLatin1(white.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)));
         check(whiteDns && whiteDns->type == "masterdns" && tunnel(whiteDns)->name == "Iran" && tunnel(whiteDns)->data["encryption"].toInt() == 2, "WhiteDNS MasterDNS link");
+        const auto listed = read("cottendns://" + QString::fromLatin1(white.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals)) + "\n\n\n46.243.233.247\n81.200.149.162:5353, [2001:db8::1]:53\n");
+        check(listed && tunnel(listed)->data["resolvers"].toArray() == QJsonArray{"46.243.233.247", "81.200.149.162:5353", "[2001:db8::1]:53"}, "address lines beside a link become its resolvers");
+        check(Configs::dnstunnel::ResolverList("999.1.1.1").isEmpty() && Configs::dnstunnel::ResolverList(QStringLiteral("1.1.1.1 канал")).isEmpty() && Configs::dnstunnel::ResolverList("").isEmpty(), "only plain address lines count as resolvers");
+        const auto keptOwn = read(R"([{"type":"cottendns","domain":"t.example.com","mkey":"k","encryption":5,"resolvers":["9.9.9.9"]}])" "\n1.1.1.1\n");
+        check(keptOwn && tunnel(keptOwn)->data["resolvers"].toArray() == QJsonArray{"9.9.9.9"}, "a profile's own resolvers stay");
         for (const auto &link : {QString("dnst://t.example.com/vaydns/ssh?pubkey=" + key + "&record-type=cname&user=tunnel&password=secret#Мой туннель"),
                                  QString("dnst://v.example.com/masterdns/socks?mkey=abcdef1234&encryption=3"), QString("dnst://a.example.com/slipstream/socks?cert=MIIBkTCB")}) {
             const auto first = read(link);

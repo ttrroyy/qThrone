@@ -14,6 +14,8 @@ public:
     static const QStringList &Kinds();
     static const QStringList &RecordTypes();
     static QString Title(const QString &kind);
+    // The resolvers on a line of plain addresses; channels post them under the link. Empty for any other line.
+    static QStringList ResolverList(const QString &line);
     // Which of the transports this profile is; the profile's type follows it.
     QString kind;
     // The dnst:// fields (domain, pubkey, resolvers, backend, ...), without type and name.
